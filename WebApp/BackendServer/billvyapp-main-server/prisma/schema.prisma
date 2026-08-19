@@ -1,0 +1,982 @@
+// =============================================================================
+// BillVyApp V2 — Prisma Schema
+// Database : MySQL 8 (billvyapp_v2)
+// Owner    : BackendServer/billvyapp-main-server (NestJS)
+// -----------------------------------------------------------------------------
+// Conventions used throughout this schema:
+//   * Primary keys       : UUID stored as VARCHAR(36) — one strategy, no mixing.
+//   * Table names        : snake_case plural via @@map. Column names stay camelCase.
+//   * Money              : Decimal(12,2)   Tax rates: Decimal(5,2)
+//   * Coordinates        : Decimal(10,7)   (never FLOAT)
+//   * Files              : only object-storage metadata lives in MySQL, never blobs.
+//   * description/notes  : always optional.
+//   * Delete behaviour   : financial + audit history is protected with Restrict.
+//                          Only owned child documents / media cascade.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  // The backend compiles to CommonJS. Without this the generated client emits
+  // `import.meta.url`, which Node reclassifies as ESM and then `exports` is
+  // undefined at runtime. Codegen directive only - affects no table or column.
+  moduleFormat = "cjs"
+}
+
+// Prisma 7 no longer accepts `url` here. The Migrate/introspection connection
+// string lives in prisma.config.ts; the runtime client is given a driver adapter.
+datasource db {
+  provider = "mysql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+enum SalonPhotoType {
+  FRONT
+  INTERIOR
+  RECEPTION
+  SERVICE_AREA
+  WAITING_AREA
+  OTHER
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PurchaseStatus {
+  DRAFT
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum StockMovementType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+  DAMAGE
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum BillStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+/// Aggregate settlement state of a Bill.
+enum BillPaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum BillItemType {
+  SERVICE
+  PRODUCT
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  WALLET
+  OTHER
+}
+
+/// State of a single Payment transaction (distinct from BillPaymentStatus).
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum LoyaltyTransactionType {
+  EARNED
+  REDEEMED
+  EXPIRED
+  ADJUSTED
+  BONUS
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+// =============================================================================
+// RBAC — ROLE / USER
+// =============================================================================
+
+/// RBAC roles. No separate permission table at this stage.
+/// Seeded codes: SUPER_ADMIN, ADMIN, MANAGER, STAFF, CUSTOMER
+model Role {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  name        String   @db.VarChar(100)
+  code        String   @unique @db.VarChar(50)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@index([isActive])
+  @@map("roles")
+}
+
+/// Every human that authenticates against the platform — including customers.
+/// Scope is expressed by roleId + franchiseId + salonId:
+///   SUPER_ADMIN : franchiseId NULL, salonId NULL  (global access)
+///   ADMIN       : franchiseId set,  salonId NULL  (franchise level)
+///   MANAGER     : franchiseId set,  salonId set
+///   STAFF       : franchiseId set,  salonId set
+///   CUSTOMER    : franchiseId NULL, salonId NULL  (own records only)
+model User {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  roleId       String    @db.VarChar(36)
+  franchiseId  String?   @db.VarChar(36)
+  salonId      String?   @db.VarChar(36)
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(191)
+  /// Indian mobile number, 10 digits, stored WITHOUT the +91 country code.
+  /// API layer must enforce ^[0-9]{10}$ before persisting.
+  phone        String?   @unique @db.VarChar(10)
+  /// Argon2/bcrypt digest only. A plain-text password must never reach this column.
+  passwordHash String    @db.VarChar(255)
+  profilePhoto String?   @db.VarChar(512)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  role      Role       @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  franchise Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  salon     Salon?     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  customer            Customer?
+  sessions            UserSession[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  staffAppointments   Appointment[]        @relation("AppointmentStaff")
+  staffAppointmentSvc AppointmentService[] @relation("AppointmentServiceStaff")
+  createdBills        Bill[]               @relation("BillCreatedBy")
+  createdStockMoves   StockMovement[]      @relation("StockMovementCreatedBy")
+  uploadedMediaFiles  MediaFile[]          @relation("MediaFileUploadedBy")
+
+  @@index([phone])
+  @@index([franchiseId, salonId])
+  @@index([roleId, isActive])
+  @@map("users")
+}
+
+/// Refresh/session tokens. Only a hash of the token is persisted — never the raw token.
+model UserSession {
+  id        String    @id @default(uuid()) @db.VarChar(36)
+  userId    String    @db.VarChar(36)
+  tokenHash String    @unique @db.VarChar(255)
+  ipAddress String?   @db.VarChar(45)
+  userAgent String?   @db.VarChar(512)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+// =============================================================================
+// TENANCY — FRANCHISE / SALON
+// =============================================================================
+
+model Franchise {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(191)
+  code      String   @unique @db.VarChar(50)
+  phone     String?  @db.VarChar(20)
+  email     String?  @db.VarChar(191)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salons Salon[]
+  users  User[]
+
+  @@index([isActive])
+  @@map("franchises")
+}
+
+model Salon {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  franchiseId   String   @db.VarChar(36)
+  name          String   @db.VarChar(191)
+  code          String   @db.VarChar(50)
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(191)
+  addressLine1  String   @db.VarChar(255)
+  addressLine2  String?  @db.VarChar(255)
+  city          String   @db.VarChar(100)
+  state         String   @db.VarChar(100)
+  country       String   @db.VarChar(100)
+  postalCode    String   @db.VarChar(20)
+  /// Required for map / directions features in the React Native app.
+  latitude      Decimal  @db.Decimal(10, 7)
+  longitude     Decimal  @db.Decimal(10, 7)
+  googlePlaceId String?  @db.VarChar(255)
+  mapAddress    String?  @db.Text
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  franchise Franchise @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  users               User[]
+  photos              SalonPhoto[]
+  serviceCategories   ServiceCategory[]
+  services            Service[]
+  productCategories   ProductCategory[]
+  products            Product[]
+  appointments        Appointment[]
+  purchases           Purchase[]
+  inventory           Inventory[]
+  stockMovements      StockMovement[]
+  bills               Bill[]
+  membershipPlans     MembershipPlan[]
+  loyaltyTransactions LoyaltyTransaction[]
+  mediaFiles          MediaFile[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+
+  /// Salon code is unique inside its franchise, not globally.
+  @@unique([franchiseId, code])
+  @@index([city])
+  @@index([franchiseId, isActive])
+  @@map("salons")
+}
+
+/// Object-storage metadata for salon imagery. Binary content lives in S3, never MySQL.
+model SalonPhoto {
+  id           String         @id @default(uuid()) @db.VarChar(36)
+  salonId      String         @db.VarChar(36)
+  storageKey   String         @db.VarChar(512)
+  fileName     String         @db.VarChar(255)
+  fileUrl      String?        @db.Text
+  mimeType     String         @db.VarChar(100)
+  fileSize     Int
+  photoType    SalonPhotoType @default(OTHER)
+  isPrimary    Boolean        @default(false)
+  displayOrder Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([salonId, photoType])
+  @@index([salonId, isPrimary])
+  @@map("salon_photos")
+}
+
+// =============================================================================
+// CUSTOMER
+// =============================================================================
+
+/// Customer profile extension of User. Identity fields (name / email / phone /
+/// password) are NOT duplicated here — they live on User.
+/// A customer is global: no mandatory salonId, can book at any salon.
+model Customer {
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  userId       String    @unique @db.VarChar(36)
+  customerCode String    @unique @db.VarChar(50)
+  dateOfBirth  DateTime? @db.Date
+  gender       Gender?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  addresses           CustomerAddress[]
+  appointments        Appointment[]
+  bills               Bill[]
+  memberships         Membership[]
+  loyaltyTransactions LoyaltyTransaction[]
+  notifications       Notification[]
+
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id           String      @id @default(uuid()) @db.VarChar(36)
+  customerId   String      @db.VarChar(36)
+  addressType  AddressType @default(HOME)
+  addressLine1 String      @db.VarChar(255)
+  addressLine2 String?     @db.VarChar(255)
+  city         String?     @db.VarChar(100)
+  state        String?     @db.VarChar(100)
+  country      String?     @db.VarChar(100)
+  postalCode   String?     @db.VarChar(20)
+  latitude     Decimal?    @db.Decimal(10, 7)
+  longitude    Decimal?    @db.Decimal(10, 7)
+  isDefault    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([customerId, isDefault])
+  @@map("customer_addresses")
+}
+
+// =============================================================================
+// SERVICE CATALOG
+// =============================================================================
+
+model ServiceCategory {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  salonId     String   @db.VarChar(36)
+  name        String   @db.VarChar(191)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  services Service[]
+
+  @@unique([salonId, name])
+  @@index([salonId, isActive])
+  @@map("service_categories")
+}
+
+model Service {
+  id              String   @id @default(uuid()) @db.VarChar(36)
+  salonId         String   @db.VarChar(36)
+  categoryId      String   @db.VarChar(36)
+  name            String   @db.VarChar(191)
+  description     String?  @db.Text
+  durationMinutes Int
+  price           Decimal  @db.Decimal(12, 2)
+  taxRate         Decimal  @default(0) @db.Decimal(5, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salon    Salon           @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  appointmentServices AppointmentService[]
+  billItems           BillItem[]
+
+  @@unique([salonId, name])
+  @@index([salonId, isActive])
+  @@index([categoryId])
+  @@map("services")
+}
+
+// =============================================================================
+// APPOINTMENTS
+// =============================================================================
+
+/// staffId is nullable on purpose: a customer may book "any available staff"
+/// from the mobile app and the salon assigns a person later.
+model Appointment {
+  id                String            @id @default(uuid()) @db.VarChar(36)
+  salonId           String            @db.VarChar(36)
+  customerId        String            @db.VarChar(36)
+  staffId           String?           @db.VarChar(36)
+  appointmentNumber String            @db.VarChar(50)
+  appointmentDate   DateTime          @db.Date
+  startTime         DateTime          @db.Time(0)
+  endTime           DateTime          @db.Time(0)
+  status            AppointmentStatus @default(PENDING)
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  salon    Salon    @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  staff    User?    @relation("AppointmentStaff", fields: [staffId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  services AppointmentService[]
+
+  /// Appointment number is unique per salon, not globally.
+  @@unique([salonId, appointmentNumber])
+  @@index([customerId])
+  @@index([appointmentDate])
+  @@index([salonId, appointmentDate])
+  @@index([salonId, status])
+  @@index([staffId, appointmentDate])
+  @@map("appointments")
+}
+
+/// One appointment can contain several services; each line may target its own staff.
+model AppointmentService {
+  id              String            @id @default(uuid()) @db.VarChar(36)
+  appointmentId   String            @db.VarChar(36)
+  serviceId       String            @db.VarChar(36)
+  staffId         String?           @db.VarChar(36)
+  price           Decimal           @db.Decimal(12, 2)
+  durationMinutes Int
+  status          AppointmentStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  staff       User?       @relation("AppointmentServiceStaff", fields: [staffId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([appointmentId])
+  @@index([serviceId])
+  @@index([staffId])
+  @@map("appointment_services")
+}
+
+// =============================================================================
+// PRODUCT CATALOG
+// =============================================================================
+
+model ProductCategory {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  salonId     String   @db.VarChar(36)
+  name        String   @db.VarChar(191)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  products Product[]
+
+  @@unique([salonId, name])
+  @@index([salonId, isActive])
+  @@map("product_categories")
+}
+
+model Product {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  salonId      String   @db.VarChar(36)
+  categoryId   String   @db.VarChar(36)
+  name         String   @db.VarChar(191)
+  sku          String   @db.VarChar(64)
+  barcode      String?  @db.VarChar(64)
+  description  String?  @db.Text
+  unit         String   @default("PCS") @db.VarChar(20)
+  costPrice    Decimal  @default(0) @db.Decimal(12, 2)
+  sellingPrice Decimal  @db.Decimal(12, 2)
+  taxRate      Decimal  @default(0) @db.Decimal(5, 2)
+  reorderLevel Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  salon    Salon           @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  vendors        ProductVendor[]
+  purchaseItems  PurchaseItem[]
+  inventory      Inventory[]
+  stockMovements StockMovement[]
+  billItems      BillItem[]
+
+  /// SKU / barcode are unique within a salon, never globally.
+  @@unique([salonId, sku])
+  @@unique([salonId, barcode])
+  @@index([salonId, isActive])
+  @@index([categoryId])
+  @@index([name])
+  @@map("products")
+}
+
+// =============================================================================
+// VENDORS
+// =============================================================================
+
+/// Businesses a salon purchases stock from. A separate entity from Customer.
+model Vendor {
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  name          String   @db.VarChar(191)
+  code          String   @unique @db.VarChar(50)
+  contactPerson String?  @db.VarChar(191)
+  phone         String?  @db.VarChar(20)
+  email         String?  @db.VarChar(191)
+  gstNumber     String?  @db.VarChar(30)
+  taxNumber     String?  @db.VarChar(50)
+  addressLine1  String?  @db.VarChar(255)
+  addressLine2  String?  @db.VarChar(255)
+  city          String?  @db.VarChar(100)
+  state         String?  @db.VarChar(100)
+  country       String?  @db.VarChar(100)
+  postalCode    String?  @db.VarChar(20)
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  notes         String?  @db.Text
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products  ProductVendor[]
+  purchases Purchase[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("vendors")
+}
+
+/// N-N join: a product may be sourced from several vendors.
+model ProductVendor {
+  id                String   @id @default(uuid()) @db.VarChar(36)
+  productId         String   @db.VarChar(36)
+  vendorId          String   @db.VarChar(36)
+  vendorProductCode String?  @db.VarChar(100)
+  purchasePrice     Decimal? @db.Decimal(12, 2)
+  isPreferred       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  vendor  Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([productId, vendorId])
+  @@index([vendorId])
+  @@index([productId, isPreferred])
+  @@map("product_vendors")
+}
+
+// =============================================================================
+// PURCHASING
+// =============================================================================
+
+model Purchase {
+  id                  String         @id @default(uuid()) @db.VarChar(36)
+  salonId             String         @db.VarChar(36)
+  vendorId            String         @db.VarChar(36)
+  purchaseNumber      String         @db.VarChar(50)
+  vendorInvoiceNumber String?        @db.VarChar(100)
+  purchaseDate        DateTime       @db.Date
+  subtotal            Decimal        @default(0) @db.Decimal(12, 2)
+  discount            Decimal        @default(0) @db.Decimal(12, 2)
+  tax                 Decimal        @default(0) @db.Decimal(12, 2)
+  total               Decimal        @default(0) @db.Decimal(12, 2)
+  status              PurchaseStatus @default(DRAFT)
+  notes               String?        @db.Text
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  salon  Salon  @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  items PurchaseItem[]
+
+  /// Purchase number is unique per salon.
+  @@unique([salonId, purchaseNumber])
+  @@index([vendorId])
+  @@index([purchaseDate])
+  @@index([salonId, purchaseDate])
+  @@index([salonId, status])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  purchaseId String   @db.VarChar(36)
+  productId  String   @db.VarChar(36)
+  quantity   Int
+  unitCost   Decimal  @db.Decimal(12, 2)
+  discount   Decimal  @default(0) @db.Decimal(12, 2)
+  tax        Decimal  @default(0) @db.Decimal(12, 2)
+  total      Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  /// Line items are part of the purchase document, so they follow it.
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([purchaseId])
+  @@index([productId])
+  @@map("purchase_items")
+}
+
+// =============================================================================
+// INVENTORY
+// =============================================================================
+
+/// Current stock position of one product in one salon.
+model Inventory {
+  id                String    @id @default(uuid()) @db.VarChar(36)
+  salonId           String    @db.VarChar(36)
+  productId         String    @db.VarChar(36)
+  quantityOnHand    Int       @default(0)
+  reservedQuantity  Int       @default(0)
+  availableQuantity Int       @default(0)
+  averageCost       Decimal   @default(0) @db.Decimal(12, 2)
+  lastPurchasePrice Decimal?  @db.Decimal(12, 2)
+  lastStockedAt     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  salon   Salon   @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([salonId, productId])
+  @@index([productId])
+  @@map("inventory")
+}
+
+/// Append-only stock ledger. Rows are never mutated, hence no updatedAt.
+model StockMovement {
+  id            String            @id @default(uuid()) @db.VarChar(36)
+  salonId       String            @db.VarChar(36)
+  productId     String            @db.VarChar(36)
+  movementType  StockMovementType
+  quantity      Int
+  /// Polymorphic pointer to the originating document (e.g. "PURCHASE", "BILL").
+  referenceType String?           @db.VarChar(50)
+  referenceId   String?           @db.VarChar(36)
+  unitCost      Decimal?          @db.Decimal(12, 2)
+  balanceAfter  Int
+  notes         String?           @db.Text
+  createdBy     String?           @db.VarChar(36)
+  createdAt     DateTime          @default(now())
+
+  salon         Salon   @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product       Product @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdByUser User?   @relation("StockMovementCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([productId])
+  @@index([createdBy])
+  @@index([movementType])
+  @@index([salonId, productId, createdAt])
+  @@index([referenceType, referenceId])
+  @@map("stock_movements")
+}
+
+// =============================================================================
+// BILLING
+// =============================================================================
+
+/// Invoice document. The table is deliberately named "bills" (not invoices).
+model Bill {
+  id            String            @id @default(uuid()) @db.VarChar(36)
+  salonId       String            @db.VarChar(36)
+  customerId    String            @db.VarChar(36)
+  billNumber    String            @db.VarChar(50)
+  billDate      DateTime
+  subtotal      Decimal           @default(0) @db.Decimal(12, 2)
+  discount      Decimal           @default(0) @db.Decimal(12, 2)
+  tax           Decimal           @default(0) @db.Decimal(12, 2)
+  roundOff      Decimal           @default(0) @db.Decimal(10, 2)
+  total         Decimal           @default(0) @db.Decimal(12, 2)
+  paidAmount    Decimal           @default(0) @db.Decimal(12, 2)
+  dueAmount     Decimal           @default(0) @db.Decimal(12, 2)
+  status        BillStatus        @default(DRAFT)
+  paymentStatus BillPaymentStatus @default(UNPAID)
+  notes         String?           @db.Text
+  createdBy     String?           @db.VarChar(36)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  salon         Salon    @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdByUser User?    @relation("BillCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  items     BillItem[]
+  payments  Payment[]
+  documents BillDocument[]
+
+  /// Bill number is unique per salon.
+  @@unique([salonId, billNumber])
+  @@index([customerId])
+  @@index([createdBy])
+  @@index([billDate])
+  @@index([salonId, billDate])
+  @@index([salonId, status])
+  @@index([salonId, paymentStatus])
+  @@index([customerId, billDate])
+  @@map("bills")
+}
+
+/// A bill line is either a SERVICE or a PRODUCT — exactly one of
+/// serviceId / productId is populated, so both columns are nullable.
+model BillItem {
+  id          String       @id @default(uuid()) @db.VarChar(36)
+  billId      String       @db.VarChar(36)
+  itemType    BillItemType
+  serviceId   String?      @db.VarChar(36)
+  productId   String?      @db.VarChar(36)
+  description String?      @db.Text
+  quantity    Int          @default(1)
+  unitPrice   Decimal      @db.Decimal(12, 2)
+  discount    Decimal      @default(0) @db.Decimal(12, 2)
+  taxRate     Decimal      @default(0) @db.Decimal(5, 2)
+  taxAmount   Decimal      @default(0) @db.Decimal(12, 2)
+  total       Decimal      @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  bill    Bill     @relation(fields: [billId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([billId])
+  @@index([serviceId])
+  @@index([productId])
+  @@index([itemType])
+  @@map("bill_items")
+}
+
+/// A bill may be settled by several payments (split / partial payment).
+/// onDelete is Restrict: a bill that already has payments cannot be deleted.
+model Payment {
+  id                   String        @id @default(uuid()) @db.VarChar(36)
+  billId               String        @db.VarChar(36)
+  amount               Decimal       @db.Decimal(12, 2)
+  paymentMethod        PaymentMethod
+  transactionReference String?       @db.VarChar(191)
+  paymentDate          DateTime      @default(now())
+  status               PaymentStatus @default(SUCCESS)
+  notes                String?       @db.Text
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  bill Bill @relation(fields: [billId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([billId])
+  @@index([paymentDate])
+  @@index([status])
+  @@index([paymentMethod])
+  @@map("payments")
+}
+
+/// Generated PDF / receipt metadata for a bill. The binary stays in S3.
+model BillDocument {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  billId     String   @db.VarChar(36)
+  storageKey String   @db.VarChar(512)
+  fileName   String   @db.VarChar(255)
+  fileUrl    String?  @db.Text
+  mimeType   String   @db.VarChar(100)
+  fileSize   Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  bill Bill @relation(fields: [billId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([billId])
+  @@map("bill_documents")
+}
+
+// =============================================================================
+// MEMBERSHIP & LOYALTY
+// =============================================================================
+
+model MembershipPlan {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  salonId      String   @db.VarChar(36)
+  name         String   @db.VarChar(191)
+  description  String?  @db.Text
+  price        Decimal  @db.Decimal(12, 2)
+  durationDays Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  salon       Salon        @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  memberships Membership[]
+
+  @@unique([salonId, name])
+  @@index([salonId, isActive])
+  @@map("membership_plans")
+}
+
+model Membership {
+  id               String           @id @default(uuid()) @db.VarChar(36)
+  customerId       String           @db.VarChar(36)
+  membershipPlanId String           @db.VarChar(36)
+  startDate        DateTime         @db.Date
+  endDate          DateTime         @db.Date
+  status           MembershipStatus @default(ACTIVE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([customerId])
+  @@index([membershipPlanId])
+  @@index([status, endDate])
+  @@map("memberships")
+}
+
+/// Append-only points ledger. Negative points represent redemptions.
+model LoyaltyTransaction {
+  id              String                 @id @default(uuid()) @db.VarChar(36)
+  customerId      String                 @db.VarChar(36)
+  /// Nullable so head-office / promotional adjustments are not tied to one salon.
+  salonId         String?                @db.VarChar(36)
+  points          Int
+  transactionType LoyaltyTransactionType
+  referenceType   String?                @db.VarChar(50)
+  referenceId     String?                @db.VarChar(36)
+  description     String?                @db.Text
+  createdAt       DateTime               @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  salon    Salon?   @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([customerId, createdAt])
+  @@index([salonId])
+  @@index([transactionType])
+  @@index([referenceType, referenceId])
+  @@map("loyalty_transactions")
+}
+
+// =============================================================================
+// MEDIA
+// =============================================================================
+
+/// Reusable object-storage reference, attachable to any entity.
+model MediaFile {
+  id               String   @id @default(uuid()) @db.VarChar(36)
+  salonId          String?  @db.VarChar(36)
+  uploadedBy       String?  @db.VarChar(36)
+  storageProvider  String   @default("S3") @db.VarChar(50)
+  storageKey       String   @unique @db.VarChar(512)
+  originalFileName String   @db.VarChar(255)
+  mimeType         String   @db.VarChar(100)
+  fileSize         Int
+  entityType       String?  @db.VarChar(50)
+  entityId         String?  @db.VarChar(36)
+  createdAt        DateTime @default(now())
+
+  salon          Salon? @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByUser User?  @relation("MediaFileUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([salonId])
+  @@index([uploadedBy])
+  @@index([entityType, entityId])
+  @@map("media_files")
+}
+
+// =============================================================================
+// NOTIFICATIONS
+// =============================================================================
+
+/// Outbound message log across WhatsApp / Email / SMS. Kept intentionally lean
+/// so new channels and providers can be added without restructuring.
+model Notification {
+  id                String              @id @default(uuid()) @db.VarChar(36)
+  salonId           String?             @db.VarChar(36)
+  userId            String?             @db.VarChar(36)
+  customerId        String?             @db.VarChar(36)
+  channel           NotificationChannel
+  /// Business event, e.g. "APPOINTMENT_REMINDER", "BILL_RECEIPT".
+  notificationType  String              @db.VarChar(100)
+  /// Phone number or email address the message was dispatched to.
+  recipient         String              @db.VarChar(191)
+  subject           String?             @db.VarChar(255)
+  message           String              @db.Text
+  status            NotificationStatus  @default(PENDING)
+  provider          String?             @db.VarChar(100)
+  providerReference String?             @db.VarChar(191)
+  errorMessage      String?             @db.Text
+  retryCount        Int                 @default(0)
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  salon    Salon?    @relation(fields: [salonId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([salonId])
+  @@index([userId])
+  @@index([customerId])
+  @@index([status, channel])
+  @@index([recipient])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// =============================================================================
+// AUDIT
+// =============================================================================
+
+/// Immutable audit trail. Both FKs use Restrict so audit rows can never be
+/// removed as a side effect of deleting a user or a salon.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.VarChar(36)
+  userId     String?  @db.VarChar(36)
+  salonId    String?  @db.VarChar(36)
+  action     String   @db.VarChar(100)
+  entityType String   @db.VarChar(100)
+  entityId   String?  @db.VarChar(36)
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(512)
+  createdAt  DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  salon Salon? @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([salonId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
