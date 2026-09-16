@@ -1,8 +1,10 @@
 import { RoleCode } from '../enums/role.enum';
+import type { JwtTokenType } from '../../auth/auth.constants';
 
 /**
  * The request-scoped identity produced by JwtStrategy.validate().
- * franchiseId/salonId carry the data scope enforced by ScopeService.
+ * Role and franchiseId/salonId are always re-read from the database; JWT
+ * claims are not trusted as the source of authorization.
  */
 export interface AuthenticatedUser {
   userId: string;
@@ -15,14 +17,15 @@ export interface AuthenticatedUser {
 
 export interface JwtAccessPayload {
   sub: string;
-  email: string;
   role: RoleCode;
   franchiseId: string | null;
   salonId: string | null;
-  sid: string | null;
+  type: JwtTokenType;
+  sessionId: string;
 }
 
 export interface JwtRefreshPayload {
   sub: string;
-  sid: string;
+  type: JwtTokenType;
+  sessionId: string;
 }

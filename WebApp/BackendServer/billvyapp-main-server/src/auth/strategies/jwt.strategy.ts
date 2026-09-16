@@ -2,11 +2,11 @@
 //
 // passport-jwt ships no type declarations and @types/passport-jwt is NOT
 // installed in this project, so ExtractJwt and Strategy resolve as untyped.
-// Installing @types/passport-jwt removes the need for this file-level disable.
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { JWT_TYPE_ACCESS } from '../auth.constants';
 import { RoleCode } from '../../common/enums/role.enum';
 import {
   AuthenticatedUser,
@@ -18,9 +18,9 @@ import { SessionService } from '../session.service';
 /**
  * Validates the access token, then re-checks the account against the database.
  *
- * The DB round-trip is intentional: a signature-only check would keep honouring
- * tokens belonging to accounts that have since been deactivated or logged out.
- * Scope claims are re-read from the row, never taken from the token body.
+ * Role, franchiseId and salonId are taken from the current User row, never
+ * from the token body. A signature-only check would keep honouring tokens
+ * belonging to accounts that have since been deactivated or logged out.
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -37,6 +37,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtAccessPayload): Promise<AuthenticatedUser> {
+    if (payload.type !== JWT_TYPE_ACCESS || !payload.sub) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
@@ -53,7 +57,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Authentication required');
     }
 
-    if (payload.sid && !(await this.sessions.isActive(payload.sid))) {
+    if (
+      payload.sessionId &&
+      !(await this.sessions.isActive(payload.sessionId))
+    ) {
       throw new UnauthorizedException('Authentication required');
     }
 
@@ -63,7 +70,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       role: user.role.code as RoleCode,
       franchiseId: user.franchiseId,
       salonId: user.salonId,
-      sessionId: payload.sid ?? null,
+      sessionId: payload.sessionId ?? null,
     };
   }
 }

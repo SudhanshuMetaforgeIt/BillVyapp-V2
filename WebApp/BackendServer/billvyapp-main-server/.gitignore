@@ -42,6 +42,10 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Local media uploads (STORAGE_PROVIDER=local)
+/storage
+/uploads
+
 # temp directory
 .temp
 .tmp

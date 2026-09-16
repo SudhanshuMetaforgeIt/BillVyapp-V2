@@ -149,10 +149,11 @@ ios/*.xcodeproj/xcuserdata/
 *.generated.js
 
 # ------------------------------------------------------------
-# Uploads / Local storage
+# Uploads / Local storage (runtime files only — not source modules)
 # ------------------------------------------------------------
 uploads/
-storage/
+/storage/
+WebApp/BackendServer/billvyapp-main-server/storage/
 # Anchored to the repo root: an unanchored `media/` also matches source folders
 # such as BackendServer/billvyapp-main-server/src/media/ (the MediaModule).
 /media/

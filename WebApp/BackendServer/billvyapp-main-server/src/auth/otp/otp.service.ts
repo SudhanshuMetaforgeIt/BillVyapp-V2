@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'node:crypto';
 import { PasswordService } from '../password.service';
@@ -15,50 +15,79 @@ export class OtpService {
   ) {}
 
   /**
-   * Generates, stores (hashed) and dispatches a code.
-   *
-   * Callers must invoke this only for phone numbers that exist, but must return
-   * an identical response either way so the endpoint cannot be used to
-   * enumerate registered accounts.
+   * Claims the per-phone resend slot. Must be called for every send-otp
+   * request, including unknown numbers, so HTTP 429 cannot enumerate accounts.
    */
-  async issue(phone: string): Promise<void> {
-    const length = this.config.get<number>('otp.length', 6);
-    const ttl = this.config.get<number>('otp.expirySeconds', 300);
-
-    const code = this.generateCode(length);
-
-    await this.store.set(phone, {
-      codeHash: await this.passwords.hash(code),
-      expiresAt: Date.now() + ttl * 1000,
-      attempts: 0,
-    });
-
-    await this.sender.send(phone, code);
+  async consumeResendSlot(phone: string): Promise<void> {
+    const ttl = this.config.get<number>('otp.resendSeconds', 60);
+    const acquired = await this.store.acquireResendSlot(phone, ttl);
+    if (!acquired) {
+      throw new HttpException(
+        'Please wait before requesting another code',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 
   /**
-   * Single-use verification. The record is consumed on success and on
-   * exhausting the attempt budget, so a code can never be replayed.
+   * Generates a cryptographically secure OTP, stores only its hash, and
+   * dispatches via the bound sender. Overwrites any previous code (single
+   * active OTP per phone). Returns the plaintext code so the caller can
+   * optionally include it as `devOtp` in non-production.
+   */
+  async issue(phone: string): Promise<string> {
+    const length = this.config.get<number>('otp.length', 6);
+    const ttl = this.config.get<number>('otp.expirySeconds', 300);
+    const code = this.generateCode(length);
+
+    await this.store.saveHash(phone, await this.passwords.hash(code), ttl);
+    await this.store.resetAttempts(phone);
+    await this.sender.send(phone, code);
+
+    return code;
+  }
+
+  /**
+   * Single-use verification. The hash is deleted on success so a code cannot
+   * be replayed. Exhausting the attempt budget also deletes the hash.
+   *
+   * Returns false for missing / expired / wrong codes.
+   * Throws HttpException 429 when the attempt budget is spent.
    */
   async verify(phone: string, code: string): Promise<boolean> {
-    const record = await this.store.get(phone);
-    if (!record) return false;
-
     const maxAttempts = this.config.get<number>('otp.maxAttempts', 5);
+    const ttl = this.config.get<number>('otp.expirySeconds', 300);
 
-    if (record.attempts >= maxAttempts) {
-      await this.store.delete(phone);
+    const attempts = await this.store.getAttempts(phone);
+    if (attempts >= maxAttempts) {
+      await this.store.deleteHash(phone);
+      throw new HttpException(
+        'Too many verification attempts',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const storedHash = await this.store.getHash(phone);
+    if (!storedHash) {
       return false;
     }
 
-    const matches = await this.passwords.verify(record.codeHash, code);
+    const matches = await this.passwords.verify(storedHash, code);
 
     if (!matches) {
-      await this.store.set(phone, { ...record, attempts: record.attempts + 1 });
+      const next = await this.store.incrementAttempts(phone, ttl);
+      if (next >= maxAttempts) {
+        await this.store.deleteHash(phone);
+        throw new HttpException(
+          'Too many verification attempts',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
       return false;
     }
 
-    await this.store.delete(phone);
+    await this.store.deleteHash(phone);
+    await this.store.resetAttempts(phone);
     return true;
   }
 
