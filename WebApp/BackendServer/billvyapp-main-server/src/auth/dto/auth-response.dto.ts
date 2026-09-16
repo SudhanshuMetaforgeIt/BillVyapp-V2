@@ -1,13 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthUserDto {
   @ApiProperty() id: string;
-  @ApiProperty() email: string;
   @ApiProperty() firstName: string;
   @ApiProperty() lastName: string;
-  @ApiProperty({ example: 'MANAGER' }) role: string;
+  @ApiProperty() email: string;
+  @ApiProperty({ nullable: true, example: '9876543210' }) phone: string | null;
+  @ApiProperty({ example: 'ADMIN' }) role: string;
   @ApiProperty({ nullable: true }) franchiseId: string | null;
   @ApiProperty({ nullable: true }) salonId: string | null;
+  @ApiProperty({ nullable: true }) profilePhoto: string | null;
+  @ApiProperty() isActive: boolean;
 }
 
 export class AuthTokensDto {
@@ -21,8 +24,18 @@ export class AuthResponseDto extends AuthTokensDto {
 }
 
 export class MessageResponseDto {
-  @ApiProperty({
-    example: 'If the number is registered, a code has been sent.',
-  })
+  @ApiProperty({ example: 'OTP request processed successfully.' })
   message: string;
+}
+
+export class SendOtpResponseDto {
+  @ApiProperty({ example: 'OTP request processed successfully.' })
+  message: string;
+
+  @ApiPropertyOptional({
+    example: '482913',
+    description:
+      'Returned only when NODE_ENV is not production AND DEV_OTP_ENABLED=true. Never present in production.',
+  })
+  devOtp?: string;
 }

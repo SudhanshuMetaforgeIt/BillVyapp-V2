@@ -1,5 +1,7 @@
-import { plainToInstance } from 'class-transformer';
+import { Transform, plainToInstance } from 'class-transformer';
 import {
+  IsBoolean,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -55,8 +57,88 @@ class EnvironmentVariables {
   OTP_EXPIRY_SECONDS?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  OTP_MAX_ATTEMPTS?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  OTP_RESEND_SECONDS?: number;
+
+  @IsOptional()
   @IsString()
   REDIS_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  APP_URL?: string;
+
+  @IsOptional()
+  @IsIn(['local', 's3', 'LOCAL', 'S3'])
+  STORAGE_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_LOCAL_ROOT?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_SIGNING_SECRET?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  STORAGE_PRESIGN_EXPIRES_SECONDS?: number;
+
+  @IsOptional()
+  @IsString()
+  S3_REGION?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_BUCKET?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_ACCESS_KEY_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_SECRET_ACCESS_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  S3_ENDPOINT?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    return value === true || value === 'true' || value === '1';
+  })
+  @IsBoolean()
+  S3_FORCE_PATH_STYLE?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  S3_PRESIGN_EXPIRES_SECONDS?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    return value === true || value === 'true' || value === '1';
+  })
+  @IsBoolean()
+  DEV_OTP_ENABLED?: boolean;
+
+  @IsOptional()
+  @IsIn(['development', 'production', 'test'])
+  NODE_ENV?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -71,6 +153,12 @@ export function validateEnv(config: Record<string, unknown>) {
       .map((e) => '  - ' + Object.values(e.constraints ?? {}).join(', '))
       .join('\n');
     throw new Error('Invalid environment configuration:\n' + details);
+  }
+
+  if (validated.JWT_ACCESS_SECRET === validated.JWT_REFRESH_SECRET) {
+    throw new Error(
+      'Invalid environment configuration:\n  - JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',
+    );
   }
 
   return validated;

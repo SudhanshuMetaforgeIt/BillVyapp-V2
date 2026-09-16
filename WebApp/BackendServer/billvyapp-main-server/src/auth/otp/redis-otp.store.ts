@@ -1,65 +1,82 @@
 import { Injectable } from '@nestjs/common';
 import { RedisService } from '../../redis/redis.service';
-import type { OtpRecord, OtpStore } from './otp.contracts';
+import type { OtpStore } from './otp.contracts';
 
 /**
- * Redis-backed pending OTP storage.
+ * Redis-backed OTP storage.
  *
- * Survives restarts and is shared across instances, which the previous
- * in-memory store could not do. Only the HASH of the code is stored; the
- * plaintext code is never persisted.
+ * Keys:
+ *   otp:login:{phone}     hashed OTP, TTL = OTP expiry
+ *   otp:attempts:{phone}  verification attempt counter
+ *   otp:resend:{phone}    resend cooldown flag
  *
- * Every write carries a TTL derived from the record's own expiry, so an
- * abandoned code disappears on its own even if verification is never attempted.
+ * Only hashes are stored. The plaintext code never reaches Redis or MySQL.
  */
 @Injectable()
 export class RedisOtpStore implements OtpStore {
-  private static readonly PREFIX = 'otp:';
-
   constructor(private readonly redis: RedisService) {}
 
-  async get(phone: string): Promise<OtpRecord | null> {
-    const raw = await this.redis.client.get(this.key(phone));
-    if (!raw) return null;
-
-    let record: OtpRecord;
-    try {
-      record = JSON.parse(raw) as OtpRecord;
-    } catch {
-      // Unreadable entry is treated as absent, and cleaned up.
-      await this.delete(phone);
-      return null;
-    }
-
-    if (record.expiresAt <= Date.now()) {
-      await this.delete(phone);
-      return null;
-    }
-
-    return record;
-  }
-
-  async set(phone: string, record: OtpRecord): Promise<void> {
-    // TTL is recomputed from the record rather than reset to the full window,
-    // so incrementing the attempt counter cannot extend the code's lifetime.
-    const ttlSeconds = Math.max(
-      1,
-      Math.ceil((record.expiresAt - Date.now()) / 1000),
-    );
-
+  async saveHash(
+    phone: string,
+    codeHash: string,
+    ttlSeconds: number,
+  ): Promise<void> {
     await this.redis.client.set(
-      this.key(phone),
-      JSON.stringify(record),
+      this.loginKey(phone),
+      codeHash,
       'EX',
       ttlSeconds,
     );
   }
 
-  async delete(phone: string): Promise<void> {
-    await this.redis.client.del(this.key(phone));
+  async getHash(phone: string): Promise<string | null> {
+    return this.redis.client.get(this.loginKey(phone));
   }
 
-  private key(phone: string): string {
-    return `${RedisOtpStore.PREFIX}${phone}`;
+  async deleteHash(phone: string): Promise<void> {
+    await this.redis.client.del(this.loginKey(phone));
+  }
+
+  async getAttempts(phone: string): Promise<number> {
+    const raw = await this.redis.client.get(this.attemptsKey(phone));
+    if (!raw) return 0;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  async incrementAttempts(phone: string, ttlSeconds: number): Promise<number> {
+    const key = this.attemptsKey(phone);
+    const next = await this.redis.client.incr(key);
+    if (next === 1) {
+      await this.redis.client.expire(key, ttlSeconds);
+    }
+    return next;
+  }
+
+  async resetAttempts(phone: string): Promise<void> {
+    await this.redis.client.del(this.attemptsKey(phone));
+  }
+
+  async acquireResendSlot(phone: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redis.client.set(
+      this.resendKey(phone),
+      '1',
+      'EX',
+      ttlSeconds,
+      'NX',
+    );
+    return result === 'OK';
+  }
+
+  private loginKey(phone: string): string {
+    return `otp:login:${phone}`;
+  }
+
+  private attemptsKey(phone: string): string {
+    return `otp:attempts:${phone}`;
+  }
+
+  private resendKey(phone: string): string {
+    return `otp:resend:${phone}`;
   }
 }

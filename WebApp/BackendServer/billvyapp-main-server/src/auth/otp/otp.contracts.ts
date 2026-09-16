@@ -1,28 +1,36 @@
 /**
  * Provider-agnostic OTP contracts.
  *
- * No SMS vendor is referenced anywhere in this file or its implementations.
- * Wiring a real provider later means supplying a different OtpSender binding
- * in AuthModule; nothing else changes.
+ * OTP values live in Redis only. Nothing here writes to MySQL.
+ * Wiring a real SMS provider later means supplying a different OtpSender
+ * binding in AuthModule; nothing else changes.
  */
 
 export const OTP_STORE = Symbol('OTP_STORE');
 export const OTP_SENDER = Symbol('OTP_SENDER');
 
-export interface OtpRecord {
-  /** Hash of the code. The plaintext code is never retained. */
-  codeHash: string;
-  expiresAt: number;
-  attempts: number;
-}
-
 export interface OtpStore {
-  get(phone: string): Promise<OtpRecord | null>;
-  set(phone: string, record: OtpRecord): Promise<void>;
-  delete(phone: string): Promise<void>;
+  /** Overwrites any previous OTP for this phone (invalidates the old code). */
+  saveHash(phone: string, codeHash: string, ttlSeconds: number): Promise<void>;
+  getHash(phone: string): Promise<string | null>;
+  deleteHash(phone: string): Promise<void>;
+
+  getAttempts(phone: string): Promise<number>;
+  incrementAttempts(phone: string, ttlSeconds: number): Promise<number>;
+  resetAttempts(phone: string): Promise<void>;
+
+  /**
+   * Atomically claims a resend slot. Returns false if a recent request is
+   * still within the cooldown window.
+   */
+  acquireResendSlot(phone: string, ttlSeconds: number): Promise<boolean>;
 }
 
 export interface OtpSender {
-  /** Delivers the code out-of-band. Implementations must not log the code. */
+  /**
+   * Delivers the code out-of-band.
+   * Implementations must not log the code unless development OTP mode is on
+   * AND the process is not production.
+   */
   send(phone: string, code: string): Promise<void>;
 }

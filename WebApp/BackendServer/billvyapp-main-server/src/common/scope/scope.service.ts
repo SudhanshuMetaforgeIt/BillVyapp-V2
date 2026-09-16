@@ -74,6 +74,88 @@ export class ScopeService {
     return {};
   }
 
+  /** Scope fragment for the `users` table. */
+  userTableScope(user: AuthenticatedUser): Record<string, unknown> {
+    switch (user.role) {
+      case RoleCode.SUPER_ADMIN:
+        return {};
+      case RoleCode.ADMIN:
+        return { franchiseId: this.requireFranchise(user) };
+      case RoleCode.MANAGER:
+      case RoleCode.STAFF:
+        return { salonId: this.requireSalon(user) };
+      case RoleCode.CUSTOMER:
+        return { id: user.userId };
+      default:
+        throw new ForbiddenException('Unknown role scope');
+    }
+  }
+
+  /**
+   * Scope fragment for the `customers` table.
+   *
+   * Customers are global (no salonId on the row). SUPER_ADMIN sees everyone.
+   * CUSTOMER sees only their own profile. ADMIN / MANAGER / STAFF need a
+   * customer directory for salon operations (walk-in lookup, booking) so they
+   * are not limited to prior appointments — those relations are not guaranteed
+   * in this phase. Optional `salonId` list filters use
+   * {@link customerSalonAssociation} after {@link assertSalonAccess}.
+   */
+  customerTableScope(user: AuthenticatedUser): Record<string, unknown> {
+    switch (user.role) {
+      case RoleCode.SUPER_ADMIN:
+      case RoleCode.ADMIN:
+      case RoleCode.MANAGER:
+      case RoleCode.STAFF:
+        return {};
+      case RoleCode.CUSTOMER:
+        return { userId: user.userId };
+      default:
+        throw new ForbiddenException('Unknown role scope');
+    }
+  }
+
+  /**
+   * Customers associated with a salon via appointments or bills.
+   * Spread into a customer `where` after verifying salon access.
+   */
+  customerSalonAssociation(salonId: string): Record<string, unknown> {
+    return {
+      OR: [
+        { appointments: { some: { salonId } } },
+        { bills: { some: { salonId } } },
+      ],
+    };
+  }
+
+  /**
+   * Row-level check for a specific customer id.
+   *
+   * CUSTOMER may only touch their own profile. Staff roles may access any
+   * existing customer (global profiles, salon operations). SUPER_ADMIN is
+   * unrestricted. Missing rows are a 404 for the caller to raise.
+   */
+  async assertCustomerAccess(
+    user: AuthenticatedUser,
+    customerId: string,
+  ): Promise<void> {
+    if (user.role === RoleCode.CUSTOMER) {
+      await this.assertOwnCustomerAccess(user, customerId);
+      return;
+    }
+
+    if (
+      user.role === RoleCode.SUPER_ADMIN ||
+      user.role === RoleCode.ADMIN ||
+      user.role === RoleCode.MANAGER ||
+      user.role === RoleCode.STAFF
+    ) {
+      return;
+    }
+
+    throw new ForbiddenException('Customer record outside your scope');
+  }
+
   /**
    * Verifies the caller may act on a given salon, resolving the salon's
    * franchise from the database rather than trusting the request.
@@ -127,7 +209,8 @@ export class ScopeService {
 
   /**
    * Resolves the customer row owned by the caller. Customers may only ever
-   * read their own customer-linked data.
+   * read their own customer-linked data. Never trust a client-supplied
+   * customerId as identity.
    */
   async requireOwnCustomerId(user: AuthenticatedUser): Promise<string> {
     const customer = await this.prisma.customer.findUnique({
@@ -141,6 +224,25 @@ export class ScopeService {
       );
     }
     return customer.id;
+  }
+
+  /**
+   * Customer self-access: the authenticated CUSTOMER may only touch their
+   * own customer row. Other roles are rejected here; staff customer APIs
+   * use franchise/salon scope instead.
+   */
+  async assertOwnCustomerAccess(
+    user: AuthenticatedUser,
+    customerId: string,
+  ): Promise<void> {
+    if (user.role !== RoleCode.CUSTOMER) {
+      throw new ForbiddenException('Customer record outside your scope');
+    }
+
+    const ownId = await this.requireOwnCustomerId(user);
+    if (ownId !== customerId) {
+      throw new ForbiddenException('Customer record outside your scope');
+    }
   }
 
   private requireFranchise(user: AuthenticatedUser): string {

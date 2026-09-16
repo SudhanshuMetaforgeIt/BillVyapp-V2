@@ -1,5 +1,6 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
@@ -11,6 +12,8 @@ import { validateEnv } from './config/env.validation';
 
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { ScopeGuard } from './common/guards/scope.guard';
 import { ScopeModule } from './common/scope/scope.module';
 
 import { AuditModule } from './audit/audit.module';
@@ -31,9 +34,11 @@ import { MediaModule } from './media/media.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ProductCategoriesModule } from './product-categories/product-categories.module';
 import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { SalonsModule } from './salons/salons.module';
+import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
 import { VendorsModule } from './vendors/vendors.module';
@@ -54,6 +59,15 @@ import { VendorsModule } from './vendors/vendors.module';
 
     PrismaModule,
     RedisModule,
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          url: config.getOrThrow<string>('redis.url'),
+          maxRetriesPerRequest: null,
+        },
+      }),
+    }),
     ScopeModule,
     AuditModule,
 
@@ -65,8 +79,10 @@ import { VendorsModule } from './vendors/vendors.module';
     FranchisesModule,
     SalonsModule,
     CustomersModule,
+    ServiceCategoriesModule,
     ServicesModule,
     AppointmentsModule,
+    ProductCategoriesModule,
     ProductsModule,
     VendorsModule,
     PurchasesModule,
@@ -87,8 +103,11 @@ import { VendorsModule } from './vendors/vendors.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
 
     // Authentication is deny-by-default across the whole API; routes opt out
-    // with @Public(). RolesGuard is applied per-controller where roles matter.
+    // with @Public(). Authorization is layered: role, then franchise/salon/own
+    // scope. Guards without metadata pass through.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ScopeGuard },
 
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],

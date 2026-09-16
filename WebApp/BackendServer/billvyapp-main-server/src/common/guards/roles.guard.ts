@@ -10,8 +10,10 @@ import { RoleCode } from '../enums/role.enum';
 import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 
 /**
- * Coarse-grained role check. This is necessary but NOT sufficient: row-level
- * scope (which franchise / which salon) is enforced separately by ScopeService.
+ * Coarse-grained role check, registered globally in AppModule.
+ * This is necessary but NOT sufficient: row-level scope (which franchise /
+ * which salon / which customer) is enforced separately by ScopeGuard +
+ * ScopeService. Routes without @Roles() pass through.
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
