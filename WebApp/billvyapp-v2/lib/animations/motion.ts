@@ -1,11 +1,9 @@
 import type { Transition, Variants } from 'motion/react';
 
 /**
- * Shared Motion variants.
+ * Shared Motion variants (non-GSAP).
  *
- * Defined once so transitions feel consistent and animation code is not
- * copy-pasted into every component. Import a variant; do not hand-roll
- * `initial`/`animate` objects inline.
+ * Kept for future UI that prefers Motion. Auth pages use the GSAP presets.
  */
 
 export const EASE_OUT: Transition = {

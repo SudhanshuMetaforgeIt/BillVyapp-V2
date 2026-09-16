@@ -7,12 +7,22 @@ import { tokenStorage } from './token-storage';
  * Auth API surface. One function per backend endpoint, no UI concerns.
  *
  * Endpoints mirror the NestJS AuthController:
- *   POST /auth/login       POST /auth/send-otp   POST /auth/verify-otp
+ *   POST /auth/login       POST /auth/register
+ *   POST /auth/send-otp    POST /auth/verify-otp
  *   POST /auth/refresh     POST /auth/logout
  */
 
 export interface LoginPayload {
   email: string;
+  password: string;
+}
+
+export interface RegisterPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  /** Exactly 10 digits, no +91 - matches the backend DTO and users.phone. */
+  phone: string;
   password: string;
 }
 
@@ -30,6 +40,18 @@ export const authService = {
   /** Staff and admin sign-in. Persists the token pair on success. */
   async login(payload: LoginPayload): Promise<AuthSession> {
     const session = await api.post<AuthSession>('/auth/login', payload);
+    tokenStorage.set(session);
+    return session;
+  },
+
+  /**
+   * Public customer self-registration.
+   *
+   * Never send role / roleId / franchiseId / salonId — the backend rejects
+   * unknown fields and always assigns CUSTOMER server-side.
+   */
+  async register(payload: RegisterPayload): Promise<AuthSession> {
+    const session = await api.post<AuthSession>('/auth/register', payload);
     tokenStorage.set(session);
     return session;
   },

@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-roboto);
+  --font-mono: var(--font-roboto);
+  --font-heading: var(--font-roboto);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -126,5 +126,70 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Auth CTA micro-interactions (CSS keeps hover/press off the GSAP timeline). */
+@layer components {
+  .auth-form-card {
+    border: 1px solid rgb(0 0 0 / 0.06);
+    background: #ffffff;
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.05),
+      0 10px 28px rgb(15 23 42 / 0.08),
+      0 28px 72px rgb(15 23 42 / 0.14);
+  }
+
+  .auth-form-input {
+    height: 2.75rem;
+    border-color: rgb(229 231 235);
+    background-color: rgb(250 250 250);
+    color: rgb(23 23 23);
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .auth-form-input::placeholder {
+    color: rgb(163 163 163);
+  }
+
+  .auth-form-input:hover:not(:disabled):not(:focus-visible) {
+    border-color: rgb(212 212 212);
+    background-color: #ffffff;
+  }
+
+  .auth-form-input:focus-visible {
+    border-color: #ff6a00;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgb(255 106 0 / 0.16);
+  }
+
+  .auth-cta {
+    box-shadow: 0 8px 20px rgb(255 106 0 / 0.28);
+    transition:
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 160ms ease,
+      box-shadow 160ms ease,
+      opacity 160ms ease;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .auth-cta:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgb(255 106 0 / 0.34);
+    }
+
+    .auth-cta:active:not(:disabled) {
+      transform: translateY(0) scale(0.985);
+      box-shadow: 0 4px 12px rgb(255 106 0 / 0.22);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-cta {
+      transition: background-color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
+    }
   }
 }

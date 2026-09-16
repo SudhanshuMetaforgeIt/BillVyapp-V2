@@ -192,13 +192,98 @@ describe('AuthService', () => {
       expect(passwords.hash).toHaveBeenCalled();
     });
 
-    it('rejects CUSTOMER accounts on the password login path', async () => {
+    it('authenticates CUSTOMER accounts with a valid password', async () => {
       prisma.user.findUnique.mockResolvedValue(customerUser());
       passwords.verify.mockResolvedValue(true);
 
+      const result = await auth.login(
+        { email: 'cara@example.com', password: 'password' },
+        ctx,
+      );
+
+      expect(result.user.role).toBe(RoleCode.CUSTOMER);
+      expect(result.accessToken).toBe(`signed-${JWT_TYPE_ACCESS}`);
+    });
+  });
+
+  describe('register', () => {
+    beforeEach(() => {
+      (prisma as any).role = { findUnique: jest.fn() };
+      (prisma as any).customer = { create: jest.fn() };
+      (prisma as any).$transaction = jest.fn();
+      (prisma as any).user.findUniqueOrThrow = jest.fn();
+      (prisma as any).user.create = jest.fn();
+    });
+
+    it('creates a CUSTOMER account and returns a session', async () => {
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null) // phone
+        .mockResolvedValueOnce(null); // email
+      (prisma as any).role.findUnique.mockResolvedValue({
+        id: 'role-customer',
+        isActive: true,
+      });
+      passwords.hash.mockResolvedValue('hashed');
+      (prisma as any).$transaction.mockImplementation(
+        async (fn: (tx: unknown) => Promise<string>) => {
+          const tx = {
+            user: {
+              create: jest.fn().mockResolvedValue({ id: 'new-cust-1' }),
+            },
+            customer: { create: jest.fn().mockResolvedValue({}) },
+          };
+          return fn(tx);
+        },
+      );
+      (prisma as any).user.findUniqueOrThrow.mockResolvedValue(customerUser({
+        id: 'new-cust-1',
+        email: 'new@example.com',
+        phone: '9988776655',
+      }));
+
+      const result = await auth.register(
+        {
+          firstName: 'New',
+          lastName: 'Customer',
+          email: 'new@example.com',
+          phone: '9988776655',
+          password: 'Password1',
+        },
+        ctx,
+      );
+
+      expect(result.user.role).toBe(RoleCode.CUSTOMER);
+      expect(result.user.email).toBe('new@example.com');
+      expect(result.accessToken).toBeDefined();
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'CUSTOMER_CREATED',
+          newData: expect.objectContaining({ role: RoleCode.CUSTOMER }),
+        }),
+      );
+    });
+
+    it('rejects duplicate email', async () => {
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'existing' });
+      (prisma as any).role.findUnique.mockResolvedValue({
+        id: 'role-customer',
+        isActive: true,
+      });
+
       await expect(
-        auth.login({ email: 'cara@example.com', password: 'password' }, ctx),
-      ).rejects.toThrow('Invalid credentials');
+        auth.register(
+          {
+            firstName: 'New',
+            lastName: 'Customer',
+            email: 'taken@example.com',
+            phone: '9988776655',
+            password: 'Password1',
+          },
+          ctx,
+        ),
+      ).rejects.toThrow('Email already exists');
     });
   });
 
