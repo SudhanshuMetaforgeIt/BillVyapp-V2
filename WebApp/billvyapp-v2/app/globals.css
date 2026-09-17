@@ -46,41 +46,70 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-charcoal: var(--bv-charcoal);
+  --color-charcoal-soft: var(--bv-charcoal-soft);
+  --color-champagne: var(--bv-champagne);
+  --color-champagne-light: var(--bv-champagne-light);
+  --color-ivory: var(--bv-ivory);
+  --color-ivory-soft: var(--bv-ivory-soft);
+  --color-emerald: var(--bv-emerald);
+  --color-emerald-light: var(--bv-emerald-light);
+  --color-danger: var(--bv-danger);
+  --color-warning: var(--bv-warning);
+  --color-surface: var(--bv-surface);
+  --color-text: var(--bv-text);
+  --color-text-secondary: var(--bv-text-secondary);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* BillVyApp brand: Charcoal + Champagne Gold + Ivory + Emerald */
+  --bv-charcoal: #1c1c1e;
+  --bv-charcoal-soft: #2c2c30;
+  --bv-champagne: #c4a46c;
+  --bv-champagne-light: #f4ecdf;
+  --bv-ivory: #f7f4ef;
+  --bv-ivory-soft: #fffcf8;
+  --bv-emerald: #0f7a4a;
+  --bv-emerald-light: #e7f5ee;
+  --bv-danger: #b42318;
+  --bv-warning: #b54708;
+  --bv-surface: #ffffff;
+  --bv-text: #1c1c1e;
+  --bv-text-secondary: #6b6b70;
+
+  --background: var(--bv-ivory);
+  --foreground: var(--bv-text);
+  --card: var(--bv-surface);
+  --card-foreground: var(--bv-text);
+  --popover: var(--bv-surface);
+  --popover-foreground: var(--bv-text);
+  --primary: var(--bv-champagne);
+  --primary-foreground: #1c1c1e;
+  --secondary: var(--bv-champagne-light);
+  --secondary-foreground: var(--bv-charcoal);
+  --muted: #efeae3;
+  --muted-foreground: var(--bv-text-secondary);
+  --accent: var(--bv-champagne-light);
+  --accent-foreground: var(--bv-charcoal);
+  --destructive: var(--bv-danger);
+  --border: #e6e0d6;
+  --input: #e6e0d6;
+  --ring: var(--bv-champagne);
+  --chart-1: var(--bv-champagne);
+  --chart-2: var(--bv-emerald);
+  --chart-3: #8b7355;
+  --chart-4: #5c5c60;
+  --chart-5: #d4c4a8;
+  --radius: 0.75rem;
+  --sidebar: var(--bv-charcoal);
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: var(--bv-champagne);
+  --sidebar-primary-foreground: #1c1c1e;
+  --sidebar-accent: var(--bv-charcoal-soft);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 8%);
+  --sidebar-ring: var(--bv-champagne);
 }
 
 .dark {
@@ -129,7 +158,6 @@
   }
 }
 
-/* Auth CTA micro-interactions (CSS keeps hover/press off the GSAP timeline). */
 @layer components {
   .auth-form-card {
     border: 1px solid rgb(0 0 0 / 0.06);
@@ -191,5 +219,14 @@
     .auth-cta {
       transition: background-color 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
     }
+  }
+
+  .app-surface-card {
+    border: 1px solid var(--border);
+    background: var(--bv-surface);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 2px rgb(28 28 30 / 0.04),
+      0 8px 24px rgb(28 28 30 / 0.05);
   }
 }

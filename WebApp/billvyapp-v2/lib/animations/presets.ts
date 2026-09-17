@@ -196,3 +196,60 @@ export function playErrorReveal(el: HTMLElement | null): void {
     { opacity: 1, y: 0, duration: AUTH_DURATION.short, ease: AUTH_EASE },
   );
 }
+
+export type DashboardEntranceScope = {
+  root: HTMLElement;
+};
+
+/**
+ * Subtle authenticated dashboard entrance.
+ * Uses data-dash-animate markers — keeps motion calm and non-looping.
+ */
+export function playDashboardEntrance({
+  root,
+}: DashboardEntranceScope): gsap.core.Timeline | null {
+  if (prefersReducedMotion()) return null;
+
+  const header = root.querySelectorAll<HTMLElement>('[data-dash-animate="header"]');
+  const metrics = root.querySelectorAll<HTMLElement>('[data-dash-animate="metric"]');
+  const sections = root.querySelectorAll<HTMLElement>('[data-dash-animate="section"]');
+
+  const tl = gsap.timeline({
+    defaults: { ease: AUTH_EASE, duration: AUTH_DURATION.medium },
+  });
+
+  if (header.length) {
+    gsap.set(header, { opacity: 0, y: 10 });
+    tl.to(header, { opacity: 1, y: 0, duration: AUTH_DURATION.short }, 0);
+  }
+
+  if (metrics.length) {
+    gsap.set(metrics, { opacity: 0, y: 12 });
+    tl.to(
+      metrics,
+      {
+        opacity: 1,
+        y: 0,
+        duration: AUTH_DURATION.short,
+        stagger: AUTH_STAGGER.tight,
+      },
+      0.08,
+    );
+  }
+
+  if (sections.length) {
+    gsap.set(sections, { opacity: 0, y: 14 });
+    tl.to(
+      sections,
+      {
+        opacity: 1,
+        y: 0,
+        duration: AUTH_DURATION.medium,
+        stagger: AUTH_STAGGER.normal,
+      },
+      0.16,
+    );
+  }
+
+  return tl;
+}

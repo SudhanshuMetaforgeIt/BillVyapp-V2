@@ -11,6 +11,7 @@ export {
   AUTH_STAGGER,
   playAuthPageEntrance,
   playErrorReveal,
+  playDashboardEntrance,
 } from './presets';
 
 export {
