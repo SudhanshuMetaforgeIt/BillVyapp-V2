@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Building2,
   CalendarDays,
   Camera,
   Clock3,
@@ -65,6 +66,15 @@ export function ProfileSummaryCard({
       label: 'Last Login',
       value: formatDateTime(profile.lastLoginAt),
     },
+    ...(profile.salonId
+      ? [
+          {
+            icon: Building2,
+            label: 'Salon',
+            value: profile.salonId,
+          },
+        ]
+      : []),
     {
       icon: Globe2,
       label: 'Timezone',
@@ -140,7 +150,9 @@ export function ProfileSummaryCard({
                 <span className="block text-xs text-text-secondary">
                   {row.label}
                 </span>
-                <span className="font-medium text-text">{row.value}</span>
+                <span className="break-all font-medium text-text">
+                  {row.value}
+                </span>
               </span>
             </li>
           );

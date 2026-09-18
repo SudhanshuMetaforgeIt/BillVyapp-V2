@@ -1,6 +1,15 @@
-import { format, parseISO, startOfMonth, isValid } from 'date-fns';
+import {
+  endOfWeek,
+  format,
+  isValid,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 
 import { api } from '@/services/api-client';
+import { formatDateTime } from '@/lib/format';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type { PaginatedResponse } from '@/features/dashboard/types/dashboard.types';
 import {
@@ -10,6 +19,11 @@ import {
 } from '../data/labels';
 import type {
   CreateNotificationPayload,
+  ManagerNotificationCategory,
+  ManagerNotificationRow,
+  ManagerNotificationsListParams,
+  ManagerNotificationsPageData,
+  ManagerNotificationTab,
   NotificationApiItem,
   NotificationListRow,
   NotificationsListParams,
@@ -262,6 +276,172 @@ export async function createNotification(
     message: payload.message.trim(),
     scheduledAt: payload.scheduledAt || undefined,
   });
+}
+
+export async function updateNotificationStatus(
+  id: string,
+  status: NotificationStatus,
+): Promise<NotificationApiItem> {
+  return api.patch<NotificationApiItem>(`/notifications/${id}/status`, {
+    status,
+  });
+}
+
+export function categorizeNotificationType(
+  type: string,
+): ManagerNotificationCategory {
+  const t = type.toLowerCase();
+  if (t.includes('appointment')) return 'Appointment';
+  if (t.includes('payment') || t.includes('finance')) return 'Payment';
+  if (t.includes('bill')) return 'Billing';
+  if (t.includes('inventory') || t.includes('stock')) return 'Inventory';
+  if (t.includes('membership') || t.includes('loyalty')) return 'Membership';
+  if (t.includes('customer')) return 'Customer';
+  if (t.includes('system') || t.includes('security') || t.includes('setting')) {
+    return 'System';
+  }
+  return 'Other';
+}
+
+function matchesManagerTab(
+  row: ManagerNotificationRow,
+  tab: ManagerNotificationTab,
+): boolean {
+  if (tab === 'all') return true;
+  if (tab === 'unread') return row.isUnread;
+  if (tab === 'appointments') return row.category === 'Appointment';
+  if (tab === 'billing') return row.category === 'Billing';
+  if (tab === 'payments') return row.category === 'Payment';
+  if (tab === 'inventory') return row.category === 'Inventory';
+  if (tab === 'memberships') return row.category === 'Membership';
+  if (tab === 'system') {
+    return row.category === 'System' || row.category === 'Other';
+  }
+  return true;
+}
+
+function isUnreadStatus(status: NotificationStatus): boolean {
+  return status !== 'READ' && status !== 'CANCELLED';
+}
+
+function buildManagerMetrics(
+  candidates: NotificationApiItem[],
+  total: number,
+  incomplete: boolean,
+): DashboardMetric[] {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+
+  const unread = candidates.filter((row) => isUnreadStatus(row.status)).length;
+  const today = candidates.filter((row) => {
+    const created = parseISO(row.createdAt);
+    return isValid(created) && created >= todayStart;
+  }).length;
+  const thisWeek = candidates.filter((row) => {
+    const created = parseISO(row.createdAt);
+    return isValid(created) && created >= weekStart && created <= weekEnd;
+  }).length;
+
+  return [
+    {
+      id: 'mgr-notif-total',
+      label: 'Total Notifications',
+      value: String(total),
+      rawValue: total,
+      comparisonLabel: 'all time notifications',
+      changePercent: null,
+      tone: 'accent',
+      comparisonIsPlaceholder: false,
+    },
+    {
+      id: 'mgr-notif-unread',
+      label: 'Unread',
+      value: String(unread),
+      rawValue: unread,
+      comparisonLabel: incomplete
+        ? 'from recent notifications'
+        : 'new notifications',
+      changePercent: null,
+      tone: 'success',
+      comparisonIsPlaceholder: incomplete,
+    },
+    {
+      id: 'mgr-notif-today',
+      label: 'Today',
+      value: String(today),
+      rawValue: today,
+      comparisonLabel: incomplete
+        ? 'from recent notifications'
+        : "today's notifications",
+      changePercent: null,
+      tone: 'neutral',
+      comparisonIsPlaceholder: incomplete,
+    },
+    {
+      id: 'mgr-notif-week',
+      label: 'This Week',
+      value: String(thisWeek),
+      rawValue: thisWeek,
+      comparisonLabel: incomplete
+        ? 'from recent notifications'
+        : "this week's notifications",
+      changePercent: null,
+      tone: 'accent',
+      comparisonIsPlaceholder: incomplete,
+    },
+  ];
+}
+
+export async function fetchManagerNotificationsPage(
+  params: ManagerNotificationsListParams,
+): Promise<ManagerNotificationsPageData> {
+  const [candidatesPage, total] = await Promise.all([
+    api.get<PaginatedResponse<NotificationApiItem>>('/notifications', {
+      params: { page: 1, limit: 100 },
+    }),
+    countNotifications(),
+  ]);
+
+  const incomplete = candidatesPage.meta.total > candidatesPage.data.length;
+
+  const mapped: ManagerNotificationRow[] = candidatesPage.data.map((row) => {
+    const base = mapRow(row);
+    const category = categorizeNotificationType(row.notificationType);
+    const unread = isUnreadStatus(row.status);
+    return {
+      ...base,
+      category,
+      isUnread: unread,
+      readStatusLabel: unread ? 'Unread' : 'Read',
+      dateTimeLabel: formatDateTime(row.createdAt),
+    };
+  });
+
+  const filtered = mapped.filter((row) => matchesManagerTab(row, params.tab));
+  const filteredTotal = filtered.length;
+  const totalPages =
+    filteredTotal === 0 ? 0 : Math.ceil(filteredTotal / params.limit);
+  const page = Math.min(params.page, Math.max(totalPages, 1));
+  const start = (page - 1) * params.limit;
+  const rows = filtered.slice(start, start + params.limit);
+
+  const markableIds = candidatesPage.data
+    .filter((row) => row.status === 'DELIVERED')
+    .map((row) => row.id);
+
+  return {
+    metrics: buildManagerMetrics(candidatesPage.data, total, incomplete),
+    rows,
+    meta: {
+      page,
+      limit: params.limit,
+      total: filteredTotal,
+      totalPages,
+    },
+    markableIds,
+  };
 }
 
 export function defaultNotificationsDateRange(): {

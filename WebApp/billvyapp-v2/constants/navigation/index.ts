@@ -1,4 +1,5 @@
 import type { RoleCode } from '@/constants/roles';
+import { MANAGER_NAVIGATION } from './manager';
 import { SUPER_ADMIN_NAVIGATION } from './super-admin';
 import type { NavSection } from './types';
 
@@ -10,10 +11,13 @@ export function navigationForRole(role: RoleCode | null | undefined): NavSection
   switch (role) {
     case 'SUPER_ADMIN':
       return SUPER_ADMIN_NAVIGATION;
+    case 'MANAGER':
+      return MANAGER_NAVIGATION;
     default:
       return [];
   }
 }
 
 export type { NavItem, NavSection } from './types';
+export { MANAGER_NAVIGATION } from './manager';
 export { SUPER_ADMIN_NAVIGATION, SUPER_ADMIN_BRAND } from './super-admin';
