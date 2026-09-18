@@ -952,6 +952,85 @@ model Notification {
 }
 
 // =============================================================================
+// PLATFORM SETTINGS (Super Admin)
+// =============================================================================
+
+/// Singleton platform settings row. Application code always reads/writes id =
+/// PLATFORM_SETTINGS_ID (see SettingsService). Secrets (smtpPassword, integration
+/// config credentials) are stored here but never returned by the API.
+model PlatformSettings {
+  id String @id @db.VarChar(36)
+
+  /// General
+  platformName  String  @db.VarChar(100)
+  tagline       String? @db.VarChar(255)
+  adminEmail    String  @db.VarChar(191)
+  contactNumber String? @db.VarChar(20)
+  timezone      String  @default("Asia/Kolkata") @db.VarChar(64)
+  dateFormat    String  @default("DD MMM YYYY") @db.VarChar(32)
+
+  /// Branding — MediaFile ids only; binary bytes live in object storage.
+  logoMediaFileId    String? @db.VarChar(36)
+  faviconMediaFileId String? @db.VarChar(36)
+  primaryColor       String? @db.VarChar(32)
+  secondaryColor     String? @db.VarChar(32)
+
+  maintenanceMode Boolean @default(false)
+
+  /// Password policy
+  passwordMinLength        Int     @default(8)
+  passwordRequireUppercase Boolean @default(true)
+  passwordRequireLowercase Boolean @default(true)
+  passwordRequireNumbers   Boolean @default(true)
+  passwordRequireSpecial   Boolean @default(false)
+
+  /// Session / lockout
+  sessionTimeoutMinutes  Int @default(30)
+  maxLoginAttempts       Int @default(5)
+  lockoutDurationMinutes Int @default(15)
+
+  /// Log retention (days)
+  logRetentionDays Int @default(90)
+
+  /// Email / SMTP — smtpPassword is write-only via API
+  smtpHost      String?  @db.VarChar(191)
+  smtpPort      Int?
+  smtpUser      String?  @db.VarChar(191)
+  smtpPassword  String?  @db.VarChar(512)
+  smtpFromEmail String?  @db.VarChar(191)
+  smtpFromName  String?  @db.VarChar(100)
+  smtpSecure    Boolean  @default(true)
+
+  /// Channel / preference defaults (no secrets)
+  notificationDefaults Json?
+
+  /// Feature flags / runtime toggles (no secrets)
+  systemConfig Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+/// Third-party integrations configured by Super Admin.
+model PlatformIntegration {
+  id       String  @id @default(uuid()) @db.VarChar(36)
+  name     String  @db.VarChar(100)
+  provider String  @db.VarChar(100)
+  status   String  @default("INACTIVE") @db.VarChar(32)
+  /// May contain credentials. API responses redact known secret keys.
+  config   Json?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider])
+  @@index([status, isActive])
+  @@map("platform_integrations")
+}
+
+// =============================================================================
 // AUDIT
 // =============================================================================
 
