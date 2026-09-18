@@ -1,3 +1,5 @@
 export { ServicesPageView } from './components/services-page-view';
-export { useAdminServices, useServiceCategories } from './hooks/use-services';
-export * from './types/services.types';
+export { useServices } from './hooks/use-services';
+
+export { AdminServicesPageView } from './components/admin/admin-services-page-view';
+export { useAdminServices } from './hooks/use-admin-services';

@@ -45,7 +45,19 @@ export const ROUTES = {
       settings: `/dashboard/${ROLE_SEGMENTS.ADMIN}/settings`,
       profile: `/dashboard/${ROLE_SEGMENTS.ADMIN}/profile`,
     },
-
+    manager: {
+      root: `/dashboard/${ROLE_SEGMENTS.MANAGER}`,
+      walkInBilling: `/dashboard/${ROLE_SEGMENTS.MANAGER}/walk-in-billing`,
+      appointments: `/dashboard/${ROLE_SEGMENTS.MANAGER}/appointments`,
+      customers: `/dashboard/${ROLE_SEGMENTS.MANAGER}/customers`,
+      inventory: `/dashboard/${ROLE_SEGMENTS.MANAGER}/inventory`,
+      memberships: `/dashboard/${ROLE_SEGMENTS.MANAGER}/memberships`,
+      services: `/dashboard/${ROLE_SEGMENTS.MANAGER}/services`,
+      campaigns: `/dashboard/${ROLE_SEGMENTS.MANAGER}/campaigns`,
+      notifications: `/dashboard/${ROLE_SEGMENTS.MANAGER}/notifications`,
+      settings: `/dashboard/${ROLE_SEGMENTS.MANAGER}/settings`,
+      profile: `/dashboard/${ROLE_SEGMENTS.MANAGER}/profile`,
+    },
   },
 } as const;
 

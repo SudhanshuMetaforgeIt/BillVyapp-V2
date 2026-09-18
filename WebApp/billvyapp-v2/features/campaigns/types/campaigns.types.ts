@@ -1,61 +1,41 @@
-export type CampaignStatus = 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'DRAFT';
-export type CampaignType =
-  | 'DISCOUNT'
-  | 'REFERRAL'
-  | 'OCCASION'
-  | 'PROMOTION'
-  | 'LOYALTY';
-
-export type CampaignStats = {
-  totalCampaigns: number;
-  totalCampaignsSubtitle: string;
-  activeCampaigns: number;
-  activeCampaignsPct: number;
-  upcomingCampaigns: number;
-  upcomingCampaignsPct: number;
-  completedCampaigns: number;
-  completedCampaignsPct: number;
-  draftCampaigns: number;
+export type PaginationMeta = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 };
 
-export type CampaignItem = {
+export type CampaignStatusTab =
+  | 'all'
+  | 'active'
+  | 'upcoming'
+  | 'completed'
+  | 'draft';
+
+export type CampaignListRow = {
   id: string;
   name: string;
   description: string;
-  type: CampaignType;
-  branchName: string;
-  salonId?: string | null;
-  period: string;
-  startDate: string;
-  endDate: string;
-  audience: number | null;
-  status: CampaignStatus;
-  createdAt: string;
+  typeLabel: string;
+  typeTone: 'discount' | 'referral' | 'occasion' | 'promotion' | 'loyalty';
+  periodLabel: string;
+  audienceLabel: string;
+  status: CampaignStatusTab;
+  statusLabel: string;
 };
 
-export type CampaignsFilterState = {
-  search: string;
-  statusTab: 'ALL' | 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'DRAFT';
-  branchId: string;
+export type CampaignsListParams = {
   page: number;
   limit: number;
+  search: string;
+  statusTab: CampaignStatusTab;
 };
 
-export type CreateCampaignPayload = {
-  name: string;
-  description: string;
-  type: CampaignType;
-  salonId?: string;
-  startDate: string;
-  endDate: string;
-  audience?: number;
-  status?: CampaignStatus;
-};
-
-export type AdminCampaignsResult = {
-  campaigns: CampaignItem[];
-  stats: CampaignStats;
-  total: number;
-  totalPages: number;
-  branches: { id: string; name: string }[];
+export type CampaignsPageData = {
+  rows: CampaignListRow[];
+  meta: PaginationMeta;
+  metrics: import('@/features/dashboard/services/dashboard.service').DashboardMetric[];
+  summary: Array<{ status: string; count: number; tone: string }>;
+  /** True until a campaigns API exists on the backend. */
+  apiUnavailable: boolean;
 };

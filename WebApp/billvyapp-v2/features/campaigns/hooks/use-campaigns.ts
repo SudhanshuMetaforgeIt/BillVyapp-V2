@@ -1,32 +1,15 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  createCampaign,
-  fetchAdminCampaigns,
-} from '../services/campaigns.service';
-import type {
-  CampaignsFilterState,
-  CreateCampaignPayload,
-} from '../types/campaigns.types';
+import { useQuery } from '@tanstack/react-query';
 
-export function useAdminCampaigns(
-  filters: Partial<CampaignsFilterState> = {},
-) {
+import { fetchCampaignsPage } from '../services/campaigns.service';
+import type { CampaignsListParams } from '../types/campaigns.types';
+
+export const CAMPAIGNS_QUERY_KEY = ['campaigns', 'manager'] as const;
+
+export function useCampaigns(params: CampaignsListParams) {
   return useQuery({
-    queryKey: ['admin-campaigns', filters],
-    queryFn: () => fetchAdminCampaigns(filters),
-    staleTime: 1000 * 30, // 30 seconds
-  });
-}
-
-export function useCreateCampaign() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (payload: CreateCampaignPayload) => createCampaign(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-campaigns'] });
-    },
+    queryKey: [...CAMPAIGNS_QUERY_KEY, params],
+    queryFn: () => fetchCampaignsPage(params),
   });
 }

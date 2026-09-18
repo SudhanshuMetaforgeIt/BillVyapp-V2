@@ -12,7 +12,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import type { CustomerInsights } from '../types/customers.types';
+import type { CustomerInsights } from '../types/admin-customers.types';
 import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 

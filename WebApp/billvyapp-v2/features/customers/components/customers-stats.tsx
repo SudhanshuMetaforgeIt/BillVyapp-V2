@@ -7,7 +7,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import type { CustomerStats } from '../types/customers.types';
+import type { CustomerStats } from '../types/admin-customers.types';
 
 type CustomersStatsProps = {
   stats: CustomerStats;

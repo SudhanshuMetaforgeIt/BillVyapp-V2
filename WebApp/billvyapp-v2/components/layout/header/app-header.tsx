@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
-import { ROUTES } from '@/constants/routes';
+import { ROLE_SEGMENTS } from '@/constants/roles';
 import { UserMenu } from '@/components/layout/user-menu/user-menu';
 import { cn } from '@/lib/utils';
 import type { AuthUser } from '@/types/user.types';
@@ -19,17 +19,6 @@ type AppHeaderProps = {
   className?: string;
 };
 
-/** Returns the notification inbox route for the current user's role. */
-function notificationsRouteFor(user: AuthUser | null): string {
-  if (!user) return ROUTES.dashboard.superAdmin.notifications;
-  switch (user.role) {
-    case 'ADMIN':
-      return ROUTES.dashboard.admin.notifications;
-    default:
-      return ROUTES.dashboard.superAdmin.notifications;
-  }
-}
-
 export function AppHeader({
   user,
   title,
@@ -42,8 +31,9 @@ export function AppHeader({
 }: AppHeaderProps) {
   const badge =
     notificationCount > 99 ? '99+' : notificationCount > 0 ? String(notificationCount) : null;
-
-  const notificationsHref = notificationsRouteFor(user);
+  const notificationsHref = user
+    ? `/dashboard/${ROLE_SEGMENTS[user.role]}/notifications`
+    : '#';
 
   return (
     <header

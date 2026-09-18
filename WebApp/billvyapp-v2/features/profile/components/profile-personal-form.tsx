@@ -90,6 +90,9 @@ export function ProfilePersonalForm({
     >
       <p className="text-sm text-text-secondary">
         Update your personal information and contact details.
+        {profile.role === 'MANAGER'
+          ? ' Saving changes may be limited until self-update access is enabled for managers.'
+          : null}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">

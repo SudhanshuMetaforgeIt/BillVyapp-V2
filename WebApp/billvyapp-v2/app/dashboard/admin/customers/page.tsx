@@ -1,6 +1,6 @@
-import { CustomersPageView } from '@/features/customers';
+import { AdminCustomersPageView } from '@/features/customers';
 
 export default function AdminCustomersPage() {
-  return <CustomersPageView />;
+  return <AdminCustomersPageView />;
 }
 

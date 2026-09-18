@@ -6,7 +6,7 @@ import {
   Headphones,
   Plus,
 } from 'lucide-react';
-import type { CampaignStats } from '../types/campaigns.types';
+import type { CampaignStats } from '../types/admin-campaigns.types';
 import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 

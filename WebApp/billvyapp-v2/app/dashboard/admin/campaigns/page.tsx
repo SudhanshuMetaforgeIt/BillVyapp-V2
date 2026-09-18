@@ -1,6 +1,6 @@
-import { CampaignsPageView } from '@/features/campaigns';
+import { AdminCampaignsPageView } from '@/features/campaigns';
 
 export default function AdminCampaignsPage() {
-  return <CampaignsPageView />;
+  return <AdminCampaignsPageView />;
 }
 

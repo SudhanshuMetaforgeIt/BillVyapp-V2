@@ -1,32 +1,15 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  createCustomer,
-  fetchAdminCustomers,
-} from '../services/customers.service';
-import type {
-  CreateCustomerPayload,
-  CustomersFilterState,
-} from '../types/customers.types';
+import { useQuery } from '@tanstack/react-query';
 
-export function useAdminCustomers(filters: Partial<CustomersFilterState> = {}) {
+import { fetchCustomersPage } from '../services/customers.service';
+import type { CustomersListParams } from '../types/customers.types';
+
+export const CUSTOMERS_QUERY_KEY = ['customers', 'manager'] as const;
+
+export function useCustomers(params: CustomersListParams) {
   return useQuery({
-    queryKey: ['admin-customers', filters],
-    queryFn: () => fetchAdminCustomers(filters),
-    staleTime: 1000 * 30, // 30 seconds
-  });
-}
-
-export function useCreateCustomer() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (payload: CreateCustomerPayload) => createCustomer(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-bills'] });
-    },
+    queryKey: [...CUSTOMERS_QUERY_KEY, params],
+    queryFn: () => fetchCustomersPage(params),
   });
 }

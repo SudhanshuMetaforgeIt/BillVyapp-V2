@@ -2,7 +2,7 @@
 
 import { Calendar, Mail, MapPin, Phone, Receipt, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { CustomerItem } from '../types/customers.types';
+import type { CustomerItem } from '../types/admin-customers.types';
 import { useRouter } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 

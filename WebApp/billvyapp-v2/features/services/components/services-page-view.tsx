@@ -1,162 +1,182 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Plus, UploadCloud } from 'lucide-react';
+import {
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 
-import { Button } from '@/components/ui/button';
 import { SectionErrorState } from '@/components/layout/section-states';
-import { useGSAP, playDashboardEntrance } from '@/lib/animations';
-import { useAdminServices } from '../hooks/use-services';
-import { ServicesStats } from './services-stats';
-import { ServicesBulkBanner } from './services-bulk-banner';
+import { MetricGrid } from '@/features/dashboard/components/metric-card';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { playDashboardEntrance, useGSAP } from '@/lib/animations';
+import { useServices } from '../hooks/use-services';
+import type {
+  ServiceStatusFilter,
+  ServicesTab,
+} from '../types/services.types';
+import { AddCategoryDialog } from './add-category-dialog';
+import { AddServiceDialog } from './add-service-dialog';
+import { CategoriesTable } from './categories-table';
 import { ServicesFilters } from './services-filters';
 import { ServicesTable } from './services-table';
-import { CategoriesTabView } from './categories-tab-view';
-import { CreateServiceDialog } from './create-service-dialog';
-import type { ServicesFilterState } from '../types/services.types';
+import { ServicesTabs } from './services-tabs';
+
+const PAGE_SIZE = 10;
 
 export function ServicesPageView() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [, startTransition] = useTransition();
+  const user = useCurrentUser();
+  const salonId = user?.salonId ?? '';
 
-  const [activeTab, setActiveTab] = useState<'services' | 'categories'>('services');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [tab, setTab] = useState<ServicesTab>('services');
+  const [searchInput, setSearchInput] = useState('');
+  const deferredSearch = useDeferredValue(searchInput);
+  const [categoryId, setCategoryId] = useState('');
+  const [status, setStatus] = useState<ServiceStatusFilter>('all');
+  const [page, setPage] = useState(1);
+  const [addServiceOpen, setAddServiceOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
 
-  const [filters, setFilters] = useState<ServicesFilterState>({
-    search: '',
-    categoryId: 'all',
-    branchId: 'all',
-    status: 'all',
-    page: 1,
-    limit: 10,
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, categoryId, status, tab]);
+
+  const query = useServices({
+    tab,
+    page,
+    limit: PAGE_SIZE,
+    search: deferredSearch,
+    categoryId,
+    status,
   });
-
-  const query = useAdminServices(filters);
-  const data = query.data;
 
   useGSAP(
     () => {
       if (!rootRef.current || query.isLoading) return;
       playDashboardEntrance({ root: rootRef.current });
     },
-    { dependencies: [query.isLoading, query.isSuccess], scope: rootRef },
+    { dependencies: [query.isLoading, query.isSuccess, tab], scope: rootRef },
   );
 
-  const handleFilterChange = (updates: Partial<ServicesFilterState>) => {
-    setFilters((prev) => ({ ...prev, ...updates }));
-  };
-
-  if (query.isError) {
+  if (!salonId) {
     return (
       <div className="app-surface-card">
         <SectionErrorState
-          title="Unable to load services"
-          message="We could not load your services catalog from the database. Please try again."
+          title="Salon not linked"
+          message="Your account is not linked to a salon, so services cannot be managed."
+        />
+      </div>
+    );
+  }
+
+  if (query.isError && !query.data) {
+    return (
+      <div className="app-surface-card">
+        <SectionErrorState
+          title="Services unavailable"
+          message="We could not load services. Please try again."
           onRetry={() => void query.refetch()}
         />
       </div>
     );
   }
 
+  const data = query.data;
+  const emptyMeta = {
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
+  };
+
   return (
-    <div ref={rootRef} className="space-y-6 lg:space-y-7 pb-10">
-      {/* ── 1. Top 4 Metric Cards ── */}
-      <ServicesStats stats={data?.stats} isLoading={query.isLoading} />
+    <>
+      <div ref={rootRef} className="space-y-6 lg:space-y-7">
+        <MetricGrid
+          metrics={data?.metrics ?? []}
+          isLoading={query.isLoading && !data}
+          className="xl:grid-cols-4"
+          skeletonCount={4}
+        />
 
-      {/* ── 2. Tabs & Primary Action Buttons Row ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
-        {/* Left Tabs */}
-        <div className="flex items-center gap-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab('services')}
-            className={`relative pb-3 text-sm font-bold transition sm:text-base ${
-              activeTab === 'services'
-                ? 'text-brand-orange'
-                : 'text-text-secondary hover:text-text'
-            }`}
-          >
-            All Services
-            {activeTab === 'services' ? (
-              <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-orange" />
-            ) : null}
-          </button>
+        <div
+          className="app-surface-card overflow-hidden"
+          data-dash-animate="section"
+        >
+          <ServicesTabs
+            value={tab}
+            onChange={(value) => {
+              startTransition(() => {
+                setTab(value);
+                setSearchInput('');
+                setCategoryId('');
+                setStatus('all');
+              });
+            }}
+          />
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('categories')}
-            className={`relative pb-3 text-sm font-bold transition sm:text-base ${
-              activeTab === 'categories'
-                ? 'text-brand-orange'
-                : 'text-text-secondary hover:text-text'
-            }`}
-          >
-            Service Categories
-            {activeTab === 'categories' ? (
-              <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-orange" />
-            ) : null}
-          </button>
-        </div>
+          <div className="space-y-4 p-4 sm:p-5">
+            <ServicesFilters
+              tab={tab}
+              search={searchInput}
+              onSearchChange={setSearchInput}
+              categoryId={categoryId}
+              onCategoryIdChange={(value) => {
+                startTransition(() => setCategoryId(value));
+              }}
+              categoryOptions={data?.categoryOptions ?? []}
+              status={status}
+              onStatusChange={(value) => {
+                startTransition(() => setStatus(value));
+              }}
+              onPrimaryAction={() => {
+                if (tab === 'services') setAddServiceOpen(true);
+                else setAddCategoryOpen(true);
+              }}
+            />
 
-        {/* Right Buttons */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2 border-border bg-surface text-text hover:bg-champagne-light/30 shadow-sm"
-            onClick={() => setActiveTab('services')}
-          >
-            <UploadCloud className="size-4 text-text-secondary" />
-            Bulk Upload Services
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            className="gap-1.5 bg-brand-orange text-white hover:bg-brand-orange-dark shadow-sm"
-            onClick={() => setCreateDialogOpen(true)}
-          >
-            <Plus className="size-4" />
-            Add New Service
-          </Button>
+            {tab === 'services' ? (
+              <ServicesTable
+                rows={data?.serviceRows ?? []}
+                meta={data?.serviceMeta ?? emptyMeta}
+                isLoading={query.isLoading && !data}
+                isError={query.isError}
+                onRetry={() => void query.refetch()}
+                onPageChange={(next) => {
+                  startTransition(() => setPage(next));
+                }}
+              />
+            ) : (
+              <CategoriesTable
+                rows={data?.categoryRows ?? []}
+                meta={data?.categoryMeta ?? emptyMeta}
+                isLoading={query.isLoading && !data}
+                isError={query.isError}
+                onRetry={() => void query.refetch()}
+                onPageChange={(next) => {
+                  startTransition(() => setPage(next));
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {activeTab === 'services' ? (
-        <>
-          {/* ── 3. Bulk Upload Banner ── */}
-          <ServicesBulkBanner />
-
-          {/* ── 4. Search & Filter Bar ── */}
-          <ServicesFilters
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            categories={data?.categories ?? []}
-            branches={data?.branches ?? []}
-          />
-
-          {/* ── 5. Services Table with Empty State ── */}
-          <ServicesTable
-            services={data?.services ?? []}
-            total={data?.total ?? 0}
-            currentPage={filters.page}
-            totalPages={data?.totalPages ?? 1}
-            onPageChange={(page) => handleFilterChange({ page })}
-            onAddService={() => setCreateDialogOpen(true)}
-          />
-        </>
-      ) : (
-        /* ── Categories Tab ── */
-        <CategoriesTabView onAddCategory={() => setCreateDialogOpen(true)} />
-      )}
-
-      {/* ── Create Service Modal ── */}
-      <CreateServiceDialog
-        isOpen={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        categories={data?.categories ?? []}
-        branches={data?.branches ?? []}
+      <AddServiceDialog
+        open={addServiceOpen}
+        onOpenChange={setAddServiceOpen}
+        salonId={salonId}
+        categoryOptions={data?.categoryOptions ?? []}
       />
-    </div>
+      <AddCategoryDialog
+        open={addCategoryOpen}
+        onOpenChange={setAddCategoryOpen}
+        salonId={salonId}
+      />
+    </>
   );
 }

@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { CampaignItem } from '../types/campaigns.types';
+import type { CampaignItem } from '../types/admin-campaigns.types';
 
 type CampaignDetailsDialogProps = {
   campaign: CampaignItem | null;

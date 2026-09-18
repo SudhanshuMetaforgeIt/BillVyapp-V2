@@ -92,3 +92,44 @@ export type CreateNotificationPayload = {
   message: string;
   scheduledAt?: string;
 };
+
+/** Manager inbox category tabs (mapped from notificationType keywords). */
+export type ManagerNotificationTab =
+  | 'all'
+  | 'unread'
+  | 'appointments'
+  | 'billing'
+  | 'payments'
+  | 'inventory'
+  | 'memberships'
+  | 'system';
+
+export type ManagerNotificationCategory =
+  | 'Appointment'
+  | 'Billing'
+  | 'Payment'
+  | 'Inventory'
+  | 'Membership'
+  | 'Customer'
+  | 'System'
+  | 'Other';
+
+export type ManagerNotificationRow = NotificationListRow & {
+  category: ManagerNotificationCategory;
+  isUnread: boolean;
+  readStatusLabel: 'Unread' | 'Read';
+  dateTimeLabel: string;
+};
+
+export type ManagerNotificationsListParams = {
+  page: number;
+  limit: number;
+  tab: ManagerNotificationTab;
+};
+
+export type ManagerNotificationsPageData = {
+  metrics: DashboardMetric[];
+  rows: ManagerNotificationRow[];
+  meta: PaginationMeta;
+  markableIds: string[];
+};

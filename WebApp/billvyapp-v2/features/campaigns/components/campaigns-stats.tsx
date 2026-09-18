@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckCircle2, Clock, Megaphone, XCircle } from 'lucide-react';
-import type { CampaignStats } from '../types/campaigns.types';
+import type { CampaignStats } from '../types/admin-campaigns.types';
 
 type CampaignsStatsProps = {
   stats: CampaignStats;

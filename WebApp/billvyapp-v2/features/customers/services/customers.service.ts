@@ -1,314 +1,282 @@
-import { format, isThisMonth, parseISO } from 'date-fns';
+import { format, isValid, parseISO, differenceInYears } from 'date-fns';
+
 import { api } from '@/services/api-client';
+import { formatFullName } from '@/lib/format';
+import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
-  AdminCustomersResult,
   CreateCustomerPayload,
-  CustomerInsights,
-  CustomerItem,
-  CustomersFilterState,
-  CustomerStats,
+  CustomerApiItem,
+  CustomerGender,
+  CustomerListRow,
+  CustomersListParams,
+  CustomersPageData,
+  MembershipApiItem,
+  MembershipPlanApiItem,
+  PaginatedResponse,
 } from '../types/customers.types';
 
-type PaginatedResponse<T> = {
-  data: T[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-};
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '—';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
 
-type RawCustomer = {
-  id: string;
-  userId: string;
-  customerCode: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  profilePhoto?: string | null;
-  dateOfBirth?: string | null;
-  gender?: string | null;
-  isActive: boolean;
-  totalBills?: number;
-  totalSpent?: string | number;
-  lastVisit?: string | null;
-  branchName?: string | null;
-  salonId?: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+function genderLabel(gender: CustomerGender | null): string {
+  if (!gender) return '—';
+  if (gender === 'PREFER_NOT_TO_SAY') return 'Prefer not to say';
+  return gender.charAt(0) + gender.slice(1).toLowerCase();
+}
 
-type RawSalon = {
-  id: string;
-  name: string;
-  code: string;
-  isActive: boolean;
-};
+function ageLabel(dateOfBirth: string | null): string {
+  if (!dateOfBirth) return '—';
+  const dob = parseISO(dateOfBirth);
+  if (!isValid(dob)) return '—';
+  const age = differenceInYears(new Date(), dob);
+  return Number.isFinite(age) && age >= 0 ? String(age) : '—';
+}
 
-type RawBill = {
-  id: string;
-  total: string | number;
-  billDate: string;
-  createdAt: string;
-};
+function maskPhone(phone: string): string {
+  if (!/^[0-9]{10}$/.test(phone)) return phone || '—';
+  return `+91 ***** *${phone.slice(6)}`;
+}
 
-export async function fetchAdminCustomers(
-  filters: Partial<CustomersFilterState> = {},
-): Promise<AdminCustomersResult> {
-  const params: Record<string, unknown> = {
-    page: filters.page ?? 1,
-    limit: filters.limit ?? 10,
-  };
+function membershipTone(
+  planName: string,
+  status: MembershipApiItem['status'],
+): CustomerListRow['membershipTone'] {
+  if (status === 'EXPIRED' || status === 'CANCELLED') return 'expired';
+  const lower = planName.toLowerCase();
+  if (lower.includes('gold')) return 'gold';
+  if (lower.includes('silver')) return 'silver';
+  if (lower.includes('platinum')) return 'platinum';
+  return 'none';
+}
 
-  if (filters.search?.trim()) {
-    params.search = filters.search.trim();
-  }
-
-  if (filters.branchId && filters.branchId !== 'all') {
-    params.salonId = filters.branchId;
-  }
-
-  if (filters.status === 'active') {
-    params.isActive = true;
-  } else if (filters.status === 'inactive') {
-    params.isActive = false;
-  }
-
-  if (filters.gender && filters.gender !== 'all') {
-    params.gender = filters.gender;
-  }
-
-  const [customersRes, allCustomersRes, salonsRes, billsRes] =
-    await Promise.allSettled([
-      api.get<PaginatedResponse<RawCustomer>>('/customers', { params }),
-      api.get<PaginatedResponse<RawCustomer>>('/customers', {
-        params: { page: 1, limit: 100 },
-      }),
-      api.get<PaginatedResponse<RawSalon>>('/salons', {
-        params: { page: 1, limit: 100 },
-      }),
-      api.get<PaginatedResponse<RawBill>>('/bills', {
-        params: { page: 1, limit: 100 },
-      }),
-    ]);
-
-  const getArray = <T>(res: PromiseSettledResult<unknown>): T[] => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'data' in res.value &&
-      Array.isArray((res.value as { data: unknown }).data)
-    ) {
-      return (res.value as { data: T[] }).data;
-    }
-    return [];
-  };
-
-  const getMeta = (res: PromiseSettledResult<unknown>) => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'meta' in res.value &&
-      res.value.meta
-    ) {
-      return res.value.meta as {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-      };
-    }
-    return { page: 1, limit: 10, total: 0, totalPages: 1 };
-  };
-
-  const rawCustomers = getArray<RawCustomer>(customersRes);
-  const meta = getMeta(customersRes);
-  const allCustomers = getArray<RawCustomer>(allCustomersRes);
-  const rawSalons = getArray<RawSalon>(salonsRes);
-  const rawBills = getArray<RawBill>(billsRes);
-
-  const salonMap = new Map(rawSalons.map((s) => [s.id, s.name]));
-
-  // Map to CustomerItem
-  const customers: CustomerItem[] = rawCustomers.map((c) => {
-    const fullName = `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Customer';
-    const initials =
-      `${(c.firstName || '')[0] || ''}${(c.lastName || '')[0] || ''}`.toUpperCase() || 'CU';
-
-    let formattedJoined = '—';
-    try {
-      const d = parseISO(c.createdAt);
-      if (!isNaN(d.getTime())) {
-        formattedJoined = format(d, 'dd MMM, yyyy');
-      }
-    } catch {
-      formattedJoined = c.createdAt;
-    }
-
-    let formattedLastVisit = '—';
-    if (c.lastVisit) {
-      try {
-        const d = parseISO(c.lastVisit);
-        if (!isNaN(d.getTime())) {
-          formattedLastVisit = format(d, 'MMM dd, yyyy');
-        } else {
-          formattedLastVisit = c.lastVisit;
-        }
-      } catch {
-        formattedLastVisit = c.lastVisit;
-      }
-    }
-
-    const branch =
-      c.branchName || (c.salonId ? salonMap.get(c.salonId) : null) || 'Main Branch';
-
-    return {
-      id: c.id,
-      name: fullName,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      initials,
-      joinedDate: `Joined on ${formattedJoined}`,
-      rawCreatedAt: c.createdAt,
-      phone: c.phone || '—',
-      email: c.email || '—',
-      branchName: branch,
-      salonId: c.salonId,
-      totalBills: c.totalBills || 0,
-      totalSpent: Number(c.totalSpent) || 0,
-      lastVisit: formattedLastVisit,
-      isActive: c.isActive,
-      gender: c.gender as CustomerItem['gender'],
-      customerCode: c.customerCode,
-    };
+async function countCustomers(
+  params: Record<string, string | number | boolean | undefined>,
+) {
+  const page = await api.get<PaginatedResponse<CustomerApiItem>>('/customers', {
+    params: { page: 1, limit: 1, ...params },
   });
+  return page.meta.total;
+}
 
-  // Filter based on active tab: NEW or RETURNING
-  let displayCustomers = customers;
-  if (filters.customerTab === 'NEW') {
-    displayCustomers = customers.filter((c) => {
-      try {
-        return isThisMonth(parseISO(c.rawCreatedAt));
-      } catch {
-        return false;
-      }
-    });
-  } else if (filters.customerTab === 'RETURNING') {
-    displayCustomers = customers.filter((c) => c.totalBills > 1);
+async function buildMetrics(
+  activeMembershipCount: number,
+): Promise<DashboardMetric[]> {
+  const [total, active, inactive] = await Promise.all([
+    countCustomers({}),
+    countCustomers({ isActive: true }),
+    countCustomers({ isActive: false }),
+  ]);
+
+  return [
+    {
+      id: 'cust-total',
+      label: 'Total Customers',
+      value: String(total),
+      rawValue: total,
+      comparisonLabel: 'current total',
+      changePercent: null,
+      tone: 'accent',
+      comparisonIsPlaceholder: false,
+    },
+    {
+      id: 'cust-active',
+      label: 'Active Customers',
+      value: String(active),
+      rawValue: active,
+      comparisonLabel: 'current total',
+      changePercent: null,
+      tone: 'success',
+      comparisonIsPlaceholder: false,
+    },
+    {
+      id: 'cust-inactive',
+      label: 'Inactive Customers',
+      value: String(inactive),
+      rawValue: inactive,
+      comparisonLabel: 'current total',
+      changePercent: null,
+      tone: 'neutral',
+      comparisonIsPlaceholder: false,
+    },
+    {
+      id: 'cust-memberships',
+      label: 'Active Memberships',
+      value: String(activeMembershipCount),
+      rawValue: activeMembershipCount,
+      comparisonLabel: 'current total',
+      changePercent: null,
+      tone: 'accent',
+      comparisonIsPlaceholder: false,
+    },
+  ];
+}
+
+function mapRow(
+  row: CustomerApiItem,
+  membershipByCustomer: Map<string, MembershipApiItem>,
+  planById: Map<string, MembershipPlanApiItem>,
+): CustomerListRow {
+  const fullName = formatFullName(row);
+  const membership = membershipByCustomer.get(row.id);
+  const plan = membership
+    ? planById.get(membership.membershipPlanId)
+    : undefined;
+  const planName = plan?.name ?? '';
+
+  let membershipLabel = '—';
+  let membershipExpiry = '';
+  let tone: CustomerListRow['membershipTone'] = 'none';
+
+  if (membership) {
+    membershipLabel = planName || 'Membership';
+    const end = membership.endDate ? parseISO(membership.endDate) : null;
+    const endLabel =
+      end && isValid(end) ? format(end, 'd MMM, yyyy') : '';
+
+    if (membership.status === 'EXPIRED') {
+      membershipExpiry = endLabel ? `Expired · ${endLabel}` : 'Expired';
+    } else if (membership.status === 'CANCELLED') {
+      membershipExpiry = 'Cancelled';
+    } else if (endLabel) {
+      membershipExpiry = `Valid till ${endLabel}`;
+    }
+
+    tone = membershipTone(planName, membership.status);
   }
-
-  // Calculate Metrics from allCustomers
-  const totalCustomersCount = meta.total || allCustomers.length;
-  let newCustomersThisMonth = 0;
-  let returningCustomersCount = 0;
-  let inactiveCount = 0;
-
-  let mostFrequent: { name: string; visits: number } | null = null;
-  let highestSpender: { name: string; amount: number } | null = null;
-
-  for (const c of allCustomers) {
-    const totalBills = c.totalBills || 0;
-    const spent = Number(c.totalSpent) || 0;
-    const name = `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.customerCode;
-
-    if (!c.isActive) {
-      inactiveCount++;
-    }
-
-    try {
-      if (isThisMonth(parseISO(c.createdAt))) {
-        newCustomersThisMonth++;
-      }
-    } catch {
-      // ignore date parse err
-    }
-
-    if (totalBills > 1) {
-      returningCustomersCount++;
-    }
-
-    if (!mostFrequent || totalBills > mostFrequent.visits) {
-      if (totalBills > 0) {
-        mostFrequent = { name, visits: totalBills };
-      }
-    }
-
-    if (!highestSpender || spent > highestSpender.amount) {
-      if (spent > 0) {
-        highestSpender = { name, amount: spent };
-      }
-    }
-  }
-
-  // Calculate Total Spent this month from bills
-  let totalSpentThisMonth = 0;
-  for (const b of rawBills) {
-    try {
-      const d = parseISO(b.billDate || b.createdAt);
-      if (isThisMonth(d)) {
-        totalSpentThisMonth += Number(b.total) || 0;
-      }
-    } catch {
-      totalSpentThisMonth += Number(b.total) || 0;
-    }
-  }
-
-  const returningPct =
-    totalCustomersCount > 0
-      ? Number(((returningCustomersCount / totalCustomersCount) * 100).toFixed(1))
-      : 0;
-
-  const stats: CustomerStats = {
-    totalCustomers: totalCustomersCount,
-    totalCustomersChange:
-      totalCustomersCount > 0 ? '+ 16.2% vs last month' : 'No data yet',
-    newCustomers: newCustomersThisMonth,
-    newCustomersChange:
-      newCustomersThisMonth > 0 ? '+ 12.5% vs last month' : 'No data yet',
-    returningCustomers: returningCustomersCount,
-    returningCustomersPct: returningPct,
-    totalSpentThisMonth,
-    totalSpentChange:
-      totalSpentThisMonth > 0 ? '+ 18.7% vs last month' : 'No data yet',
-  };
-
-  const insights: CustomerInsights = {
-    mostFrequentCustomer: mostFrequent,
-    highestSpender,
-    newThisMonth: newCustomersThisMonth,
-    inactiveCustomers: inactiveCount,
-  };
-
-  const branches = rawSalons.map((s) => ({ id: s.id, name: s.name }));
 
   return {
-    customers: displayCustomers,
-    stats,
-    insights,
-    total: meta.total,
-    totalPages: Math.max(1, meta.totalPages),
-    branches,
+    id: row.id,
+    customerCode: row.customerCode,
+    fullName,
+    initials: initials(fullName === '-' ? '' : fullName),
+    genderLabel: genderLabel(row.gender),
+    ageLabel: ageLabel(row.dateOfBirth),
+    phone: row.phone,
+    phoneMasked: maskPhone(row.phone),
+    email: row.email || '—',
+    membershipLabel,
+    membershipTone: tone,
+    membershipExpiry,
+    // No visit/spend/lastVisit aggregates on customer list APIs.
+    totalVisitsLabel: '—',
+    totalSpendLabel: '—',
+    lastVisitLabel: '—',
+    isActive: row.isActive,
+    statusLabel: row.isActive ? 'Active' : 'Inactive',
   };
 }
 
-export async function createCustomer(
-  payload: CreateCustomerPayload,
-): Promise<RawCustomer> {
-  const body: Record<string, unknown> = {
-    firstName: payload.firstName.trim(),
-    lastName: payload.lastName.trim(),
-    email: payload.email.trim(),
-    phone: payload.phone.trim().startsWith('+91')
-      ? payload.phone.trim()
-      : `+91${payload.phone.trim().replace(/^0+/, '')}`,
+function pickMemberships(
+  memberships: MembershipApiItem[],
+): Map<string, MembershipApiItem> {
+  const membershipByCustomer = new Map<string, MembershipApiItem>();
+  const sorted = [...memberships].sort((a, b) =>
+    b.endDate.localeCompare(a.endDate),
+  );
+  for (const membership of sorted) {
+    const existing = membershipByCustomer.get(membership.customerId);
+    if (!existing) {
+      membershipByCustomer.set(membership.customerId, membership);
+      continue;
+    }
+    if (existing.status !== 'ACTIVE' && membership.status === 'ACTIVE') {
+      membershipByCustomer.set(membership.customerId, membership);
+    }
+  }
+  return membershipByCustomer;
+}
+
+export async function fetchCustomersPage(
+  params: CustomersListParams,
+): Promise<CustomersPageData> {
+  const isActive =
+    params.status === 'active'
+      ? true
+      : params.status === 'inactive'
+        ? false
+        : undefined;
+
+  const [customersPage, membershipsPage, plansPage] = await Promise.all([
+    api.get<PaginatedResponse<CustomerApiItem>>('/customers', {
+      params: {
+        page: params.page,
+        limit: params.limit,
+        search: params.search.trim() || undefined,
+        gender: params.gender || undefined,
+        isActive,
+      },
+    }),
+    api.get<PaginatedResponse<MembershipApiItem>>('/memberships', {
+      params: { page: 1, limit: 100 },
+    }),
+    api.get<PaginatedResponse<MembershipPlanApiItem>>('/membership-plans', {
+      params: { page: 1, limit: 100, isActive: true },
+    }),
+  ]);
+
+  const planById = new Map(plansPage.data.map((plan) => [plan.id, plan]));
+  const membershipByCustomer = pickMemberships(membershipsPage.data);
+
+  const activeMembershipCount = membershipsPage.data.filter(
+    (m) => m.status === 'ACTIVE',
+  ).length;
+
+  // Active memberships total may be truncated when salon has >100 memberships.
+  const membershipCountIsComplete =
+    membershipsPage.meta.total <= membershipsPage.data.length;
+
+  const metrics = await buildMetrics(activeMembershipCount);
+  if (!membershipCountIsComplete) {
+    const membershipMetric = metrics.find((m) => m.id === 'cust-memberships');
+    if (membershipMetric) {
+      membershipMetric.comparisonLabel = 'from recent memberships';
+      membershipMetric.comparisonIsPlaceholder = true;
+    }
+  }
+
+  let rows = customersPage.data.map((row) =>
+    mapRow(row, membershipByCustomer, planById),
+  );
+
+  // Membership plan filter is client-side on the current customers page
+  // (API has no planId filter). Meta reflects the filtered subset only.
+  if (params.membershipPlanId) {
+    rows = rows.filter((row) => {
+      const membership = membershipByCustomer.get(row.id);
+      return membership?.membershipPlanId === params.membershipPlanId;
+    });
+
+    return {
+      rows,
+      meta: {
+        page: 1,
+        limit: params.limit,
+        total: rows.length,
+        totalPages: rows.length === 0 ? 0 : 1,
+      },
+      metrics,
+      planOptions: plansPage.data.map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+      })),
+    };
+  }
+
+  return {
+    rows,
+    meta: customersPage.meta,
+    metrics,
+    planOptions: plansPage.data.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+    })),
   };
+}
 
-  if (payload.gender) body.gender = payload.gender;
-  if (payload.dateOfBirth) body.dateOfBirth = payload.dateOfBirth;
-
-  return api.post<RawCustomer>('/customers', body);
+export async function createCustomer(payload: CreateCustomerPayload) {
+  return api.post<CustomerApiItem>('/customers', payload);
 }

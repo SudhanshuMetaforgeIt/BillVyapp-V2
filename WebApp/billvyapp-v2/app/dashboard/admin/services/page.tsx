@@ -1,5 +1,5 @@
-import { ServicesPageView } from '@/features/services';
+import { AdminServicesPageView } from '@/features/services';
 
 export default function AdminServicesPage() {
-  return <ServicesPageView />;
+  return <AdminServicesPageView />;
 }

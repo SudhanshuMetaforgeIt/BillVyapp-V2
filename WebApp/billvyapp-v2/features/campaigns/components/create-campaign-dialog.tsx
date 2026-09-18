@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { AlertCircle, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCreateCampaign } from '../hooks/use-campaigns';
-import type { CampaignType } from '../types/campaigns.types';
+import { useCreateCampaign } from '../hooks/use-admin-campaigns';
+import type { CampaignType } from '../types/admin-campaigns.types';
 
 type CreateCampaignDialogProps = {
   isOpen: boolean;

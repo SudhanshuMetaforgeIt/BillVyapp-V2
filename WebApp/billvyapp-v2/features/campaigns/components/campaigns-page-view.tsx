@@ -1,114 +1,105 @@
 'use client';
 
-import { useState } from 'react';
-import { useAdminCampaigns } from '../hooks/use-campaigns';
-import { CampaignsStats } from './campaigns-stats';
+import {
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
+
+import { SectionErrorState } from '@/components/layout/section-states';
+import { MetricGrid } from '@/features/dashboard/components/metric-card';
+import { playDashboardEntrance, useGSAP } from '@/lib/animations';
+import { useCampaigns } from '../hooks/use-campaigns';
+import type { CampaignStatusTab } from '../types/campaigns.types';
 import { CampaignsFilters } from './campaigns-filters';
+import { CampaignsSidePanel } from './campaigns-side-panel';
 import { CampaignsTable } from './campaigns-table';
-import { CampaignsSidebar } from './campaigns-sidebar';
-import { CreateCampaignDialog } from './create-campaign-dialog';
-import { CampaignDetailsDialog } from './campaign-details-dialog';
-import type {
-  CampaignItem,
-  CampaignsFilterState,
-} from '../types/campaigns.types';
+
+const PAGE_SIZE = 10;
 
 export function CampaignsPageView() {
-  const [filters, setFilters] = useState<CampaignsFilterState>({
-    search: '',
-    statusTab: 'ALL',
-    branchId: 'all',
-    page: 1,
-    limit: 10,
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [, startTransition] = useTransition();
+
+  const [searchInput, setSearchInput] = useState('');
+  const deferredSearch = useDeferredValue(searchInput);
+  const [statusTab, setStatusTab] = useState<CampaignStatusTab>('all');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearch, statusTab]);
+
+  const query = useCampaigns({
+    page,
+    limit: PAGE_SIZE,
+    search: deferredSearch,
+    statusTab,
   });
 
-  const { data, isLoading } = useAdminCampaigns(filters);
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [viewingCampaign, setViewingCampaign] = useState<CampaignItem | null>(
-    null,
+  useGSAP(
+    () => {
+      if (!rootRef.current || query.isLoading) return;
+      playDashboardEntrance({ root: rootRef.current });
+    },
+    { dependencies: [query.isLoading, query.isSuccess], scope: rootRef },
   );
 
-  const handleFiltersChange = (updated: Partial<CampaignsFilterState>) => {
-    setFilters((prev) => ({ ...prev, ...updated }));
-  };
+  if (query.isError && !query.data) {
+    return (
+      <div className="app-surface-card">
+        <SectionErrorState
+          title="Campaigns unavailable"
+          message="We could not load campaigns. Please try again."
+          onRetry={() => void query.refetch()}
+        />
+      </div>
+    );
+  }
 
-  const campaigns = data?.campaigns || [];
-  const stats = data?.stats || {
-    totalCampaigns: 0,
-    totalCampaignsSubtitle: 'No data yet',
-    activeCampaigns: 0,
-    activeCampaignsPct: 0,
-    upcomingCampaigns: 0,
-    upcomingCampaignsPct: 0,
-    completedCampaigns: 0,
-    completedCampaignsPct: 0,
-    draftCampaigns: 0,
+  const data = query.data;
+  const emptyMeta = {
+    page: 1,
+    limit: PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
   };
-  const branches = data?.branches || [];
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-white">
-          Campaigns
-        </h1>
-        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Create and manage campaigns to grow your business and engage your customers.
-        </p>
-      </div>
+    <div ref={rootRef} className="space-y-6 lg:space-y-7">
+      <MetricGrid
+        metrics={data?.metrics ?? []}
+        isLoading={query.isLoading && !data}
+        className="xl:grid-cols-4"
+        skeletonCount={4}
+      />
 
-      {/* Top 4 Metric Cards */}
-      <CampaignsStats stats={stats} loading={isLoading} />
-
-      {/* Main 2-Column Content Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Section (Table & Filters) - 8 cols */}
-        <div className="space-y-5 lg:col-span-8">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="space-y-4">
           <CampaignsFilters
-            filters={filters}
-            onChange={handleFiltersChange}
-            branches={branches}
-            onCreateCampaign={() => setIsCreateOpen(true)}
+            search={searchInput}
+            onSearchChange={setSearchInput}
+            apiUnavailable={data?.apiUnavailable}
           />
 
           <CampaignsTable
-            campaigns={campaigns}
-            total={data?.total || 0}
-            currentPage={filters.page}
-            totalPages={data?.totalPages || 1}
-            limit={filters.limit}
-            loading={isLoading}
-            onPageChange={(p) => handleFiltersChange({ page: p })}
-            onCreateCampaign={() => setIsCreateOpen(true)}
-            onViewCampaign={(c) => setViewingCampaign(c)}
-            onEditCampaign={(c) => setViewingCampaign(c)}
+            rows={data?.rows ?? []}
+            meta={data?.meta ?? emptyMeta}
+            statusTab={statusTab}
+            onStatusTabChange={(value) => {
+              startTransition(() => setStatusTab(value));
+            }}
+            isLoading={query.isLoading && !data}
+            isError={query.isError}
+            onRetry={() => void query.refetch()}
+            apiUnavailable={data?.apiUnavailable}
           />
         </div>
 
-        {/* Right Section (Sidebar with Donut & Quick Actions) - 4 cols */}
-        <div className="lg:col-span-4">
-          <CampaignsSidebar
-            stats={stats}
-            onCreateCampaign={() => setIsCreateOpen(true)}
-          />
-        </div>
+        <CampaignsSidePanel summary={data?.summary ?? []} />
       </div>
-
-      {/* Create Campaign Modal */}
-      <CreateCampaignDialog
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        branches={branches}
-      />
-
-      {/* Campaign Details Modal */}
-      <CampaignDetailsDialog
-        campaign={viewingCampaign}
-        isOpen={!!viewingCampaign}
-        onClose={() => setViewingCampaign(null)}
-      />
     </div>
   );
 }

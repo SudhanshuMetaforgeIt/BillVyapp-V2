@@ -1,51 +1,90 @@
-export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
-
-export type CustomerStats = {
-  totalCustomers: number;
-  totalCustomersChange: string;
-  newCustomers: number;
-  newCustomersChange: string;
-  returningCustomers: number;
-  returningCustomersPct: number;
-  totalSpentThisMonth: number;
-  totalSpentChange: string;
-};
-
-export type CustomerInsights = {
-  mostFrequentCustomer: { name: string; visits: number } | null;
-  highestSpender: { name: string; amount: number } | null;
-  newThisMonth: number;
-  inactiveCustomers: number;
-};
-
-export type CustomerItem = {
-  id: string;
-  name: string;
-  firstName: string;
-  lastName: string;
-  initials: string;
-  joinedDate: string;
-  rawCreatedAt: string;
-  phone: string;
-  email: string;
-  branchName: string;
-  salonId?: string | null;
-  totalBills: number;
-  totalSpent: number;
-  lastVisit: string;
-  isActive: boolean;
-  gender?: Gender | null;
-  customerCode: string;
-};
-
-export type CustomersFilterState = {
-  search: string;
-  customerTab: 'ALL' | 'NEW' | 'RETURNING';
-  branchId: string;
-  status: 'all' | 'active' | 'inactive';
-  gender: 'all' | Gender;
+export type PaginationMeta = {
   page: number;
   limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  meta: PaginationMeta;
+};
+
+export type CustomerGender =
+  | 'MALE'
+  | 'FEMALE'
+  | 'OTHER'
+  | 'PREFER_NOT_TO_SAY';
+
+export type CustomerStatusFilter = 'all' | 'active' | 'inactive';
+
+export type CustomerApiItem = {
+  id: string;
+  userId: string;
+  customerCode: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  profilePhoto: string | null;
+  dateOfBirth: string | null;
+  gender: CustomerGender | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MembershipApiItem = {
+  id: string;
+  customerId: string;
+  membershipPlanId: string;
+  startDate: string;
+  endDate: string;
+  status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+  salonId: string;
+};
+
+export type MembershipPlanApiItem = {
+  id: string;
+  salonId: string;
+  name: string;
+  isActive: boolean;
+};
+
+export type CustomerListRow = {
+  id: string;
+  customerCode: string;
+  fullName: string;
+  initials: string;
+  genderLabel: string;
+  ageLabel: string;
+  phone: string;
+  phoneMasked: string;
+  email: string;
+  membershipLabel: string;
+  membershipTone: 'gold' | 'silver' | 'platinum' | 'none' | 'expired';
+  membershipExpiry: string;
+  totalVisitsLabel: string;
+  totalSpendLabel: string;
+  lastVisitLabel: string;
+  isActive: boolean;
+  statusLabel: string;
+};
+
+export type CustomersListParams = {
+  page: number;
+  limit: number;
+  search: string;
+  gender: '' | CustomerGender;
+  status: CustomerStatusFilter;
+  membershipPlanId: string;
+};
+
+export type CustomersPageData = {
+  rows: CustomerListRow[];
+  meta: PaginationMeta;
+  metrics: import('@/features/dashboard/services/dashboard.service').DashboardMetric[];
+  planOptions: Array<{ id: string; name: string }>;
 };
 
 export type CreateCustomerPayload = {
@@ -53,16 +92,6 @@ export type CreateCustomerPayload = {
   lastName: string;
   email: string;
   phone: string;
-  gender?: Gender;
+  gender?: CustomerGender;
   dateOfBirth?: string;
-  salonId?: string;
-};
-
-export type AdminCustomersResult = {
-  customers: CustomerItem[];
-  stats: CustomerStats;
-  insights: CustomerInsights;
-  total: number;
-  totalPages: number;
-  branches: { id: string; name: string }[];
 };
