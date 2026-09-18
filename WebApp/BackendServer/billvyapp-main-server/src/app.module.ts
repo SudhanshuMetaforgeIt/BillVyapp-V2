@@ -42,6 +42,7 @@ import { ServiceCategoriesModule } from './service-categories/service-categories
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
 import { VendorsModule } from './vendors/vendors.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { VendorsModule } from './vendors/vendors.module';
     LoyaltyModule,
     NotificationsModule,
     MediaModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [
