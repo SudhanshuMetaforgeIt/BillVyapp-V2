@@ -10,6 +10,8 @@ export type ProfileUser = {
   role: RoleCode;
   roleLabel: string;
   isActive: boolean;
+  salonId: string | null;
+  franchiseId: string | null;
   createdAt: string | null;
   lastLoginAt: string | null;
 };

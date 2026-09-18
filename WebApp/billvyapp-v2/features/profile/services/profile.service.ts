@@ -18,6 +18,8 @@ function fromUserDetail(detail: UserApiItem): ProfileUser {
     role,
     roleLabel: ROLE_LABELS[role],
     isActive: detail.isActive,
+    salonId: detail.salonId ?? null,
+    franchiseId: detail.franchiseId ?? null,
     createdAt: detail.createdAt,
     lastLoginAt: detail.lastLoginAt,
   };
@@ -36,6 +38,8 @@ function toProfileUser(me: AuthMeUser, detail: UserApiItem | null): ProfileUser 
     role,
     roleLabel: ROLE_LABELS[role],
     isActive: me.isActive,
+    salonId: me.salonId ?? detail?.salonId ?? null,
+    franchiseId: me.franchiseId ?? detail?.franchiseId ?? null,
     createdAt: detail?.createdAt ?? null,
     lastLoginAt: detail?.lastLoginAt ?? null,
   };

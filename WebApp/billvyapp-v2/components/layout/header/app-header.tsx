@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
-import { ROUTES } from '@/constants/routes';
+import { ROLE_SEGMENTS } from '@/constants/roles';
 import { UserMenu } from '@/components/layout/user-menu/user-menu';
 import { cn } from '@/lib/utils';
 import type { AuthUser } from '@/types/user.types';
@@ -31,6 +31,9 @@ export function AppHeader({
 }: AppHeaderProps) {
   const badge =
     notificationCount > 99 ? '99+' : notificationCount > 0 ? String(notificationCount) : null;
+  const notificationsHref = user
+    ? `/dashboard/${ROLE_SEGMENTS[user.role]}/notifications`
+    : '#';
 
   return (
     <header
@@ -82,7 +85,7 @@ export function AppHeader({
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
-            href={ROUTES.dashboard.superAdmin.notifications}
+            href={notificationsHref}
             className="relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             aria-label={
               badge

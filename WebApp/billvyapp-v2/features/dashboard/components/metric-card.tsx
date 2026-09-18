@@ -7,6 +7,9 @@ import {
   BadgeCheck,
   Bell,
   Building2,
+  CalendarCheck2,
+  CalendarDays,
+  CalendarX2,
   CircleAlert,
   CircleCheck,
   CircleX,
@@ -16,6 +19,7 @@ import {
   IndianRupee,
   Mail,
   PauseCircle,
+  Receipt,
   Shield,
   ShieldBan,
   Tags,
@@ -23,6 +27,7 @@ import {
   UserRoundCheck,
   UserRoundX,
   Users,
+  UserX,
   Wallet,
 } from 'lucide-react';
 
@@ -67,6 +72,16 @@ const METRIC_ICONS: Record<string, LucideIcon> = {
   'support-in-progress': Clock3,
   'support-resolved': CircleCheck,
   'support-closed': CircleX,
+  'manager-today-sales': IndianRupee,
+  'manager-walk-ins': Receipt,
+  'manager-appointments': CalendarDays,
+  'manager-avg-bill': Wallet,
+  'manager-pending-collection': Clock3,
+  'appt-today': CalendarDays,
+  'appt-upcoming': CalendarCheck2,
+  'appt-completed': CircleCheck,
+  'appt-cancelled': CalendarX2,
+  'appt-no-show': UserX,
 };
 
 const CURRENCY_METRIC_IDS = new Set([
@@ -77,6 +92,9 @@ const CURRENCY_METRIC_IDS = new Set([
   'failed-payments',
   'avg-plan-price',
   'reports-total-revenue',
+  'manager-today-sales',
+  'manager-avg-bill',
+  'manager-pending-collection',
 ]);
 
 const METRIC_ICON_WRAP: Record<string, string> = {
@@ -110,6 +128,18 @@ const METRIC_ICON_WRAP: Record<string, string> = {
   'support-resolved': 'bg-[#e8eef8] text-[#35507a]',
   'support-closed':
     'bg-[color-mix(in_srgb,var(--bv-danger)_12%,white)] text-danger',
+  'manager-today-sales': 'bg-brand-orange/10 text-brand-orange',
+  'manager-walk-ins': 'bg-champagne-light text-champagne',
+  'manager-appointments': 'bg-emerald-light text-emerald',
+  'manager-avg-bill': 'bg-brand-orange/10 text-brand-orange',
+  'manager-pending-collection':
+    'bg-[color-mix(in_srgb,var(--bv-danger)_12%,white)] text-danger',
+  'appt-today': 'bg-champagne-light text-champagne',
+  'appt-upcoming': 'bg-brand-orange/10 text-brand-orange',
+  'appt-completed': 'bg-emerald-light text-emerald',
+  'appt-cancelled':
+    'bg-[color-mix(in_srgb,var(--bv-danger)_12%,white)] text-danger',
+  'appt-no-show': 'bg-[#eee8f8] text-[#5b4a7a]',
 };
 
 const TONE_ICON_WRAP: Record<MetricTone, string> = {
@@ -176,7 +206,7 @@ export function MetricCard({ metric, className }: MetricCardProps) {
         <p className="mt-3 text-sm text-text-secondary">
           {metric.comparisonIsPlaceholder
             ? 'Comparison unavailable'
-            : 'Current period total'}
+            : metric.comparisonLabel || 'Current period total'}
         </p>
       )}
     </article>
@@ -196,13 +226,25 @@ export function MetricCardSkeleton() {
 type MetricGridProps = {
   metrics: DashboardMetric[];
   isLoading?: boolean;
+  className?: string;
+  skeletonCount?: number;
 };
 
-export function MetricGrid({ metrics, isLoading }: MetricGridProps) {
+export function MetricGrid({
+  metrics,
+  isLoading,
+  className,
+  skeletonCount = 4,
+}: MetricGridProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div
+        className={cn(
+          'grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4',
+          className,
+        )}
+      >
+        {Array.from({ length: skeletonCount }).map((_, i) => (
           <MetricCardSkeleton key={i} />
         ))}
       </div>
@@ -210,7 +252,12 @@ export function MetricGrid({ metrics, isLoading }: MetricGridProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
+    <div
+      className={cn(
+        'grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4',
+        className,
+      )}
+    >
       {metrics.map((metric) => (
         <MetricCard key={metric.id} metric={metric} />
       ))}

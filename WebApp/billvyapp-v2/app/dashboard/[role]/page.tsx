@@ -20,13 +20,13 @@ type DashboardPageProps = {
 
 /**
  * Placeholder landing for roles that do not yet have a dedicated dashboard.
- * Super Admin is served by app/dashboard/super_admin.
+ * Super Admin and Manager are served by their dedicated app/dashboard folders.
  */
 export default async function RoleDashboardPage({ params }: DashboardPageProps) {
   const { role: segment } = await params;
   const role = SEGMENT_TO_ROLE[segment];
 
-  if (!role || role === 'SUPER_ADMIN') notFound();
+  if (!role || role === 'SUPER_ADMIN' || role === 'MANAGER') notFound();
 
   return (
     <AppShell
