@@ -1,5 +1,5 @@
 import type { MessageResponse } from '@/types/api.types';
-import type { AuthSession, AuthTokens } from '@/types/user.types';
+import type { AuthSession, AuthTokens, AuthUser } from '@/types/user.types';
 import { api } from './api-client';
 import { tokenStorage } from './token-storage';
 
@@ -10,7 +10,15 @@ import { tokenStorage } from './token-storage';
  *   POST /auth/login       POST /auth/register
  *   POST /auth/send-otp    POST /auth/verify-otp
  *   POST /auth/refresh     POST /auth/logout
+ *   GET  /auth/me
  */
+
+/** Full identity payload from GET /auth/me (broader than the session AuthUser). */
+export type AuthMeUser = AuthUser & {
+  phone: string | null;
+  profilePhoto: string | null;
+  isActive: boolean;
+};
 
 export interface LoginPayload {
   email: string;
@@ -101,5 +109,10 @@ export const authService = {
 
   hasStoredSession(): boolean {
     return tokenStorage.getAccessToken() !== null;
+  },
+
+  /** Authoritative identity for the signed-in user. */
+  me(): Promise<AuthMeUser> {
+    return api.get<AuthMeUser>('/auth/me');
   },
 };

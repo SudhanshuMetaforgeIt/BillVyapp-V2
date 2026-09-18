@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { NotificationsPageView } from '@/features/notifications';
 
 export default function NotificationsPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Notifications"
-      description="Notification center and delivery logs will live here."
-    />
-  );
+  return <NotificationsPageView />;
 }

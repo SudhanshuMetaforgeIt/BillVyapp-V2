@@ -1,10 +1,7 @@
 import { format, startOfMonth, subDays, subMonths } from 'date-fns';
 
 import { api } from '@/services/api-client';
-import {
-  PLACEHOLDER_REVENUE_SERIES,
-  type RevenuePoint,
-} from '../data/placeholders';
+import type { RevenuePoint } from '../data/placeholders';
 import type {
   FranchiseListItem,
   NotificationListItem,
@@ -52,7 +49,6 @@ export type SuperAdminDashboardData = {
   activity: ActivityItem[];
   unreadNotifications: number;
   revenueSeries: RevenuePoint[];
-  revenueIsPlaceholder: boolean;
   revenueMonthTotal: number;
 };
 
@@ -167,46 +163,36 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
       ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
       : null;
 
-  /**
-   * Count MoM deltas need historical snapshots the API does not expose yet.
-   * Values below are isolated placeholders for UI parity with the reference.
-   */
-  const PLACEHOLDER_COUNT_DELTAS = {
-    businesses: 12.5,
-    active: 10.2,
-    users: 8.7,
-  } as const;
-
   const metrics: DashboardMetric[] = [
     {
       id: 'total-businesses',
       label: 'Total Businesses',
       value: String(totalBusinesses),
       rawValue: totalBusinesses,
-      comparisonLabel: 'vs last month',
-      changePercent: PLACEHOLDER_COUNT_DELTAS.businesses,
+      comparisonLabel: 'current total',
+      changePercent: null,
       tone: 'accent',
-      comparisonIsPlaceholder: true,
+      comparisonIsPlaceholder: false,
     },
     {
       id: 'active-businesses',
       label: 'Active Businesses',
       value: String(activeBusinesses),
       rawValue: activeBusinesses,
-      comparisonLabel: 'vs last month',
-      changePercent: PLACEHOLDER_COUNT_DELTAS.active,
+      comparisonLabel: 'current total',
+      changePercent: null,
       tone: 'success',
-      comparisonIsPlaceholder: true,
+      comparisonIsPlaceholder: false,
     },
     {
       id: 'total-users',
       label: 'Total Users',
       value: String(totalUsers),
       rawValue: totalUsers,
-      comparisonLabel: 'vs last month',
-      changePercent: PLACEHOLDER_COUNT_DELTAS.users,
+      comparisonLabel: 'current total',
+      changePercent: null,
       tone: 'neutral',
-      comparisonIsPlaceholder: true,
+      comparisonIsPlaceholder: false,
     },
     {
       id: 'revenue-month',
@@ -230,8 +216,7 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
     recentBusinesses: franchisesRecent.data.map(mapFranchiseRow),
     activity,
     unreadNotifications,
-    revenueSeries: PLACEHOLDER_REVENUE_SERIES,
-    revenueIsPlaceholder: true,
+    revenueSeries: [] as RevenuePoint[],
     revenueMonthTotal: thisMonthRevenue,
   };
 }

@@ -48,7 +48,6 @@ export function SuperAdminDashboardView() {
           <RevenueOverview
             series={data?.revenueSeries ?? []}
             isLoading={query.isLoading}
-            isPlaceholder={data?.revenueIsPlaceholder ?? true}
           />
           <RecentBusinesses
             rows={data?.recentBusinesses ?? []}

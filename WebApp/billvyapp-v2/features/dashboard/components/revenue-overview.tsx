@@ -13,7 +13,6 @@ import type { RevenuePoint } from '../data/placeholders';
 type RevenueOverviewProps = {
   series: RevenuePoint[];
   isLoading?: boolean;
-  isPlaceholder?: boolean;
 };
 
 const RANGES = [
@@ -24,7 +23,6 @@ const RANGES = [
 export function RevenueOverview({
   series,
   isLoading,
-  isPlaceholder,
 }: RevenueOverviewProps) {
   const [range, setRange] = useState<(typeof RANGES)[number]['id']>('6m');
 
@@ -57,12 +55,6 @@ export function RevenueOverview({
       }
       bodyClassName="pt-4"
     >
-      {isPlaceholder ? (
-        <p className="mb-3 text-xs text-text-secondary">
-          Chart uses placeholder series until analytics API is available.
-        </p>
-      ) : null}
-
       {isLoading ? (
         <Skeleton className="h-56 w-full rounded-xl" />
       ) : points.length === 0 ? (

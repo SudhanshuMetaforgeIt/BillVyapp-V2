@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { UsersPageView } from '@/features/users';
 
 export default function UsersPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Users"
-      description="Platform user administration will live here."
-    />
-  );
+  return <UsersPageView />;
 }

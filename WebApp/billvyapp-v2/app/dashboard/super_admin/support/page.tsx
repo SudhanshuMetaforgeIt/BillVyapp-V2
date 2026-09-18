@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { SupportPageView } from '@/features/support';
 
 export default function SupportPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Support"
-      description="Support tooling for franchises will live here."
-    />
-  );
+  return <SupportPageView />;
 }

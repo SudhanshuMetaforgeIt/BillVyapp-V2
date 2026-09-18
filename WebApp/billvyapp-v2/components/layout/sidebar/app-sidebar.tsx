@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronRight, LogOut, X } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 
 import { BrandLogo } from '@/features/auth/components/brand-logo';
 import type { NavSection } from '@/constants/navigation';
 import { ROLE_LABELS, type RoleCode } from '@/constants/roles';
-import { useLogout } from '@/features/auth/hooks/use-logout';
+import { dashboardHomeFor, ROUTES } from '@/constants/routes';
 import { cn } from '@/lib/utils';
 
 type AppSidebarProps = {
@@ -33,8 +33,6 @@ type SidebarNavProps = {
   collapsed: boolean;
   onNavigate?: () => void;
   onCloseMobile?: () => void;
-  logout: () => void;
-  isPending: boolean;
 };
 
 function SidebarNav({
@@ -44,30 +42,44 @@ function SidebarNav({
   collapsed,
   onNavigate,
   onCloseMobile,
-  logout,
-  isPending,
 }: SidebarNavProps) {
+  const homeHref = role ? dashboardHomeFor(role) : ROUTES.dashboard.root;
+
   return (
     <div className="relative z-10 flex h-full min-h-0 flex-col">
       <div className={cn('shrink-0 px-3 pt-4 pb-3', collapsed && 'px-2 pt-3')}>
         {collapsed ? (
           <div className="flex flex-col items-center">
-            <BrandLogo
-              variant="dark"
-              size="compact"
-              className="h-9 w-9 shrink-0 [&_img]:object-center"
-              priority
-            />
+            <Link
+              href={homeHref}
+              onClick={onNavigate}
+              aria-label="Go to dashboard"
+              className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7B00]"
+            >
+              <BrandLogo
+                variant="dark"
+                size="compact"
+                className="h-9 w-9 shrink-0 [&_img]:object-center"
+                priority
+              />
+            </Link>
           </div>
         ) : (
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <BrandLogo
-                variant="dark"
-                size="compact"
-                className="h-11 w-36 shrink-0 [&_img]:object-left"
-                priority
-              />
+              <Link
+                href={homeHref}
+                onClick={onNavigate}
+                aria-label="Go to dashboard"
+                className="inline-block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7B00]"
+              >
+                <BrandLogo
+                  variant="dark"
+                  size="compact"
+                  className="h-11 w-36 shrink-0 [&_img]:object-left"
+                  priority
+                />
+              </Link>
               <p className="mt-1.5 px-0.5 text-[11px] font-medium tracking-[0.14em] text-[#FFB347]/90 uppercase">
                 {role ? ROLE_LABELS[role] : 'BillVyApp'}
               </p>
@@ -144,39 +156,16 @@ function SidebarNav({
         </ul>
       </nav>
 
-      <div
-        className={cn(
-          'relative z-10 shrink-0 space-y-2 border-t border-white/10 p-3',
-          collapsed && 'px-2',
-        )}
-      >
-        {!collapsed ? (
+      {!collapsed ? (
+        <div className="relative z-10 shrink-0 border-t border-white/10 p-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 backdrop-blur-sm">
             <p className="text-sm font-semibold text-white">Need Help?</p>
             <p className="mt-0.5 text-xs leading-relaxed text-white/55">
               Reach platform support for franchise onboarding.
             </p>
           </div>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={() => void logout()}
-          disabled={isPending}
-          className={cn(
-            'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium text-white/85 transition-colors',
-            'hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7B00]',
-            'disabled:opacity-60',
-            collapsed && 'justify-center px-2',
-          )}
-          title="Logout"
-        >
-          <LogOut className="size-[1.05rem]" aria-hidden />
-          {!collapsed ? (
-            <span>{isPending ? 'Signing out…' : 'Logout'}</span>
-          ) : null}
-        </button>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -189,7 +178,6 @@ export function AppSidebar({
   collapsed = false,
 }: AppSidebarProps) {
   const pathname = usePathname();
-  const { logout, isPending } = useLogout();
 
   return (
     <>
@@ -206,8 +194,6 @@ export function AppSidebar({
           role={role}
           pathname={pathname}
           collapsed={collapsed}
-          logout={logout}
-          isPending={isPending}
         />
       </aside>
 
@@ -242,8 +228,6 @@ export function AppSidebar({
             collapsed={false}
             onNavigate={onCloseMobile}
             onCloseMobile={onCloseMobile}
-            logout={logout}
-            isPending={isPending}
           />
         </aside>
       </div>

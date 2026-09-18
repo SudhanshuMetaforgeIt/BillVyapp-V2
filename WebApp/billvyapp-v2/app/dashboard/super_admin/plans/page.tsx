@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { PlansPageView } from '@/features/plans';
 
 export default function PlansPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Plans & Pricing"
-      description="Subscription plans and pricing management will live here."
-    />
-  );
+  return <PlansPageView />;
 }

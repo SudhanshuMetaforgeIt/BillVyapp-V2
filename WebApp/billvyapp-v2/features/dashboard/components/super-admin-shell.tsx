@@ -16,15 +16,42 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'Dashboard',
     subtitle: 'Overview of your BillVyApp platform.',
   },
-  [ROUTES.dashboard.superAdmin.businesses]: { title: 'Businesses' },
-  [ROUTES.dashboard.superAdmin.payments]: { title: 'Payments' },
-  [ROUTES.dashboard.superAdmin.users]: { title: 'Users' },
-  [ROUTES.dashboard.superAdmin.plans]: { title: 'Plans & Pricing' },
-  [ROUTES.dashboard.superAdmin.reports]: { title: 'Reports' },
-  [ROUTES.dashboard.superAdmin.notifications]: { title: 'Notifications' },
-  [ROUTES.dashboard.superAdmin.support]: { title: 'Support' },
-  [ROUTES.dashboard.superAdmin.settings]: { title: 'Settings' },
-  [ROUTES.dashboard.superAdmin.profile]: { title: 'Profile' },
+  [ROUTES.dashboard.superAdmin.businesses]: {
+    title: 'Businesses',
+    subtitle: 'Manage and monitor all businesses on BillVyApp platform.',
+  },
+  [ROUTES.dashboard.superAdmin.payments]: {
+    title: 'Payments',
+    subtitle: 'Manage and monitor payments across all businesses.',
+  },
+  [ROUTES.dashboard.superAdmin.users]: {
+    title: 'Users',
+    subtitle: 'Manage platform users across all businesses.',
+  },
+  [ROUTES.dashboard.superAdmin.plans]: {
+    title: 'Plans & Pricing',
+    subtitle: 'Create and manage subscription plans for businesses.',
+  },
+  [ROUTES.dashboard.superAdmin.reports]: {
+    title: 'Reports',
+    subtitle: 'View insights and generate reports across the platform.',
+  },
+  [ROUTES.dashboard.superAdmin.notifications]: {
+    title: 'Notifications',
+    subtitle: 'Manage and monitor all system notifications.',
+  },
+  [ROUTES.dashboard.superAdmin.support]: {
+    title: 'Support',
+    subtitle: 'Manage support tickets and help users with their queries.',
+  },
+  [ROUTES.dashboard.superAdmin.settings]: {
+    title: 'Settings',
+    subtitle: 'Manage system settings and preferences.',
+  },
+  [ROUTES.dashboard.superAdmin.profile]: {
+    title: 'Profile',
+    subtitle: 'Manage your profile information and account preferences.',
+  },
 };
 
 /**

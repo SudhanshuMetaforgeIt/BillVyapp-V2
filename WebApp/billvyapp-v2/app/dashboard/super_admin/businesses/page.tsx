@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { BusinessesPageView } from '@/features/businesses';
 
 export default function BusinessesPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Businesses"
-      description="Franchise and business management for Super Admin will live here."
-    />
-  );
+  return <BusinessesPageView />;
 }

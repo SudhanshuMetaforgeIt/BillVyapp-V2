@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { SettingsPageView } from '@/features/settings';
 
 export default function SettingsPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Settings"
-      description="Platform settings will live here."
-    />
-  );
+  return <SettingsPageView />;
 }

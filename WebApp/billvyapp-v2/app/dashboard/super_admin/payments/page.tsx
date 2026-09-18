@@ -1,10 +1,5 @@
-import { SuperAdminPlaceholderPage } from '@/features/dashboard/components/super-admin-placeholder-page';
+import { PaymentsPageView } from '@/features/payments';
 
 export default function PaymentsPage() {
-  return (
-    <SuperAdminPlaceholderPage
-      title="Payments"
-      description="Platform payment monitoring will live here."
-    />
-  );
+  return <PaymentsPageView />;
 }

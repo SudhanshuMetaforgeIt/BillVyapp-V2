@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { ChevronDown, LogOut, UserRound } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, LogOut, Settings, UserRound } from 'lucide-react';
 
-import { ROLE_LABELS } from '@/constants/roles';
+import { ROLE_LABELS, ROLE_SEGMENTS } from '@/constants/roles';
 import { useLogout } from '@/features/auth/hooks/use-logout';
 import { formatFullName } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,11 @@ function initials(user: AuthUser | null): string {
   const b = user.lastName?.[0] ?? '';
   const value = `${a}${b}`.toUpperCase();
   return value || user.email.slice(0, 1).toUpperCase() || 'U';
+}
+
+function accountPath(user: AuthUser | null, page: 'profile' | 'settings'): string {
+  if (!user) return '#';
+  return `/dashboard/${ROLE_SEGMENTS[user.role]}/${page}`;
 }
 
 export function UserMenu({ user }: UserMenuProps) {
@@ -98,15 +104,24 @@ export function UserMenu({ user }: UserMenuProps) {
             <p className="truncate text-sm font-semibold text-text">{displayName}</p>
             <p className="truncate text-xs text-text-secondary">{user?.email}</p>
           </div>
-          <button
-            type="button"
+          <Link
+            href={accountPath(user, 'profile')}
             role="menuitem"
             className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-text hover:bg-ivory focus-visible:bg-ivory focus-visible:outline-none"
             onClick={() => setOpen(false)}
           >
             <UserRound className="size-4 text-text-secondary" aria-hidden />
             Profile
-          </button>
+          </Link>
+          <Link
+            href={accountPath(user, 'settings')}
+            role="menuitem"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-text hover:bg-ivory focus-visible:bg-ivory focus-visible:outline-none"
+            onClick={() => setOpen(false)}
+          >
+            <Settings className="size-4 text-text-secondary" aria-hidden />
+            Settings
+          </Link>
           <button
             type="button"
             role="menuitem"

@@ -1,14 +1,11 @@
 import {
-  Bell,
   Building2,
   CreditCard,
   FileBarChart2,
   Headset,
   LayoutDashboard,
-  Settings,
   Shield,
   Tags,
-  UserRound,
   Users,
 } from 'lucide-react';
 
@@ -19,7 +16,7 @@ const base = `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}`;
 
 /**
  * Super Admin sidebar navigation.
- * Hrefs are placeholders for upcoming domain pages; Dashboard is live.
+ * Notifications live behind the header bell; Profile and Settings live in the user menu.
  */
 export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
   {
@@ -62,28 +59,10 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
         icon: FileBarChart2,
       },
       {
-        id: 'notifications',
-        label: 'Notifications',
-        href: `${base}/notifications`,
-        icon: Bell,
-      },
-      {
         id: 'support',
         label: 'Support',
         href: `${base}/support`,
         icon: Headset,
-      },
-      {
-        id: 'settings',
-        label: 'Settings',
-        href: `${base}/settings`,
-        icon: Settings,
-      },
-      {
-        id: 'profile',
-        label: 'Profile',
-        href: `${base}/profile`,
-        icon: UserRound,
       },
     ],
   },
