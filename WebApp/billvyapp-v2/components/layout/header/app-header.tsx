@@ -19,6 +19,17 @@ type AppHeaderProps = {
   className?: string;
 };
 
+/** Returns the notification inbox route for the current user's role. */
+function notificationsRouteFor(user: AuthUser | null): string {
+  if (!user) return ROUTES.dashboard.superAdmin.notifications;
+  switch (user.role) {
+    case 'ADMIN':
+      return ROUTES.dashboard.admin.notifications;
+    default:
+      return ROUTES.dashboard.superAdmin.notifications;
+  }
+}
+
 export function AppHeader({
   user,
   title,
@@ -31,6 +42,8 @@ export function AppHeader({
 }: AppHeaderProps) {
   const badge =
     notificationCount > 99 ? '99+' : notificationCount > 0 ? String(notificationCount) : null;
+
+  const notificationsHref = notificationsRouteFor(user);
 
   return (
     <header
@@ -82,7 +95,7 @@ export function AppHeader({
 
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
-            href={ROUTES.dashboard.superAdmin.notifications}
+            href={notificationsHref}
             className="relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             aria-label={
               badge

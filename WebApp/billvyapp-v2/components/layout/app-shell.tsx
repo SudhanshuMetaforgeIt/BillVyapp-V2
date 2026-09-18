@@ -11,6 +11,7 @@ import { dashboardHomeFor, ROUTES } from '@/constants/routes';
 import { useAuthStatus, useCurrentUser } from '@/hooks/use-current-user';
 import { useUiStore } from '@/stores/ui.store';
 import { cn } from '@/lib/utils';
+import { PageTransition } from '@/components/layout/page-transition';
 
 type AppShellProps = {
   children: ReactNode;
@@ -119,7 +120,7 @@ export function AppShell({
             contentClassName,
           )}
         >
-          {children}
+          <PageTransition key={pathname}>{children}</PageTransition>
         </main>
       </div>
     </div>

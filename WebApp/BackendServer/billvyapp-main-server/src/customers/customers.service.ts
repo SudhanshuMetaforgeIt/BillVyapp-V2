@@ -44,7 +44,33 @@ const CUSTOMER_SELECT = {
       isActive: true,
     },
   },
+  bills: {
+    select: {
+      id: true,
+      total: true,
+      billDate: true,
+      createdAt: true,
+      salon: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: { billDate: 'desc' as const },
+  },
 } as const;
+
+type CustomerBillSummaryRow = {
+  id: string;
+  total: { toString(): string } | string | number;
+  billDate: Date;
+  createdAt: Date;
+  salon?: {
+    id: string;
+    name: string;
+  } | null;
+};
 
 type CustomerRow = {
   id: string;
@@ -63,6 +89,7 @@ type CustomerRow = {
     profilePhoto: string | null;
     isActive: boolean;
   };
+  bills?: CustomerBillSummaryRow[];
 };
 
 export type CustomerRecord = {
@@ -77,6 +104,11 @@ export type CustomerRecord = {
   dateOfBirth: Date | null;
   gender: Gender | null;
   isActive: boolean;
+  totalBills?: number;
+  totalSpent?: string;
+  lastVisit?: string | null;
+  branchName?: string | null;
+  salonId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -464,6 +496,21 @@ export class CustomersService {
   }
 
   private toResponse(row: CustomerRow): CustomerRecord {
+    const bills = row.bills || [];
+    const totalBills = bills.length;
+    let totalSpentNum = 0;
+    for (const b of bills) {
+      totalSpentNum += Number(b.total?.toString() || 0);
+    }
+    const latestBill = bills[0];
+    const lastVisit = latestBill
+      ? latestBill.billDate
+        ? latestBill.billDate.toISOString().slice(0, 10)
+        : latestBill.createdAt.toISOString().slice(0, 10)
+      : null;
+    const branchName = latestBill?.salon?.name ?? null;
+    const salonId = latestBill?.salon?.id ?? null;
+
     return {
       id: row.id,
       userId: row.userId,
@@ -476,6 +523,11 @@ export class CustomersService {
       dateOfBirth: row.dateOfBirth,
       gender: row.gender as Gender | null,
       isActive: row.user.isActive,
+      totalBills,
+      totalSpent: totalSpentNum.toFixed(2),
+      lastVisit,
+      branchName,
+      salonId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

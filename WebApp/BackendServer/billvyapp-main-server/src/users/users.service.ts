@@ -38,6 +38,7 @@ const USER_SELECT = {
   createdAt: true,
   updatedAt: true,
   role: { select: { id: true, name: true, code: true } },
+  salon: { select: { id: true, name: true } },
 } as const;
 
 type UserRecord = {
@@ -55,6 +56,7 @@ type UserRecord = {
   createdAt: Date;
   updatedAt: Date;
   role: { id: string; name: string; code: string };
+  salon?: { id: string; name: string } | null;
 };
 
 @Injectable()

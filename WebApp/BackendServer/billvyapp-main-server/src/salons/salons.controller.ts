@@ -35,7 +35,7 @@ import { SalonsService } from './salons.service';
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Authentication required' })
 @ApiForbiddenResponse({ description: 'Insufficient role for this operation' })
-@Roles(RoleCode.SUPER_ADMIN)
+@Roles(RoleCode.SUPER_ADMIN, RoleCode.ADMIN)
 @Controller('salons')
 export class SalonsController {
   constructor(private readonly salonsService: SalonsService) {}
