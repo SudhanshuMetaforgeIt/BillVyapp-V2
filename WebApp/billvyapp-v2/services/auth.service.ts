@@ -1,5 +1,5 @@
 import type { MessageResponse } from '@/types/api.types';
-import type { AuthSession, AuthTokens } from '@/types/user.types';
+import type { AuthSession, AuthTokens, AuthUser } from '@/types/user.types';
 import { api } from './api-client';
 import { tokenStorage } from './token-storage';
 
@@ -7,12 +7,30 @@ import { tokenStorage } from './token-storage';
  * Auth API surface. One function per backend endpoint, no UI concerns.
  *
  * Endpoints mirror the NestJS AuthController:
- *   POST /auth/login       POST /auth/send-otp   POST /auth/verify-otp
+ *   POST /auth/login       POST /auth/register
+ *   POST /auth/send-otp    POST /auth/verify-otp
  *   POST /auth/refresh     POST /auth/logout
+ *   GET  /auth/me
  */
+
+/** Full identity payload from GET /auth/me (broader than the session AuthUser). */
+export type AuthMeUser = AuthUser & {
+  phone: string | null;
+  profilePhoto: string | null;
+  isActive: boolean;
+};
 
 export interface LoginPayload {
   email: string;
+  password: string;
+}
+
+export interface RegisterPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  /** Exactly 10 digits, no +91 - matches the backend DTO and users.phone. */
+  phone: string;
   password: string;
 }
 
@@ -30,6 +48,18 @@ export const authService = {
   /** Staff and admin sign-in. Persists the token pair on success. */
   async login(payload: LoginPayload): Promise<AuthSession> {
     const session = await api.post<AuthSession>('/auth/login', payload);
+    tokenStorage.set(session);
+    return session;
+  },
+
+  /**
+   * Public customer self-registration.
+   *
+   * Never send role / roleId / franchiseId / salonId — the backend rejects
+   * unknown fields and always assigns CUSTOMER server-side.
+   */
+  async register(payload: RegisterPayload): Promise<AuthSession> {
+    const session = await api.post<AuthSession>('/auth/register', payload);
     tokenStorage.set(session);
     return session;
   },
@@ -79,5 +109,10 @@ export const authService = {
 
   hasStoredSession(): boolean {
     return tokenStorage.getAccessToken() !== null;
+  },
+
+  /** Authoritative identity for the signed-in user. */
+  me(): Promise<AuthMeUser> {
+    return api.get<AuthMeUser>('/auth/me');
   },
 };

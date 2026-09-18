@@ -29,6 +29,7 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
@@ -51,6 +52,26 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
   login(@Body() dto: LoginDto, @Req() req: Request): Promise<AuthResponseDto> {
     return this.authService.login(dto, this.context(req));
+  }
+
+  @Public()
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Public customer self-registration',
+    description:
+      'Always creates a CUSTOMER account. Role, franchise and salon cannot be supplied by the client; ValidationPipe rejects unknown fields and the service assigns CUSTOMER server-side.',
+  })
+  @ApiResponse({ status: 201, type: AuthResponseDto })
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiResponse({ status: 409, description: 'Email or phone already registered' })
+  @ApiResponse({ status: 429, description: 'Too many registration attempts' })
+  register(
+    @Body() dto: RegisterCustomerDto,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    return this.authService.register(dto, this.context(req));
   }
 
   @Public()

@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   HttpException,
   Injectable,
   Logger,
@@ -7,13 +9,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { RoleCode } from '../common/enums/role.enum';
 import {
   AuthenticatedUser,
   JwtRefreshPayload,
 } from '../common/interfaces/authenticated-user.interface';
+import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
+import { trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   GENERIC_AUTH_FAILURE,
@@ -30,6 +34,7 @@ import {
 } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { OtpService } from './otp/otp.service';
@@ -131,6 +136,156 @@ export class AuthService {
       action: 'LOGIN_SUCCESS',
       entityType: 'User',
       entityId: user.id,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return { ...tokens, user: this.toPublicUser(user) };
+  }
+
+  // --------------------------------------------------------------- register
+
+  /**
+   * Public customer self-registration.
+   *
+   * CUSTOMER is resolved server-side by role code. The DTO has no role /
+   * franchise / salon fields; ValidationPipe forbidNonWhitelisted rejects
+   * any attempt to inject them. franchiseId and salonId are always null.
+   */
+  async register(
+    dto: RegisterCustomerDto,
+    ctx: RequestContext,
+  ): Promise<AuthResponseDto> {
+    const firstName = trimRequired(dto.firstName);
+    const lastName = trimRequired(dto.lastName);
+    const email = dto.email.trim().toLowerCase();
+    const phone = dto.phone.trim();
+
+    const [existingByPhone, existingByEmail, customerRole] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { phone },
+        select: {
+          id: true,
+          customer: { select: { id: true } },
+          role: { select: { code: true } },
+        },
+      }),
+      this.prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+      this.prisma.role.findUnique({
+        where: { code: RoleCode.CUSTOMER },
+        select: { id: true, isActive: true },
+      }),
+    ]);
+
+    if (!customerRole?.isActive) {
+      throw new BadRequestException('CUSTOMER role is not configured');
+    }
+
+    if (existingByEmail) {
+      throw new ConflictException('Email already exists');
+    }
+
+    if (existingByPhone?.customer) {
+      throw new ConflictException('Phone already exists');
+    }
+
+    if (
+      existingByPhone &&
+      (existingByPhone.role.code as RoleCode) !== RoleCode.CUSTOMER
+    ) {
+      throw new ConflictException('Phone already belongs to a staff account');
+    }
+
+    const passwordHash = await this.passwords.hash(dto.password);
+    const customerCode = `CUST-${randomBytes(4).toString('hex').toUpperCase()}`;
+
+    let userId: string;
+
+    try {
+      userId = await this.prisma.$transaction(async (tx) => {
+        const user = existingByPhone
+          ? await tx.user.update({
+              where: { id: existingByPhone.id },
+              data: {
+                roleId: customerRole.id,
+                firstName,
+                lastName,
+                email,
+                phone,
+                passwordHash,
+                franchiseId: null,
+                salonId: null,
+                isActive: true,
+              },
+              select: { id: true },
+            })
+          : await tx.user.create({
+              data: {
+                roleId: customerRole.id,
+                firstName,
+                lastName,
+                email,
+                phone,
+                passwordHash,
+                franchiseId: null,
+                salonId: null,
+              },
+              select: { id: true },
+            });
+
+        await tx.customer.create({
+          data: {
+            userId: user.id,
+            customerCode,
+          },
+        });
+
+        return user.id;
+      });
+    } catch (error) {
+      if (isPrismaUniqueError(error)) {
+        const target = (error as { meta?: { target?: string | string[] } }).meta
+          ?.target;
+        const fields = Array.isArray(target) ? target : target ? [target] : [];
+        if (fields.some((field) => field.includes('email'))) {
+          throw new ConflictException('Email already exists');
+        }
+        if (fields.some((field) => field.includes('phone'))) {
+          throw new ConflictException('Phone already exists');
+        }
+        throw new ConflictException(
+          'An account with these details already exists',
+        );
+      }
+      throw error;
+    }
+
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: AUTH_USER_SELECT,
+    });
+
+    // Defence in depth: never return tokens unless the row is CUSTOMER.
+    if ((user.role.code as RoleCode) !== RoleCode.CUSTOMER) {
+      throw new BadRequestException('Registration failed');
+    }
+
+    const tokens = await this.issueSession(user, ctx);
+
+    await this.audit.record({
+      userId: user.id,
+      action: 'CUSTOMER_CREATED',
+      entityType: 'User',
+      entityId: user.id,
+      newData: {
+        email: user.email,
+        phone: user.phone,
+        role: RoleCode.CUSTOMER,
+        source: 'public_register',
+      },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });

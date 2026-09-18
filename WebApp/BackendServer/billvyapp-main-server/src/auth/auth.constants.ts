@@ -5,12 +5,13 @@ export const JWT_TYPE_REFRESH = 'refresh' as const;
 
 export type JwtTokenType = typeof JWT_TYPE_ACCESS | typeof JWT_TYPE_REFRESH;
 
-/** Roles that authenticate with email + password. CUSTOMER uses phone + OTP. */
+/** Roles that authenticate with email + password. */
 export const PASSWORD_LOGIN_ROLES: readonly RoleCode[] = [
   RoleCode.SUPER_ADMIN,
   RoleCode.ADMIN,
   RoleCode.MANAGER,
   RoleCode.STAFF,
+  RoleCode.CUSTOMER,
 ];
 
 export const GENERIC_AUTH_FAILURE = 'Invalid credentials';

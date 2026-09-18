@@ -128,6 +128,21 @@ async function refreshTokens(): Promise<AuthTokens> {
 
 // -------------------------------------------------------------- interceptors
 
+/**
+ * Credential endpoints where a 401 means bad input, not an expired session.
+ * Protected auth routes like GET /auth/me must still refresh + retry.
+ */
+function isCredentialAuthRequest(url?: string): boolean {
+  if (!url) return false;
+  return [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/send-otp',
+    '/auth/verify-otp',
+  ].some((path) => url.includes(path));
+}
+
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = tokenStorage.getAccessToken();
   if (token) {
@@ -142,9 +157,9 @@ apiClient.interceptors.response.use(
     const request = error.config as RetryableRequest | undefined;
     const status = error.response?.status;
 
-    const isAuthRoute = request?.url?.includes('/auth/');
+    const skipRefresh = isCredentialAuthRequest(request?.url);
     const shouldAttemptRefresh =
-      status === 401 && request && !request._retried && !isAuthRoute;
+      status === 401 && request && !request._retried && !skipRefresh;
 
     if (shouldAttemptRefresh) {
       request._retried = true;
@@ -163,8 +178,9 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // A 401 on an auth route, or after a failed retry, means the session is gone.
-    if (status === 401 && !isAuthRoute) {
+    // A 401 after a failed retry (or with no refresh token) means the session is gone.
+    // Credential auth failures (wrong password, etc.) must not clear a live session.
+    if (status === 401 && !skipRefresh) {
       endSession();
     }
 
