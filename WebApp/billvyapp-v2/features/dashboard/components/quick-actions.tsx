@@ -38,9 +38,9 @@ export function QuickActions({ actions, isLoading }: QuickActionsProps) {
               <li key={action.id}>
                 <Link
                   href={action.href}
-                  className="group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-text transition-colors hover:bg-champagne-light/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 >
-                  <span className="inline-flex size-9 items-center justify-center rounded-full bg-champagne-light text-champagne">
+                  <span className="inline-flex size-9 items-center justify-center rounded-full bg-champagne-light text-champagne shadow-sm ring-1 ring-champagne/15 transition group-hover:ring-champagne/30">
                     <Icon className="size-4" aria-hidden />
                   </span>
                   <span className="flex-1">{action.label}</span>

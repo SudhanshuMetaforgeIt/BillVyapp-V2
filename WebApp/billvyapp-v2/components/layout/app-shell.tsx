@@ -39,6 +39,11 @@ export function AppShell({
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
+  const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
+
+  const handleToggleCollapsed = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -53,7 +58,6 @@ export function AppShell({
       return;
     }
 
-    // Keep users on their own role segment when visiting /dashboard/*
     const expected = ROLE_SEGMENTS[user.role];
     if (pathname.startsWith('/dashboard/') && !pathname.includes(`/${expected}`)) {
       router.replace(dashboardHomeFor(user.role));
@@ -62,7 +66,7 @@ export function AppShell({
 
   if (status === 'loading' || !user) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-ivory">
+      <div className="flex h-svh items-center justify-center bg-ivory">
         <div className="h-10 w-10 animate-pulse rounded-full bg-champagne/40" aria-label="Loading" />
       </div>
     );
@@ -70,7 +74,7 @@ export function AppShell({
 
   if (requiredRole && user.role !== requiredRole) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-ivory">
+      <div className="flex h-svh items-center justify-center bg-ivory">
         <div className="h-10 w-10 animate-pulse rounded-full bg-champagne/40" aria-label="Loading" />
       </div>
     );
@@ -79,7 +83,7 @@ export function AppShell({
   const sections = navigationForRole(user.role);
 
   return (
-    <div className="flex min-h-svh bg-ivory text-text">
+    <div className="flex h-svh overflow-hidden bg-ivory text-text">
       <AppSidebar
         sections={sections}
         role={user.role}
@@ -88,7 +92,7 @@ export function AppShell({
         collapsed={sidebarCollapsed}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {!hidePageHeader ? (
           <AppHeader
             user={user}
@@ -96,16 +100,25 @@ export function AppShell({
             subtitle={subtitle}
             notificationCount={notificationCount}
             onOpenSidebar={() => setSidebarOpen(true)}
+            onToggleCollapsed={handleToggleCollapsed}
+            sidebarCollapsed={sidebarCollapsed}
           />
         ) : (
           <AppHeader
             user={user}
             notificationCount={notificationCount}
             onOpenSidebar={() => setSidebarOpen(true)}
+            onToggleCollapsed={handleToggleCollapsed}
+            sidebarCollapsed={sidebarCollapsed}
           />
         )}
 
-        <main className={cn('flex-1 px-4 py-5 sm:px-6 lg:px-8 lg:py-6', contentClassName)}>
+        <main
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6',
+            contentClassName,
+          )}
+        >
           {children}
         </main>
       </div>

@@ -80,8 +80,8 @@ export function DashboardSectionCard({
       className={cn('app-surface-card overflow-hidden', className)}
       {...rest}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-text">{title}</h2>
+      <div className="flex items-center justify-between gap-3 border-b border-border/80 bg-ivory-soft/50 px-5 py-4">
+        <h2 className="text-base font-semibold tracking-tight text-text">{title}</h2>
         {action}
       </div>
       <div className={cn('p-5', bodyClassName)}>{children}</div>

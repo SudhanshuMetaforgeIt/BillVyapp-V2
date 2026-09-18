@@ -40,11 +40,11 @@ export function SuperAdminDashboardView() {
   const data = query.data;
 
   return (
-    <div ref={rootRef} className="space-y-6">
+    <div ref={rootRef} className="space-y-6 lg:space-y-7">
       <MetricGrid metrics={data?.metrics ?? []} isLoading={query.isLoading} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,1fr)]">
-        <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(18rem,1fr)] xl:gap-7">
+        <div className="space-y-6 xl:space-y-7">
           <RevenueOverview
             series={data?.revenueSeries ?? []}
             isLoading={query.isLoading}
@@ -58,7 +58,7 @@ export function SuperAdminDashboardView() {
           />
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 xl:space-y-7">
           <QuickActions
             actions={SUPER_ADMIN_QUICK_ACTIONS}
             isLoading={query.isLoading}

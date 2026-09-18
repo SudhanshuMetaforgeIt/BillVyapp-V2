@@ -18,6 +18,7 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSidebarCollapsed: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 
   setActiveFranchise: (franchiseId: string | null) => void;
   setActiveSalon: (salonId: string | null) => void;
@@ -37,6 +38,7 @@ export const useUiStore = create<UiState>()(
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       toggleSidebarCollapsed: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
 
       setActiveFranchise: (activeFranchiseId) =>
         // Changing franchise invalidates any salon chosen underneath it.

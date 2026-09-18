@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { ROUTES } from '@/constants/routes';
 import { UserMenu } from '@/components/layout/user-menu/user-menu';
@@ -14,6 +14,8 @@ type AppHeaderProps = {
   subtitle?: string;
   notificationCount?: number;
   onOpenSidebar: () => void;
+  onToggleCollapsed?: () => void;
+  sidebarCollapsed?: boolean;
   className?: string;
 };
 
@@ -23,6 +25,8 @@ export function AppHeader({
   subtitle,
   notificationCount = 0,
   onOpenSidebar,
+  onToggleCollapsed,
+  sidebarCollapsed = false,
   className,
 }: AppHeaderProps) {
   const badge =
@@ -31,19 +35,35 @@ export function AppHeader({
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 border-b border-border bg-ivory-soft/90 backdrop-blur-md',
+        'sticky top-0 z-30 border-b border-border/80 bg-ivory-soft/85 backdrop-blur-md',
         className,
       )}
     >
-      <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
         <button
           type="button"
-          className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-surface text-charcoal shadow-sm transition hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne lg:hidden"
+          className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne lg:hidden"
           onClick={onOpenSidebar}
           aria-label="Open navigation"
         >
           <Menu className="size-5" />
         </button>
+
+        {onToggleCollapsed ? (
+          <button
+            type="button"
+            className="hidden size-10 items-center justify-center rounded-xl border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne lg:inline-flex"
+            onClick={onToggleCollapsed}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!sidebarCollapsed}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="size-5" />
+            ) : (
+              <PanelLeftClose className="size-5" />
+            )}
+          </button>
+        ) : null}
 
         <div className="min-w-0 flex-1">
           {title ? (
@@ -63,7 +83,7 @@ export function AppHeader({
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href={ROUTES.dashboard.superAdmin.notifications}
-            className="relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-charcoal shadow-sm transition hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            className="relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             aria-label={
               badge
                 ? `Notifications, ${badge} unread`

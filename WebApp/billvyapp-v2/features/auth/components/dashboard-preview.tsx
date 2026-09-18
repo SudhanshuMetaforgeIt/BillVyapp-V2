@@ -21,7 +21,7 @@ export function DashboardPreview() {
             <p className="text-xs font-medium text-white/50">Overview</p>
             <p className="text-sm font-semibold text-white">Business Dashboard</p>
           </div>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF6A00] text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FF7B00] text-white">
             <BarChart3 className="h-4 w-4" aria-hidden />
           </div>
         </div>
@@ -72,7 +72,7 @@ function MetricCard({
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-black/35 p-2.5 sm:p-3">
-      <div className="mb-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#FF6A00]/15 text-[#FF6A00]">
+      <div className="mb-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#FF7B00]/15 text-[#FF7B00]">
         {icon}
       </div>
       <p className="text-[10px] leading-tight text-white/45 sm:text-[11px]">
@@ -95,8 +95,8 @@ function RevenueChart() {
     >
       <defs>
         <linearGradient id="login-chart-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#FF6A00" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#FF6A00" stopOpacity="0" />
+          <stop offset="0%" stopColor="#FF7B00" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#FF7B00" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path
@@ -106,7 +106,7 @@ function RevenueChart() {
       <path
         d="M0 58 C28 54, 40 48, 55 42 C78 32, 95 38, 115 28 C138 16, 155 22, 175 14 C190 8, 205 12, 220 6"
         fill="none"
-        stroke="#FF6A00"
+        stroke="#FF7B00"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
@@ -130,7 +130,7 @@ function DonutChart() {
         cy="21"
         r="15"
         fill="none"
-        stroke="#FF6A00"
+        stroke="#FF7B00"
         strokeWidth="5"
         strokeDasharray="60 35"
         strokeLinecap="round"
@@ -141,7 +141,7 @@ function DonutChart() {
         cy="21"
         r="15"
         fill="none"
-        stroke="#FFB070"
+        stroke="#D4A017"
         strokeWidth="5"
         strokeDasharray="18 77"
         strokeDashoffset="-60"
@@ -179,7 +179,7 @@ export function FeatureHighlights() {
           data-auth-animate="feature"
           className="text-center"
         >
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-[#FF6A00]/50 text-[#FF6A00] sm:h-11 sm:w-11">
+          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-[#FF7B00]/50 text-[#FF7B00] sm:h-11 sm:w-11">
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
           </div>
           <p className="text-sm font-semibold text-white">{title}</p>

@@ -43,7 +43,10 @@ export function MetricCard({ metric, className }: MetricCardProps) {
 
   return (
     <article
-      className={cn('app-surface-card p-5', className)}
+      className={cn(
+        'app-surface-card app-surface-card-interactive app-metric-card p-5',
+        className,
+      )}
       data-dash-animate="metric"
     >
       <div className="flex items-start justify-between gap-3">
@@ -89,7 +92,7 @@ export function MetricCard({ metric, className }: MetricCardProps) {
 
 export function MetricCardSkeleton() {
   return (
-    <div className="app-surface-card space-y-3 p-5">
+    <div className="app-surface-card app-metric-card space-y-3 p-5">
       <Skeleton className="h-4 w-28" />
       <Skeleton className="h-8 w-24" />
       <Skeleton className="h-4 w-36" />
@@ -105,7 +108,7 @@ type MetricGridProps = {
 export function MetricGrid({ metrics, isLoading }: MetricGridProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <MetricCardSkeleton key={i} />
         ))}
@@ -114,7 +117,7 @@ export function MetricGrid({ metrics, isLoading }: MetricGridProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
       {metrics.map((metric) => (
         <MetricCard key={metric.id} metric={metric} />
       ))}

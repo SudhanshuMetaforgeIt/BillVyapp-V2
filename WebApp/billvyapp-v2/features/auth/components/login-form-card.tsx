@@ -55,13 +55,13 @@ export function LoginFormCard() {
           </div>
           <h2
             data-auth-animate="card-title"
-            className="text-[1.65rem] font-bold tracking-tight text-neutral-900"
+            className="text-[1.65rem] font-bold tracking-tight text-text"
           >
             Welcome Back!
           </h2>
           <p
             data-auth-animate="card-subtitle"
-            className="mt-2 text-sm leading-relaxed text-neutral-500"
+            className="mt-2 text-sm leading-relaxed text-text-secondary"
           >
             Sign in to your account to continue
           </p>
@@ -75,7 +75,7 @@ export function LoginFormCard() {
           >
             <div className="relative">
               <Mail
-                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
                 aria-hidden
               />
               <Input
@@ -87,7 +87,7 @@ export function LoginFormCard() {
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? 'email-error' : undefined}
                 disabled={isSubmitting}
-                className="auth-form-input h-11 border-neutral-200 bg-neutral-50 pl-10 text-neutral-900 placeholder:text-neutral-400 focus-visible:border-[#FF6A00] focus-visible:ring-[#FF6A00]/25"
+                className="auth-form-input h-11 border-border pl-10 text-text placeholder:text-text-secondary/70 focus-visible:border-brand-orange focus-visible:ring-brand-orange/25"
                 {...register('email')}
               />
             </div>
@@ -100,7 +100,7 @@ export function LoginFormCard() {
           >
             <div className="relative">
               <Phone
-                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
                 aria-hidden
               />
               <Input
@@ -112,7 +112,7 @@ export function LoginFormCard() {
                 aria-invalid={Boolean(errors.phone)}
                 aria-describedby={errors.phone ? 'phone-error' : undefined}
                 disabled={isSubmitting}
-                className="auth-form-input h-11 border-neutral-200 bg-neutral-50 pl-10 text-neutral-900 placeholder:text-neutral-400 focus-visible:border-[#FF6A00] focus-visible:ring-[#FF6A00]/25"
+                className="auth-form-input h-11 border-border pl-10 text-text placeholder:text-text-secondary/70 focus-visible:border-brand-orange focus-visible:ring-brand-orange/25"
                 {...register('phone')}
               />
             </div>
@@ -125,7 +125,7 @@ export function LoginFormCard() {
           >
             <div className="relative">
               <Lock
-                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
                 aria-hidden
               />
               <Input
@@ -138,13 +138,13 @@ export function LoginFormCard() {
                   errors.password ? 'password-error' : undefined
                 }
                 disabled={isSubmitting}
-                className="auth-form-input h-11 border-neutral-200 bg-neutral-50 pr-11 pl-10 text-neutral-900 placeholder:text-neutral-400 focus-visible:border-[#FF6A00] focus-visible:ring-[#FF6A00]/25"
+                className="auth-form-input h-11 border-border pr-11 pl-10 text-text placeholder:text-text-secondary/70 focus-visible:border-brand-orange focus-visible:ring-brand-orange/25"
                 {...register('password')}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-neutral-400 transition-[color,transform,opacity] duration-150 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]/40 active:scale-95"
+                className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-text-secondary transition-[color,transform,opacity] duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40 active:scale-95"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 aria-pressed={showPassword}
                 disabled={isSubmitting}
@@ -161,14 +161,14 @@ export function LoginFormCard() {
           <div data-auth-animate="field" className="flex justify-end">
             <Link
               href={ROUTES.auth.forgotPassword}
-              className="text-sm font-medium text-[#FF6A00] transition-colors hover:text-[#e65f00] focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]/40"
+              className="text-sm font-medium text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
             >
               Forgot Password?
             </Link>
           </div>
 
           {login.isError ? (
-            <AuthErrorBanner className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <AuthErrorBanner className="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">
               {login.error.message}
             </AuthErrorBanner>
           ) : null}
@@ -178,8 +178,8 @@ export function LoginFormCard() {
               type="submit"
               disabled={isSubmitting}
               className={cn(
-                'auth-cta h-11 w-full rounded-lg border-0 bg-[#FF6A00] text-base font-semibold text-white shadow-none',
-                'hover:bg-[#e65f00] focus-visible:ring-[#FF6A00]/35',
+                'auth-cta h-11 w-full rounded-lg border-0 text-base font-semibold text-white',
+                'focus-visible:ring-brand-orange/35',
                 'disabled:opacity-70',
               )}
             >
@@ -190,14 +190,14 @@ export function LoginFormCard() {
 
         <div
           data-auth-animate="secondary"
-          className="mt-6 h-px w-full bg-neutral-200"
+          className="mt-6 h-px w-full bg-border"
           aria-hidden
         />
 
         <p data-auth-animate="secondary" className="mt-5 text-center">
           <Link
             href={ROUTES.auth.register}
-            className="text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-800 focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6A00]/40"
+            className="text-sm font-medium text-text-secondary transition-colors hover:text-text focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           >
             Create Account
           </Link>
@@ -220,12 +220,12 @@ function Field({
 }) {
   return (
     <div data-auth-animate="field">
-      <Label htmlFor={id} className="mb-2 text-[13px] font-medium text-neutral-700">
+      <Label htmlFor={id} className="mb-2 text-[13px] font-medium text-charcoal">
         {label}
       </Label>
       {children}
       {error ? (
-        <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-red-600">
+        <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-danger">
           {error}
         </p>
       ) : null}
