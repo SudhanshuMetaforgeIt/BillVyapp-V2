@@ -253,3 +253,86 @@ export function playDashboardEntrance({
 
   return tl;
 }
+
+/**
+ * Universal entrance animation for all dashboard pages.
+ * Seamlessly discovers header, metrics, and content sections to stagger them in.
+ */
+export function playUniversalPageEntrance(root: HTMLElement): gsap.core.Timeline | null {
+  if (prefersReducedMotion()) return null;
+
+  const header = root.querySelectorAll<HTMLElement>('[data-dash-animate="header"]');
+  const metrics = root.querySelectorAll<HTMLElement>('[data-dash-animate="metric"]');
+  const sections = root.querySelectorAll<HTMLElement>('[data-dash-animate="section"]');
+
+  const tl = gsap.timeline({
+    defaults: { ease: AUTH_EASE, duration: AUTH_DURATION.medium },
+  });
+
+  if (header.length || metrics.length || sections.length) {
+    if (header.length) {
+      gsap.set(header, { opacity: 0, y: 10 });
+      tl.to(header, { opacity: 1, y: 0, duration: AUTH_DURATION.short, clearProps: 'transform,opacity' }, 0);
+    }
+    if (metrics.length) {
+      gsap.set(metrics, { opacity: 0, y: 12 });
+      tl.to(
+        metrics,
+        {
+          opacity: 1,
+          y: 0,
+          duration: AUTH_DURATION.short,
+          stagger: AUTH_STAGGER.tight,
+          clearProps: 'transform,opacity',
+        },
+        0.06,
+      );
+    }
+    if (sections.length) {
+      gsap.set(sections, { opacity: 0, y: 14 });
+      tl.to(
+        sections,
+        {
+          opacity: 1,
+          y: 0,
+          duration: AUTH_DURATION.medium,
+          stagger: AUTH_STAGGER.normal,
+          clearProps: 'transform,opacity',
+        },
+        0.12,
+      );
+    }
+    return tl;
+  }
+
+  // Fallback for pages without explicit data-dash-animate markers
+  const pageContainer = (root.firstElementChild as HTMLElement) || root;
+  const blocks = Array.from(pageContainer.children) as HTMLElement[];
+
+  if (blocks.length > 0) {
+    const firstBlock = blocks[0];
+    gsap.set(firstBlock, { opacity: 0, y: 10 });
+    tl.to(firstBlock, { opacity: 1, y: 0, duration: AUTH_DURATION.short, clearProps: 'transform,opacity' }, 0);
+
+    if (blocks.length > 1) {
+      const remaining = blocks.slice(1);
+      gsap.set(remaining, { opacity: 0, y: 14 });
+      tl.to(
+        remaining,
+        {
+          opacity: 1,
+          y: 0,
+          duration: AUTH_DURATION.medium,
+          stagger: AUTH_STAGGER.normal,
+          clearProps: 'transform,opacity',
+        },
+        0.06,
+      );
+    }
+  } else {
+    gsap.set(root, { opacity: 0, y: 12 });
+    tl.to(root, { opacity: 1, y: 0, duration: AUTH_DURATION.medium, clearProps: 'transform,opacity' }, 0);
+  }
+
+  return tl;
+}

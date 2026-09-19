@@ -12,6 +12,7 @@ export {
   playAuthPageEntrance,
   playErrorReveal,
   playDashboardEntrance,
+  playUniversalPageEntrance,
 } from './presets';
 
 export {

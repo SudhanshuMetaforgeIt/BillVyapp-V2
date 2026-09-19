@@ -6,12 +6,19 @@ export class UserRoleSummaryDto {
   @ApiProperty({ example: 'ADMIN' }) code: string;
 }
 
+export class UserSalonSummaryDto {
+  @ApiProperty() id: string;
+  @ApiProperty() name: string;
+}
+
 export class UserResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() roleId: string;
   @ApiProperty({ type: UserRoleSummaryDto }) role: UserRoleSummaryDto;
   @ApiPropertyOptional({ nullable: true }) franchiseId: string | null;
   @ApiPropertyOptional({ nullable: true }) salonId: string | null;
+  @ApiPropertyOptional({ type: UserSalonSummaryDto, nullable: true })
+  salon?: UserSalonSummaryDto | null;
   @ApiProperty() firstName: string;
   @ApiProperty() lastName: string;
   @ApiProperty() email: string;

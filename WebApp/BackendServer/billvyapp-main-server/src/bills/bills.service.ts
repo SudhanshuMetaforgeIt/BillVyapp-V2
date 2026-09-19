@@ -77,6 +77,26 @@ const BILL_SELECT = {
   createdBy: true,
   createdAt: true,
   updatedAt: true,
+  salon: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  customer: {
+    select: {
+      id: true,
+      customerCode: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true,
+          email: true,
+        },
+      },
+    },
+  },
   items: {
     orderBy: { createdAt: 'asc' as const },
     select: BILL_ITEM_SELECT,
@@ -130,6 +150,20 @@ type BillRow = {
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
+  salon?: {
+    id: string;
+    name: string;
+  } | null;
+  customer?: {
+    id: string;
+    customerCode: string;
+    user?: {
+      firstName: string | null;
+      lastName: string | null;
+      phone: string | null;
+      email: string | null;
+    } | null;
+  } | null;
   items: BillItemRow[];
   payments: BillPaymentSummaryRow[];
 };
@@ -151,6 +185,18 @@ export type BillRecord = {
   paymentStatus: BillPaymentStatus;
   notes: string | null;
   createdBy: string | null;
+  salon?: {
+    id: string;
+    name: string;
+  };
+  customer?: {
+    id: string;
+    customerCode: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  };
   items: Array<{
     id: string;
     itemType: BillItemType;
@@ -253,10 +299,15 @@ export class BillsService {
     }
 
     if (query.search?.trim()) {
+      const search = query.search.trim();
       filters.push({
-        billNumber: {
-          contains: query.search.trim(),
-        },
+        OR: [
+          { billNumber: { contains: search } },
+          { customer: { customerCode: { contains: search } } },
+          { customer: { user: { firstName: { contains: search } } } },
+          { customer: { user: { lastName: { contains: search } } } },
+          { customer: { user: { phone: { contains: search } } } },
+        ],
       });
     }
 
@@ -1038,6 +1089,22 @@ export class BillsService {
       paymentStatus: row.paymentStatus as BillPaymentStatus,
       notes: row.notes,
       createdBy: row.createdBy,
+      salon: row.salon
+        ? {
+            id: row.salon.id,
+            name: row.salon.name,
+          }
+        : undefined,
+      customer: row.customer
+        ? {
+            id: row.customer.id,
+            customerCode: row.customer.customerCode,
+            firstName: row.customer.user?.firstName ?? null,
+            lastName: row.customer.user?.lastName ?? null,
+            phone: row.customer.user?.phone ?? null,
+            email: row.customer.user?.email ?? null,
+          }
+        : undefined,
       items: row.items.map((item) => ({
         id: item.id,
         itemType: item.itemType as BillItemType,

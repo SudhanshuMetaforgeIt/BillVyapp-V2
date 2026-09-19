@@ -28,6 +28,20 @@ export class BillPaymentSummaryDto {
   @ApiProperty() paymentDate: Date;
 }
 
+export class BillSalonDto {
+  @ApiProperty() id: string;
+  @ApiProperty() name: string;
+}
+
+export class BillCustomerDto {
+  @ApiProperty() id: string;
+  @ApiProperty() customerCode: string;
+  @ApiPropertyOptional({ nullable: true }) firstName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) lastName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) phone?: string | null;
+  @ApiPropertyOptional({ nullable: true }) email?: string | null;
+}
+
 export class BillResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() salonId: string;
@@ -45,6 +59,10 @@ export class BillResponseDto {
   @ApiProperty({ enum: BillPaymentStatus }) paymentStatus: BillPaymentStatus;
   @ApiPropertyOptional({ nullable: true }) notes: string | null;
   @ApiPropertyOptional({ nullable: true }) createdBy: string | null;
+  @ApiPropertyOptional({ type: BillSalonDto })
+  salon?: BillSalonDto;
+  @ApiPropertyOptional({ type: BillCustomerDto })
+  customer?: BillCustomerDto;
   @ApiProperty({ type: [BillItemResponseDto] }) items: BillItemResponseDto[];
   @ApiPropertyOptional({ type: [BillPaymentSummaryDto] })
   payments?: BillPaymentSummaryDto[];

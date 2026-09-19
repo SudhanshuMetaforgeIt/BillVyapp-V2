@@ -35,7 +35,7 @@ import { FranchisesService } from './franchises.service';
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Authentication required' })
 @ApiForbiddenResponse({ description: 'Insufficient role for this operation' })
-@Roles(RoleCode.SUPER_ADMIN)
+@Roles(RoleCode.SUPER_ADMIN, RoleCode.ADMIN)
 @Controller('franchises')
 export class FranchisesController {
   constructor(private readonly franchisesService: FranchisesService) {}

@@ -17,6 +17,16 @@ export class CustomerResponseDto {
     description: 'Taken from the related User.isActive field',
   })
   isActive: boolean;
+  @ApiPropertyOptional({ example: 5 })
+  totalBills?: number;
+  @ApiPropertyOptional({ example: '12450.00' })
+  totalSpent?: string;
+  @ApiPropertyOptional({ nullable: true })
+  lastVisit?: string | null;
+  @ApiPropertyOptional({ nullable: true })
+  branchName?: string | null;
+  @ApiPropertyOptional({ nullable: true })
+  salonId?: string | null;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
 }
