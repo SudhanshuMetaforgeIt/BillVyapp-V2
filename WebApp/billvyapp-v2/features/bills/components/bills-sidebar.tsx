@@ -106,15 +106,15 @@ export function BillsSidebar({
   return (
     <div className="space-y-4">
       {/* 1. Bills Summary Card */}
-      <div className="rounded-xl border border-stone-200/80 bg-white p-5 shadow-xs dark:border-stone-800 dark:bg-stone-900">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-stone-200/80 bg-white p-5 shadow-xs dark:border-stone-800 dark:bg-stone-900">
         <h3 className="text-sm font-bold text-stone-900 dark:text-white">
           Bills Summary
         </h3>
 
-        <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex min-w-0 flex-col items-center gap-4">
           {/* Donut Chart */}
-          <div className="relative flex h-32 w-32 shrink-0 items-center justify-center">
-            <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
+          <div className="relative flex size-28 shrink-0 items-center justify-center">
+            <svg className="size-full -rotate-90" viewBox="0 0 100 100">
               {/* Background circle */}
               <circle
                 cx="50"
@@ -141,55 +141,57 @@ export function BillsSidebar({
             </svg>
 
             {/* Inner text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-base font-bold tracking-tight text-stone-900 dark:text-white">
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
+              <span className="text-sm font-bold tabular-nums tracking-tight text-stone-900 dark:text-white">
                 {total.toLocaleString('en-IN')}
               </span>
-              <span className="text-[10px] text-stone-400">Total Bills</span>
+              <span className="max-w-[4.5rem] text-[9px] leading-tight text-stone-400">
+                Total Bills
+              </span>
             </div>
           </div>
 
           {/* Legend */}
-          <div className="space-y-2 text-xs flex-1 min-w-[140px]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                <span className="text-stone-600 dark:text-stone-400 font-medium">Paid</span>
+          <div className="w-full min-w-0 space-y-2 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                <span className="truncate font-medium text-stone-600 dark:text-stone-400">Paid</span>
               </div>
-              <span className="font-semibold text-stone-800 dark:text-stone-200">
+              <span className="shrink-0 font-semibold tabular-nums text-stone-800 dark:text-stone-200">
                 {paid.toLocaleString('en-IN')}{' '}
                 <span className="font-normal text-stone-400">({stats.paidBillsPct}%)</span>
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                <span className="text-stone-600 dark:text-stone-400 font-medium">Pending</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                <span className="truncate font-medium text-stone-600 dark:text-stone-400">Pending</span>
               </div>
-              <span className="font-semibold text-stone-800 dark:text-stone-200">
+              <span className="shrink-0 font-semibold tabular-nums text-stone-800 dark:text-stone-200">
                 {pending.toLocaleString('en-IN')}{' '}
                 <span className="font-normal text-stone-400">({stats.pendingBillsPct}%)</span>
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                <span className="text-stone-600 dark:text-stone-400 font-medium">Overdue</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
+                <span className="truncate font-medium text-stone-600 dark:text-stone-400">Overdue</span>
               </div>
-              <span className="font-semibold text-stone-800 dark:text-stone-200">
+              <span className="shrink-0 font-semibold tabular-nums text-stone-800 dark:text-stone-200">
                 {overdue.toLocaleString('en-IN')}{' '}
                 <span className="font-normal text-stone-400">({stats.overdueBillsPct}%)</span>
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-stone-300 dark:bg-stone-600" />
-                <span className="text-stone-600 dark:text-stone-400 font-medium">Cancelled</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-stone-300 dark:bg-stone-600" />
+                <span className="truncate font-medium text-stone-600 dark:text-stone-400">Cancelled</span>
               </div>
-              <span className="font-semibold text-stone-800 dark:text-stone-200">
+              <span className="shrink-0 font-semibold tabular-nums text-stone-800 dark:text-stone-200">
                 {cancelled.toLocaleString('en-IN')}{' '}
                 <span className="font-normal text-stone-400">
                   ({total > 0 ? Number(((cancelled / total) * 100).toFixed(1)) : 0}%)

@@ -90,10 +90,10 @@ export function AdminReportsPageView() {
         <div className="lg:col-span-6">
           <RevenueOverviewChart series={revenueSeries} />
         </div>
-        <div className="lg:col-span-3 sm:col-span-6">
+        <div className="min-w-0 lg:col-span-3 sm:col-span-6">
           <BillsOverviewDonut summary={billsOverview} />
         </div>
-        <div className="lg:col-span-3 sm:col-span-6">
+        <div className="min-w-0 lg:col-span-3 sm:col-span-6">
           <BranchComparisonCard items={branchComparison} />
         </div>
       </div>

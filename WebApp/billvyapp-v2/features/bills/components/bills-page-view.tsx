@@ -103,7 +103,7 @@ export function BillsPageView() {
         </div>
 
         {/* Right Section (Summary & Actions Sidebar) - 4 cols */}
-        <div className="lg:col-span-4">
+        <div className="min-w-0 lg:col-span-4">
           <BillsSidebar
             stats={stats}
             amountSummary={amountSummary}
