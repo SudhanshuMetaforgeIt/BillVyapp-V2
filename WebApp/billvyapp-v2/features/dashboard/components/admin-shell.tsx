@@ -10,12 +10,10 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
-const PAGE_META: Record<string, { title: string; subtitle?: string; hideHeader?: boolean }> = {
+const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   [ROUTES.dashboard.admin.root]: {
     title: 'Dashboard',
     subtitle: 'Overview of your franchise on BillVyApp.',
-    // Dashboard has its own in-page header with greeting + controls
-    hideHeader: true,
   },
   [ROUTES.dashboard.admin.businesses]: {
     title: 'My Business',
@@ -66,8 +64,6 @@ const PAGE_META: Record<string, { title: string; subtitle?: string; hideHeader?:
 /**
  * Role-specific shell wrapper for Admin (Franchise Admin) routes.
  * Reuses the shared AppShell; only title/notification wiring is role-local.
- * On the root dashboard page the in-page greeting header takes over, so
- * hidePageHeader is set true to avoid a double header.
  */
 export function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
@@ -78,7 +74,6 @@ export function AdminShell({ children }: AdminShellProps) {
       requiredRole="ADMIN"
       title={meta.title}
       subtitle={meta.subtitle}
-      hidePageHeader={meta.hideHeader}
     >
       {children}
     </AppShell>
