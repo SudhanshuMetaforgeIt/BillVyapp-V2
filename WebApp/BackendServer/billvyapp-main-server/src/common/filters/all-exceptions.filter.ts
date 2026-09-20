@@ -76,6 +76,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return this.translatePrisma(exception);
     }
 
+    if (isDatabasePoolTimeout(exception)) {
+      return {
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Database connection timed out. Please try again.',
+        error: 'Service Unavailable',
+      };
+    }
+
     if (exception instanceof Prisma.PrismaClientValidationError) {
       return {
         status: HttpStatus.BAD_REQUEST,
@@ -116,6 +124,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
           error: 'Not Found',
         };
       default:
+        if (isDatabasePoolTimeout(exception)) {
+          return {
+            status: HttpStatus.SERVICE_UNAVAILABLE,
+            message: 'Database connection timed out. Please try again.',
+            error: 'Service Unavailable',
+          };
+        }
         return {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
           message: 'Internal server error',
@@ -133,7 +148,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
         404: 'Not Found',
         409: 'Conflict',
         429: 'Too Many Requests',
+        503: 'Service Unavailable',
       }[status] ?? 'Error'
     );
   }
+}
+
+function isDatabasePoolTimeout(exception: unknown): boolean {
+  const message =
+    exception instanceof Error ? exception.message : String(exception);
+  return (
+    message.includes('pool timeout') ||
+    message.includes('failed to retrieve a connection from pool') ||
+    message.includes('(conn:-1, no: 45028')
+  );
 }

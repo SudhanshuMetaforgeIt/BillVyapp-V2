@@ -1,10 +1,11 @@
 /**
  * Local-dev seed: roles, demo franchise/salon, and test login accounts.
  *
- * Run: npm run db:seed
+ * Alternative SQL seed. `npm run db:seed` runs prisma/seed.cjs.
  *
  * Test credentials (local only — never use in production):
  *   Super Admin  login.test@billvyapp.local   /  Billvy@Dev123
+ *   Admin        admin.test@billvyapp.local   /  Billvy@Dev123
  *   Manager      manager.test@billvyapp.local /  Billvy@Dev123
  */
 const { randomUUID } = require('node:crypto');
@@ -200,8 +201,9 @@ async function main() {
     const passwordHash = await hashPassword(DEV_PASSWORD);
 
     const superAdminRole = roleByCode.get('SUPER_ADMIN');
+    const adminRole = roleByCode.get('ADMIN');
     const managerRole = roleByCode.get('MANAGER');
-    if (!superAdminRole || !managerRole) {
+    if (!superAdminRole || !adminRole || !managerRole) {
       throw new Error('Required roles were not created');
     }
 
@@ -212,6 +214,17 @@ async function main() {
       phone: '9000000001',
       roleId: superAdminRole.id,
       franchiseId: null,
+      salonId: null,
+      passwordHash,
+    });
+
+    await upsertStaffUser(conn, {
+      email: 'admin.test@billvyapp.local',
+      firstName: 'Priya',
+      lastName: 'Mehta',
+      phone: '9000000003',
+      roleId: adminRole.id,
+      franchiseId: franchise.id,
       salonId: null,
       passwordHash,
     });
@@ -229,6 +242,7 @@ async function main() {
 
     console.log('Seed complete. Local test credentials:');
     console.log('  Super Admin  login.test@billvyapp.local   /  Billvy@Dev123');
+    console.log('  Admin        admin.test@billvyapp.local   /  Billvy@Dev123');
     console.log('  Manager      manager.test@billvyapp.local /  Billvy@Dev123');
     console.log(`  Salon scope  ${salon.name} (${salon.code})`);
   } finally {

@@ -162,11 +162,15 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  body {
+    @apply bg-background text-foreground;
+    max-width: 100%;
+    overflow-x: clip;
   }
 }
 
@@ -203,6 +207,10 @@
       linear-gradient(180deg, #fffcf8 0%, #f7f4ef 50%, #f4ecdf 100%);
   }
 
+  .auth-aurora-layer {
+    overflow: hidden;
+  }
+
   .auth-aurora-blob {
     filter: blur(64px);
     opacity: 0.9;
@@ -228,6 +236,107 @@
     .auth-aurora-blob {
       filter: blur(48px);
       opacity: 0.55;
+    }
+  }
+
+  /* —— Auth page layout (no overflow-x:hidden; panes shrink instead) —— */
+  .auth-page-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .auth-split-pane {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  @media (max-width: 1023px) {
+    .auth-split-pane {
+      width: 100%;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .auth-branding-desktop {
+      flex: 1 1 48%;
+      width: auto;
+      max-width: 48%;
+    }
+
+    .auth-form-column {
+      flex: 1 1 52%;
+      width: auto;
+      max-width: 52%;
+    }
+  }
+
+  .auth-form-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: min(100%, 27.5rem);
+  }
+
+  .auth-preview-root {
+    container-type: inline-size;
+    container-name: auth-preview;
+    width: 100%;
+    min-width: 0;
+    max-width: min(100%, 28rem);
+  }
+
+  .auth-feature-grid {
+    container-type: inline-size;
+    container-name: auth-features;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .auth-preview-metrics,
+  .auth-preview-charts,
+  .auth-feature-grid-inner {
+    min-width: 0;
+  }
+
+  @container auth-preview (max-width: 22.5rem) {
+    .auth-preview-metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .auth-preview-charts {
+      grid-template-columns: 1fr;
+    }
+
+    .auth-preview-donut {
+      width: 100%;
+      max-width: none;
+    }
+  }
+
+  @container auth-features (max-width: 24rem) {
+    .auth-feature-grid-inner {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .auth-branding-desktop {
+      padding-inline: 1.75rem;
+      padding-block: 1.75rem;
+      gap: 1.25rem;
+    }
+
+    .auth-form-column {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .auth-branding-compact {
+      padding-inline: 1rem;
+      padding-block: 1.25rem;
     }
   }
 

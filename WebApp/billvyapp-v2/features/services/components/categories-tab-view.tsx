@@ -6,7 +6,7 @@ import { Layers, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionEmptyState } from '@/components/layout/section-states';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { useServiceCategories } from '../hooks/use-services';
+import { useServiceCategories } from '../hooks/use-admin-services';
 
 type CategoriesTabViewProps = {
   onAddCategory?: () => void;

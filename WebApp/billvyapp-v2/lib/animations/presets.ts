@@ -63,8 +63,8 @@ export function playAuthPageEntrance({ root }: AuthEntranceScope): gsap.core.Tim
   });
 
   if (branding.length) {
-    gsap.set(branding, { opacity: 0, x: compact ? 0 : -18 });
-    tl.to(branding, { opacity: 1, x: 0, duration: AUTH_DURATION.page }, 0);
+    gsap.set(branding, { opacity: 0, y: brandingY });
+    tl.to(branding, { opacity: 1, y: 0, duration: AUTH_DURATION.page }, 0);
   }
 
   if (logo.length) {

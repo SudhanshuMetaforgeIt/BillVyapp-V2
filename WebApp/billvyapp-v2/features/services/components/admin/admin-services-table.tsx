@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Scissors } from 
 import { Button } from '@/components/ui/button';
 import { SectionEmptyState } from '@/components/layout/section-states';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { useToggleServiceStatus } from '../hooks/use-services';
+import { useToggleServiceStatus } from '../../hooks/use-admin-services';
 import type { ServiceItem } from '../../types/admin-services.types';
 
 type ServicesTableProps = {

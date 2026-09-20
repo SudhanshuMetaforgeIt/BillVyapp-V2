@@ -128,7 +128,7 @@ export function AdminServicesPageView() {
           <ServicesBulkBanner />
 
           {/* ── 4. Search & Filter Bar ── */}
-          <ServicesFilters
+          <AdminServicesFilters
             filters={filters}
             onFilterChange={handleFilterChange}
             categories={data?.categories ?? []}
@@ -136,7 +136,7 @@ export function AdminServicesPageView() {
           />
 
           {/* ── 5. Services Table with Empty State ── */}
-          <ServicesTable
+          <AdminServicesTable
             services={data?.services ?? []}
             total={data?.total ?? 0}
             currentPage={filters.page}

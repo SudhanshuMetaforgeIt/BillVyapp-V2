@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig, env } from 'prisma/config';
 
 /**
@@ -8,10 +10,14 @@ import { defineConfig, env } from 'prisma/config';
  * (migrate / introspect). The runtime PrismaClient is constructed with a driver
  * adapter instead — see README notes.
  *
- * Prisma 7 does not auto-load `.env`, so DATABASE_URL must already be present in
- * process.env. Run CLI commands with Node's own loader, e.g.
- *   node --env-file=.env node_modules/prisma/build/index.js migrate dev
+ * Prisma 7 does not auto-load `.env`. Load it here so `npx prisma generate`
+ * (and migrate) work without wrapping the CLI in `node --env-file=.env`.
  */
+const envFile = resolve(process.cwd(), '.env');
+if (!process.env.DATABASE_URL && existsSync(envFile)) {
+  process.loadEnvFile(envFile);
+}
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   datasource: {

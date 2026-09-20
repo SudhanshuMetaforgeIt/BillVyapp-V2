@@ -4,7 +4,7 @@ import { Ban, CheckCircle2, IndianRupee, Scissors } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { ServiceStats } from '../types/services.types';
+import type { ServiceStats } from '../types/admin-services.types';
 
 type ServicesStatsProps = {
   stats?: ServiceStats;

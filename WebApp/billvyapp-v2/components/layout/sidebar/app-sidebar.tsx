@@ -59,6 +59,7 @@ function SidebarNav({
               <BrandLogo
                 variant="dark"
                 size="compact"
+                src="/billvyapp_b_logo.png"
                 className="h-9 w-9 shrink-0 [&_img]:object-center"
                 priority
               />
@@ -76,6 +77,7 @@ function SidebarNav({
                 <BrandLogo
                   variant="dark"
                   size="compact"
+                  src="/billvyapp_b_logo.png"
                   className="h-11 w-36 shrink-0 [&_img]:object-left"
                   priority
                 />

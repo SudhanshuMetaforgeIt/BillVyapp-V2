@@ -6,10 +6,11 @@
  *
  * TEST CREDENTIALS (dev only)
  * ─────────────────────────────────────────────────────────────────────────────
- *  Role        │ Email                 │ Password       │ Scope
- * ─────────────┼───────────────────────┼────────────────┼──────────────────────
- *  SUPER_ADMIN │ superadmin@billvy.dev │ SuperAdmin@123 │ Global
- *  ADMIN       │ admin@billvy.dev      │ Admin@1234     │ Franchise: DEMO_FRANCHISE
+ *  Role        │ Email                          │ Password        │ Scope
+ * ─────────────┼────────────────────────────────┼─────────────────┼────────────
+ *  SUPER_ADMIN │ login.test@billvyapp.local     │ Billvy@Dev123   │ Global
+ *  ADMIN       │ admin.test@billvyapp.local     │ Billvy@Dev123   │ Franchise
+ *  MANAGER     │ manager.test@billvyapp.local   │ Billvy@Dev123   │ Salon
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -101,26 +102,75 @@ async function main() {
   });
   console.log(`  ✓ ${franchise.name} (${franchise.id})`);
 
+  console.log('\n💇  Upserting demo salon…');
+  let salon = await prisma.salon.findFirst({
+    where: { franchiseId: franchise.id, code: 'DEMO_SALON' },
+  });
+  if (!salon) {
+    salon = await prisma.salon.create({
+      data: {
+        franchiseId: franchise.id,
+        name: 'BillVy Demo Salon',
+        code: 'DEMO_SALON',
+        phone: '9876543211',
+        email: 'salon.demo@billvyapp.local',
+        addressLine1: 'MG Road',
+        city: 'Bangalore',
+        state: 'Karnataka',
+        country: 'India',
+        postalCode: '560001',
+        latitude: 12.9716,
+        longitude: 77.5946,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`  ✓ ${salon.name} (${salon.id})`);
+
+  const obsoleteEmails = [
+    'superadmin@billvy.dev',
+    'admin@billvy.dev',
+    'manager@billvy.dev',
+  ];
+  const removed = await prisma.user.deleteMany({
+    where: { email: { in: obsoleteEmails } },
+  });
+  if (removed.count > 0) {
+    console.log(`\n🧹  Removed ${removed.count} old @billvy.dev test user(s)`);
+  }
+
   // 3. Test Users
   console.log('\n👤  Upserting test users…');
   const testUsers = [
     {
-      firstName: 'Super',
-      lastName: 'Admin',
-      email: 'superadmin@billvy.dev',
-      password: 'SuperAdmin@123',
+      firstName: 'Login',
+      lastName: 'Tester',
+      email: 'login.test@billvyapp.local',
+      phone: '9000000001',
+      password: 'Billvy@Dev123',
       roleCode: 'SUPER_ADMIN',
       franchiseId: null,
       salonId: null,
     },
     {
-      firstName: 'Franchise',
-      lastName: 'Admin',
-      email: 'admin@billvy.dev',
-      password: 'Admin@1234',
+      firstName: 'Priya',
+      lastName: 'Mehta',
+      email: 'admin.test@billvyapp.local',
+      phone: '9000000003',
+      password: 'Billvy@Dev123',
       roleCode: 'ADMIN',
       franchiseId: franchise.id,
       salonId: null,
+    },
+    {
+      firstName: 'Rohit',
+      lastName: 'Sharma',
+      email: 'manager.test@billvyapp.local',
+      phone: '9000000002',
+      password: 'Billvy@Dev123',
+      roleCode: 'MANAGER',
+      franchiseId: franchise.id,
+      salonId: salon.id,
     },
   ];
 
@@ -137,7 +187,16 @@ async function main() {
     if (existing) {
       await prisma.user.update({
         where: { email: u.email },
-        data: { passwordHash, isActive: true, franchiseId: u.franchiseId },
+        data: {
+          passwordHash,
+          isActive: true,
+          roleId,
+          franchiseId: u.franchiseId,
+          salonId: u.salonId,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          phone: u.phone,
+        },
       });
       console.log(`  ↺  ${u.email} (already exists — password refreshed)`);
     } else {
@@ -146,6 +205,7 @@ async function main() {
           firstName: u.firstName,
           lastName: u.lastName,
           email: u.email,
+          phone: u.phone,
           passwordHash,
           roleId,
           franchiseId: u.franchiseId,
@@ -158,12 +218,13 @@ async function main() {
   }
 
   console.log('\n✅  Seed complete!\n');
-  console.log('┌─────────────┬───────────────────────┬─────────────────┐');
-  console.log('│ Role        │ Email                 │ Password        │');
-  console.log('├─────────────┼───────────────────────┼─────────────────┤');
-  console.log('│ SUPER_ADMIN │ superadmin@billvy.dev │ SuperAdmin@123  │');
-  console.log('│ ADMIN       │ admin@billvy.dev      │ Admin@1234      │');
-  console.log('└─────────────┴───────────────────────┴─────────────────┘\n');
+  console.log('┌─────────────┬────────────────────────────────┬─────────────────┐');
+  console.log('│ Role        │ Email                          │ Password        │');
+  console.log('├─────────────┼────────────────────────────────┼─────────────────┤');
+  console.log('│ SUPER_ADMIN │ login.test@billvyapp.local     │ Billvy@Dev123   │');
+  console.log('│ ADMIN       │ admin.test@billvyapp.local     │ Billvy@Dev123   │');
+  console.log('│ MANAGER     │ manager.test@billvyapp.local   │ Billvy@Dev123   │');
+  console.log('└─────────────┴────────────────────────────────┴─────────────────┘\n');
 }
 
 main()

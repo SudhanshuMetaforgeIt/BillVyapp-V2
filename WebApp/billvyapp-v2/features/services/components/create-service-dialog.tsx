@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { useCreateService, useCreateServiceCategory } from '../hooks/use-services';
+import { useCreateService, useCreateServiceCategory } from '../hooks/use-admin-services';
 
 type CreateServiceDialogProps = {
   isOpen: boolean;

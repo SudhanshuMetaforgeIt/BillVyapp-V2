@@ -24,24 +24,21 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(config: ConfigService) {
-    const url = new URL(config.getOrThrow<string>('database.url'));
-
-    // Parsed into a pool config rather than passed as a string: the connection
-    // string uses the mysql:// scheme, which the MariaDB driver does not accept.
     super({
-      adapter: new PrismaMariaDb({
-        host: url.hostname,
-        port: Number(url.port) || 3306,
-        user: decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password),
-        database: url.pathname.replace(/^\//, ''),
-        connectionLimit: 10,
-      }),
+      adapter: new PrismaMariaDb(
+        mariaPoolConfig(config.getOrThrow<string>('database.url')),
+      ),
     });
   }
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
+    const reachable = await this.isReachable();
+    if (!reachable) {
+      throw new Error(
+        'MySQL is not reachable. Check DATABASE_URL and that MySQL is running.',
+      );
+    }
     this.logger.log('Prisma connected to MySQL');
   }
 
@@ -66,4 +63,25 @@ export class PrismaService
       return false;
     }
   }
+}
+
+function mariaPoolConfig(databaseUrl: string) {
+  const url = new URL(databaseUrl);
+  const host =
+    url.hostname === 'localhost' || url.hostname === '::1'
+      ? '127.0.0.1'
+      : url.hostname;
+
+  return {
+    host,
+    port: Number(url.port) || 3306,
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace(/^\//, ''),
+    connectionLimit: 10,
+    acquireTimeout: 8_000,
+    connectTimeout: 5_000,
+    allowPublicKeyRetrieval: true,
+    resetAfterUse: true,
+  };
 }

@@ -1,12 +1,10 @@
 import {
-  Bell,
   CalendarDays,
   LayoutDashboard,
   Megaphone,
   Package,
   Receipt,
   Scissors,
-  Settings,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -18,7 +16,7 @@ const base = `/dashboard/${ROLE_SEGMENTS.MANAGER}`;
 
 /**
  * Salon Manager sidebar navigation.
- * Profile remains in the user menu.
+ * Notifications live behind the header bell; Profile and Settings live in the user menu.
  */
 export const MANAGER_NAVIGATION: NavSection[] = [
   {
@@ -65,18 +63,6 @@ export const MANAGER_NAVIGATION: NavSection[] = [
         label: 'Services',
         href: `${base}/services`,
         icon: Scissors,
-      },
-      {
-        id: 'notifications',
-        label: 'Notifications',
-        href: `${base}/notifications`,
-        icon: Bell,
-      },
-      {
-        id: 'settings',
-        label: 'Settings',
-        href: `${base}/settings`,
-        icon: Settings,
       },
       {
         id: 'campaigns',

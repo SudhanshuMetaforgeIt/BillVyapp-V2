@@ -47,8 +47,8 @@ export function LoginFormCard() {
   const isSubmitting = login.isPending;
 
   return (
-    <div data-auth-animate="card" className="w-full max-w-[440px]">
-      <div className="auth-form-card rounded-2xl px-6 py-8 sm:px-9 sm:py-11">
+    <div data-auth-animate="card" className="auth-form-shell @container">
+      <div className="auth-form-card w-full min-w-0 rounded-2xl px-5 py-7 sm:px-9 sm:py-11">
         <div className="mb-7 flex flex-col items-center text-center">
           <div data-auth-animate="card-logo" className="mb-3">
             <BrandLogo variant="light" size="compact" />
@@ -219,7 +219,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div data-auth-animate="field">
+    <div data-auth-animate="field" className="min-w-0">
       <Label htmlFor={id} className="mb-2 text-[13px] font-medium text-charcoal">
         {label}
       </Label>
