@@ -392,7 +392,11 @@ describe('BillsService', () => {
         { salonId: 'salon-a1' },
         { status: BillStatus.DRAFT },
         { paymentStatus: BillPaymentStatus.UNPAID },
-        { billNumber: { contains: 'BILL-1' } },
+        expect.objectContaining({
+          OR: expect.arrayContaining([
+            { billNumber: { contains: 'BILL-1' } },
+          ]),
+        }),
       ]),
     );
   });

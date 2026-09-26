@@ -1,10 +1,5 @@
-import { AdminPlaceholderPage } from '@/features/dashboard/components/admin-placeholder-page';
+import { SalonsView } from '@/features/salons/components/salons-view';
 
 export default function AdminSalonsPage() {
-  return (
-    <AdminPlaceholderPage
-      title="Salons"
-      description="Manage and monitor all salons in your franchise. This section is under construction."
-    />
-  );
+  return <SalonsView />;
 }

@@ -50,6 +50,11 @@ type PaymentMethodsCardProps = {
   onReset: () => void;
   canPay: boolean;
   isPaying: boolean;
+  /**
+   * False for roles that may create bills but not complete them (STAFF):
+   * the card then saves a draft for a manager instead of collecting payment.
+   */
+  canCollect?: boolean;
 };
 
 export function PaymentMethodsCard({
@@ -59,7 +64,36 @@ export function PaymentMethodsCard({
   onReset,
   canPay,
   isPaying,
+  canCollect = true,
 }: PaymentMethodsCardProps) {
+  if (!canCollect) {
+    return (
+      <section className="app-surface-card p-5">
+        <h2 className="mb-2 text-base font-semibold text-text">Save bill</h2>
+        <p className="text-sm text-text-secondary">
+          Your role can create draft bills. A manager completes the bill and
+          records the payment.
+        </p>
+        <Button
+          type="button"
+          className="mt-5 h-11 w-full bg-champagne text-white hover:bg-champagne/90"
+          disabled={!canPay || isPaying}
+          onClick={onPay}
+        >
+          {isPaying ? 'Saving…' : 'Save draft bill'}
+        </Button>
+        <button
+          type="button"
+          className="mt-3 w-full text-center text-sm font-medium text-brand-orange hover:underline disabled:opacity-50"
+          onClick={onReset}
+          disabled={isPaying}
+        >
+          Reset
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section className="app-surface-card p-5">
       <h2 className="mb-4 text-base font-semibold text-text">Payment Methods</h2>
@@ -115,8 +149,11 @@ export function PaymentMethodsCard({
         disabled={!canPay || isPaying}
         onClick={onPay}
       >
-        {isPaying ? 'Processing…' : 'Proceed to Pay'}
+        {isPaying ? 'Processing…' : 'Record payment received'}
       </Button>
+      <p className="mt-2 text-center text-xs text-text-secondary">
+        Record only after the customer has paid at the counter.
+      </p>
 
       <button
         type="button"

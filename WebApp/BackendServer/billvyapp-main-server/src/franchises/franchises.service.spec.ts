@@ -150,9 +150,10 @@ describe('FranchisesService', () => {
 });
 
 describe('FranchisesController authorization', () => {
-  it('requires SUPER_ADMIN', () => {
+  it('requires SUPER_ADMIN or ADMIN', () => {
     expect(Reflect.getMetadata(ROLES_KEY, FranchisesController)).toEqual([
       RoleCode.SUPER_ADMIN,
+      RoleCode.ADMIN,
     ]);
   });
 });

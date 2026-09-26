@@ -31,4 +31,7 @@ export interface ObjectStorageProvider {
   createDownloadUrl(storageKey: string): Promise<PresignedDownload>;
 
   deleteObject(storageKey: string): Promise<void>;
+
+  /** True when the object is present in the backing store. */
+  objectExists(storageKey: string): Promise<boolean>;
 }

@@ -18,7 +18,7 @@ type ServicesFiltersProps = {
   categoryOptions: Array<{ id: string; name: string }>;
   status: ServiceStatusFilter;
   onStatusChange: (value: ServiceStatusFilter) => void;
-  onPrimaryAction: () => void;
+  onPrimaryAction?: () => void;
 };
 
 export function ServicesFilters({
@@ -80,14 +80,16 @@ export function ServicesFilters({
           <option value="inactive">Inactive</option>
         </select>
 
-        <Button
-          type="button"
-          className="h-10 bg-champagne text-white hover:bg-champagne/90"
-          onClick={onPrimaryAction}
-        >
-          <Plus className="size-4" />
-          {tab === 'services' ? 'Add New Service' : 'Add Category'}
-        </Button>
+        {onPrimaryAction ? (
+          <Button
+            type="button"
+            className="h-10 bg-champagne text-white hover:bg-champagne/90"
+            onClick={onPrimaryAction}
+          >
+            <Plus className="size-4" />
+            {tab === 'services' ? 'Add New Service' : 'Add Category'}
+          </Button>
+        ) : null}
       </div>
     </div>
   );

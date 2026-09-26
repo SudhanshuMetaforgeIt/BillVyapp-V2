@@ -2,6 +2,7 @@ import { ROLE_LABELS, isRoleCode } from '@/constants/roles';
 import type { AuthMeUser } from '@/services/auth.service';
 import { api } from '@/services/api-client';
 import { authService } from '@/services/auth.service';
+import { can } from '@/lib/capabilities';
 import type { UserApiItem } from '@/features/users/types/users.types';
 import type { ProfileUser, UpdateProfilePayload } from '../types/profile.types';
 
@@ -46,27 +47,19 @@ function toProfileUser(me: AuthMeUser, detail: UserApiItem | null): ProfileUser 
 }
 
 /**
- * Loads the signed-in profile.
- * Prefers GET /auth/me; falls back to GET /users/:id when a session user id is known.
+ * Loads the signed-in profile from GET /auth/me. Joined / last-login metadata
+ * comes from GET /users/:id, which only user administrators may call.
  */
-export async function fetchProfile(userId?: string | null): Promise<ProfileUser> {
-  try {
-    const me = await authService.me();
+export async function fetchProfile(): Promise<ProfileUser> {
+  const me = await authService.me();
+  const role = isRoleCode(me.role) ? me.role : null;
 
-    let detail: UserApiItem | null = null;
-    try {
-      detail = await api.get<UserApiItem>(`/users/${me.id}`);
-    } catch {
-      // Joined / last-login metadata is best-effort.
-    }
-
-    return toProfileUser(me, detail);
-  } catch (meError) {
-    if (!userId) throw meError;
-
-    const detail = await api.get<UserApiItem>(`/users/${userId}`);
-    return fromUserDetail(detail);
+  let detail: UserApiItem | null = null;
+  if (role && can({ role }, 'users.read')) {
+    detail = await api.get<UserApiItem>(`/users/${me.id}`).catch(() => null);
   }
+
+  return toProfileUser(me, detail);
 }
 
 export async function updateProfile(

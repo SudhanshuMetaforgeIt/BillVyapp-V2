@@ -1,6 +1,6 @@
-import { BillsPageView } from '@/features/bills';
+import { ROUTES } from '@/constants/routes';
+import { BillsListView } from '@/features/bills';
 
 export default function AdminBillsPage() {
-  return <BillsPageView />;
+  return <BillsListView newBillHref={ROUTES.dashboard.admin.walkInBilling} />;
 }
-

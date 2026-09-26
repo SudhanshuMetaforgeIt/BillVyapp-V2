@@ -5,15 +5,18 @@ import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ROUTES } from '@/constants/routes';
 import { cn } from '@/lib/utils';
-import { MANAGER_QUICK_ACTIONS } from '../constants/quick-actions';
+import { MANAGER_QUICK_ACTIONS, STAFF_QUICK_ACTIONS } from '../constants/quick-actions';
 
 type ManagerQuickActionsRowProps = {
   isLoading?: boolean;
+  variant?: 'manager' | 'staff';
 };
 
 export function ManagerQuickActionsRow({
   isLoading,
+  variant = 'manager',
 }: ManagerQuickActionsRowProps) {
+  const actions = variant === 'staff' ? STAFF_QUICK_ACTIONS : MANAGER_QUICK_ACTIONS;
   if (isLoading) {
     return (
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -26,7 +29,7 @@ export function ManagerQuickActionsRow({
 
   return (
     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      {MANAGER_QUICK_ACTIONS.map((action, index) => {
+      {actions.map((action, index) => {
         const Icon = action.icon;
         const primary = index === 0;
         return (

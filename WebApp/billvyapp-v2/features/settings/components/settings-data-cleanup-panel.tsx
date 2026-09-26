@@ -1,14 +1,32 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { DashboardSectionCard } from '@/components/layout/section-states';
 import { Button } from '@/components/ui/button';
+import { isApiError } from '@/services/api-client';
+import {
+  useClearCache,
+  useLogRetention,
+  useUpdateRetention,
+} from '../hooks/use-platform-settings';
+import { SettingsSaveButton, SettingsTextField } from './settings-fields';
 
-const UNAVAILABLE =
-  'This action will be available once the settings API is connected.';
+function fail(error: unknown) {
+  toast.error(isApiError(error) ? error.message : 'Could not complete that action.');
+}
 
 export function SettingsDataCleanupPanel() {
+  const retention = useLogRetention();
+  const saveRetention = useUpdateRetention();
+  const clearCache = useClearCache();
+  const [days, setDays] = useState('90');
+
+  useEffect(() => {
+    if (retention.data) setDays(String(retention.data.retentionDays));
+  }, [retention.data]);
+
   return (
     <DashboardSectionCard
       title="Data & Cleanup"
@@ -19,33 +37,53 @@ export function SettingsDataCleanupPanel() {
         <div>
           <p className="text-sm font-semibold text-text">Clear Cache</p>
           <p className="text-xs text-text-secondary">
-            Flush temporary application cache.
+            Flush temporary application cache in Redis.
           </p>
         </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => toast(UNAVAILABLE)}
+          disabled={clearCache.isPending}
+          onClick={() =>
+            clearCache.mutate(undefined, {
+              onSuccess: (res) =>
+                toast.success(
+                  res.deletedKeys != null
+                    ? `Cleared ${res.deletedKeys} cache keys`
+                    : res.message,
+                ),
+              onError: fail,
+            })
+          }
         >
-          Clear Cache
+          {clearCache.isPending ? 'Clearing…' : 'Clear Cache'}
         </Button>
       </div>
-      <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-3 border-t border-border/70 pt-4">
         <div>
-          <p className="text-sm font-semibold text-text">Old Logs Cleanup</p>
+          <p className="text-sm font-semibold text-text">Log retention</p>
           <p className="text-xs text-text-secondary">
-            Configure automatic deletion of aged logs.
+            How long audit and system logs are kept.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => toast(UNAVAILABLE)}
-        >
-          Configure
-        </Button>
+        <SettingsTextField
+          id="retention-days"
+          label="Retention days"
+          type="number"
+          value={days}
+          onChange={setDays}
+        />
+        <SettingsSaveButton
+          disabled={saveRetention.isPending || retention.isLoading}
+          label={saveRetention.isPending ? 'Saving…' : 'Save Retention'}
+          onClick={() =>
+            saveRetention.mutate(Number(days) || 90, {
+              onSuccess: () => toast.success('Retention updated'),
+              onError: fail,
+            })
+          }
+        />
       </div>
     </DashboardSectionCard>
   );

@@ -8,7 +8,7 @@ import {
   useTransition,
 } from 'react';
 
-import { SectionErrorState } from '@/components/layout/section-states';
+import { QueryErrorState } from '@/components/data/query-error-state';
 import { MetricGrid } from '@/features/dashboard/components/metric-card';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useSalonServices } from '@/features/walk-in-billing/hooks/use-service-catalog';
@@ -67,11 +67,7 @@ export function AppointmentsPageView() {
   if (query.isError && !query.data) {
     return (
       <div className="app-surface-card">
-        <SectionErrorState
-          title="Appointments unavailable"
-          message="We could not load appointments. Please try again."
-          onRetry={() => void query.refetch()}
-        />
+        <QueryErrorState error={query.error} onRetry={() => void query.refetch()} />
       </div>
     );
   }
@@ -118,6 +114,17 @@ export function AppointmentsPageView() {
             onNewAppointment={() => setCreateOpen(true)}
           />
 
+          {data?.partial ? (
+            <p
+              role="status"
+              className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-text-secondary"
+            >
+              This filter covers the 100 most recent matching appointments. The
+              appointments API has no server-side text, service or “upcoming”
+              filter; narrow the date range for complete results.
+            </p>
+          ) : null}
+
           <AppointmentsTable
             rows={data?.rows ?? []}
             meta={data?.meta ?? emptyMeta}
@@ -127,6 +134,7 @@ export function AppointmentsPageView() {
             }}
             isLoading={query.isLoading && !data}
             isError={query.isError}
+            error={query.error}
             onRetry={() => void query.refetch()}
             onPageChange={(next) => {
               startTransition(() => setPage(next));

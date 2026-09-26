@@ -22,6 +22,8 @@ import { AdjustStockDialog } from './adjust-stock-dialog';
 import { InventoryFilters } from './inventory-filters';
 import { InventoryTable } from './inventory-table';
 
+import { can } from '@/lib/capabilities';
+
 const PAGE_SIZE = 10;
 
 export function InventoryPageView() {
@@ -29,6 +31,7 @@ export function InventoryPageView() {
   const [, startTransition] = useTransition();
   const user = useCurrentUser();
   const salonId = user?.salonId ?? '';
+  const canWrite = can(user, 'inventory.adjust');
 
   const [searchInput, setSearchInput] = useState('');
   const deferredSearch = useDeferredValue(searchInput);
@@ -113,11 +116,15 @@ export function InventoryPageView() {
               startTransition(() => setCategoryId(value));
             }}
             categoryOptions={data?.categoryOptions ?? []}
-            onAddProduct={() => setAddOpen(true)}
-            onAdjustStock={() => {
-              setPresetRow(null);
-              setAdjustOpen(true);
-            }}
+            onAddProduct={canWrite ? () => setAddOpen(true) : undefined}
+            onAdjustStock={
+              canWrite
+                ? () => {
+                    setPresetRow(null);
+                    setAdjustOpen(true);
+                  }
+                : undefined
+            }
           />
 
           <InventoryTable
@@ -129,10 +136,14 @@ export function InventoryPageView() {
             onPageChange={(next) => {
               startTransition(() => setPage(next));
             }}
-            onAdjustRow={(row) => {
-              setPresetRow(row);
-              setAdjustOpen(true);
-            }}
+            onAdjustRow={
+              canWrite
+                ? (row) => {
+                    setPresetRow(row);
+                    setAdjustOpen(true);
+                  }
+                : undefined
+            }
           />
         </div>
       </div>

@@ -6,7 +6,6 @@ import { SectionErrorState } from '@/components/layout/section-states';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useProfile } from '../hooks/use-profile';
 import { ProfileActivityCard } from './profile-activity-card';
-import { ProfilePasswordForm } from './profile-password-form';
 import { ProfilePersonalForm } from './profile-personal-form';
 import { ProfileSummaryCard } from './profile-summary-card';
 
@@ -43,10 +42,7 @@ export function ProfilePageView() {
         <ProfilePersonalForm profile={query.data} isLoading={isLoading} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2 xl:gap-7">
-        <ProfilePasswordForm />
-        <ProfileActivityCard />
-      </div>
+      <ProfileActivityCard />
     </div>
   );
 }

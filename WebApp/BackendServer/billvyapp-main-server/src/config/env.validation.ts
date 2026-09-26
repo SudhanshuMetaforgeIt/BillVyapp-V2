@@ -139,6 +139,10 @@ class EnvironmentVariables {
   @IsOptional()
   @IsIn(['development', 'production', 'test'])
   NODE_ENV?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_MAPS_API_KEY?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

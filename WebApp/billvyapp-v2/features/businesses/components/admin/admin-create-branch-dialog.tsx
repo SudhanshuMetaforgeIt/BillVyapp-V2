@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
+import { geocodeSalon } from '@/features/salons/services/salons.service';
 import { api } from '@/services/api-client';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { ADMIN_MY_BUSINESS_QUERY_KEY } from '../../hooks/use-admin-my-business';
-import { ADMIN_DASHBOARD_QUERY_KEY } from '@/features/dashboard/hooks/use-admin-dashboard';
+import { invalidateAfter } from '@/lib/query-invalidation';
+import type { Salon } from '@/types/models';
 
 type AdminCreateBranchDialogProps = {
   isOpen: boolean;
@@ -27,9 +29,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
-  const [city, setCity] = useState('Bangalore');
-  const [state, setState] = useState('Karnataka');
-  const [postalCode, setPostalCode] = useState('560001');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [postalCode, setPostalCode] = useState('');
 
   if (!isOpen) return null;
 
@@ -44,7 +46,7 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
       setLoading(true);
       setError(null);
 
-      await api.post('/salons', {
+      const salon = await api.post<Salon>('/salons', {
         franchiseId: user.franchiseId,
         name: name.trim(),
         code: code.trim().toUpperCase(),
@@ -55,14 +57,22 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
         state: state.trim(),
         country: 'India',
         postalCode: postalCode.trim(),
-        latitude: 12.9716, // Bangalore central default
-        longitude: 77.5946,
+        // 0,0 marks the salon as not yet geocoded; the backend resolves the real point below.
+        latitude: 0,
+        longitude: 0,
       });
 
-      // Invalidate queries so tables refresh instantly
-      await queryClient.invalidateQueries({ queryKey: ADMIN_MY_BUSINESS_QUERY_KEY });
-      await queryClient.invalidateQueries({ queryKey: ADMIN_DASHBOARD_QUERY_KEY });
+      const geocoded = await geocodeSalon(salon.id, {}).then(
+        () => true,
+        () => false,
+      );
+      await invalidateAfter(queryClient, 'salons');
 
+      if (geocoded) {
+        toast.success(`${salon.name} created`);
+      } else {
+        toast(`${salon.name} created, but its address could not be located. Geocode it from Salons.`);
+      }
       onClose();
     } catch (err: unknown) {
       const msg =

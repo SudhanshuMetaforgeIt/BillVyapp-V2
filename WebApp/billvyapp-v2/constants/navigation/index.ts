@@ -2,6 +2,7 @@ import type { RoleCode } from '@/constants/roles';
 import { ADMIN_NAVIGATION } from './admin';
 import { CUSTOMER_NAVIGATION } from './customer';
 import { MANAGER_NAVIGATION } from './manager';
+import { STAFF_NAVIGATION } from './staff';
 import { SUPER_ADMIN_NAVIGATION } from './super-admin';
 import type { NavSection } from './types';
 
@@ -17,6 +18,8 @@ export function navigationForRole(role: RoleCode | null | undefined): NavSection
       return ADMIN_NAVIGATION;
     case 'MANAGER':
       return MANAGER_NAVIGATION;
+    case 'STAFF':
+      return STAFF_NAVIGATION;
     case 'CUSTOMER':
       return CUSTOMER_NAVIGATION;
     default:
@@ -26,6 +29,7 @@ export function navigationForRole(role: RoleCode | null | undefined): NavSection
 
 export type { NavItem, NavSection } from './types';
 export { MANAGER_NAVIGATION } from './manager';
+export { STAFF_NAVIGATION } from './staff';
 export { SUPER_ADMIN_NAVIGATION, SUPER_ADMIN_BRAND } from './super-admin';
 export { ADMIN_NAVIGATION, ADMIN_BRAND } from './admin';
 export { CUSTOMER_NAVIGATION } from './customer';

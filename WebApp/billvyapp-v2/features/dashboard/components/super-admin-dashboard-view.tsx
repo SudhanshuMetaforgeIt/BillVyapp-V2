@@ -73,8 +73,3 @@ export function SuperAdminDashboardView() {
     </div>
   );
 }
-
-export function useSuperAdminNotificationCount(): number {
-  const query = useSuperAdminDashboard();
-  return query.data?.unreadNotifications ?? 0;
-}

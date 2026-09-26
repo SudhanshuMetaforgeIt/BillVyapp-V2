@@ -9,16 +9,24 @@ import type { AdminRecentBill, AdminBillStatus } from '../types/admin-dashboard.
 
 function billStatusTone(
   status: AdminBillStatus,
-): 'success' | 'warning' | 'danger' {
+): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
   if (status === 'paid') return 'success';
-  if (status === 'pending') return 'warning';
-  return 'danger';
+  if (status === 'partial') return 'info';
+  if (status === 'unpaid' || status === 'draft') return 'warning';
+  if (status === 'cancelled') return 'danger';
+  return 'neutral';
 }
 
 function billStatusLabel(status: AdminBillStatus): string {
-  if (status === 'paid') return 'Paid';
-  if (status === 'pending') return 'Pending';
-  return 'Failed';
+  const labels: Record<AdminBillStatus, string> = {
+    paid: 'Paid',
+    partial: 'Partially paid',
+    unpaid: 'Unpaid',
+    draft: 'Draft',
+    cancelled: 'Cancelled',
+    refunded: 'Refunded',
+  };
+  return labels[status];
 }
 
 type AdminRecentBillsProps = {

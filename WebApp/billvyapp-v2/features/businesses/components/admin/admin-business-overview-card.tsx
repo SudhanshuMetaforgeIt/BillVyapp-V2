@@ -49,20 +49,17 @@ export function AdminBusinessOverviewCard({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-lg font-bold text-text sm:text-xl">{franchise.name}</h3>
-                <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 border border-amber-500/20">
-                  Main Business
-                </span>
               </div>
               <p className="mt-1 text-sm text-text-secondary">
-                {franchise.email || 'business@billvy.dev'}
+                {franchise.email || 'No email on file'}
               </p>
               <p className="text-sm text-text-secondary">
-                {franchise.phone || '+91 98765 43210'}
+                {franchise.phone || 'No phone on file'}
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-xs text-text-secondary">
                 <MapPin className="size-3.5 shrink-0 text-text-muted" aria-hidden />
                 <span className="truncate">
-                  {franchise.address || 'Franchise Headquarters — Main Business'}
+                  {franchise.address || 'No address on file'}
                 </span>
               </div>
             </div>
@@ -81,15 +78,16 @@ export function AdminBusinessOverviewCard({
               </div>
             </div>
 
-            {/* Subscription Plan */}
             <div className="flex items-start gap-2.5">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 border border-amber-200/60">
                 <Crown className="size-4" />
               </div>
               <div>
-                <p className="text-xs text-text-secondary">Subscription Plan</p>
-                <p className="text-sm font-semibold text-text">{franchise.subscriptionPlan}</p>
-                <p className="text-[11px] text-text-muted">Status: {franchise.planValidTill}</p>
+                <p className="text-xs text-text-secondary">Business Code</p>
+                <p className="text-sm font-semibold text-text">{franchise.code}</p>
+                <p className="text-[11px] text-text-muted">
+                  Status: {franchise.isActive ? 'Active' : 'Inactive'}
+                </p>
               </div>
             </div>
           </div>

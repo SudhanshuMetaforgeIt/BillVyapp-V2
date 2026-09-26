@@ -5,10 +5,9 @@ import { usePathname } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { useManagerDashboard } from '@/features/dashboard/hooks/use-manager-dashboard';
 import { ROUTES } from '@/constants/routes';
 
-type ManagerShellProps = {
+type SalonShellProps = {
   children: ReactNode;
 };
 
@@ -18,73 +17,80 @@ function greetingFor(hour: number): string {
   return 'Good evening';
 }
 
-/**
- * Role-specific shell wrapper for Manager routes.
- * Reuses the shared AppShell; only title/notification wiring is role-local.
- */
-export function ManagerShell({ children }: ManagerShellProps) {
-  const pathname = usePathname();
-  const user = useCurrentUser();
-  const { data } = useManagerDashboard();
+type PageMeta = Record<string, { title: string; subtitle?: string }>;
 
-  const pageMeta: Record<string, { title: string; subtitle?: string }> = {
-    [ROUTES.dashboard.manager.root]: {
-      title: user
-        ? `${greetingFor(new Date().getHours())}, ${user.firstName}`
-        : 'Dashboard',
-      subtitle: "Here's what's happening at your salon today.",
-    },
-    [ROUTES.dashboard.manager.walkInBilling]: {
-      title: 'Create New Bill',
-      subtitle: 'Walk-in billing for your salon.',
-    },
-    [ROUTES.dashboard.manager.appointments]: {
-      title: 'Appointments',
-      subtitle: 'View and manage salon appointments.',
-    },
-    [ROUTES.dashboard.manager.customers]: {
-      title: 'Customers',
-      subtitle: 'Manage your salon customers.',
-    },
-    [ROUTES.dashboard.manager.inventory]: {
-      title: 'Inventory',
-      subtitle: 'Track products and stock levels.',
-    },
-    [ROUTES.dashboard.manager.memberships]: {
-      title: 'Memberships',
-      subtitle: 'Manage membership plans and members.',
-    },
-    [ROUTES.dashboard.manager.services]: {
-      title: 'Services',
-      subtitle: 'Manage salon services and pricing.',
-    },
-    [ROUTES.dashboard.manager.campaigns]: {
-      title: 'Campaigns',
-      subtitle: 'Create and track marketing campaigns.',
-    },
-    [ROUTES.dashboard.manager.notifications]: {
-      title: 'Notifications',
-      subtitle: 'Stay updated with important alerts and activities.',
-    },
-    [ROUTES.dashboard.manager.settings]: {
-      title: 'Settings',
-      subtitle: 'Manage your business preferences and configurations.',
-    },
-    [ROUTES.dashboard.manager.profile]: {
-      title: 'Profile',
-      subtitle: 'Manage your profile information and account preferences.',
+function sharedMeta(r: {
+  walkInBilling: string;
+  bills: string;
+  appointments: string;
+  customers: string;
+  inventory: string;
+  purchases: string;
+  loyalty: string;
+  services: string;
+  notifications: string;
+  search: string;
+  profile: string;
+}): PageMeta {
+  return {
+    [r.walkInBilling]: { title: 'Create New Bill', subtitle: 'Walk-in billing for your salon.' },
+    [r.bills]: { title: 'Bills', subtitle: 'Bills, payments and attached documents.' },
+    [r.appointments]: { title: 'Appointments', subtitle: 'View and manage salon appointments.' },
+    [r.customers]: { title: 'Customers', subtitle: 'Manage your salon customers.' },
+    [r.inventory]: { title: 'Inventory', subtitle: 'Track products and stock levels.' },
+    [r.purchases]: { title: 'Purchases', subtitle: 'Purchase orders from vendors.' },
+    [r.loyalty]: { title: 'Loyalty', subtitle: 'Customer loyalty points and adjustments.' },
+    [r.services]: { title: 'Services', subtitle: 'Salon services and pricing.' },
+    [r.notifications]: { title: 'Notifications', subtitle: 'Messages sent to customers.' },
+    [r.search]: { title: 'Search', subtitle: 'Find customers, bills, appointments and more.' },
+    [r.profile]: { title: 'Profile', subtitle: 'Your account information.' },
+  };
+}
+
+function useRootMeta(root: string, subtitle: string): PageMeta {
+  const user = useCurrentUser();
+  return {
+    [root]: {
+      title: user ? `${greetingFor(new Date().getHours())}, ${user.firstName}` : 'Dashboard',
+      subtitle,
     },
   };
+}
 
+/** Shell for Manager routes. */
+export function ManagerShell({ children }: SalonShellProps) {
+  const pathname = usePathname();
+  const r = ROUTES.dashboard.manager;
+  const pageMeta: PageMeta = {
+    ...useRootMeta(r.root, "Here's what's happening at your salon today."),
+    ...sharedMeta(r),
+    [r.stockMovements]: { title: 'Stock Movements', subtitle: 'Every stock change, with its reason.' },
+    [r.vendors]: { title: 'Vendors', subtitle: 'Suppliers for your products.' },
+    [r.memberships]: { title: 'Memberships', subtitle: 'Manage membership plans and members.' },
+    [r.campaigns]: { title: 'Campaigns', subtitle: 'Create and track marketing campaigns.' },
+    [r.settings]: { title: 'Settings', subtitle: 'Manage your business preferences and configurations.' },
+  };
   const meta = pageMeta[pathname] ?? { title: 'Salon Manager' };
 
   return (
-    <AppShell
-      requiredRole="MANAGER"
-      title={meta.title}
-      subtitle={meta.subtitle}
-      notificationCount={data?.unreadNotifications ?? 0}
-    >
+    <AppShell requiredRole="MANAGER" title={meta.title} subtitle={meta.subtitle}>
+      {children}
+    </AppShell>
+  );
+}
+
+/** Shell for Staff routes. */
+export function StaffShell({ children }: SalonShellProps) {
+  const pathname = usePathname();
+  const r = ROUTES.dashboard.staff;
+  const pageMeta: PageMeta = {
+    ...useRootMeta(r.root, 'Your salon at a glance.'),
+    ...sharedMeta(r),
+  };
+  const meta = pageMeta[pathname] ?? { title: 'Salon Staff' };
+
+  return (
+    <AppShell requiredRole="STAFF" title={meta.title} subtitle={meta.subtitle}>
       {children}
     </AppShell>
   );

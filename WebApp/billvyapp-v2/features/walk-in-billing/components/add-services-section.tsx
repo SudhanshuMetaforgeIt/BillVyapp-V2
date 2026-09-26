@@ -19,6 +19,7 @@ import type { CartLine, SalonService } from '../types/walk-in-billing.types';
 
 type AddServicesSectionProps = {
   enabled: boolean;
+  salonId: string;
   search: string;
   onSearchChange: (value: string) => void;
   categoryId: string;
@@ -37,6 +38,7 @@ type AddServicesSectionProps = {
 
 export function AddServicesSection({
   enabled,
+  salonId,
   search,
   onSearchChange,
   categoryId,
@@ -52,8 +54,8 @@ export function AddServicesSection({
   discountAmount,
   onDiscountAmountChange,
 }: AddServicesSectionProps) {
-  const categories = useServiceCategories(enabled);
-  const services = useSalonServices(enabled, { search, categoryId });
+  const categories = useServiceCategories(enabled, salonId);
+  const services = useSalonServices(enabled, { search, categoryId, salonId });
 
   return (
     <section className="app-surface-card p-5">

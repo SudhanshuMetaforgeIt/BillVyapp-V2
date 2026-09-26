@@ -14,8 +14,8 @@ type InventoryFiltersProps = {
   categoryId: string;
   onCategoryIdChange: (value: string) => void;
   categoryOptions: Array<{ id: string; name: string }>;
-  onAddProduct: () => void;
-  onAdjustStock: () => void;
+  onAddProduct?: () => void;
+  onAdjustStock?: () => void;
 };
 
 export function InventoryFilters({
@@ -74,24 +74,23 @@ export function InventoryFilters({
           <option value="out">Out of Stock</option>
         </select>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="h-10"
-          onClick={onAddProduct}
-        >
-          <PackagePlus className="size-4" />
-          Add Product
-        </Button>
+        {onAddProduct ? (
+          <Button type="button" variant="outline" className="h-10" onClick={onAddProduct}>
+            <PackagePlus className="size-4" />
+            Add Product
+          </Button>
+        ) : null}
 
-        <Button
-          type="button"
-          className="h-10 bg-champagne text-white hover:bg-champagne/90"
-          onClick={onAdjustStock}
-        >
-          <Plus className="size-4" />
-          Adjust Stock
-        </Button>
+        {onAdjustStock ? (
+          <Button
+            type="button"
+            className="h-10 bg-champagne text-white hover:bg-champagne/90"
+            onClick={onAdjustStock}
+          >
+            <Plus className="size-4" />
+            Adjust Stock
+          </Button>
+        ) : null}
       </div>
     </div>
   );

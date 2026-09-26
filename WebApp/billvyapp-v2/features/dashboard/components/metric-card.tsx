@@ -189,7 +189,11 @@ export function MetricCard({ metric, className }: MetricCardProps) {
         </span>
       </div>
 
-      {change !== null ? (
+      {metric.partial ? (
+        <p className="mt-3 text-xs text-warning" title="Needs a backend report endpoint for an exact total">
+          Partial — first {metric.partialSample ?? 100} records only
+        </p>
+      ) : change !== null ? (
         <p className="mt-3 flex items-center gap-1 text-sm">
           <span
             className={cn(

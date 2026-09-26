@@ -104,7 +104,7 @@ export function BillsOverviewDonut({ summary }: BillsOverviewDonutProps) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-              <span className="truncate font-medium text-stone-600 dark:text-stone-400">Pending</span>
+              <span className="truncate font-medium text-stone-600 dark:text-stone-400">Partially paid</span>
             </div>
             <span className="shrink-0 font-semibold tabular-nums text-stone-800 dark:text-stone-200">
               {pending.toLocaleString('en-IN')}{' '}
@@ -115,7 +115,7 @@ export function BillsOverviewDonut({ summary }: BillsOverviewDonutProps) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
-              <span className="truncate font-medium text-stone-600 dark:text-stone-400">Overdue</span>
+              <span className="truncate font-medium text-stone-600 dark:text-stone-400">Unpaid</span>
             </div>
             <span className="shrink-0 font-semibold tabular-nums text-stone-800 dark:text-stone-200">
               {overdue.toLocaleString('en-IN')}{' '}

@@ -28,6 +28,22 @@ const actor: AuthenticatedUser = {
   sessionId: 's1',
 };
 
+const adminActor: AuthenticatedUser = {
+  userId: 'admin-1',
+  email: 'admin@example.com',
+  role: RoleCode.ADMIN,
+  franchiseId: 'fr-1',
+  salonId: null,
+  sessionId: 's1',
+};
+
+const superAdminRole = {
+  id: 'role-sa',
+  name: 'Super Admin',
+  code: RoleCode.SUPER_ADMIN,
+  isActive: true,
+};
+
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
 const adminRole = {
@@ -322,6 +338,76 @@ describe('UsersService', () => {
     );
   });
 
+  it('lets ADMIN create MANAGER in their franchise', async () => {
+    prisma.role.findUnique.mockResolvedValue(managerRole);
+    prisma.user.create.mockResolvedValue(
+      userRecord({
+        roleId: managerRole.id,
+        salonId: 'salon-1',
+        role: { id: managerRole.id, name: 'Manager', code: RoleCode.MANAGER },
+      }),
+    );
+
+    const result = await service.create(
+      adminActor,
+      {
+        roleId: managerRole.id,
+        salonId: 'salon-1',
+        firstName: 'Maya',
+        lastName: 'Manager',
+        email: 'maya@billvyapp.com',
+        password: 'S3cure!Pass',
+      },
+      ctx,
+    );
+
+    expect(result.role.code).toBe(RoleCode.MANAGER);
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ franchiseId: 'fr-1' }),
+      }),
+    );
+  });
+
+  it('rejects ADMIN creating a SUPER_ADMIN', async () => {
+    prisma.role.findUnique.mockResolvedValue(superAdminRole);
+
+    await expect(
+      service.create(
+        adminActor,
+        {
+          roleId: superAdminRole.id,
+          firstName: 'Root',
+          lastName: 'Admin',
+          email: 'root2@billvyapp.com',
+          password: 'S3cure!Pass',
+        },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects ADMIN creating another ADMIN', async () => {
+    prisma.role.findUnique.mockResolvedValue(adminRole);
+
+    await expect(
+      service.create(
+        adminActor,
+        {
+          roleId: adminRole.id,
+          franchiseId: 'fr-1',
+          firstName: 'Priya',
+          lastName: 'Sharma',
+          email: 'priya2@billvyapp.com',
+          password: 'S3cure!Pass',
+        },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
   it('rejects deactivating the current Super Admin', async () => {
     prisma.user.findFirst.mockResolvedValue(
       userRecord({
@@ -368,9 +454,10 @@ describe('CreateUserDto phone validation', () => {
 });
 
 describe('UsersController authorization', () => {
-  it('requires SUPER_ADMIN', () => {
+  it('requires SUPER_ADMIN or ADMIN', () => {
     expect(Reflect.getMetadata(ROLES_KEY, UsersController)).toEqual([
       RoleCode.SUPER_ADMIN,
+      RoleCode.ADMIN,
     ]);
   });
 });

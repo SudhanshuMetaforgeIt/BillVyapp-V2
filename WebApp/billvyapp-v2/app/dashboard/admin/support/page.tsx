@@ -1,5 +1,5 @@
-import { AdminSupportPageView } from '@/features/support';
+import { SupportPageView } from '@/features/support';
 
 export default function AdminSupportPage() {
-  return <AdminSupportPageView />;
+  return <SupportPageView />;
 }

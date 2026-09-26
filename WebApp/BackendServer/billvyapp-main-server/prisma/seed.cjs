@@ -2,7 +2,7 @@
  * prisma/seed.cjs
  *
  * Development seed — creates all roles + test users + demo franchise.
- * Run via:  npm run db:seed  (or node --env-file=.env prisma/seed.cjs)
+ * Run via:  npx prisma db seed  (or npm run db:seed)
  *
  * TEST CREDENTIALS (dev only)
  * ─────────────────────────────────────────────────────────────────────────────
@@ -11,6 +11,7 @@
  *  SUPER_ADMIN │ login.test@billvyapp.local     │ Billvy@Dev123   │ Global
  *  ADMIN       │ admin.test@billvyapp.local     │ Billvy@Dev123   │ Franchise
  *  MANAGER     │ manager.test@billvyapp.local   │ Billvy@Dev123   │ Salon
+ *  STAFF       │ staff.test@billvyapp.local     │ Billvy@Dev123   │ Salon
  *  CUSTOMER    │ customer@billvyapp.com         │ Customer@123    │ Customer
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -174,6 +175,16 @@ async function main() {
       salonId: salon.id,
     },
     {
+      firstName: 'Amit',
+      lastName: 'Kumar',
+      email: 'staff.test@billvyapp.local',
+      phone: '9000000004',
+      password: 'Billvy@Dev123',
+      roleCode: 'STAFF',
+      franchiseId: franchise.id,
+      salonId: salon.id,
+    },
+    {
       firstName: 'Akshith',
       lastName: 'Kola',
       email: 'customer@billvyapp.com',
@@ -253,6 +264,7 @@ async function main() {
   console.log('│ SUPER_ADMIN │ login.test@billvyapp.local     │ Billvy@Dev123   │');
   console.log('│ ADMIN       │ admin.test@billvyapp.local     │ Billvy@Dev123   │');
   console.log('│ MANAGER     │ manager.test@billvyapp.local   │ Billvy@Dev123   │');
+  console.log('│ STAFF       │ staff.test@billvyapp.local     │ Billvy@Dev123   │');
   console.log('│ CUSTOMER    │ customer@billvyapp.com         │ Customer@123    │');
   console.log('└─────────────┴────────────────────────────────┴─────────────────┘\n');
 }
