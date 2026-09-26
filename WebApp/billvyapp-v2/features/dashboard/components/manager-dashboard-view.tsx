@@ -14,7 +14,7 @@ import { ManagerSalesOverview } from './manager-sales-overview';
 import { ManagerTodayAppointments } from './manager-today-appointments';
 import { ManagerTopServices } from './manager-top-services';
 
-export function ManagerDashboardView() {
+export function ManagerDashboardView({ variant = 'manager' }: { variant?: 'manager' | 'staff' }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const query = useManagerDashboard();
 
@@ -49,6 +49,13 @@ export function ManagerDashboardView() {
         className="xl:grid-cols-5"
         skeletonCount={5}
       />
+
+      {data?.chartsPartial ? (
+        <p className="text-xs text-text-secondary">
+          Charts and lists below use the most recent 100 records per query; an exact breakdown needs a
+          backend report endpoint.
+        </p>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.9fr)_minmax(16rem,0.9fr)] xl:gap-7">
         <ManagerSalesOverview
@@ -86,9 +93,9 @@ export function ManagerDashboardView() {
           <h2 className="text-sm font-semibold tracking-wide text-text-secondary uppercase">
             Quick Actions
           </h2>
-          <ManagerQuickActionsRow isLoading={loading} />
+          <ManagerQuickActionsRow isLoading={loading} variant={variant} />
         </div>
-        <ManagerMembershipsCta />
+        {variant === 'manager' ? <ManagerMembershipsCta /> : null}
       </div>
     </div>
   );

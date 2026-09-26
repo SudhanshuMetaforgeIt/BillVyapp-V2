@@ -22,7 +22,7 @@ type InventoryTableProps = {
   isError?: boolean;
   onRetry?: () => void;
   onPageChange: (page: number) => void;
-  onAdjustRow: (row: InventoryListRow) => void;
+  onAdjustRow?: (row: InventoryListRow) => void;
 };
 
 function statusClass(status: InventoryListRow['stockStatus']): string {
@@ -136,15 +136,17 @@ export function InventoryTable({
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => onAdjustRow(row)}
-                        >
-                          Adjust
-                        </Button>
+                        {onAdjustRow ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => onAdjustRow(row)}
+                          >
+                            Adjust
+                          </Button>
+                        ) : null}
                         <button
                           type="button"
                           className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"

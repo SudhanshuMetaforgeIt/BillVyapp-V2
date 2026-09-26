@@ -80,19 +80,24 @@ describe('SalonsService', () => {
     assertFranchiseAccess: jest.fn(),
   };
   const audit = { record: jest.fn() };
+  const config = { get: jest.fn().mockReturnValue('') };
   let service: SalonsService;
 
   beforeEach(() => {
     jest.resetAllMocks();
     scope.salonTableScope.mockReturnValue({});
+    scope.assertFranchiseAccess.mockReturnValue(undefined);
     audit.record.mockResolvedValue(undefined);
+    config.get.mockReturnValue('');
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );
+    prisma.franchise.findUnique.mockResolvedValue({ id: 'fr-1', isActive: true });
     service = new SalonsService(
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
+      config as never,
     );
   });
 
@@ -178,12 +183,79 @@ describe('SalonsService', () => {
       expect.objectContaining({ action: 'SALON_STATUS_CHANGED' }),
     );
   });
+
+  const customer: AuthenticatedUser = {
+    userId: 'cust-user-1',
+    email: 'c@example.com',
+    role: RoleCode.CUSTOMER,
+    franchiseId: null,
+    salonId: null,
+    sessionId: 's2',
+  };
+
+  it('forces isActive=true when a customer lists salons, even if isActive=false is requested', async () => {
+    prisma.salon.findMany.mockResolvedValue([]);
+    prisma.salon.count.mockResolvedValue(0);
+
+    await service.list(customer, { page: 1, limit: 20, isActive: false });
+
+    expect(prisma.salon.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isActive: true }),
+      }),
+    );
+  });
+
+  it('hides inactive salons from customers on detail', async () => {
+    prisma.salon.findFirst.mockResolvedValue(null);
+
+    await expect(service.findOne(customer, 'salon-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(prisma.salon.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'salon-1', isActive: true }),
+      }),
+    );
+  });
+
+  it('does not add the customer visibility filter for staff roles', async () => {
+    prisma.salon.findMany.mockResolvedValue([]);
+    prisma.salon.count.mockResolvedValue(0);
+
+    await service.list(actor, { page: 1, limit: 20 });
+
+    const where = prisma.salon.findMany.mock.calls[0][0].where;
+    expect(where).not.toHaveProperty('isActive');
+  });
 });
 
 describe('SalonsController authorization', () => {
-  it('requires SUPER_ADMIN', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, SalonsController)).toEqual([
+  const proto = SalonsController.prototype;
+  const rolesOf = (handler: keyof SalonsController) =>
+    Reflect.getMetadata(ROLES_KEY, proto[handler]);
+
+  it('allows every authenticated role to read salons (scope applied in the service)', () => {
+    const read = [
       RoleCode.SUPER_ADMIN,
-    ]);
+      RoleCode.ADMIN,
+      RoleCode.MANAGER,
+      RoleCode.STAFF,
+      RoleCode.CUSTOMER,
+    ];
+    expect(rolesOf('list')).toEqual(read);
+    expect(rolesOf('findOne')).toEqual(read);
+  });
+
+  it('keeps every write and geocode restricted to SUPER_ADMIN or ADMIN', () => {
+    const write = [RoleCode.SUPER_ADMIN, RoleCode.ADMIN];
+    expect(rolesOf('create')).toEqual(write);
+    expect(rolesOf('update')).toEqual(write);
+    expect(rolesOf('updateStatus')).toEqual(write);
+    expect(rolesOf('geocode')).toEqual(write);
+  });
+
+  it('has no class-level role override', () => {
+    expect(Reflect.getMetadata(ROLES_KEY, SalonsController)).toBeUndefined();
   });
 });

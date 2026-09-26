@@ -300,114 +300,134 @@ function mapRow(
   };
 }
 
+/** Largest window the backend allows per page; used when filtering client-side. */
+const CLIENT_FILTER_WINDOW = 100;
+
+type FetchAppointmentsOptions = {
+  /** GET /users is SUPER_ADMIN/ADMIN only; other roles see staff as assigned/unassigned. */
+  canListUsers: boolean;
+};
+
+async function lookupCustomers(ids: string[]): Promise<Map<string, CustomerApiItem>> {
+  const results = await Promise.all(
+    ids.map((id) =>
+      api.get<CustomerApiItem>(`/customers/${id}`).catch(() => null),
+    ),
+  );
+  return new Map(
+    results.filter((c): c is CustomerApiItem => c !== null).map((c) => [c.id, c]),
+  );
+}
+
 export async function fetchAppointmentsPage(
   params: AppointmentsListParams,
+  { canListUsers }: FetchAppointmentsOptions,
 ): Promise<AppointmentsPageData> {
   const range = dateRangeForPreset(params.datePreset);
   const status = apiStatusForTab(params.statusTab);
+  const search = params.search.trim();
+
+  // GET /appointments has no text search, service filter or multi-status
+  // filter, so those views filter a bounded window client-side and report
+  // `partial` when the window did not cover every matching appointment.
   const needsClientFilter =
-    params.statusTab === 'upcoming' ||
-    params.search.trim().length > 0 ||
-    Boolean(params.serviceId);
+    params.statusTab === 'upcoming' || search.length > 0 || Boolean(params.serviceId);
 
-  const fetchLimit = needsClientFilter ? 100 : params.limit;
-  const fetchPage = needsClientFilter ? 1 : params.page;
-
-  const [appointmentsPage, customersPage, metrics] = await Promise.all([
+  const [appointmentsPage, matchingCustomers, metrics] = await Promise.all([
     api.get<PaginatedResponse<AppointmentApiItem>>('/appointments', {
       params: {
-        page: fetchPage,
-        limit: fetchLimit,
+        page: needsClientFilter ? 1 : params.page,
+        limit: needsClientFilter ? CLIENT_FILTER_WINDOW : params.limit,
         dateFrom: range.dateFrom,
         dateTo: range.dateTo,
         staffId: params.staffId || undefined,
         status,
       },
     }),
-    api.get<PaginatedResponse<CustomerApiItem>>('/customers', {
-      params: { page: 1, limit: 100 },
-    }),
+    search
+      ? api.get<PaginatedResponse<CustomerApiItem>>('/customers', {
+          params: { page: 1, limit: CLIENT_FILTER_WINDOW, search },
+        })
+      : Promise.resolve(null),
     buildMetrics(),
   ]);
 
-  const staffIds = new Set<string>();
-  for (const row of appointmentsPage.data) {
-    if (row.staffId) staffIds.add(row.staffId);
-    for (const line of row.services) {
-      if (line.staffId) staffIds.add(line.staffId);
-    }
+  let source = appointmentsPage.data;
+
+  if (params.statusTab === 'upcoming') {
+    source = source.filter((row) => matchesTab(row.status, 'upcoming'));
+  }
+  if (params.serviceId) {
+    source = source.filter((row) =>
+      row.services.some((s) => s.serviceId === params.serviceId),
+    );
+  }
+  if (search && matchingCustomers) {
+    const customerIds = new Set(matchingCustomers.data.map((c) => c.id));
+    const needle = search.toLowerCase();
+    source = source.filter(
+      (row) =>
+        customerIds.has(row.customerId) ||
+        row.appointmentNumber.toLowerCase().includes(needle),
+    );
+  }
+
+  let pageSource = source;
+  let meta = appointmentsPage.meta;
+  if (needsClientFilter) {
+    const total = source.length;
+    const start = (params.page - 1) * params.limit;
+    pageSource = source.slice(start, start + params.limit);
+    meta = {
+      page: params.page,
+      limit: params.limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / params.limit),
+    };
+  }
+
+  const known = new Map<string, CustomerApiItem>(
+    (matchingCustomers?.data ?? []).map((c) => [c.id, c]),
+  );
+  const missing = [...new Set(pageSource.map((r) => r.customerId))].filter(
+    (id) => !known.has(id),
+  );
+  for (const [id, customer] of await lookupCustomers(missing)) {
+    known.set(id, customer);
   }
 
   const staffMap = new Map<string, UserApiItem>();
-  if (staffIds.size > 0) {
+  const hasStaff = pageSource.some(
+    (row) => row.staffId || row.services.some((s) => s.staffId),
+  );
+  if (canListUsers && hasStaff) {
     const usersPage = await api.get<PaginatedResponse<UserApiItem>>('/users', {
-      params: { page: 1, limit: 100, isActive: true },
+      params: { page: 1, limit: CLIENT_FILTER_WINDOW, isActive: true },
     });
     for (const user of usersPage.data) {
       staffMap.set(user.id, user);
     }
   }
 
-  const customerMap = new Map(
-    customersPage.data.map((customer) => [customer.id, customer]),
-  );
-
-  let rows = appointmentsPage.data.map((row) =>
-    mapRow(row, customerMap, staffMap),
-  );
-
-  if (params.statusTab === 'upcoming') {
-    rows = rows.filter((row) => matchesTab(row.status, 'upcoming'));
-  }
-
-  if (params.serviceId) {
-    const serviceIds = new Set(
-      appointmentsPage.data
-        .filter((row) =>
-          row.services.some((s) => s.serviceId === params.serviceId),
-        )
-        .map((row) => row.id),
-    );
-    rows = rows.filter((row) => serviceIds.has(row.id));
-  }
-
-  const search = params.search.trim().toLowerCase();
-  if (search) {
-    rows = rows.filter((row) => {
-      const phone = row.customerPhone.replace(/\D/g, '');
-      const q = search.replace(/\D/g, '');
-      return (
-        row.customerName.toLowerCase().includes(search) ||
-        row.appointmentNumber.toLowerCase().includes(search) ||
-        (q.length > 0 && phone.includes(q))
-      );
-    });
-  }
-
-  if (needsClientFilter) {
-    const total = rows.length;
-    const start = (params.page - 1) * params.limit;
-    const pageRows = rows.slice(start, start + params.limit);
-    return {
-      rows: pageRows,
-      meta: {
-        page: params.page,
-        limit: params.limit,
-        total,
-        totalPages: total === 0 ? 0 : Math.ceil(total / params.limit),
-      },
-      metrics,
-    };
-  }
+  const rows = pageSource.map((row) => {
+    const mapped = mapRow(row, known, staffMap);
+    const assigned = row.staffId || row.services.some((s) => s.staffId);
+    if (mapped.staffName === '—' && assigned) {
+      return { ...mapped, staffName: 'Assigned', staffInitials: 'ST' };
+    }
+    return mapped;
+  });
 
   return {
     rows,
-    meta: appointmentsPage.meta,
+    meta,
     metrics,
+    partial:
+      needsClientFilter && appointmentsPage.meta.total > appointmentsPage.data.length,
   };
 }
 
-export async function listStaffOptions(): Promise<StaffOption[]> {
+export async function listStaffOptions(salonId?: string | null): Promise<StaffOption[]> {
   const roles = await api.get<RoleApiItem[]>('/roles');
   const staffRole = roles.find((role) => role.code === 'STAFF');
   const page = await api.get<PaginatedResponse<UserApiItem>>('/users', {
@@ -416,6 +436,7 @@ export async function listStaffOptions(): Promise<StaffOption[]> {
       limit: 100,
       isActive: true,
       roleId: staffRole?.id,
+      salonId: salonId || undefined,
     },
   });
   return page.data.map((user) => ({
@@ -427,3 +448,22 @@ export async function listStaffOptions(): Promise<StaffOption[]> {
 export async function createAppointment(payload: CreateAppointmentPayload) {
   return api.post<AppointmentApiItem>('/appointments', payload);
 }
+
+export async function updateAppointmentStatus(id: string, status: AppointmentStatus) {
+  return api.patch<AppointmentApiItem>(`/appointments/${id}/status`, { status });
+}
+
+/**
+ * Mirror of APPOINTMENT_STATUS_TRANSITIONS in the backend, used only to decide
+ * which actions to offer; the backend rejects anything else with 400.
+ */
+export const APPOINTMENT_NEXT_STATUSES: Record<AppointmentStatus, AppointmentStatus[]> = {
+  PENDING: ['CONFIRMED', 'IN_PROGRESS', 'CANCELLED'],
+  CONFIRMED: ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
+  IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
+  NO_SHOW: [],
+};
+
+export const CUSTOMER_CANCELLABLE: AppointmentStatus[] = ['PENDING', 'CONFIRMED'];

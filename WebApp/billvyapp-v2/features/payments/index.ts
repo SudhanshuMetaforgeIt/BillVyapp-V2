@@ -1,2 +1,1 @@
-export { PaymentsPageView } from './components/payments-page-view';
-export { usePayments } from './hooks/use-payments';
+export { PaymentsListView } from './components/payments-list-view';

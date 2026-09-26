@@ -89,6 +89,8 @@ export type AppointmentsPageData = {
   rows: AppointmentListRow[];
   meta: PaginationMeta;
   metrics: import('@/features/dashboard/services/dashboard.service').DashboardMetric[];
+  /** True when a client-side filter only covered the newest 100 appointments. */
+  partial: boolean;
 };
 
 export type StaffOption = {

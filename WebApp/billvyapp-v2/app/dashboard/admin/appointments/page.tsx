@@ -1,10 +1,5 @@
-import { AdminPlaceholderPage } from '@/features/dashboard/components/admin-placeholder-page';
+import { AppointmentsPageView } from '@/features/appointments';
 
 export default function AdminAppointmentsPage() {
-  return (
-    <AdminPlaceholderPage
-      title="Appointments"
-      description="View and manage appointments across your franchise salons. This section is under construction."
-    />
-  );
+  return <AppointmentsPageView />;
 }

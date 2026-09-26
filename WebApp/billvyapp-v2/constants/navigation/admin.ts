@@ -3,11 +3,20 @@ import {
   Bell,
   BookUser,
   Building2,
+  CalendarDays,
+  CreditCard,
   Headset,
+  Gift,
   LayoutDashboard,
+  Package,
   Megaphone,
   Receipt,
   Scissors,
+  Search,
+  Sparkles,
+  ShoppingCart,
+  Store,
+  Truck,
   Users2,
 } from 'lucide-react';
 
@@ -37,16 +46,34 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         icon: Building2,
       },
       {
+        id: 'salons',
+        label: 'Salons',
+        href: `${base}/salons`,
+        icon: Store,
+      },
+      {
         id: 'services',
         label: 'Services',
         href: `${base}/services`,
         icon: Scissors,
       },
       {
+        id: 'appointments',
+        label: 'Appointments',
+        href: `${base}/appointments`,
+        icon: CalendarDays,
+      },
+      {
         id: 'bills',
         label: 'Bills',
         href: `${base}/bills`,
         icon: Receipt,
+      },
+      {
+        id: 'payments',
+        label: 'Payments',
+        href: `${base}/payments`,
+        icon: CreditCard,
       },
       {
         id: 'customers',
@@ -59,6 +86,24 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         label: 'Staff',
         href: `${base}/staff`,
         icon: Users2,
+      },
+      {
+        id: 'inventory',
+        label: 'Inventory',
+        href: `${base}/inventory`,
+        icon: Package,
+      },
+      {
+        id: 'memberships',
+        label: 'Memberships',
+        href: `${base}/memberships`,
+        icon: Sparkles,
+      },
+      {
+        id: 'loyalty',
+        label: 'Loyalty',
+        href: `${base}/loyalty`,
+        icon: Gift,
       },
       {
         id: 'campaigns',
@@ -78,6 +123,21 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/support`,
         icon: Headset,
       },
+    ],
+  },
+  {
+    id: 'procurement',
+    label: 'Procurement',
+    items: [
+      { id: 'purchases', label: 'Purchases', href: `${base}/purchases`, icon: ShoppingCart },
+      { id: 'vendors', label: 'Vendors', href: `${base}/vendors`, icon: Truck },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    items: [
+      { id: 'search', label: 'Search', href: `${base}/search`, icon: Search },
     ],
   },
 ];

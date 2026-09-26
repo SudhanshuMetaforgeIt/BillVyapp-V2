@@ -1,8 +1,10 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
+import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
 import {
   fetchManagerNotificationsPage,
@@ -11,9 +13,7 @@ import {
 } from '../services/notifications.service';
 import type {
   ManagerNotificationsListParams,
-  ManagerNotificationsPageData,
   NotificationsListParams,
-  NotificationsPageData,
 } from '../types/notifications.types';
 
 export const NOTIFICATIONS_QUERY_KEY = ['notifications', 'super-admin'] as const;
@@ -23,19 +23,19 @@ export const MANAGER_NOTIFICATIONS_QUERY_KEY = [
 ] as const;
 
 export function useNotifications(params: NotificationsListParams) {
-  return useQuery<NotificationsPageData>({
-    queryKey: [...NOTIFICATIONS_QUERY_KEY, params],
-    queryFn: () => fetchNotificationsPage(params),
-    placeholderData: (previous) => previous,
-  });
+  return useScopedQuery(
+    [...NOTIFICATIONS_QUERY_KEY, params],
+    () => fetchNotificationsPage(params),
+    { capability: 'notifications.read' },
+  );
 }
 
 export function useManagerNotifications(params: ManagerNotificationsListParams) {
-  return useQuery<ManagerNotificationsPageData>({
-    queryKey: [...MANAGER_NOTIFICATIONS_QUERY_KEY, params],
-    queryFn: () => fetchManagerNotificationsPage(params),
-    placeholderData: (previous) => previous,
-  });
+  return useScopedQuery(
+    [...MANAGER_NOTIFICATIONS_QUERY_KEY, params],
+    () => fetchManagerNotificationsPage(params),
+    { capability: 'notifications.read' },
+  );
 }
 
 export function useMarkNotificationsRead() {
@@ -56,9 +56,7 @@ export function useMarkNotificationsRead() {
       return { ok, failed };
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({
-        queryKey: MANAGER_NOTIFICATIONS_QUERY_KEY,
-      });
+      void invalidateAfter(queryClient, 'notifications');
       if (result.ok === 0) {
         toast(
           'No notifications could be marked as read. Only delivered messages can move to read.',

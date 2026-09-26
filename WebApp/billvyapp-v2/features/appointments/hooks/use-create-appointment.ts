@@ -3,14 +3,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
+import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
-import { MANAGER_DASHBOARD_QUERY_KEY } from '@/features/dashboard/hooks/use-manager-dashboard';
-import { createAppointment } from '../services/appointments.service';
+import {
+  createAppointment,
+  updateAppointmentStatus,
+} from '../services/appointments.service';
 import type {
   AppointmentApiItem,
+  AppointmentStatus,
   CreateAppointmentPayload,
 } from '../types/appointments.types';
-import { APPOINTMENTS_QUERY_KEY } from './use-appointments';
 
 export function useCreateAppointment(onSuccess?: () => void) {
   const queryClient = useQueryClient();
@@ -19,11 +22,27 @@ export function useCreateAppointment(onSuccess?: () => void) {
     mutationFn: createAppointment,
     onSuccess: (appointment) => {
       toast.success(`${appointment.appointmentNumber} booked`);
-      void queryClient.invalidateQueries({ queryKey: APPOINTMENTS_QUERY_KEY });
-      void queryClient.invalidateQueries({
-        queryKey: MANAGER_DASHBOARD_QUERY_KEY,
-      });
+      void invalidateAfter(queryClient, 'appointments');
       onSuccess?.();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useUpdateAppointmentStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    AppointmentApiItem,
+    ApiError,
+    { id: string; status: AppointmentStatus }
+  >({
+    mutationFn: ({ id, status }) => updateAppointmentStatus(id, status),
+    onSuccess: (appointment) => {
+      toast.success(`${appointment.appointmentNumber} updated`);
+      void invalidateAfter(queryClient, 'appointments');
     },
     onError: (error) => {
       toast.error(error.message);

@@ -98,6 +98,11 @@ export class LocalFilesystemStorageProvider
     await unlink(absolute);
   }
 
+  objectExists(storageKey: string): Promise<boolean> {
+    const absolute = this.resolveSafePath(storageKey);
+    return Promise.resolve(existsSync(absolute));
+  }
+
   assertValidSignature(
     action: SignedAction,
     storageKey: string,

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -181,6 +182,35 @@ export class MediaService {
       downloadUrl: download.downloadUrl,
       expiresInSeconds: download.expiresInSeconds,
     };
+  }
+
+  async confirmUpload(
+    actor: AuthenticatedUser,
+    id: string,
+    ctx: RequestContext,
+  ): Promise<MediaFileRecord> {
+    const record = await this.requireAccess(actor, id);
+    const exists = await this.storage.objectExists(record.storageKey);
+    if (!exists) {
+      throw new BadRequestException('Upload not found in object storage');
+    }
+
+    await this.audit.record({
+      userId: actor.userId,
+      salonId: record.salonId,
+      action: 'MEDIA_FILE_CONFIRMED',
+      entityType: 'MediaFile',
+      entityId: record.id,
+      newData: {
+        storageKey: record.storageKey,
+        originalFileName: record.originalFileName,
+        fileSize: record.fileSize,
+      },
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return record;
   }
 
   async remove(

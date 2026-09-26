@@ -38,6 +38,7 @@ import { ProductCategoriesModule } from './product-categories/product-categories
 import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { SalonsModule } from './salons/salons.module';
+import { SearchModule } from './search/search.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServicesModule } from './services/services.module';
 import { UsersModule } from './users/users.module';
@@ -95,6 +96,7 @@ import { SettingsModule } from './settings/settings.module';
     NotificationsModule,
     MediaModule,
     SettingsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [

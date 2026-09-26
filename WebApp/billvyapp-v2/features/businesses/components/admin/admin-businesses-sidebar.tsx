@@ -4,7 +4,6 @@ import Link from 'next/link';
 import {
   ChevronRight,
   Headphones,
-  Megaphone,
   Package,
   Plus,
   Receipt,
@@ -33,7 +32,6 @@ export function AdminBusinessesSidebar({
     totalServices: 0,
     totalBillsMonth: 0,
     totalProducts: 0,
-    totalCampaigns: 0,
   };
 
   const overviewRows = [
@@ -64,13 +62,6 @@ export function AdminBusinessesSidebar({
       value: o.totalProducts.toLocaleString('en-IN'),
       icon: Package,
       iconClass: 'bg-amber-50 text-amber-600',
-    },
-    {
-      id: 'campaigns',
-      label: 'Total Campaigns',
-      value: o.totalCampaigns.toLocaleString('en-IN'),
-      icon: Megaphone,
-      iconClass: 'bg-rose-50 text-rose-600',
     },
   ];
 

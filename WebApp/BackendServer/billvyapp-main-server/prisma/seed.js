@@ -7,6 +7,7 @@
  *   Super Admin  login.test@billvyapp.local   /  Billvy@Dev123
  *   Admin        admin.test@billvyapp.local   /  Billvy@Dev123
  *   Manager      manager.test@billvyapp.local /  Billvy@Dev123
+ *   Staff        staff.test@billvyapp.local   /  Billvy@Dev123
  *   Customer     customer@billvyapp.com       /  Customer@123
  */
 const { randomUUID } = require('node:crypto');
@@ -219,8 +220,15 @@ async function main() {
     const superAdminRole = roleByCode.get('SUPER_ADMIN');
     const adminRole = roleByCode.get('ADMIN');
     const managerRole = roleByCode.get('MANAGER');
+    const staffRole = roleByCode.get('STAFF');
     const customerRole = roleByCode.get('CUSTOMER');
-    if (!superAdminRole || !adminRole || !managerRole || !customerRole) {
+    if (
+      !superAdminRole ||
+      !adminRole ||
+      !managerRole ||
+      !staffRole ||
+      !customerRole
+    ) {
       throw new Error('Required roles were not created');
     }
 
@@ -257,6 +265,17 @@ async function main() {
       passwordHash,
     });
 
+    await upsertStaffUser(conn, {
+      email: 'staff.test@billvyapp.local',
+      firstName: 'Amit',
+      lastName: 'Kumar',
+      phone: '9000000004',
+      roleId: staffRole.id,
+      franchiseId: franchise.id,
+      salonId: salon.id,
+      passwordHash,
+    });
+
     const customerPasswordHash = await hashPassword('Customer@123');
     const customerUserId = await upsertStaffUser(conn, {
       email: 'customer@billvyapp.com',
@@ -275,6 +294,7 @@ async function main() {
     console.log('  Super Admin  login.test@billvyapp.local   /  Billvy@Dev123');
     console.log('  Admin        admin.test@billvyapp.local   /  Billvy@Dev123');
     console.log('  Manager      manager.test@billvyapp.local /  Billvy@Dev123');
+    console.log('  Staff        staff.test@billvyapp.local   /  Billvy@Dev123');
     console.log('  Customer     customer@billvyapp.com       /  Customer@123');
     console.log(`  Salon scope  ${salon.name} (${salon.code})`);
   } finally {

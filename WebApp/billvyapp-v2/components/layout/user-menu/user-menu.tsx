@@ -29,8 +29,8 @@ export function UserMenu({ user }: UserMenuProps) {
     ? formatFullName(user) !== '-'
       ? formatFullName(user)
       : user.email.split('@')[0]
-    : 'Rohit Sharma';
-  const roleLabel = user ? ROLE_LABELS[user.role] : 'Admin';
+    : 'Account';
+  const roleLabel = user ? ROLE_LABELS[user.role] : 'Guest';
 
   useEffect(() => {
     if (!open) return;
@@ -93,7 +93,7 @@ export function UserMenu({ user }: UserMenuProps) {
               {displayName}
             </p>
             <p className="truncate text-[11px] text-stone-400 dark:text-stone-500">
-              {user?.email || 'rohit@starrkuts.com'}
+              {user?.email || '—'}
             </p>
             <span className="mt-1 inline-block rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
               {roleLabel}

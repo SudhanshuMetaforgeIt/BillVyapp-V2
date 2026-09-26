@@ -27,6 +27,34 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'Bills',
     subtitle: 'View and manage bills raised across your franchise.',
   },
+  [ROUTES.dashboard.admin.walkInBilling]: {
+    title: 'Create New Bill',
+    subtitle: 'Bill a walk-in customer at any of your salons.',
+  },
+  [ROUTES.dashboard.admin.salons]: {
+    title: 'Salons',
+    subtitle: 'Branches in your franchise.',
+  },
+  [ROUTES.dashboard.admin.appointments]: {
+    title: 'Appointments',
+    subtitle: 'Appointments across your salons.',
+  },
+  [ROUTES.dashboard.admin.payments]: {
+    title: 'Payments',
+    subtitle: 'Payment records across your salons.',
+  },
+  [ROUTES.dashboard.admin.purchases]: {
+    title: 'Purchases',
+    subtitle: 'Purchase orders from vendors.',
+  },
+  [ROUTES.dashboard.admin.vendors]: {
+    title: 'Vendors',
+    subtitle: 'Suppliers for your products.',
+  },
+  [ROUTES.dashboard.admin.search]: {
+    title: 'Search',
+    subtitle: 'Find records across your franchise.',
+  },
   [ROUTES.dashboard.admin.customers]: {
     title: 'Customers',
     subtitle: 'Manage your franchise customer base.',
@@ -34,6 +62,18 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   [ROUTES.dashboard.admin.staff]: {
     title: 'Staff',
     subtitle: 'Manage staff members across your franchise.',
+  },
+  [ROUTES.dashboard.admin.inventory]: {
+    title: 'Inventory',
+    subtitle: 'Stock levels across your franchise salons.',
+  },
+  [ROUTES.dashboard.admin.memberships]: {
+    title: 'Memberships',
+    subtitle: 'Plans and members in your franchise.',
+  },
+  [ROUTES.dashboard.admin.loyalty]: {
+    title: 'Loyalty',
+    subtitle: 'Loyalty transactions in your franchise.',
   },
   [ROUTES.dashboard.admin.campaigns]: {
     title: 'Campaigns',

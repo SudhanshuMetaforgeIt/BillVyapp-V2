@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
-import { useSuperAdminDashboard } from '@/features/dashboard/hooks/use-super-admin-dashboard';
 import { ROUTES } from '@/constants/routes';
 
 type SuperAdminShellProps = {
@@ -19,6 +18,18 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   [ROUTES.dashboard.superAdmin.businesses]: {
     title: 'Businesses',
     subtitle: 'Manage and monitor all businesses on BillVyApp platform.',
+  },
+  [ROUTES.dashboard.superAdmin.salons]: {
+    title: 'Salons',
+    subtitle: 'Salon branches across all franchises.',
+  },
+  [ROUTES.dashboard.superAdmin.audit]: {
+    title: 'Audit Log',
+    subtitle: 'Who changed what, and when.',
+  },
+  [ROUTES.dashboard.superAdmin.search]: {
+    title: 'Search',
+    subtitle: 'Find records across the platform.',
   },
   [ROUTES.dashboard.superAdmin.payments]: {
     title: 'Payments',
@@ -60,16 +71,10 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
  */
 export function SuperAdminShell({ children }: SuperAdminShellProps) {
   const pathname = usePathname();
-  const { data } = useSuperAdminDashboard();
   const meta = PAGE_META[pathname] ?? { title: 'Super Admin' };
 
   return (
-    <AppShell
-      requiredRole="SUPER_ADMIN"
-      title={meta.title}
-      subtitle={meta.subtitle}
-      notificationCount={data?.unreadNotifications ?? 0}
-    >
+    <AppShell requiredRole="SUPER_ADMIN" title={meta.title} subtitle={meta.subtitle}>
       {children}
     </AppShell>
   );

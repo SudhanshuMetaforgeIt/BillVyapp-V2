@@ -57,7 +57,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Create a platform user',
     description:
-      'Creates SUPER_ADMIN, ADMIN, MANAGER or STAFF. Password is hashed with Argon2id. CUSTOMER is rejected.',
+      'SUPER_ADMIN may create SUPER_ADMIN, ADMIN, MANAGER or STAFF. ADMIN may create MANAGER or STAFF only. Password is hashed with Argon2id. CUSTOMER is rejected.',
   })
   @ApiResponse({ status: 201, type: UserResponseDto })
   @ApiResponse({

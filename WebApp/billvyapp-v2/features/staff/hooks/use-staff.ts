@@ -1,14 +1,16 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { invalidateAfter } from '@/lib/query-invalidation';
 import { createStaff, fetchAdminStaff } from '../services/staff.service';
 import type { CreateStaffPayload, StaffFilterState } from '../types/staff.types';
 
 export function useAdminStaff(filters: Partial<StaffFilterState> = {}) {
-  return useQuery({
-    queryKey: ['admin-staff', filters],
-    queryFn: () => fetchAdminStaff(filters),
-    staleTime: 1000 * 30, // 30 seconds
+  return useScopedQuery(['admin-staff', filters], () => fetchAdminStaff(filters), {
+    capability: 'users.read',
+    staleTime: 30_000,
   });
 }
 
@@ -18,8 +20,11 @@ export function useCreateStaff() {
   return useMutation({
     mutationFn: (payload: CreateStaffPayload) => createStaff(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-staff'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      void invalidateAfter(queryClient, 'dashboard');
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey.some((segment) => segment === 'admin-staff'),
+      });
     },
   });
 }

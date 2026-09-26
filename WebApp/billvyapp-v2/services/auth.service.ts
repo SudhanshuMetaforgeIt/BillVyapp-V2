@@ -39,9 +39,15 @@ export interface SendOtpPayload {
   phone: string;
 }
 
+/** Field names mirror the backend VerifyOtpDto exactly. */
 export interface VerifyOtpPayload {
   phone: string;
-  code: string;
+  otp: string;
+}
+
+/** POST /auth/send-otp. `devOtp` is only present when the backend exposes it outside production. */
+export interface SendOtpResponse extends MessageResponse {
+  devOtp?: string;
 }
 
 export const authService = {
@@ -71,8 +77,8 @@ export const authService = {
    * number exists, so the response cannot be used to detect registered
    * accounts. Do not add UI that implies otherwise.
    */
-  sendOtp(payload: SendOtpPayload): Promise<MessageResponse> {
-    return api.post<MessageResponse>('/auth/send-otp', payload);
+  sendOtp(payload: SendOtpPayload): Promise<SendOtpResponse> {
+    return api.post<SendOtpResponse>('/auth/send-otp', payload);
   },
 
   /** Exchanges a valid code for a session. Persists the token pair. */
@@ -100,8 +106,12 @@ export const authService = {
    * request fails, so the user is never stuck in a half-signed-in state.
    */
   async logout(): Promise<void> {
+    const refreshToken = tokenStorage.getRefreshToken();
     try {
-      await api.post<MessageResponse>('/auth/logout');
+      await api.post<MessageResponse>(
+        '/auth/logout',
+        refreshToken ? { refreshToken } : {},
+      );
     } finally {
       tokenStorage.clear();
     }

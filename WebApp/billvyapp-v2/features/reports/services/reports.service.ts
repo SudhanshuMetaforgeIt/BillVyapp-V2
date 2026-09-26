@@ -23,24 +23,27 @@ import type {
 
 type PaymentApiItem = PaymentListItem & { amount: string };
 
+const SAMPLE = 100;
+
 async function sumSuccessfulPayments(
   dateFrom: string,
   dateTo: string,
-): Promise<number> {
+): Promise<{ sum: number; partial: boolean }> {
   const page = await api.get<PaginatedResponse<PaymentApiItem>>('/payments', {
     params: {
       status: 'SUCCESS',
       dateFrom,
       dateTo,
       page: 1,
-      limit: 100,
+      limit: SAMPLE,
     },
   });
 
-  return page.data.reduce((sum, row) => {
+  const sum = page.data.reduce((acc, row) => {
     const amount = Number(row.amount);
-    return sum + (Number.isFinite(amount) ? amount : 0);
+    return acc + (Number.isFinite(amount) ? amount : 0);
   }, 0);
+  return { sum, partial: page.meta.total > page.data.length };
 }
 
 async function countPayments(dateFrom: string, dateTo: string): Promise<number> {
@@ -71,22 +74,24 @@ async function buildRevenueSeries(months = 6): Promise<RevenuePoint[]> {
       const monthDate = subMonths(now, offset);
       const from = startOfMonth(monthDate);
       const to = endOfMonth(monthDate);
-      const amount = await sumSuccessfulPayments(
+      const { sum, partial } = await sumSuccessfulPayments(
         format(from, 'yyyy-MM-dd'),
         format(to, 'yyyy-MM-dd'),
       );
       return {
-        monthKey: format(from, 'yyyy-MM'),
-        label: format(from, "MMM ''yy"),
-        amount,
+        point: { monthKey: format(from, 'yyyy-MM'), label: format(from, "MMM ''yy"), amount: sum },
+        partial,
       };
     }),
   );
-  return points;
+  // A month summed from a capped page would draw a wrong bar; show no chart
+  // rather than a misleading one until a revenue report endpoint exists.
+  return points.some((p) => p.partial) ? [] : points.map((p) => p.point);
 }
 
 function buildMetrics(values: {
   revenue: number;
+  revenuePartial: boolean;
   transactions: number;
   users: number;
   businesses: number;
@@ -101,6 +106,8 @@ function buildMetrics(values: {
       changePercent: null,
       tone: 'accent',
       comparisonIsPlaceholder: false,
+      partial: values.revenuePartial,
+      partialSample: SAMPLE,
     },
     {
       id: 'reports-total-transactions',
@@ -179,7 +186,8 @@ export async function fetchReportsPage(
 
   return {
     metrics: buildMetrics({
-      revenue,
+      revenue: revenue.sum,
+      revenuePartial: revenue.partial,
       transactions,
       users: usersPage.meta.total + customersPage.meta.total,
       businesses: franchisesPage.meta.total,

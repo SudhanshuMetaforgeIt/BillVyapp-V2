@@ -3,9 +3,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuditService } from '../audit/audit.service';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
+import { RoleCode } from '../common/enums/role.enum';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -17,6 +20,7 @@ import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
+import { GeocodeSalonDto } from './dto/geocode-salon.dto';
 import { ListSalonsQueryDto } from './dto/list-salons-query.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
 
@@ -48,6 +52,7 @@ export class SalonsService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   async list(user: AuthenticatedUser, query: ListSalonsQueryDto) {
@@ -60,6 +65,7 @@ export class SalonsService {
       ...(query.franchiseId ? { franchiseId: query.franchiseId } : {}),
       ...(city ? { city: { contains: city } } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
+      ...this.customerVisibility(user),
       ...(search
         ? {
             OR: [
@@ -92,7 +98,11 @@ export class SalonsService {
 
   async findOne(user: AuthenticatedUser, id: string) {
     const salon = await this.prisma.salon.findFirst({
-      where: { id, ...this.scope.salonTableScope(user) },
+      where: {
+        id,
+        ...this.scope.salonTableScope(user),
+        ...this.customerVisibility(user),
+      },
       select: SALON_SELECT,
     });
 
@@ -101,6 +111,11 @@ export class SalonsService {
     }
 
     return this.toResponse(salon);
+  }
+
+  /** Customers browse for booking only; inactive salons are never exposed to them. */
+  private customerVisibility(user: AuthenticatedUser): Record<string, unknown> {
+    return user.role === RoleCode.CUSTOMER ? { isActive: true } : {};
   }
 
   async create(
@@ -222,6 +237,128 @@ export class SalonsService {
     });
 
     return this.toResponse(updated);
+  }
+
+  async geocode(
+    user: AuthenticatedUser,
+    id: string,
+    dto: GeocodeSalonDto,
+    ctx: RequestContext,
+  ) {
+    const apiKey = this.config.get<string>('google.mapsApiKey')?.trim();
+    if (!apiKey) {
+      throw new ServiceUnavailableException(
+        'Google Maps geocoding is not configured',
+      );
+    }
+
+    const existing = await this.prisma.salon.findFirst({
+      where: { id, ...this.scope.salonTableScope(user) },
+      select: SALON_SELECT,
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Salon not found');
+    }
+
+    const result = await this.callGoogleGeocode(apiKey, dto);
+    const data: Record<string, unknown> = {
+      googlePlaceId: result.placeId,
+      mapAddress: result.formattedAddress,
+    };
+    if (result.latitude != null && result.longitude != null) {
+      data.latitude = result.latitude.toFixed(7);
+      data.longitude = result.longitude.toFixed(7);
+    }
+
+    const updated = await this.prisma.salon.update({
+      where: { id: existing.id },
+      data,
+      select: SALON_SELECT,
+    });
+
+    await this.audit.record({
+      userId: user.userId,
+      salonId: updated.id,
+      action: 'SALON_GEOCODED',
+      entityType: 'Salon',
+      entityId: updated.id,
+      oldData: {
+        googlePlaceId: existing.googlePlaceId,
+        mapAddress: existing.mapAddress,
+        latitude: existing.latitude?.toString() ?? null,
+        longitude: existing.longitude?.toString() ?? null,
+      },
+      newData: {
+        googlePlaceId: updated.googlePlaceId,
+        mapAddress: updated.mapAddress,
+        latitude: updated.latitude?.toString() ?? null,
+        longitude: updated.longitude?.toString() ?? null,
+      },
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return this.toResponse(updated);
+  }
+
+  private async callGoogleGeocode(
+    apiKey: string,
+    dto: GeocodeSalonDto,
+  ): Promise<{
+    placeId: string | null;
+    formattedAddress: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  }> {
+    const params = new URLSearchParams({ key: apiKey });
+    if (dto.placeId?.trim()) {
+      params.set('place_id', dto.placeId.trim());
+    } else if (dto.address?.trim()) {
+      params.set('address', dto.address.trim());
+    } else {
+      throw new BadRequestException('address or placeId is required');
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`;
+    let payload: {
+      status?: string;
+      error_message?: string;
+      results?: Array<{
+        place_id?: string;
+        formatted_address?: string;
+        geometry?: {
+          location?: { lat?: number; lng?: number };
+        };
+      }>;
+    };
+
+    try {
+      const response = await fetch(url);
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      throw new ServiceUnavailableException(
+        'Failed to reach Google Geocoding API',
+      );
+    }
+
+    if (payload.status !== 'OK' || !payload.results?.length) {
+      throw new BadRequestException(
+        payload.error_message ??
+          `Geocoding failed with status ${payload.status ?? 'UNKNOWN'}`,
+      );
+    }
+
+    const top = payload.results[0];
+    const lat = top.geometry?.location?.lat;
+    const lng = top.geometry?.location?.lng;
+
+    return {
+      placeId: top.place_id ?? dto.placeId?.trim() ?? null,
+      formattedAddress: top.formatted_address ?? dto.address?.trim() ?? null,
+      latitude: typeof lat === 'number' ? lat : null,
+      longitude: typeof lng === 'number' ? lng : null,
+    };
   }
 
   private async requireActiveFranchise(franchiseId: string): Promise<void> {

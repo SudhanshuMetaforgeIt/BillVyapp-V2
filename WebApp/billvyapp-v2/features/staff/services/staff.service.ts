@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { api } from '@/services/api-client';
+import { useAuthStore } from '@/stores/auth.store';
 import type {
   AdminStaffResult,
   CreateStaffPayload,
@@ -245,7 +246,9 @@ export async function fetchAdminStaff(
   }));
 
   const branches = rawSalons.map((s) => ({ id: s.id, name: s.name }));
-  const roles = rawRoles.map((r) => ({ id: r.id, name: r.name, code: r.code }));
+  const roles = rawRoles
+    .filter((r) => r.code === 'MANAGER' || r.code === 'STAFF')
+    .map((r) => ({ id: r.id, name: r.name, code: r.code }));
 
   return {
     staff: displayStaff,
@@ -261,6 +264,7 @@ export async function fetchAdminStaff(
 export async function createStaff(
   payload: CreateStaffPayload,
 ): Promise<RawUser> {
+  const franchiseId = useAuthStore.getState().user?.franchiseId;
   const body: Record<string, unknown> = {
     firstName: payload.firstName.trim(),
     lastName: payload.lastName.trim(),
@@ -269,6 +273,10 @@ export async function createStaff(
     password: payload.password || 'Staff@1234',
     roleId: payload.roleId,
   };
+
+  if (franchiseId) {
+    body.franchiseId = franchiseId;
+  }
 
   if (payload.salonId && payload.salonId !== 'all') {
     body.salonId = payload.salonId;

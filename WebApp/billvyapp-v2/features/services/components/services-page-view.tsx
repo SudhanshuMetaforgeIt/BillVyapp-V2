@@ -24,6 +24,8 @@ import { ServicesFilters } from './services-filters';
 import { ServicesTable } from './services-table';
 import { ServicesTabs } from './services-tabs';
 
+import { can } from '@/lib/capabilities';
+
 const PAGE_SIZE = 10;
 
 export function ServicesPageView() {
@@ -133,10 +135,14 @@ export function ServicesPageView() {
               onStatusChange={(value) => {
                 startTransition(() => setStatus(value));
               }}
-              onPrimaryAction={() => {
-                if (tab === 'services') setAddServiceOpen(true);
-                else setAddCategoryOpen(true);
-              }}
+              onPrimaryAction={
+                can(user, 'catalog.write')
+                  ? () => {
+                      if (tab === 'services') setAddServiceOpen(true);
+                      else setAddCategoryOpen(true);
+                    }
+                  : undefined
+              }
             />
 
             {tab === 'services' ? (

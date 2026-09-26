@@ -1,5 +1,5 @@
-import { CustomerDashboardView } from '@/features/customer-dashboard';
+import { CustomerHomeView } from '@/features/customer-dashboard';
 
-export default function CustomerDashboardPage() {
-  return <CustomerDashboardView />;
+export default function CustomerHomePage() {
+  return <CustomerHomeView />;
 }

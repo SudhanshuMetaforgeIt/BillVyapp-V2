@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { can } from '@/lib/capabilities';
+import { SalonPicker } from '@/features/salons/components/salon-picker';
 import { formatFullName, formatPhone } from '@/lib/format';
 import { useCustomerSearch } from '@/features/walk-in-billing/hooks/use-customer-search';
 import { useSalonServices } from '@/features/walk-in-billing/hooks/use-service-catalog';
@@ -26,7 +28,10 @@ export function CreateAppointmentDialog({
 }: CreateAppointmentDialogProps) {
   const titleId = useId();
   const user = useCurrentUser();
-  const salonId = user?.salonId ?? null;
+  const pinnedSalonId = user?.salonId ?? null;
+  const [chosenSalonId, setChosenSalonId] = useState('');
+  const salonId = pinnedSalonId ?? (chosenSalonId || null);
+  const canPickSalon = !pinnedSalonId && can(user, 'salons.write');
 
   const [phoneQuery, setPhoneQuery] = useState('');
   const [customer, setCustomer] = useState<WalkInCustomer | null>(null);
@@ -40,8 +45,9 @@ export function CreateAppointmentDialog({
   const services = useSalonServices(open && Boolean(salonId), {
     search: '',
     categoryId: '',
+    salonId,
   });
-  const staff = useStaffOptions(open);
+  const staff = useStaffOptions(open && Boolean(salonId), salonId);
   const create = useCreateAppointment(() => {
     onOpenChange(false);
     reset();
@@ -117,9 +123,24 @@ export function CreateAppointmentDialog({
           </button>
         </div>
 
+        {canPickSalon ? (
+          <div className="mb-3 space-y-1.5">
+            <Label htmlFor="appt-salon">Salon</Label>
+            <SalonPicker
+              id="appt-salon"
+              value={chosenSalonId}
+              onChange={(id) => {
+                setChosenSalonId(id);
+                setServiceId('');
+              }}
+            />
+          </div>
+        ) : null}
         {!salonId ? (
-          <p className="text-sm text-danger">
-            Your account needs a salon assignment to create appointments.
+          <p className="text-sm text-text-secondary">
+            {canPickSalon
+              ? 'Choose a salon to continue.'
+              : 'Your account needs a salon assignment to create appointments.'}
           </p>
         ) : (
           <form
@@ -235,22 +256,24 @@ export function CreateAppointmentDialog({
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="appt-staff">Staff (optional)</Label>
-              <select
-                id="appt-staff"
-                value={staffId}
-                onChange={(e) => setStaffId(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
-              >
-                <option value="">Any available</option>
-                {(staff.data ?? []).map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {(staff.data ?? []).length > 0 ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="appt-staff">Staff (optional)</Label>
+                <select
+                  id="appt-staff"
+                  value={staffId}
+                  onChange={(e) => setStaffId(e.target.value)}
+                  className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
+                >
+                  <option value="">Any available</option>
+                  {(staff.data ?? []).map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">

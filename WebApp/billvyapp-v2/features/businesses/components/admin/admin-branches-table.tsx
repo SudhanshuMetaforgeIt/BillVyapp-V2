@@ -8,6 +8,9 @@ import { SectionEmptyState } from '@/components/layout/section-states';
 import { StatusBadge } from '@/components/ui/status-badge';
 import type { AdminBranchItem } from '../../types/admin-my-business.types';
 
+const formatRevenue = (value: number | null) =>
+  value === null ? '—' : `₹${value.toLocaleString('en-IN')}`;
+
 type AdminBranchesTableProps = {
   branches: AdminBranchItem[];
   onAddBranch?: () => void;
@@ -93,11 +96,6 @@ export function AdminBranchesTable({
                           </div>
                           <div>
                             <p className="font-bold text-text">{b.name}</p>
-                            {b.isMain ? (
-                              <span className="inline-flex items-center rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-semibold text-amber-700 border border-amber-500/20">
-                                Main Branch
-                              </span>
-                            ) : null}
                           </div>
                         </div>
                       </td>
@@ -120,9 +118,9 @@ export function AdminBranchesTable({
                           </span>
                           <div className="min-w-0">
                             <p className="truncate text-xs font-semibold text-text">
-                              {b.managerName}
+                              {b.managerName ?? '—'}
                             </p>
-                            <p className="truncate text-[11px] text-text-muted">{b.managerPhone}</p>
+                            <p className="truncate text-[11px] text-text-muted">{b.managerPhone ?? ''}</p>
                           </div>
                         </div>
                       </td>
@@ -136,11 +134,11 @@ export function AdminBranchesTable({
                       </td>
 
                       {/* Staff */}
-                      <td className="px-5 py-3.5 font-semibold text-text">{b.staffCount}</td>
+                      <td className="px-5 py-3.5 font-semibold text-text">{b.staffCount ?? '—'}</td>
 
                       {/* Revenue */}
                       <td className="px-5 py-3.5 font-bold text-text">
-                        ₹{b.revenueMonth.toLocaleString('en-IN')}
+                        {formatRevenue(b.revenueMonth)}
                       </td>
 
                       {/* Actions */}
@@ -205,16 +203,16 @@ export function AdminBranchesTable({
                     </div>
                     <div>
                       <p className="text-text-muted">Staff</p>
-                      <p className="font-bold text-text">{b.staffCount}</p>
+                      <p className="font-bold text-text">{b.staffCount ?? '—'}</p>
                     </div>
                     <div>
                       <p className="text-text-muted">Revenue</p>
-                      <p className="font-bold text-text">₹{b.revenueMonth.toLocaleString('en-IN')}</p>
+                      <p className="font-bold text-text">{formatRevenue(b.revenueMonth)}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-text-secondary">
-                    <span>Manager: {b.managerName}</span>
+                    <span>Manager: {b.managerName ?? '—'}</span>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"

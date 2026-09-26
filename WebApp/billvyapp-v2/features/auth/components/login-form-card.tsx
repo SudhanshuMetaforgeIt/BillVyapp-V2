@@ -195,7 +195,13 @@ export function LoginFormCard() {
           aria-hidden
         />
 
-        <p data-auth-animate="secondary" className="mt-5 text-center">
+        <p data-auth-animate="secondary" className="mt-5 flex justify-center gap-4 text-center">
+          <Link
+            href={ROUTES.auth.otp}
+            className="text-sm font-medium text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
+          >
+            Customer? Sign in with OTP
+          </Link>
           <Link
             href={ROUTES.auth.register}
             className="text-sm font-medium text-text-secondary transition-colors hover:text-text focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"

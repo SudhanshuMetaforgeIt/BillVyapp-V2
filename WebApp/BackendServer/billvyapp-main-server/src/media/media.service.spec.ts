@@ -75,6 +75,7 @@ describe('MediaService', () => {
     createUploadUrl: jest.fn(),
     createDownloadUrl: jest.fn(),
     deleteObject: jest.fn(),
+    objectExists: jest.fn(),
   };
   let service: MediaService;
 
@@ -94,6 +95,7 @@ describe('MediaService', () => {
       expiresInSeconds: 900,
     });
     storage.deleteObject.mockResolvedValue(undefined);
+    storage.objectExists.mockResolvedValue(true);
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );

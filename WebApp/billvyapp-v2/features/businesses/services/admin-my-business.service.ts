@@ -1,6 +1,7 @@
 import { format, startOfMonth } from 'date-fns';
 
 import { api } from '@/services/api-client';
+import type { Bill, Franchise, Paginated, Payment, Salon } from '@/types/models';
 import type {
   AdminBranchItem,
   AdminBusinessStats,
@@ -9,171 +10,106 @@ import type {
   AdminOverviewAllBranches,
 } from '../types/admin-my-business.types';
 
-type PaginatedResponse<T> = {
-  data: T[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+const SAMPLE = 100;
+
+type User = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  salonId: string | null;
+  role: { code: string } | null;
 };
+
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const isPartial = (p: Paginated<unknown>) => p.meta.total > p.data.length;
 
 export async function fetchAdminMyBusinessData(franchiseId?: string | null): Promise<AdminMyBusinessData> {
   const now = new Date();
-  const thisMonthStart = startOfMonth(now);
-  const dateFrom = format(thisMonthStart, 'yyyy-MM-dd');
+  const dateFrom = format(startOfMonth(now), 'yyyy-MM-dd');
   const dateTo = format(now, 'yyyy-MM-dd');
 
-  const [
-    salonsRes,
-    usersRes,
-    customersRes,
-    servicesRes,
-    billsRes,
-    paymentsRes,
-    productsRes,
-    franchiseRes,
-  ] = await Promise.allSettled([
-    api.get<PaginatedResponse<{
-      id: string;
-      name: string;
-      code: string;
-      city?: string;
-      state?: string;
-      addressLine1?: string;
-      isActive: boolean;
-      createdAt: string;
-    }>>('/salons', { params: { page: 1, limit: 50 } }),
-    api.get<PaginatedResponse<{ id: string; firstName: string; lastName: string; isActive: boolean }>>('/users', {
-      params: { page: 1, limit: 50 },
-    }),
-    api.get<PaginatedResponse<{ id: string }>>('/customers', { params: { page: 1, limit: 1 } }),
-    api.get<PaginatedResponse<{ id: string }>>('/services', { params: { page: 1, limit: 1 } }),
-    api.get<PaginatedResponse<{ id: string }>>('/bills', {
-      params: { page: 1, limit: 1, dateFrom, dateTo },
-    }),
-    api.get<PaginatedResponse<{ id: string; amount: number | string }>>('/payments', {
-      params: { page: 1, limit: 100, dateFrom, dateTo, status: 'SUCCESS' },
-    }),
-    api.get<PaginatedResponse<{ id: string }>>('/products', { params: { page: 1, limit: 1 } }),
-    franchiseId
-      ? api.get<{ id: string; name: string; code: string; email?: string; phone?: string; createdAt?: string }>(
-          `/franchises/${franchiseId}`,
-        )
-      : Promise.reject(new Error('No franchiseId')),
-  ]);
+  const page = <T,>(path: string, params: Record<string, unknown>) =>
+    api.get<Paginated<T>>(path, { params: { page: 1, ...params } });
+  const total = (path: string, params: Record<string, unknown> = {}) =>
+    page<unknown>(path, { ...params, limit: 1 }).then((r) => r.meta.total);
 
-  const getArray = <T>(res: PromiseSettledResult<unknown>): T[] => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'data' in res.value &&
-      Array.isArray((res.value as { data: unknown }).data)
-    ) {
-      return (res.value as { data: T[] }).data;
-    }
-    return [];
-  };
-
-  const getTotal = (res: PromiseSettledResult<unknown>): number => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'meta' in res.value &&
-      res.value.meta &&
-      typeof (res.value.meta as { total?: unknown }).total === 'number'
-    ) {
-      return (res.value.meta as { total: number }).total;
-    }
-    return 0;
-  };
-
-  type RawSalon = {
-    id: string;
-    name: string;
-    code: string;
-    city?: string;
-    state?: string;
-    addressLine1?: string;
-    isActive: boolean;
-    createdAt: string;
-  };
-
-  const salons = getArray<RawSalon>(salonsRes);
-  const users = getArray<{ id: string; firstName: string; lastName: string; isActive: boolean }>(usersRes);
-  const payments = getArray<{ id: string; amount: number | string }>(paymentsRes);
-
-  const totalBranches = getTotal(salonsRes);
-  const activeBranches = salons.filter((s) => s.isActive).length;
-  const inactiveBranches = Math.max(totalBranches - activeBranches, 0);
-  const totalStaff = getTotal(usersRes);
-
-  const revenueMonth = payments.reduce((sum, p) => {
-    const amt = Number(p.amount);
-    return sum + (Number.isFinite(amt) ? amt : 0);
-  }, 0);
+  const [salons, activeSalons, users, customers, services, billsMonthCount, monthBills, payments, products, franchiseData] =
+    await Promise.all([
+      page<Salon>('/salons', { limit: 50 }),
+      total('/salons', { isActive: true }),
+      page<User>('/users', { limit: SAMPLE }),
+      total('/customers'),
+      total('/services'),
+      total('/bills', { dateFrom, dateTo }),
+      page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', dateFrom, dateTo }),
+      page<Payment>('/payments', { limit: SAMPLE, dateFrom, dateTo, status: 'SUCCESS' }),
+      total('/products'),
+      franchiseId ? api.get<Franchise>(`/franchises/${franchiseId}`) : Promise.resolve(null),
+    ]);
 
   const stats: AdminBusinessStats = {
-    totalBranches,
-    activeBranches,
-    inactiveBranches,
-    totalStaff,
-    revenueMonth,
+    totalBranches: salons.meta.total,
+    activeBranches: activeSalons,
+    inactiveBranches: Math.max(salons.meta.total - activeSalons, 0),
+    totalStaff: users.meta.total,
+    revenueMonth: payments.data.reduce((sum, p) => sum + num(p.amount), 0),
+    revenueMonthPartial: isPartial(payments),
   };
-
-  // Franchise Details
-  const fData =
-    franchiseRes.status === 'fulfilled' && franchiseRes.value && typeof franchiseRes.value === 'object'
-      ? (franchiseRes.value as { id: string; name?: string; code?: string; email?: string; phone?: string; createdAt?: string })
-      : null;
 
   const franchise: AdminFranchiseOverview = {
-    id: fData?.id ?? franchiseId ?? 'business-1',
-    name: fData?.name ?? 'My Business',
-    code: fData?.code ?? 'BIZ',
-    email: fData?.email ?? null,
-    phone: fData?.phone ?? null,
+    id: franchiseData?.id ?? franchiseId ?? '',
+    name: franchiseData?.name ?? '—',
+    code: franchiseData?.code ?? '—',
+    email: franchiseData?.email ?? null,
+    phone: franchiseData?.phone ?? null,
     address: null,
-    businessSince: fData?.createdAt ? format(new Date(fData.createdAt), 'MMM dd, yyyy') : 'Recent',
-    subscriptionPlan: 'Professional Plan',
-    planValidTill: 'Active',
+    businessSince: franchiseData ? format(new Date(franchiseData.createdAt), 'MMM dd, yyyy') : '—',
+    isActive: franchiseData?.isActive ?? true,
   };
 
-  // Real branches mapped from DB (empty array if none in DB!)
-  const branches: AdminBranchItem[] = salons.map((salon, index) => {
-    const locParts = [salon.addressLine1, salon.city, salon.state].filter(Boolean);
-    const location = locParts.length > 0 ? locParts.join(', ') : 'Location not specified';
+  const usersComplete = !isPartial(users);
+  const staffBySalon = new Map<string, User[]>();
+  for (const u of users.data) {
+    if (!u.salonId) continue;
+    staffBySalon.set(u.salonId, [...(staffBySalon.get(u.salonId) ?? []), u]);
+  }
+
+  const billsComplete = !isPartial(monthBills);
+  const revenueBySalon = new Map<string, number>();
+  for (const b of monthBills.data) {
+    revenueBySalon.set(b.salonId, (revenueBySalon.get(b.salonId) ?? 0) + num(b.total));
+  }
+
+  const branches: AdminBranchItem[] = salons.data.map((salon) => {
+    const location = [salon.addressLine1, salon.city, salon.state].filter(Boolean).join(', ') || '—';
+    const staff = staffBySalon.get(salon.id) ?? [];
+    const manager = usersComplete ? staff.find((u) => u.role?.code === 'MANAGER') : undefined;
+    const managerName = manager ? [manager.firstName, manager.lastName].filter(Boolean).join(' ') : null;
 
     return {
       id: salon.id,
       name: salon.name,
       location,
-      code: salon.code || `BR-${salon.id.slice(0, 4).toUpperCase()}`,
-      isMain: index === 0,
-      managerName: 'Branch Manager',
-      managerPhone: '—',
-      managerInitials: (salon.name[0] || 'B').toUpperCase(),
+      code: salon.code,
+      managerName,
+      managerPhone: manager?.phone ?? null,
+      managerInitials: managerName ? managerName.slice(0, 2).toUpperCase() : '—',
       status: salon.isActive ? 'active' : 'inactive',
-      staffCount: 0,
-      revenueMonth: 0,
+      staffCount: usersComplete ? staff.length : null,
+      revenueMonth: billsComplete ? (revenueBySalon.get(salon.id) ?? 0) : null,
     };
   });
 
   const overview: AdminOverviewAllBranches = {
-    totalCustomers: getTotal(customersRes),
-    totalServices: getTotal(servicesRes),
-    totalBillsMonth: getTotal(billsRes),
-    totalProducts: getTotal(productsRes),
-    totalCampaigns: 0,
+    totalCustomers: customers,
+    totalServices: services,
+    totalBillsMonth: billsMonthCount,
+    totalProducts: products,
   };
 
-  return {
-    stats,
-    franchise,
-    branches,
-    overview,
-  };
+  return { stats, franchise, branches, overview };
 }

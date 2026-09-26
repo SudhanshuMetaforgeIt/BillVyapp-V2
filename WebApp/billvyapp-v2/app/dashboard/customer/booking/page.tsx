@@ -1,5 +1,11 @@
-import { BookingFlowView } from '@/features/customer-dashboard';
+import { Suspense } from 'react';
+
+import { BookingView } from '@/features/customer-dashboard';
 
 export default function CustomerBookingPage() {
-  return <BookingFlowView />;
+  return (
+    <Suspense>
+      <BookingView />
+    </Suspense>
+  );
 }

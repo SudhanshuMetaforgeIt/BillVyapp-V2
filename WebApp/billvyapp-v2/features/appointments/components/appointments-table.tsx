@@ -1,15 +1,15 @@
 'use client';
 
 import { format, parseISO, isValid } from 'date-fns';
-import { Eye, MoreVertical, Scissors } from 'lucide-react';
+import { Scissors } from 'lucide-react';
 
-import {
-  SectionEmptyState,
-  SectionErrorState,
-} from '@/components/layout/section-states';
+import { SectionEmptyState } from '@/components/layout/section-states';
+import { QueryErrorState } from '@/components/data/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatPhone } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useUpdateAppointmentStatus } from '../hooks/use-create-appointment';
+import { APPOINTMENT_NEXT_STATUSES } from '../services/appointments.service';
 import type {
   AppointmentListRow,
   AppointmentStatus,
@@ -26,9 +26,45 @@ type AppointmentsTableProps = {
   onStatusTabChange: (value: AppointmentStatusTab) => void;
   isLoading?: boolean;
   isError?: boolean;
+  error?: unknown;
   onRetry?: () => void;
   onPageChange: (page: number) => void;
 };
+
+const STATUS_ACTION_LABELS: Record<AppointmentStatus, string> = {
+  PENDING: 'Pending',
+  CONFIRMED: 'Confirm',
+  IN_PROGRESS: 'Start',
+  COMPLETED: 'Complete',
+  CANCELLED: 'Cancel',
+  NO_SHOW: 'Mark no-show',
+};
+
+function StatusActions({ row }: { row: AppointmentListRow }) {
+  const update = useUpdateAppointmentStatus();
+  const next = APPOINTMENT_NEXT_STATUSES[row.status] ?? [];
+  if (next.length === 0) return <span className="text-xs text-text-secondary">—</span>;
+
+  return (
+    <select
+      aria-label={`Change status of ${row.appointmentNumber}`}
+      className="h-8 rounded-lg border border-border bg-surface px-2 text-xs"
+      value=""
+      disabled={update.isPending}
+      onChange={(e) => {
+        const status = e.target.value as AppointmentStatus;
+        if (status) update.mutate({ id: row.id, status });
+      }}
+    >
+      <option value="">{update.isPending ? 'Updating…' : 'Update…'}</option>
+      {next.map((status) => (
+        <option key={status} value={status}>
+          {STATUS_ACTION_LABELS[status]}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function formatTime(value: string): string {
   const raw = value.length === 5 ? `${value}:00` : value;
@@ -60,6 +96,7 @@ export function AppointmentsTable({
   onStatusTabChange,
   isLoading,
   isError,
+  error,
   onRetry,
   onPageChange,
 }: AppointmentsTableProps) {
@@ -74,10 +111,7 @@ export function AppointmentsTable({
           ))}
         </div>
       ) : isError ? (
-        <SectionErrorState
-          message="We could not load appointments. Please try again."
-          onRetry={onRetry}
-        />
+        <QueryErrorState error={error} onRetry={onRetry} />
       ) : rows.length === 0 ? (
         <SectionEmptyState
           title="No appointments found"
@@ -96,10 +130,7 @@ export function AppointmentsTable({
                   <th className="px-4 py-3 font-semibold">Date & Time</th>
                   <th className="px-4 py-3 font-semibold">Duration</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">Source</th>
-                  <th className="px-4 py-3 font-semibold">
-                    <span className="sr-only">Actions</span>
-                  </th>
+                  <th className="px-4 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,30 +198,8 @@ export function AppointmentsTable({
                         {row.statusLabel}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
-                      {row.sourceLabel}
-                    </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                          aria-label={`View ${row.appointmentNumber}`}
-                          disabled
-                          title="View coming soon"
-                        >
-                          <Eye className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                          aria-label={`More actions for ${row.appointmentNumber}`}
-                          disabled
-                          title="Actions coming soon"
-                        >
-                          <MoreVertical className="size-4" />
-                        </button>
-                      </div>
+                      <StatusActions row={row} />
                     </td>
                   </tr>
                 ))}

@@ -1,20 +1,12 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { fetchSuperAdminDashboard } from '../services/dashboard.service';
 
-import {
-  fetchSuperAdminDashboard,
-  type SuperAdminDashboardData,
-} from '../services/dashboard.service';
-
-export const SUPER_ADMIN_DASHBOARD_QUERY_KEY = [
-  'dashboard',
-  'super-admin',
-] as const;
+export const SUPER_ADMIN_DASHBOARD_QUERY_KEY = ['dashboard', 'super-admin'] as const;
 
 export function useSuperAdminDashboard() {
-  return useQuery<SuperAdminDashboardData>({
-    queryKey: SUPER_ADMIN_DASHBOARD_QUERY_KEY,
-    queryFn: fetchSuperAdminDashboard,
+  return useScopedQuery(SUPER_ADMIN_DASHBOARD_QUERY_KEY, fetchSuperAdminDashboard, {
+    placeholderData: undefined,
   });
 }

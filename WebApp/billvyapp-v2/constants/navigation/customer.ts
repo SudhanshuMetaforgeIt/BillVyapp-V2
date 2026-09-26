@@ -1,36 +1,21 @@
-import { Calendar, Home, Scissors, Sparkles } from 'lucide-react';
+import { Award, Bell, Calendar, Home, Receipt, Scissors, User } from 'lucide-react';
 
 import { ROUTES } from '@/constants/routes';
 import type { NavSection } from './types';
+
+const C = ROUTES.dashboard.customer;
 
 export const CUSTOMER_NAVIGATION: NavSection[] = [
   {
     id: 'customer-main',
     items: [
-      {
-        id: 'customer-home',
-        label: 'Home',
-        href: ROUTES.dashboard.customer.root,
-        icon: Home,
-      },
-      {
-        id: 'customer-salons',
-        label: 'Salons',
-        href: ROUTES.dashboard.customer.salons,
-        icon: Scissors,
-      },
-      {
-        id: 'customer-services',
-        label: 'Services',
-        href: ROUTES.dashboard.customer.services,
-        icon: Sparkles,
-      },
-      {
-        id: 'customer-my-bookings',
-        label: 'My Bookings',
-        href: ROUTES.dashboard.customer.myBookings,
-        icon: Calendar,
-      },
+      { id: 'customer-home', label: 'Home', href: C.root, icon: Home },
+      { id: 'customer-salons', label: 'Salons', href: C.salons, icon: Scissors },
+      { id: 'customer-my-bookings', label: 'My Bookings', href: C.myBookings, icon: Calendar },
+      { id: 'customer-bills', label: 'Bills', href: C.bills, icon: Receipt },
+      { id: 'customer-rewards', label: 'Rewards', href: C.rewards, icon: Award },
+      { id: 'customer-notifications', label: 'Notifications', href: C.notifications, icon: Bell },
+      { id: 'customer-profile', label: 'Profile', href: C.profile, icon: User },
     ],
   },
 ];

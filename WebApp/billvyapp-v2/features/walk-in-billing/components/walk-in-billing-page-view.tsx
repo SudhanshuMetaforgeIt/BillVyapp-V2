@@ -7,6 +7,8 @@ import {
   SectionErrorState,
 } from '@/components/layout/section-states';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { can } from '@/lib/capabilities';
+import { SalonPicker } from '@/features/salons/components/salon-picker';
 import { computeBillPreview } from '../lib/bill-preview';
 import { useSettleWalkInBill } from '../hooks/use-settle-walk-in-bill';
 import type {
@@ -34,7 +36,9 @@ function toCartLine(service: SalonService): CartLine {
 
 export function WalkInBillingPageView() {
   const user = useCurrentUser();
-  const salonId = user?.salonId ?? null;
+  const [chosenSalonId, setChosenSalonId] = useState('');
+  const pinnedSalonId = user?.salonId ?? null;
+  const salonId = pinnedSalonId ?? (chosenSalonId || null);
 
   const [phoneQuery, setPhoneQuery] = useState('');
   const [customer, setCustomer] = useState<WalkInCustomer | null>(null);
@@ -110,12 +114,14 @@ export function WalkInBillingPageView() {
     preview.total > 0 &&
     !settle.isPending;
 
-  if (!salonId) {
+  const canPickSalon = can(user, 'salons.write');
+
+  if (!salonId && !canPickSalon) {
     return (
       <div className="app-surface-card">
         <SectionErrorState
           title="Salon not assigned"
-          message="Your manager account needs a salon before walk-in billing can be used."
+          message="Your account needs a salon assignment before walk-in billing can be used."
         />
       </div>
     );
@@ -124,6 +130,28 @@ export function WalkInBillingPageView() {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,22rem)] xl:items-start xl:gap-7">
       <div className="space-y-5">
+        {!pinnedSalonId ? (
+          <section className="app-surface-card flex flex-wrap items-center gap-3 p-5">
+            <label htmlFor="walkin-salon" className="text-sm font-semibold text-text">
+              Branch
+            </label>
+            <SalonPicker
+              id="walkin-salon"
+              value={chosenSalonId}
+              onChange={(id) => {
+                if (id === chosenSalonId) return;
+                setChosenSalonId(id);
+                setCart([]);
+                setCategoryId('');
+              }}
+              className="w-64"
+            />
+            {!salonId ? (
+              <p className="text-xs text-text-secondary">Choose the branch this bill belongs to.</p>
+            ) : null}
+          </section>
+        ) : null}
+
         <CustomerDetailsSection
           phoneQuery={phoneQuery}
           onPhoneQueryChange={setPhoneQuery}
@@ -140,7 +168,8 @@ export function WalkInBillingPageView() {
         />
 
         <AddServicesSection
-          enabled={Boolean(customer)}
+          enabled={Boolean(customer) && Boolean(salonId)}
+          salonId={salonId ?? ''}
           search={serviceSearch}
           onSearchChange={setServiceSearch}
           categoryId={categoryId}
@@ -166,6 +195,7 @@ export function WalkInBillingPageView() {
           value={paymentMethod}
           onChange={setPaymentMethod}
           canPay={canPay}
+          canCollect={can(user, 'bills.status')}
           isPaying={settle.isPending}
           onReset={resetForm}
           onPay={() => {

@@ -4,6 +4,8 @@ export type AdminBusinessStats = {
   inactiveBranches: number;
   totalStaff: number;
   revenueMonth: number;
+  /** True when revenueMonth was summed from a truncated page of payments. */
+  revenueMonthPartial: boolean;
 };
 
 export type AdminFranchiseOverview = {
@@ -14,8 +16,7 @@ export type AdminFranchiseOverview = {
   phone: string | null;
   address: string | null;
   businessSince: string;
-  subscriptionPlan: string;
-  planValidTill: string;
+  isActive: boolean;
 };
 
 export type AdminBranchItem = {
@@ -23,13 +24,14 @@ export type AdminBranchItem = {
   name: string;
   location: string;
   code: string;
-  isMain: boolean;
-  managerName: string;
-  managerPhone: string;
+  /** null when the staff list is too large to attribute from one page. */
+  managerName: string | null;
+  managerPhone: string | null;
   managerInitials: string;
   status: 'active' | 'inactive';
-  staffCount: number;
-  revenueMonth: number;
+  staffCount: number | null;
+  /** null when this month's bills are too many to attribute from one page. */
+  revenueMonth: number | null;
   photoUrl?: string | null;
 };
 
@@ -38,7 +40,6 @@ export type AdminOverviewAllBranches = {
   totalServices: number;
   totalBillsMonth: number;
   totalProducts: number;
-  totalCampaigns: number;
 };
 
 export type AdminMyBusinessData = {

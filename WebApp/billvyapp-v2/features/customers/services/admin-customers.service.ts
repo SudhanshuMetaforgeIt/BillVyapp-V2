@@ -94,6 +94,8 @@ export async function fetchAdminCustomers(
       }),
     ]);
 
+  if (customersRes.status === 'rejected') throw customersRes.reason;
+
   const getArray = <T>(res: PromiseSettledResult<unknown>): T[] => {
     if (
       res.status === 'fulfilled' &&
@@ -130,6 +132,8 @@ export async function fetchAdminCustomers(
   const allCustomers = getArray<RawCustomer>(allCustomersRes);
   const rawSalons = getArray<RawSalon>(salonsRes);
   const rawBills = getArray<RawBill>(billsRes);
+  const allCustomersMeta = getMeta(allCustomersRes);
+  const billsMeta = getMeta(billsRes);
 
   const salonMap = new Map(rawSalons.map((s) => [s.id, s.name]));
 
@@ -164,7 +168,7 @@ export async function fetchAdminCustomers(
     }
 
     const branch =
-      c.branchName || (c.salonId ? salonMap.get(c.salonId) : null) || 'Main Branch';
+      c.branchName || (c.salonId ? salonMap.get(c.salonId) : null) || '—';
 
     return {
       id: c.id,
@@ -262,18 +266,22 @@ export async function fetchAdminCustomers(
       ? Number(((returningCustomersCount / totalCustomersCount) * 100).toFixed(1))
       : 0;
 
+  const customersSampled = allCustomersMeta.total > allCustomers.length;
+  const billsSampled = billsMeta.total > rawBills.length;
+
   const stats: CustomerStats = {
     totalCustomers: totalCustomersCount,
-    totalCustomersChange:
-      totalCustomersCount > 0 ? '+ 16.2% vs last month' : 'No data yet',
+    totalCustomersChange: 'Current total',
     newCustomers: newCustomersThisMonth,
-    newCustomersChange:
-      newCustomersThisMonth > 0 ? '+ 12.5% vs last month' : 'No data yet',
+    newCustomersChange: customersSampled
+      ? `Partial — latest ${allCustomers.length} customers`
+      : 'Joined this month',
     returningCustomers: returningCustomersCount,
     returningCustomersPct: returningPct,
     totalSpentThisMonth,
-    totalSpentChange:
-      totalSpentThisMonth > 0 ? '+ 18.7% vs last month' : 'No data yet',
+    totalSpentChange: billsSampled
+      ? `Partial — latest ${rawBills.length} bills`
+      : 'Billed this month',
   };
 
   const insights: CustomerInsights = {

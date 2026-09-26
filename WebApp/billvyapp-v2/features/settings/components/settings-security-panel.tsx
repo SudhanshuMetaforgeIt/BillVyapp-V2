@@ -1,19 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
-import { DashboardSectionCard } from '@/components/layout/section-states';
+import {
+  DashboardSectionCard,
+  SectionEmptyState,
+  SectionErrorState,
+} from '@/components/layout/section-states';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { isApiError } from '@/services/api-client';
+import {
+  useSecuritySettings,
+  useUpdatePasswordPolicy,
+  useUpdateSessionSettings,
+} from '../hooks/use-platform-settings';
 import {
   SettingsSaveButton,
   SettingsSelectField,
   SettingsTextField,
 } from './settings-fields';
 import { SettingsToggle } from './settings-toggle';
-
-const UNAVAILABLE =
-  'Settings will be saved once the settings API is connected.';
 
 const SESSION_TIMEOUT_OPTIONS = [
   { value: '15', label: '15 Minutes' },
@@ -35,52 +43,70 @@ const LOCKOUT_OPTIONS = [
   { value: '60', label: '60 Minutes' },
 ];
 
-function notifyUnavailable() {
-  toast(UNAVAILABLE);
+function fail(error: unknown) {
+  toast.error(isApiError(error) ? error.message : 'Could not save settings.');
 }
 
-type PolicyFlag = {
-  id: string;
-  label: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-};
+function ensureOption(value: string, options: { value: string; label: string }[]) {
+  if (options.some((o) => o.value === value)) return options;
+  return [{ value, label: value }, ...options];
+}
 
 export function SettingsSecurityPanel() {
-  const [minLength, setMinLength] = useState('');
+  const query = useSecuritySettings();
+  const savePolicy = useUpdatePasswordPolicy();
+  const saveSession = useUpdateSessionSettings();
+
+  const [minLength, setMinLength] = useState('8');
   const [requireUppercase, setRequireUppercase] = useState(false);
   const [requireLowercase, setRequireLowercase] = useState(false);
   const [requireNumbers, setRequireNumbers] = useState(false);
   const [requireSpecial, setRequireSpecial] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState('');
-  const [maxAttempts, setMaxAttempts] = useState('');
-  const [lockoutDuration, setLockoutDuration] = useState('');
+  const [sessionTimeout, setSessionTimeout] = useState('30');
+  const [maxAttempts, setMaxAttempts] = useState('5');
+  const [lockoutDuration, setLockoutDuration] = useState('15');
 
-  const flags: PolicyFlag[] = [
-    {
-      id: 'require-uppercase',
-      label: 'Require Uppercase',
-      checked: requireUppercase,
-      onChange: setRequireUppercase,
-    },
-    {
-      id: 'require-lowercase',
-      label: 'Require Lowercase',
-      checked: requireLowercase,
-      onChange: setRequireLowercase,
-    },
-    {
-      id: 'require-numbers',
-      label: 'Require Numbers',
-      checked: requireNumbers,
-      onChange: setRequireNumbers,
-    },
-    {
-      id: 'require-special',
-      label: 'Require Special Characters',
-      checked: requireSpecial,
-      onChange: setRequireSpecial,
-    },
+  useEffect(() => {
+    const data = query.data;
+    if (!data) return;
+    setMinLength(String(data.passwordPolicy.minLength));
+    setRequireUppercase(data.passwordPolicy.requireUppercase);
+    setRequireLowercase(data.passwordPolicy.requireLowercase);
+    setRequireNumbers(data.passwordPolicy.requireNumbers);
+    setRequireSpecial(data.passwordPolicy.requireSpecial);
+    setSessionTimeout(String(data.session.timeoutMinutes));
+    setMaxAttempts(String(data.session.maxLoginAttempts));
+    setLockoutDuration(String(data.session.lockoutDurationMinutes));
+  }, [query.data]);
+
+  if (query.isLoading && !query.data) {
+    return <Skeleton className="h-80 w-full rounded-xl" />;
+  }
+
+  if (query.isError && !query.data) {
+    return (
+      <DashboardSectionCard title="Security">
+        <SectionErrorState
+          message={query.error.message}
+          onRetry={() => void query.refetch()}
+        />
+      </DashboardSectionCard>
+    );
+  }
+
+  if (!query.data) {
+    return (
+      <DashboardSectionCard title="Security">
+        <SectionEmptyState message="Security settings are only available to Super Admin." />
+      </DashboardSectionCard>
+    );
+  }
+
+  const flags = [
+    { id: 'require-uppercase', label: 'Require Uppercase', checked: requireUppercase, onChange: setRequireUppercase },
+    { id: 'require-lowercase', label: 'Require Lowercase', checked: requireLowercase, onChange: setRequireLowercase },
+    { id: 'require-numbers', label: 'Require Numbers', checked: requireNumbers, onChange: setRequireNumbers },
+    { id: 'require-special', label: 'Require Special Characters', checked: requireSpecial, onChange: setRequireSpecial },
   ];
 
   return (
@@ -116,7 +142,25 @@ export function SettingsSecurityPanel() {
             </li>
           ))}
         </ul>
-        <SettingsSaveButton onClick={notifyUnavailable} />
+        <SettingsSaveButton
+          disabled={savePolicy.isPending}
+          label={savePolicy.isPending ? 'Saving…' : 'Save Policy'}
+          onClick={() =>
+            savePolicy.mutate(
+              {
+                minLength: Number(minLength) || 8,
+                requireUppercase,
+                requireLowercase,
+                requireNumbers,
+                requireSpecial,
+              },
+              {
+                onSuccess: () => toast.success('Password policy saved'),
+                onError: fail,
+              },
+            )
+          }
+        />
       </DashboardSectionCard>
 
       <DashboardSectionCard
@@ -129,26 +173,39 @@ export function SettingsSecurityPanel() {
           label="Session Timeout"
           value={sessionTimeout}
           onChange={setSessionTimeout}
-          options={SESSION_TIMEOUT_OPTIONS}
-          placeholder="Select timeout"
+          options={ensureOption(sessionTimeout, SESSION_TIMEOUT_OPTIONS)}
         />
         <SettingsSelectField
           id="max-login-attempts"
           label="Maximum Login Attempts"
           value={maxAttempts}
           onChange={setMaxAttempts}
-          options={LOGIN_ATTEMPTS_OPTIONS}
-          placeholder="Select attempts"
+          options={ensureOption(maxAttempts, LOGIN_ATTEMPTS_OPTIONS)}
         />
         <SettingsSelectField
           id="lockout-duration"
           label="Lockout Duration"
           value={lockoutDuration}
           onChange={setLockoutDuration}
-          options={LOCKOUT_OPTIONS}
-          placeholder="Select duration"
+          options={ensureOption(lockoutDuration, LOCKOUT_OPTIONS)}
         />
-        <SettingsSaveButton onClick={notifyUnavailable} />
+        <SettingsSaveButton
+          disabled={saveSession.isPending}
+          label={saveSession.isPending ? 'Saving…' : 'Save Session'}
+          onClick={() =>
+            saveSession.mutate(
+              {
+                timeoutMinutes: Number(sessionTimeout) || 30,
+                maxLoginAttempts: Number(maxAttempts) || 5,
+                lockoutDurationMinutes: Number(lockoutDuration) || 15,
+              },
+              {
+                onSuccess: () => toast.success('Session settings saved'),
+                onError: fail,
+              },
+            )
+          }
+        />
       </DashboardSectionCard>
     </div>
   );

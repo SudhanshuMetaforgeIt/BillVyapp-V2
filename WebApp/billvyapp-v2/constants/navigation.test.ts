@@ -1,0 +1,65 @@
+import { describe, expect, it } from 'vitest';
+
+import { navigationForRole } from './navigation';
+import { dashboardHomeFor, ROUTES } from './routes';
+import type { RoleCode } from './roles';
+
+function hrefs(role: RoleCode): string[] {
+  return navigationForRole(role).flatMap((section) => section.items.map((item) => item.href));
+}
+
+describe('role navigation', () => {
+  it('sends each role to its own dashboard home', () => {
+    expect(dashboardHomeFor('SUPER_ADMIN')).toBe(ROUTES.dashboard.superAdmin.root);
+    expect(dashboardHomeFor('ADMIN')).toBe(ROUTES.dashboard.admin.root);
+    expect(dashboardHomeFor('MANAGER')).toBe(ROUTES.dashboard.manager.root);
+    expect(dashboardHomeFor('STAFF')).toBe(ROUTES.dashboard.staff.root);
+    expect(dashboardHomeFor('CUSTOMER')).toBe(ROUTES.dashboard.customer.root);
+  });
+
+  it('gives super admin platform tools including audit and search', () => {
+    const links = hrefs('SUPER_ADMIN');
+    expect(links).toContain(ROUTES.dashboard.superAdmin.audit);
+    expect(links).toContain(ROUTES.dashboard.superAdmin.search);
+    expect(links).toContain(ROUTES.dashboard.superAdmin.businesses);
+  });
+
+  it('gives admin franchise operations including inventory', () => {
+    const links = hrefs('ADMIN');
+    expect(links).toContain(ROUTES.dashboard.admin.inventory);
+    expect(links).toContain(ROUTES.dashboard.admin.staff);
+    expect(links.some((href) => href.includes('/audit'))).toBe(false);
+    expect(links).not.toContain(ROUTES.dashboard.superAdmin.users);
+  });
+
+  it('gives manager salon operations and hides staff-only omissions', () => {
+    const links = hrefs('MANAGER');
+    expect(links).toContain(ROUTES.dashboard.manager.walkInBilling);
+    expect(links).toContain(ROUTES.dashboard.manager.vendors);
+    expect(links.some((href) => href.includes('/audit'))).toBe(false);
+  });
+
+  it('hides audit, vendors write, and geocode from staff nav', () => {
+    const links = hrefs('STAFF');
+    expect(links).toContain(ROUTES.dashboard.staff.walkInBilling);
+    expect(links).toContain(ROUTES.dashboard.staff.appointments);
+    expect(links.some((href) => href.includes('/audit'))).toBe(false);
+    expect(links.some((href) => href.includes('/vendors'))).toBe(false);
+    expect(links.some((href) => href.includes('/settings'))).toBe(false);
+  });
+
+  it('gives customers self-service links only', () => {
+    const links = hrefs('CUSTOMER');
+    expect(links).toEqual(
+      expect.arrayContaining([
+        ROUTES.dashboard.customer.root,
+        ROUTES.dashboard.customer.salons,
+        ROUTES.dashboard.customer.myBookings,
+        ROUTES.dashboard.customer.bills,
+        ROUTES.dashboard.customer.rewards,
+        ROUTES.dashboard.customer.profile,
+      ]),
+    );
+    expect(links.some((href) => href.includes('/walk-in-billing'))).toBe(false);
+  });
+});

@@ -8,11 +8,12 @@ import { dashboardHomeFor } from '@/constants/routes';
 import {
   authService,
   type SendOtpPayload,
+  type SendOtpResponse,
   type VerifyOtpPayload,
 } from '@/services/auth.service';
-import { useAuthStore } from '@/stores/auth.store';
-import type { ApiError, MessageResponse } from '@/types/api.types';
+import type { ApiError } from '@/types/api.types';
 import type { AuthSession } from '@/types/user.types';
+import { useEstablishSession } from './use-establish-session';
 
 /**
  * Requests a login code.
@@ -22,7 +23,7 @@ import type { AuthSession } from '@/types/user.types';
  * would reintroduce the account enumeration the backend is avoiding.
  */
 export function useSendOtp() {
-  return useMutation<MessageResponse, ApiError, SendOtpPayload>({
+  return useMutation<SendOtpResponse, ApiError, SendOtpPayload>({
     mutationFn: (payload) => authService.sendOtp(payload),
     onSuccess: (response) => {
       toast.success(response.message);
@@ -36,12 +37,12 @@ export function useSendOtp() {
 /** Exchanges a code for a session and routes the user to their dashboard. */
 export function useVerifyOtp() {
   const router = useRouter();
-  const setSession = useAuthStore((state) => state.setSession);
+  const establishSession = useEstablishSession();
 
   return useMutation<AuthSession, ApiError, VerifyOtpPayload>({
     mutationFn: (payload) => authService.verifyOtp(payload),
     onSuccess: (session) => {
-      setSession(session);
+      establishSession(session);
       toast.success(`Welcome, ${session.user.firstName}`);
       router.replace(dashboardHomeFor(session.user.role));
     },
