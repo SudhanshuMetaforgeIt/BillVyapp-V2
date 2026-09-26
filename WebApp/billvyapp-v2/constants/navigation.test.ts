@@ -13,7 +13,7 @@ describe('role navigation', () => {
     expect(dashboardHomeFor('SUPER_ADMIN')).toBe(ROUTES.dashboard.superAdmin.root);
     expect(dashboardHomeFor('ADMIN')).toBe(ROUTES.dashboard.admin.root);
     expect(dashboardHomeFor('MANAGER')).toBe(ROUTES.dashboard.manager.root);
-    expect(dashboardHomeFor('STAFF')).toBe(ROUTES.dashboard.staff.root);
+    expect(dashboardHomeFor('STAFF')).toBe(ROUTES.dashboard.staff.walkInBilling);
     expect(dashboardHomeFor('CUSTOMER')).toBe(ROUTES.dashboard.customer.root);
   });
 
@@ -39,13 +39,12 @@ describe('role navigation', () => {
     expect(links.some((href) => href.includes('/audit'))).toBe(false);
   });
 
-  it('hides audit, vendors write, and geocode from staff nav', () => {
+  it('limits staff nav to walk-in billing and appointments', () => {
     const links = hrefs('STAFF');
-    expect(links).toContain(ROUTES.dashboard.staff.walkInBilling);
-    expect(links).toContain(ROUTES.dashboard.staff.appointments);
-    expect(links.some((href) => href.includes('/audit'))).toBe(false);
-    expect(links.some((href) => href.includes('/vendors'))).toBe(false);
-    expect(links.some((href) => href.includes('/settings'))).toBe(false);
+    expect(links).toEqual([
+      ROUTES.dashboard.staff.walkInBilling,
+      ROUTES.dashboard.staff.appointments,
+    ]);
   });
 
   it('gives customers self-service links only', () => {

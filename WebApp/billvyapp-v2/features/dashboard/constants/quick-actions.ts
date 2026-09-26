@@ -83,8 +83,4 @@ export const MANAGER_QUICK_ACTIONS: QuickActionConfig[] = [
 export const STAFF_QUICK_ACTIONS: QuickActionConfig[] = [
   { id: 'new-walk-in', label: 'New Walk-in', href: ROUTES.dashboard.staff.walkInBilling, icon: Receipt },
   { id: 'new-appointment', label: 'New Appointment', href: ROUTES.dashboard.staff.appointments, icon: CalendarDays },
-  { id: 'add-customer', label: 'Add Customer', href: ROUTES.dashboard.staff.customers, icon: UserPlus },
-  { id: 'bills', label: 'Bills', href: ROUTES.dashboard.staff.bills, icon: Wallet },
-  { id: 'check-inventory', label: 'Check Inventory', href: ROUTES.dashboard.staff.inventory, icon: Package },
-  { id: 'search', label: 'Search', href: ROUTES.dashboard.staff.search, icon: FileBarChart2 },
 ];

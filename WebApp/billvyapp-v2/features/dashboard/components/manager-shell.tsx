@@ -79,13 +79,27 @@ export function ManagerShell({ children }: SalonShellProps) {
   );
 }
 
-/** Shell for Staff routes. */
+/** Shell for Staff routes — walk-in billing and appointments only. */
 export function StaffShell({ children }: SalonShellProps) {
   const pathname = usePathname();
   const r = ROUTES.dashboard.staff;
   const pageMeta: PageMeta = {
-    ...useRootMeta(r.root, 'Your salon at a glance.'),
-    ...sharedMeta(r),
+    [r.walkInBilling]: {
+      title: 'Create New Bill',
+      subtitle: 'Walk-in billing for your salon.',
+    },
+    [r.appointments]: {
+      title: 'Appointments',
+      subtitle: 'View and manage salon appointments.',
+    },
+    [r.notifications]: {
+      title: 'Notifications',
+      subtitle: 'Messages for your salon.',
+    },
+    [r.profile]: {
+      title: 'Profile',
+      subtitle: 'Your account information.',
+    },
   };
   const meta = pageMeta[pathname] ?? { title: 'Salon Staff' };
 

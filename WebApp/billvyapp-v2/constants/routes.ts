@@ -81,14 +81,7 @@ export const ROUTES = {
       root: `/dashboard/${ROLE_SEGMENTS.STAFF}`,
       walkInBilling: `/dashboard/${ROLE_SEGMENTS.STAFF}/walk-in-billing`,
       appointments: `/dashboard/${ROLE_SEGMENTS.STAFF}/appointments`,
-      customers: `/dashboard/${ROLE_SEGMENTS.STAFF}/customers`,
-      bills: `/dashboard/${ROLE_SEGMENTS.STAFF}/bills`,
-      services: `/dashboard/${ROLE_SEGMENTS.STAFF}/services`,
-      inventory: `/dashboard/${ROLE_SEGMENTS.STAFF}/inventory`,
-      purchases: `/dashboard/${ROLE_SEGMENTS.STAFF}/purchases`,
-      loyalty: `/dashboard/${ROLE_SEGMENTS.STAFF}/loyalty`,
       notifications: `/dashboard/${ROLE_SEGMENTS.STAFF}/notifications`,
-      search: `/dashboard/${ROLE_SEGMENTS.STAFF}/search`,
       profile: `/dashboard/${ROLE_SEGMENTS.STAFF}/profile`,
     },
     customer: {
@@ -107,5 +100,8 @@ export const ROUTES = {
 
 /** Landing route for a role immediately after authentication. */
 export function dashboardHomeFor(role: RoleCode): string {
+  if (role === 'STAFF') {
+    return ROUTES.dashboard.staff.walkInBilling;
+  }
   return `${ROUTES.dashboard.root}/${ROLE_SEGMENTS[role]}`;
 }

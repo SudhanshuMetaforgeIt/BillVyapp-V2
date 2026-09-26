@@ -1,5 +1,8 @@
-import { ManagerDashboardView } from '@/features/dashboard/components/manager-dashboard-view';
+import { redirect } from 'next/navigation';
 
+import { ROUTES } from '@/constants/routes';
+
+/** Staff has no dashboard — land on walk-in billing. */
 export default function StaffDashboardPage() {
-  return <ManagerDashboardView variant="staff" />;
+  redirect(ROUTES.dashboard.staff.walkInBilling);
 }
