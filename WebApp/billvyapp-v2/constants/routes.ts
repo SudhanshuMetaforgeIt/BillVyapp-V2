@@ -58,6 +58,15 @@ export const ROUTES = {
       settings: `/dashboard/${ROLE_SEGMENTS.MANAGER}/settings`,
       profile: `/dashboard/${ROLE_SEGMENTS.MANAGER}/profile`,
     },
+    customer: {
+      root: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}`,
+      salons: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}/salons`,
+      services: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}/services`,
+      myBookings: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}/my-bookings`,
+      booking: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}/booking`,
+      confirmation: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}/confirmation`,
+      profile: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}/profile`,
+    },
   },
 } as const;
 
