@@ -139,30 +139,66 @@ async function ensureSalon(conn, franchiseId) {
   return { id, name: 'BillVy Demo Salon', code: 'DEMO-SLN' };
 }
 
-async function upsertStaffUser(conn, input) {
-  const rows = await conn.query('SELECT id FROM users WHERE email = ?', [
-    input.email,
-  ]);
+async function findUser(conn, { email, phone }) {
+  const byEmail = await conn.query(
+    'SELECT id, email, phone FROM users WHERE email = ?',
+    [email],
+  );
+  if (byEmail[0]) return byEmail[0];
 
-  if (rows[0]) {
-    await conn.query(
-      `UPDATE users
-       SET firstName = ?, lastName = ?, phone = ?, roleId = ?,
-           franchiseId = ?, salonId = ?, passwordHash = ?, isActive = 1,
-           updatedAt = NOW(3)
-       WHERE id = ?`,
-      [
-        input.firstName,
-        input.lastName,
-        input.phone,
-        input.roleId,
-        input.franchiseId,
-        input.salonId,
-        input.passwordHash,
-        rows[0].id,
-      ],
+  if (!phone) return null;
+  const byPhone = await conn.query(
+    'SELECT id, email, phone FROM users WHERE phone = ?',
+    [phone],
+  );
+  return byPhone[0] || null;
+}
+
+async function updateSeedUser(conn, id, input, phone) {
+  await conn.query(
+    `UPDATE users
+     SET firstName = ?, lastName = ?, email = ?, phone = ?, roleId = ?,
+         franchiseId = ?, salonId = ?, passwordHash = ?, isActive = 1,
+         updatedAt = NOW(3)
+     WHERE id = ?`,
+    [
+      input.firstName,
+      input.lastName,
+      input.email,
+      phone,
+      input.roleId,
+      input.franchiseId,
+      input.salonId,
+      input.passwordHash,
+      id,
+    ],
+  );
+}
+
+async function upsertStaffUser(conn, input) {
+  const existing = await findUser(conn, {
+    email: input.email,
+    phone: input.phone,
+  });
+
+  let phone = input.phone;
+  if (existing && existing.email !== input.email) {
+    // Matched by phone on a different email — keep that unique phone and
+    // move the row to the seed login identity.
+    phone = existing.phone || input.phone;
+  } else if (existing?.email === input.email && input.phone) {
+    const phoneOwner = await conn.query(
+      'SELECT id FROM users WHERE phone = ? AND id != ?',
+      [input.phone, existing.id],
     );
-    return rows[0].id;
+    if (phoneOwner[0]) {
+      phone = existing.phone || null;
+    }
+  }
+
+  if (existing) {
+    await updateSeedUser(conn, existing.id, input, phone);
+    return existing.id;
   }
 
   const id = randomUUID();
@@ -179,7 +215,7 @@ async function upsertStaffUser(conn, input) {
       input.firstName,
       input.lastName,
       input.email,
-      input.phone,
+      phone,
       input.passwordHash,
     ],
   );

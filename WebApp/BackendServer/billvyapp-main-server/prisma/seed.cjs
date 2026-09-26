@@ -193,38 +193,38 @@ async function main() {
     }
 
     const passwordHash = await hashPassword(u.password);
-    const existing = await prisma.user.findUnique({ where: { email: u.email } });
+    const byEmail = await prisma.user.findUnique({ where: { email: u.email } });
+    const byPhone = u.phone
+      ? await prisma.user.findUnique({ where: { phone: u.phone } })
+      : null;
+    const existing = byEmail ?? byPhone;
+
+    const userData = {
+      passwordHash,
+      isActive: true,
+      roleId,
+      franchiseId: u.franchiseId,
+      salonId: u.salonId,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      email: u.email,
+      phone:
+        existing && byPhone && byEmail && byPhone.id !== byEmail.id
+          ? byEmail.phone
+          : u.phone,
+    };
 
     let userId;
     if (existing) {
       await prisma.user.update({
-        where: { email: u.email },
-        data: {
-          passwordHash,
-          isActive: true,
-          roleId,
-          franchiseId: u.franchiseId,
-          salonId: u.salonId,
-          firstName: u.firstName,
-          lastName: u.lastName,
-          phone: u.phone,
-        },
+        where: { id: existing.id },
+        data: userData,
       });
       userId = existing.id;
       console.log(`  ↺  ${u.email} (already exists — password refreshed)`);
     } else {
       const created = await prisma.user.create({
-        data: {
-          firstName: u.firstName,
-          lastName: u.lastName,
-          email: u.email,
-          phone: u.phone,
-          passwordHash,
-          roleId,
-          franchiseId: u.franchiseId,
-          salonId: u.salonId,
-          isActive: true,
-        },
+        data: userData,
       });
       userId = created.id;
       console.log(`  ✓  ${u.email} (${created.id})`);
