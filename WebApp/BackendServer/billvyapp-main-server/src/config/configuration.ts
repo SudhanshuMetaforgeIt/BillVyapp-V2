@@ -65,5 +65,9 @@ export default () => {
       resendSeconds: parseInt(process.env.OTP_RESEND_SECONDS ?? '60', 10),
       devEnabled: process.env.DEV_OTP_ENABLED === 'true',
     },
+
+    google: {
+      mapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? '',
+    },
   };
 };

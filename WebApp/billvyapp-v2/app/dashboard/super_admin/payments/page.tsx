@@ -1,5 +1,5 @@
-import { PaymentsPageView } from '@/features/payments';
+import { PaymentsListView } from '@/features/payments';
 
 export default function PaymentsPage() {
-  return <PaymentsPageView />;
+  return <PaymentsListView />;
 }

@@ -1,12 +1,19 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Toaster } from 'react-hot-toast';
 
 import { isApiError, setSessionExpiredHandler } from '@/services/api-client';
+import { authService } from '@/services/auth.service';
+import { scopeChanged, toSessionUser } from '@/services/session';
 import { tokenStorage } from '@/services/token-storage';
 import { useAuthStore } from '@/stores/auth.store';
+import { useUiStore } from '@/stores/ui.store';
 
 /**
  * Application-wide providers.
@@ -38,24 +45,70 @@ function createQueryClient(): QueryClient {
 }
 
 /**
- * Reconciles the persisted user with the tokens actually held. A user object
- * without a token means storage was cleared behind our back, so the session is
- * treated as ended.
+ * Reconciles the persisted user with the tokens actually held, then confirms
+ * the identity with GET /auth/me. The persisted user is only a placeholder so
+ * a reload does not flash a blank screen; role, franchiseId and salonId come
+ * from the backend.
+ *
+ * Any identity end (expiry, failed refresh) or scope change also drops the
+ * query cache so another tenant's data can never be displayed.
  */
 function useSessionBootstrap(): void {
+  const queryClient = useQueryClient();
   const setStatus = useAuthStore((state) => state.setStatus);
+  const setUser = useAuthStore((state) => state.setUser);
   const clearSession = useAuthStore((state) => state.clearSession);
+  const resetScope = useUiStore((state) => state.resetScope);
 
   useEffect(() => {
-    setSessionExpiredHandler(() => clearSession());
+    const endSession = () => {
+      queryClient.clear();
+      resetScope();
+      clearSession();
+    };
+    setSessionExpiredHandler(endSession);
 
     const hasToken = tokenStorage.getAccessToken() !== null;
-    const hasUser = useAuthStore.getState().user !== null;
+    const storedUser = useAuthStore.getState().user;
 
-    setStatus(hasToken && hasUser ? 'authenticated' : 'unauthenticated');
+    if (!hasToken) {
+      if (storedUser) endSession();
+      else setStatus('unauthenticated');
+      return;
+    }
 
-    if (!hasToken && hasUser) clearSession();
-  }, [setStatus, clearSession]);
+    if (storedUser) setStatus('authenticated');
+
+    let cancelled = false;
+    authService
+      .me()
+      .then((me) => {
+        if (cancelled) return;
+        const verified = toSessionUser(me);
+        if (!verified) {
+          tokenStorage.clear();
+          endSession();
+          return;
+        }
+        if (scopeChanged(useAuthStore.getState().user, verified)) {
+          queryClient.clear();
+          resetScope();
+        }
+        setUser(verified);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        // 401s are already handled by the client (refresh, then endSession).
+        // Network/5xx failures keep the stored identity so an offline reload
+        // does not sign the user out; the backend still guards every request.
+        if (isApiError(error) && error.status === 401) return;
+        if (!useAuthStore.getState().user) setStatus('unauthenticated');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient, setStatus, setUser, clearSession, resetScope]);
 }
 
 function SessionBootstrap({ children }: { children: ReactNode }) {

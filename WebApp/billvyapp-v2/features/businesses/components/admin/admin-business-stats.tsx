@@ -74,9 +74,9 @@ export function AdminBusinessStatsCards({ stats, isLoading }: AdminBusinessStats
     },
     {
       id: 'revenue-month',
-      label: 'Revenue (This Month)',
+      label: 'Collected (This Month)',
       value: `₹${stats.revenueMonth.toLocaleString('en-IN')}`,
-      subtext: stats.revenueMonth > 0 ? 'current period' : 'vs last month',
+      subtext: stats.revenueMonthPartial ? `Partial — latest 100 payments` : 'successful payments',
       subtextClass: 'text-emerald font-medium',
       icon: IndianRupee,
       iconClass: 'bg-amber-100/80 text-amber-700',

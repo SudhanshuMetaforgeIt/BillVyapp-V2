@@ -128,8 +128,10 @@ export class UsersService {
     ctx: RequestContext,
   ): Promise<UserRecord> {
     const role = await this.requirePlatformRole(dto.roleId);
-    const franchiseId = dto.franchiseId ?? null;
+    this.assertAssignableRole(actor, role.code);
+
     const salonId = dto.salonId ?? null;
+    const franchiseId = this.resolveCreateFranchiseId(actor, dto.franchiseId);
 
     this.assertRoleScope(role.code, franchiseId, salonId);
     await this.assertFranchiseSalonPair(franchiseId, salonId);
@@ -198,6 +200,12 @@ export class UsersService {
       nextRoleId === existing.roleId
         ? existing.role
         : await this.requirePlatformRole(nextRoleId);
+
+    if (nextRoleId !== existing.roleId) {
+      this.assertAssignableRole(actor, role.code);
+      this.assertAdminCannotReassignPrivileged(actor, existing, role.code);
+    }
+    this.assertAdminStaysInFranchise(actor, nextFranchiseId);
 
     this.assertRoleScope(role.code, nextFranchiseId, nextSalonId);
     await this.assertFranchiseSalonPair(nextFranchiseId, nextSalonId);
@@ -309,6 +317,90 @@ export class UsersService {
     }
 
     return role;
+  }
+
+  private assertAssignableRole(
+    actor: AuthenticatedUser,
+    roleCode: string,
+  ): void {
+    const code = roleCode as RoleCode;
+    if (actor.role === RoleCode.SUPER_ADMIN) {
+      if (
+        code !== RoleCode.SUPER_ADMIN &&
+        code !== RoleCode.ADMIN &&
+        code !== RoleCode.MANAGER &&
+        code !== RoleCode.STAFF
+      ) {
+        throw new BadRequestException('Unsupported role');
+      }
+      return;
+    }
+
+    if (actor.role === RoleCode.ADMIN) {
+      if (code !== RoleCode.MANAGER && code !== RoleCode.STAFF) {
+        throw new ForbiddenException(
+          'Admins can only create Manager and Staff accounts',
+        );
+      }
+      return;
+    }
+
+    throw new ForbiddenException('Insufficient role to assign user roles');
+  }
+
+  private resolveCreateFranchiseId(
+    actor: AuthenticatedUser,
+    requested: string | null | undefined,
+  ): string | null {
+    if (actor.role !== RoleCode.ADMIN) {
+      return requested ?? null;
+    }
+
+    if (!actor.franchiseId) {
+      throw new ForbiddenException('Admin is not assigned to a franchise');
+    }
+
+    if (requested && requested !== actor.franchiseId) {
+      throw new ForbiddenException(
+        'Cannot create users outside your franchise',
+      );
+    }
+
+    return actor.franchiseId;
+  }
+
+  private assertAdminStaysInFranchise(
+    actor: AuthenticatedUser,
+    franchiseId: string | null,
+  ): void {
+    if (actor.role !== RoleCode.ADMIN) {
+      return;
+    }
+    if (franchiseId !== actor.franchiseId) {
+      throw new ForbiddenException(
+        'Cannot move users outside your franchise',
+      );
+    }
+  }
+
+  private assertAdminCannotReassignPrivileged(
+    actor: AuthenticatedUser,
+    target: UserRecord,
+    nextRoleCode: string,
+  ): void {
+    if (actor.role !== RoleCode.ADMIN) {
+      return;
+    }
+    const existingCode = target.role.code as RoleCode;
+    if (
+      (existingCode === RoleCode.ADMIN ||
+        existingCode === RoleCode.SUPER_ADMIN) &&
+      nextRoleCode !== existingCode
+    ) {
+      throw new ForbiddenException(
+        'Admins cannot change Admin or Super Admin roles',
+      );
+    }
   }
 
   private assertRoleScope(

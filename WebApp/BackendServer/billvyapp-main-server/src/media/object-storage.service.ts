@@ -52,4 +52,8 @@ export class ObjectStorageService implements ObjectStorageProvider {
   deleteObject(storageKey: string): Promise<void> {
     return this.active.deleteObject(storageKey);
   }
+
+  objectExists(storageKey: string): Promise<boolean> {
+    return this.active.objectExists(storageKey);
+  }
 }

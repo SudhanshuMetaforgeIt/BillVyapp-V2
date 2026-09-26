@@ -3,8 +3,11 @@ import {
   CreditCard,
   FileBarChart2,
   Headset,
+  History,
   LayoutDashboard,
+  Search,
   Shield,
+  Store,
   Tags,
   Users,
 } from 'lucide-react';
@@ -33,6 +36,12 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
         label: 'Businesses',
         href: `${base}/businesses`,
         icon: Building2,
+      },
+      {
+        id: 'salons',
+        label: 'Salons',
+        href: `${base}/salons`,
+        icon: Store,
       },
       {
         id: 'payments',
@@ -64,6 +73,14 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/support`,
         icon: Headset,
       },
+    ],
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    items: [
+      { id: 'search', label: 'Search', href: `${base}/search`, icon: Search },
+      { id: 'audit', label: 'Audit Log', href: `${base}/audit`, icon: History },
     ],
   },
 ];

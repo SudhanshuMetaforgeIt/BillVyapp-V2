@@ -6,9 +6,9 @@ import toast from 'react-hot-toast';
 
 import { dashboardHomeFor } from '@/constants/routes';
 import { authService, type RegisterPayload } from '@/services/auth.service';
-import { useAuthStore } from '@/stores/auth.store';
 import type { ApiError } from '@/types/api.types';
 import type { AuthSession } from '@/types/user.types';
+import { useEstablishSession } from './use-establish-session';
 
 /**
  * Public customer registration.
@@ -18,7 +18,7 @@ import type { AuthSession } from '@/types/user.types';
  */
 export function useRegister() {
   const router = useRouter();
-  const setSession = useAuthStore((state) => state.setSession);
+  const establishSession = useEstablishSession();
 
   return useMutation<AuthSession, ApiError, RegisterPayload>({
     mutationFn: (payload) => authService.register(payload),
@@ -28,7 +28,7 @@ export function useRegister() {
         return;
       }
 
-      setSession(session);
+      establishSession(session);
       toast.success(`Welcome, ${session.user.firstName}`);
       router.replace(dashboardHomeFor(session.user.role));
     },

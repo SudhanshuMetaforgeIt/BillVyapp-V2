@@ -109,14 +109,16 @@ export function SettingsSelectField({
 type SettingsSaveButtonProps = {
   onClick: () => void;
   label?: string;
+  disabled?: boolean;
 };
 
 export function SettingsSaveButton({
   onClick,
   label = 'Save Changes',
+  disabled = false,
 }: SettingsSaveButtonProps) {
   return (
-    <Button type="button" onClick={onClick} className="mt-1">
+    <Button type="button" onClick={onClick} className="mt-1" disabled={disabled}>
       {label}
     </Button>
   );

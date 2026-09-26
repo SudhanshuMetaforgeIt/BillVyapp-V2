@@ -42,7 +42,7 @@ export function AppointmentsFilters({
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search by Customer Name or Mobile"
+          placeholder="Search by customer name, mobile or appointment no."
           className="h-10 pr-9"
           aria-label="Search appointments"
         />
@@ -79,19 +79,21 @@ export function AppointmentsFilters({
           ))}
         </select>
 
-        <select
-          value={staffId}
-          onChange={(e) => onStaffIdChange(e.target.value)}
-          aria-label="Staff filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-        >
-          <option value="">All Staff</option>
-          {staffOptions.map((staff) => (
-            <option key={staff.id} value={staff.id}>
-              {staff.name}
-            </option>
-          ))}
-        </select>
+        {staffOptions.length > 0 ? (
+          <select
+            value={staffId}
+            onChange={(e) => onStaffIdChange(e.target.value)}
+            aria-label="Staff filter"
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+          >
+            <option value="">All Staff</option>
+            {staffOptions.map((staff) => (
+              <option key={staff.id} value={staff.id}>
+                {staff.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
 
         <Button
           type="button"

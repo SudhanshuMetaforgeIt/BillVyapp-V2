@@ -26,13 +26,14 @@ export async function createCustomer(payload: CreateCustomerPayload) {
   return api.post<WalkInCustomer>('/customers', payload);
 }
 
-export async function listServiceCategories() {
+export async function listServiceCategories(salonId?: string) {
   return api.get<PaginatedResponse<ServiceCategory>>('/service-categories', {
-    params: { page: 1, limit: 100, isActive: true },
+    params: { page: 1, limit: 100, isActive: true, salonId },
   });
 }
 
 export async function listServices(params?: {
+  salonId?: string;
   search?: string;
   categoryId?: string;
 }) {
@@ -41,6 +42,7 @@ export async function listServices(params?: {
       page: 1,
       limit: 100,
       isActive: true,
+      salonId: params?.salonId || undefined,
       search: params?.search?.trim() || undefined,
       categoryId: params?.categoryId || undefined,
     },
@@ -67,6 +69,7 @@ export async function completeBill(billId: string) {
   });
 }
 
+/** Counter payment the operator has already received; the backend records it as SUCCESS. */
 export async function createPayment(payload: CreatePaymentPayload) {
   return api.post<PaymentRecord>('/payments', {
     ...payload,
@@ -74,14 +77,23 @@ export async function createPayment(payload: CreatePaymentPayload) {
   });
 }
 
-export async function settleWalkInBill(input: {
-  salonId: string;
-  customerId: string;
-  discount?: number;
-  notes?: string | null;
-  items: CreateBillPayload['items'];
-  paymentMethod: CreatePaymentPayload['paymentMethod'];
-}) {
+export type SettleOutcome = 'paid' | 'completed' | 'draft';
+
+/**
+ * DRAFT -> COMPLETED -> payment of the backend-computed due amount. Roles
+ * without bill-status permission (STAFF) stop at the draft.
+ */
+export async function settleWalkInBill(
+  input: {
+    salonId: string;
+    customerId: string;
+    discount?: number;
+    notes?: string | null;
+    items: CreateBillPayload['items'];
+    paymentMethod: CreatePaymentPayload['paymentMethod'];
+  },
+  { canComplete }: { canComplete: boolean },
+): Promise<{ bill: BillRecord; payment: PaymentRecord | null; outcome: SettleOutcome }> {
   const draft = await createBill({
     salonId: input.salonId,
     customerId: input.customerId,
@@ -90,10 +102,14 @@ export async function settleWalkInBill(input: {
     items: input.items,
   });
 
+  if (!canComplete) {
+    return { bill: draft, payment: null, outcome: 'draft' };
+  }
+
   const completed = await completeBill(draft.id);
   const dueAmount = Number(completed.dueAmount);
   if (!Number.isFinite(dueAmount) || dueAmount <= 0) {
-    return { bill: completed, payment: null };
+    return { bill: completed, payment: null, outcome: 'completed' };
   }
 
   const payment = await createPayment({
@@ -102,5 +118,5 @@ export async function settleWalkInBill(input: {
     paymentMethod: input.paymentMethod,
   });
 
-  return { bill: completed, payment };
+  return { bill: completed, payment, outcome: 'paid' };
 }

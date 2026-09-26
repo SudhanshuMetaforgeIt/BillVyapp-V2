@@ -25,7 +25,16 @@ export type DashboardMetric = {
   tone: MetricTone;
   /** true when comparison is placeholder until MoM analytics exist */
   comparisonIsPlaceholder: boolean;
+  /** Value summed from a capped page while the server holds more rows. */
+  partial?: boolean;
+  partialSample?: number;
 };
+
+const SAMPLE = 100;
+
+function truncated(page: { data: unknown[]; meta: { total: number } }): boolean {
+  return page.meta.total > page.data.length;
+}
 
 export type RecentBusinessRow = {
   id: string;
@@ -50,7 +59,6 @@ export type SuperAdminDashboardData = {
   metrics: DashboardMetric[];
   recentBusinesses: RecentBusinessRow[];
   activity: ActivityItem[];
-  unreadNotifications: number;
   revenueSeries: RevenuePoint[];
   revenueMonthTotal: number;
 };
@@ -58,21 +66,22 @@ export type SuperAdminDashboardData = {
 async function sumSuccessfulPayments(
   dateFrom: string,
   dateTo: string,
-): Promise<number> {
+): Promise<{ sum: number; partial: boolean }> {
   const page = await api.get<PaginatedResponse<PaymentListItem>>('/payments', {
     params: {
       status: 'SUCCESS',
       dateFrom,
       dateTo,
       page: 1,
-      limit: 100,
+      limit: SAMPLE,
     },
   });
 
-  return page.data.reduce((sum, row) => {
+  const sum = page.data.reduce((acc, row) => {
     const amount = Number(row.amount);
-    return sum + (Number.isFinite(amount) ? amount : 0);
+    return acc + (Number.isFinite(amount) ? amount : 0);
   }, 0);
+  return { sum, partial: truncated(page) };
 }
 
 function mapFranchiseRow(row: FranchiseListItem): RecentBusinessRow {
@@ -161,9 +170,10 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
   const activeBusinesses = franchisesActive.meta.total;
   const totalUsers = usersPage.meta.total + customersPage.meta.total;
 
+  const revenuePartial = thisMonthRevenue.partial || lastMonthRevenue.partial;
   const revenueChange =
-    lastMonthRevenue > 0
-      ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+    !revenuePartial && lastMonthRevenue.sum > 0
+      ? ((thisMonthRevenue.sum - lastMonthRevenue.sum) / lastMonthRevenue.sum) * 100
       : null;
 
   const metrics: DashboardMetric[] = [
@@ -200,27 +210,25 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
     {
       id: 'revenue-month',
       label: 'Revenue This Month',
-      value: String(thisMonthRevenue),
-      rawValue: thisMonthRevenue,
+      value: String(thisMonthRevenue.sum),
+      rawValue: thisMonthRevenue.sum,
       comparisonLabel: 'vs last month',
       changePercent: revenueChange,
       tone: 'accent',
       comparisonIsPlaceholder: revenueChange === null,
+      partial: thisMonthRevenue.partial,
+      partialSample: SAMPLE,
     },
   ];
 
   const activity = notificationsPage.data.map(mapNotification);
-  const unreadNotifications = notificationsPage.data.filter(
-    (n) => n.status === 'PENDING' || n.status === 'QUEUED',
-  ).length;
 
   return {
     metrics,
     recentBusinesses: franchisesRecent.data.map(mapFranchiseRow),
     activity,
-    unreadNotifications,
     revenueSeries: [] as RevenuePoint[],
-    revenueMonthTotal: thisMonthRevenue,
+    revenueMonthTotal: thisMonthRevenue.sum,
   };
 }
 
@@ -285,7 +293,8 @@ export type ManagerDashboardData = {
   recentBills: ManagerBillRow[];
   pendingCollection: ManagerPendingRow[];
   topServices: ManagerTopServiceRow[];
-  unreadNotifications: number;
+  /** Charts and lists are built from capped pages and miss some rows. */
+  chartsPartial: boolean;
 };
 
 function toAmount(value: string | number | null | undefined): number {
@@ -366,7 +375,6 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     yesterdayAppointmentsPage,
     todayPayments,
     weekPayments,
-    notificationsPage,
     customersPage,
   ] = await Promise.all([
     api.get<PaginatedResponse<BillListItem>>('/bills', {
@@ -431,9 +439,6 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
         dateTo: today,
       },
     }),
-    api.get<PaginatedResponse<NotificationListItem>>('/notifications', {
-      params: { page: 1, limit: 20 },
-    }),
     api.get<PaginatedResponse<CustomerListItem>>('/customers', {
       params: { page: 1, limit: 100 },
     }),
@@ -481,13 +486,17 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     0,
   );
 
-  const salesChange = percentChange(todaySales, yesterdaySalesTotal);
-  const walkInChange = percentChange(walkInsToday, walkInsYesterday);
+  const salesPartial = truncated(todayPayments) || truncated(yesterdayBills);
+  const billsPartial = truncated(todayBills) || truncated(yesterdayBills);
+  const pendingPartial = truncated(unpaidBills) || truncated(partialBills);
+
+  const salesChange = salesPartial ? null : percentChange(todaySales, yesterdaySalesTotal);
+  const walkInChange = billsPartial ? null : percentChange(walkInsToday, walkInsYesterday);
   const appointmentChange = percentChange(
     appointmentsToday,
     appointmentsYesterday,
   );
-  const avgBillChange = percentChange(avgBillToday, avgBillYesterday);
+  const avgBillChange = billsPartial ? null : percentChange(avgBillToday, avgBillYesterday);
 
   const metrics: DashboardMetric[] = [
     {
@@ -499,6 +508,8 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
       changePercent: salesChange,
       tone: 'accent',
       comparisonIsPlaceholder: salesChange === null,
+      partial: truncated(todayPayments),
+      partialSample: SAMPLE,
     },
     {
       id: 'manager-walk-ins',
@@ -509,6 +520,8 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
       changePercent: walkInChange,
       tone: 'neutral',
       comparisonIsPlaceholder: walkInChange === null,
+      partial: truncated(todayBills),
+      partialSample: SAMPLE,
     },
     {
       id: 'manager-appointments',
@@ -529,6 +542,8 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
       changePercent: avgBillChange,
       tone: 'accent',
       comparisonIsPlaceholder: avgBillChange === null,
+      partial: truncated(todayBills),
+      partialSample: SAMPLE,
     },
     {
       id: 'manager-pending-collection',
@@ -539,6 +554,8 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
       changePercent: null,
       tone: 'neutral',
       comparisonIsPlaceholder: false,
+      partial: pendingPartial,
+      partialSample: SAMPLE * 2,
     },
   ];
 
@@ -689,10 +706,6 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 6);
 
-  const unreadNotifications = notificationsPage.data.filter(
-    (n) => n.status === 'PENDING' || n.status === 'QUEUED',
-  ).length;
-
   return {
     metrics,
     salesSeries,
@@ -702,6 +715,6 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     recentBills,
     pendingCollection,
     topServices,
-    unreadNotifications,
+    chartsPartial: truncated(rangeBills) || truncated(weekPayments),
   };
 }

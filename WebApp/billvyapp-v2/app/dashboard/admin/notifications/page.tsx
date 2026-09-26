@@ -1,5 +1,5 @@
-import { AdminNotificationsPageView } from '@/features/notifications';
+import { NotificationsPageView } from '@/features/notifications';
 
 export default function AdminNotificationsPage() {
-  return <AdminNotificationsPageView />;
+  return <NotificationsPageView />;
 }

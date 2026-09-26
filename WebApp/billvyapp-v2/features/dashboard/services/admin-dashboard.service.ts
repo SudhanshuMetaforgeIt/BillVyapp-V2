@@ -2,6 +2,7 @@ import { format, startOfMonth } from 'date-fns';
 import {
   BadgeCheck,
   Building2,
+  CalendarDays,
   CircleDollarSign,
   IndianRupee,
   Package,
@@ -15,7 +16,9 @@ import {
 
 import { api } from '@/services/api-client';
 import { ROUTES } from '@/constants/routes';
+import type { Bill, Customer, Paginated, Payment, Salon } from '@/types/models';
 import type {
+  AdminBillStatus,
   AdminBranchPerf,
   AdminGlanceMetric,
   AdminQuickAction,
@@ -25,16 +28,6 @@ import type {
   AdminSummaryItem,
   AdminRevenuePoint,
 } from '../types/admin-dashboard.types';
-
-type PaginatedResponse<T> = {
-  data: T[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-};
 
 export type AdminDashboardData = {
   stats: AdminStat[];
@@ -48,36 +41,11 @@ export type AdminDashboardData = {
 };
 
 export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
-  {
-    id: 'add-branch',
-    label: 'Add New Branch',
-    href: ROUTES.dashboard.admin.businesses,
-    icon: Store,
-  },
-  {
-    id: 'create-bill',
-    label: 'Create Bill',
-    href: ROUTES.dashboard.admin.bills,
-    icon: Receipt,
-  },
-  {
-    id: 'add-customer',
-    label: 'Add Customer',
-    href: ROUTES.dashboard.admin.customers,
-    icon: UserRound,
-  },
-  {
-    id: 'collect-payment',
-    label: 'Collect Payment',
-    href: ROUTES.dashboard.admin.bills,
-    icon: CircleDollarSign,
-  },
-  {
-    id: 'view-reports',
-    label: 'View Reports',
-    href: ROUTES.dashboard.admin.reports,
-    icon: Receipt,
-  },
+  { id: 'add-branch', label: 'Add New Branch', href: ROUTES.dashboard.admin.businesses, icon: Store },
+  { id: 'create-bill', label: 'Create Bill', href: ROUTES.dashboard.admin.walkInBilling, icon: Receipt },
+  { id: 'add-customer', label: 'Add Customer', href: ROUTES.dashboard.admin.customers, icon: UserRound },
+  { id: 'collect-payment', label: 'Collect Payment', href: ROUTES.dashboard.admin.bills, icon: CircleDollarSign },
+  { id: 'view-reports', label: 'View Reports', href: ROUTES.dashboard.admin.reports, icon: Receipt },
   {
     id: 'manage-business',
     label: 'Manage Business',
@@ -87,268 +55,209 @@ export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
   },
 ];
 
+const SAMPLE = 100;
+
+const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const isPartial = (p: Paginated<unknown>) => p.meta.total > p.data.length;
+
+function billStatus(b: Bill): AdminBillStatus {
+  if (b.status === 'DRAFT') return 'draft';
+  if (b.status === 'CANCELLED') return 'cancelled';
+  if (b.status === 'REFUNDED') return 'refunded';
+  if (b.paymentStatus === 'PAID') return 'paid';
+  if (b.paymentStatus === 'PARTIAL') return 'partial';
+  return 'unpaid';
+}
+
+/**
+ * Franchise overview composed from existing list endpoints. Counts use
+ * `meta.total` and are exact. Money totals are summed from at most SAMPLE
+ * rows and labelled partial when the server holds more; an exact figure
+ * needs a backend report endpoint.
+ */
 export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
   const now = new Date();
-  const thisMonthStart = startOfMonth(now);
-  const dateFrom = format(thisMonthStart, 'yyyy-MM-dd');
-  const dateTo = format(now, 'yyyy-MM-dd');
+  const today = format(now, 'yyyy-MM-dd');
+  const monthFrom = format(startOfMonth(now), 'yyyy-MM-dd');
 
-  // Fetch real data from all relevant backend endpoints concurrently
+  const page = <T,>(path: string, params: Record<string, unknown>) =>
+    api.get<Paginated<T>>(path, { params: { page: 1, ...params } });
+  const total = (path: string, params: Record<string, unknown> = {}) =>
+    page<unknown>(path, { ...params, limit: 1 }).then((r) => r.meta.total);
+
   const [
-    salonsRes,
-    customersRes,
-    billsRes,
-    usersRes,
-    paymentsRes,
-    servicesRes,
-    appointmentsRes,
-  ] = await Promise.allSettled([
-    api.get<PaginatedResponse<{ id: string; name: string; isActive: boolean }>>('/salons', {
-      params: { page: 1, limit: 10 },
-    }),
-    api.get<PaginatedResponse<{ id: string; firstName: string; lastName: string; phone?: string; createdAt: string }>>('/customers', {
-      params: { page: 1, limit: 10 },
-    }),
-    api.get<PaginatedResponse<{ id: string; billNumber?: string; finalAmount?: number; totalAmount?: number; status: string; createdAt: string; customer?: { firstName?: string; lastName?: string } }>>('/bills', {
-      params: { page: 1, limit: 10 },
-    }),
-    api.get<PaginatedResponse<{ id: string; firstName: string; lastName: string; isActive: boolean }>>('/users', {
-      params: { page: 1, limit: 10 },
-    }),
-    api.get<PaginatedResponse<{ id: string; amount: number | string; status: string; createdAt: string }>>('/payments', {
-      params: { page: 1, limit: 100, dateFrom, dateTo, status: 'SUCCESS' },
-    }),
-    api.get<PaginatedResponse<{ id: string }>>('/services', {
-      params: { page: 1, limit: 1 },
-    }),
-    api.get<PaginatedResponse<{ id: string }>>('/appointments', {
-      params: { page: 1, limit: 10 },
-    }),
+    salons,
+    activeSalons,
+    customers,
+    recentBillsPage,
+    activeUsers,
+    services,
+    monthPayments,
+    todayPayments,
+    monthBills,
+    dueBillsUnpaid,
+    dueBillsPartial,
+    billsToday,
+    appointmentsToday,
+    lowStock,
+  ] = await Promise.all([
+    page<Salon>('/salons', { limit: 10 }),
+    total('/salons', { isActive: true }),
+    page<Customer>('/customers', { limit: 5 }),
+    page<Bill>('/bills', { limit: 8 }),
+    total('/users', { isActive: true }),
+    total('/services'),
+    page<Payment>('/payments', { limit: SAMPLE, status: 'SUCCESS', dateFrom: monthFrom, dateTo: today }),
+    page<Payment>('/payments', { limit: SAMPLE, status: 'SUCCESS', dateFrom: today, dateTo: today }),
+    page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', dateFrom: monthFrom, dateTo: today }),
+    page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', paymentStatus: 'UNPAID' }),
+    page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', paymentStatus: 'PARTIAL' }),
+    total('/bills', { dateFrom: today, dateTo: today }),
+    total('/appointments', { dateFrom: today, dateTo: today }),
+    total('/inventory', { lowStock: true }),
   ]);
 
-  const getArray = <T>(res: PromiseSettledResult<unknown>): T[] => {
-    if (res.status === 'fulfilled' && res.value && typeof res.value === 'object' && 'data' in res.value && Array.isArray((res.value as { data: unknown }).data)) {
-      return (res.value as { data: T[] }).data;
-    }
-    return [];
-  };
+  const sumPayments = (p: Paginated<Payment>) => p.data.reduce((s, r) => s + num(r.amount), 0);
+  const monthRevenue = sumPayments(monthPayments);
+  const todaySales = sumPayments(todayPayments);
+  const dueRows = [...dueBillsUnpaid.data, ...dueBillsPartial.data];
+  const pendingCollection = dueRows.reduce((s, b) => s + num(b.dueAmount), 0);
+  const pendingPartial = isPartial(dueBillsUnpaid) || isPartial(dueBillsPartial);
 
-  const getTotal = (res: PromiseSettledResult<unknown>): number => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'meta' in res.value &&
-      res.value.meta &&
-      typeof (res.value.meta as { total?: unknown }).total === 'number'
-    ) {
-      return (res.value.meta as { total: number }).total;
-    }
-    return 0;
-  };
+  const partialLabel = (sample: number) => `partial — latest ${sample} records`;
 
-  type SalonItem = { id: string; name: string; isActive: boolean };
-  type CustomerItem = { id: string; firstName?: string; lastName?: string; phone?: string; createdAt?: string };
-  type BillItem = { id: string; billNumber?: string; finalAmount?: number; totalAmount?: number; status?: string; createdAt?: string; customer?: { firstName?: string; lastName?: string } };
-  type UserItem = { id: string; firstName?: string; lastName?: string; isActive?: boolean };
-  type PaymentItem = { id: string; amount: number | string; status?: string; createdAt?: string };
-
-  const salonsList = getArray<SalonItem>(salonsRes);
-  const customersList = getArray<CustomerItem>(customersRes);
-  const billsList = getArray<BillItem>(billsRes);
-  const usersList = getArray<UserItem>(usersRes);
-  const paymentsList = getArray<PaymentItem>(paymentsRes);
-
-  const totalBranches = getTotal(salonsRes);
-  const activeBranches = salonsList.filter((s) => s.isActive).length;
-  const totalCustomers = getTotal(customersRes);
-  const totalBills = getTotal(billsRes);
-  const activeStaff = getTotal(usersRes);
-  const totalServices = getTotal(servicesRes);
-  const totalAppointments = getTotal(appointmentsRes);
-
-  const thisMonthRevenue = paymentsList.reduce((sum, p) => {
-    const amt = Number(p.amount);
-    return sum + (Number.isFinite(amt) ? amt : 0);
-  }, 0);
-
-  // 1. Stats row
   const stats: AdminStat[] = [
-    {
-      id: 'total-businesses',
-      label: 'Total Businesses',
-      rawValue: 1,
-      displayValue: '1',
-      changePercent: null,
-      comparisonLabel: 'registered franchise',
-      icon: Building2,
-      iconTone: 'orange',
-    },
     {
       id: 'total-branches',
       label: 'Total Branches',
-      rawValue: totalBranches,
-      displayValue: totalBranches.toLocaleString('en-IN'),
+      rawValue: salons.meta.total,
+      displayValue: salons.meta.total.toLocaleString('en-IN'),
       changePercent: null,
-      comparisonLabel: totalBranches === 0 ? 'no branches added yet' : 'active franchise branches',
+      comparisonLabel: `${activeSalons.toLocaleString('en-IN')} active`,
       icon: Store,
       iconTone: 'emerald',
     },
     {
       id: 'total-customers',
       label: 'Total Customers',
-      rawValue: totalCustomers,
-      displayValue: totalCustomers.toLocaleString('en-IN'),
+      rawValue: customers.meta.total,
+      displayValue: customers.meta.total.toLocaleString('en-IN'),
       changePercent: null,
-      comparisonLabel: totalCustomers === 0 ? 'no customers yet' : 'registered customers',
+      comparisonLabel: 'registered customers',
       icon: UserRound,
       iconTone: 'champagne',
     },
     {
       id: 'revenue-month',
-      label: 'Revenue This Month',
-      rawValue: thisMonthRevenue,
-      displayValue: `₹${thisMonthRevenue.toLocaleString('en-IN')}`,
+      label: 'Collected This Month',
+      rawValue: monthRevenue,
+      displayValue: inr(monthRevenue),
       changePercent: null,
-      comparisonLabel: thisMonthRevenue === 0 ? 'no transactions yet' : 'current month revenue',
+      comparisonLabel: isPartial(monthPayments) ? partialLabel(SAMPLE) : 'successful payments',
       icon: IndianRupee,
       iconTone: 'orange',
     },
     {
       id: 'total-bills',
       label: 'Total Bills',
-      rawValue: totalBills,
-      displayValue: totalBills.toLocaleString('en-IN'),
+      rawValue: recentBillsPage.meta.total,
+      displayValue: recentBillsPage.meta.total.toLocaleString('en-IN'),
       changePercent: null,
-      comparisonLabel: totalBills === 0 ? 'no bills generated' : 'total bills raised',
+      comparisonLabel: 'all time',
       icon: Receipt,
       iconTone: 'info',
     },
     {
       id: 'active-staff',
-      label: 'Active Staff',
-      rawValue: activeStaff,
-      displayValue: activeStaff.toLocaleString('en-IN'),
+      label: 'Active Users',
+      rawValue: activeUsers,
+      displayValue: activeUsers.toLocaleString('en-IN'),
       changePercent: null,
-      comparisonLabel: activeStaff === 0 ? 'no staff assigned' : 'platform members',
+      comparisonLabel: 'staff accounts in scope',
       icon: Users2,
       iconTone: 'danger',
     },
   ];
 
-  // 2. Branch Performance (empty if no branches or no per-branch revenue)
-  const branchPerformance: AdminBranchPerf[] = salonsList.map((salon) => ({
-    id: salon.id,
-    name: salon.name,
-    revenue: 0,
-    percent: 0,
-  }));
+  const branchRevenue = new Map<string, number>();
+  for (const b of monthBills.data) {
+    branchRevenue.set(b.salonId, (branchRevenue.get(b.salonId) ?? 0) + num(b.total));
+  }
+  const topRevenue = Math.max(0, ...branchRevenue.values());
+  const branchPerformance: AdminBranchPerf[] = isPartial(monthBills)
+    ? []
+    : salons.data.map((salon) => {
+        const revenue = branchRevenue.get(salon.id) ?? 0;
+        return {
+          id: salon.id,
+          name: salon.name,
+          revenue,
+          percent: topRevenue > 0 ? Math.round((revenue / topRevenue) * 100) : 0,
+        };
+      });
 
-  // 3. Business Summary items
   const businessSummary: AdminSummaryItem[] = [
-    {
-      id: 'businesses',
-      label: 'Businesses',
-      value: '1',
-      tone: 'orange',
-      icon: Building2,
-    },
     {
       id: 'active-branches',
       label: 'Active Branches',
-      value: activeBranches.toLocaleString('en-IN'),
+      value: activeSalons.toLocaleString('en-IN'),
       tone: 'emerald',
       icon: BadgeCheck,
     },
-    {
-      id: 'services',
-      label: 'Services',
-      value: totalServices.toLocaleString('en-IN'),
-      tone: 'champagne',
-      icon: Star,
-    },
+    { id: 'services', label: 'Services', value: services.toLocaleString('en-IN'), tone: 'champagne', icon: Star },
     {
       id: 'pending-collection',
-      label: 'Pending Collection',
-      value: '₹0',
+      label: pendingPartial ? 'Pending Collection (partial)' : 'Pending Collection',
+      value: inr(pendingCollection),
       tone: 'danger',
       icon: Wallet,
     },
-    {
-      id: 'low-stock',
-      label: 'Low Stock Items',
-      value: '0',
-      tone: 'neutral',
-      icon: Package,
-    },
+    { id: 'low-stock', label: 'Low Stock Items', value: lowStock.toLocaleString('en-IN'), tone: 'neutral', icon: Package },
   ];
 
-  // 4. Recent Bills (empty array if none in DB)
-  const recentBills: AdminRecentBill[] = billsList.map((b) => {
-    const customerName = b.customer
-      ? `${b.customer.firstName ?? ''} ${b.customer.lastName ?? ''}`.trim() || 'Walk-in Customer'
-      : 'Walk-in Customer';
-    const amount = Number(b.finalAmount ?? b.totalAmount ?? 0);
-    const status = b.status?.toLowerCase() === 'paid' ? 'paid' : b.status?.toLowerCase() === 'pending' ? 'pending' : 'failed';
+  const recentBills: AdminRecentBill[] = recentBillsPage.data.map((b) => ({
+    id: b.id,
+    billNo: b.billNumber,
+    customer: b.customer ? [b.customer.firstName, b.customer.lastName].filter(Boolean).join(' ') || b.customer.customerCode : '—',
+    amount: num(b.total),
+    status: billStatus(b),
+  }));
 
-    return {
-      id: b.id,
-      billNo: b.billNumber ?? `BILL-${b.id.slice(0, 6).toUpperCase()}`,
-      customer: customerName,
-      amount,
-      status,
-    };
-  });
-
-  // 5. Recent Customers (empty array if none in DB)
-  const recentCustomers: AdminRecentCustomer[] = customersList.map((c) => {
-    const fullName = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || 'Customer';
-    const initials =
-      `${(c.firstName ?? 'C')[0]}${(c.lastName ?? '')[0] || ''}`.toUpperCase();
-
+  const recentCustomers: AdminRecentCustomer[] = customers.data.map((c) => {
+    const name = [c.firstName, c.lastName].filter(Boolean).join(' ') || c.customerCode;
     return {
       id: c.id,
-      name: fullName,
-      initials,
-      branch: 'Main Branch',
-      dateLabel: c.createdAt ? format(new Date(c.createdAt), 'dd MMM') : 'Recent',
+      name,
+      initials: name.slice(0, 2).toUpperCase(),
+      branch: c.branchName ?? '—',
+      dateLabel: format(new Date(c.createdAt), 'dd MMM'),
     };
   });
 
-  // 6. At a Glance Metrics
   const glanceMetrics: AdminGlanceMetric[] = [
     {
       id: 'today-sales',
-      label: "Today's Sales",
-      displayValue: '₹0',
+      label: isPartial(todayPayments) ? "Today's Collections (partial)" : "Today's Collections",
+      displayValue: inr(todaySales),
       icon: IndianRupee,
       iconTone: 'orange',
     },
-    {
-      id: 'walkins',
-      label: "Today's Walk-ins",
-      displayValue: '0',
-      icon: UserRound,
-      iconTone: 'emerald',
-    },
+    { id: 'bills-today', label: 'Bills Today', displayValue: billsToday.toLocaleString('en-IN'), icon: Receipt, iconTone: 'emerald' },
     {
       id: 'appointments',
-      label: 'Appointments',
-      displayValue: totalAppointments.toLocaleString('en-IN'),
-      icon: Star,
+      label: "Today's Appointments",
+      displayValue: appointmentsToday.toLocaleString('en-IN'),
+      icon: CalendarDays,
       iconTone: 'champagne',
     },
     {
-      id: 'bills-generated',
-      label: 'Bills Generated',
-      displayValue: totalBills.toLocaleString('en-IN'),
-      icon: Receipt,
-      iconTone: 'info',
-    },
-    {
       id: 'pending-collection',
-      label: 'Pending Collection',
-      displayValue: '₹0',
+      label: pendingPartial ? 'Pending Collection (partial)' : 'Pending Collection',
+      displayValue: inr(pendingCollection),
       icon: Wallet,
       iconTone: 'danger',
     },
@@ -356,7 +265,7 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
 
   return {
     stats,
-    revenueSeries: [] as AdminRevenuePoint[], // Empty by default when no transactions exist
+    revenueSeries: [],
     branchPerformance,
     businessSummary,
     recentBills,

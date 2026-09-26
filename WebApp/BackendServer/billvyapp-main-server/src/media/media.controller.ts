@@ -73,7 +73,7 @@ export class MediaController {
   @ApiOperation({
     summary: 'Create media metadata and a private upload URL',
     description:
-      'Persists MediaFile metadata, then returns a time-limited upload URL. With STORAGE_PROVIDER=local the URL points at this API (filesystem). With STORAGE_PROVIDER=s3 it is a private-bucket presigned PUT URL. Binary bytes are never stored in MySQL.',
+      'Persists MediaFile metadata, then returns a time-limited upload URL. With STORAGE_PROVIDER=local the URL points at this API (filesystem). With STORAGE_PROVIDER=s3 it is a private-bucket presigned PUT URL. Binary bytes are never stored in MySQL. Alias note: this is the V2 equivalent of a presigned-upload endpoint (route name intentionally kept as upload-url).',
   })
   @ApiResponse({ status: 201, type: MediaUploadResponseDto })
   createUpload(
@@ -93,6 +93,26 @@ export class MediaController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.mediaService.findOne(user, id);
+  }
+
+  @Post(':id/confirm')
+  @Roles(...WRITE_ROLES)
+  @ApiOperation({
+    summary: 'Confirm that an uploaded object exists in storage',
+    description:
+      'Verifies the caller can access the MediaFile and that the object is present via object storage Head/exists check.',
+  })
+  @ApiResponse({ status: 200, type: MediaFileResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Upload not found in object storage',
+  })
+  confirm(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+  ) {
+    return this.mediaService.confirmUpload(user, id, requestContext(req));
   }
 
   @Get(':id/download-url')

@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -114,6 +115,37 @@ export class S3StorageProvider implements ObjectStorageProvider {
     await client.send(
       new DeleteObjectCommand({ Bucket: this.bucket, Key: storageKey }),
     );
+  }
+
+  async objectExists(storageKey: string): Promise<boolean> {
+    const client = this.requireClient();
+    try {
+      await client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: storageKey }),
+      );
+      return true;
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        (error.name === 'NotFound' || error.name === 'NoSuchKey')
+      ) {
+        return false;
+      }
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        '$metadata' in error &&
+        typeof (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+          ?.httpStatusCode === 'number' &&
+        (error as { $metadata: { httpStatusCode: number } }).$metadata
+          .httpStatusCode === 404
+      ) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   private requireClient(): S3Client {

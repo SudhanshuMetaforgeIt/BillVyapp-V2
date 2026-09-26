@@ -1,26 +1,29 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-
+import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { can } from '@/lib/capabilities';
 import {
   fetchAppointmentsPage,
   listStaffOptions,
 } from '../services/appointments.service';
 import type { AppointmentsListParams } from '../types/appointments.types';
 
-export const APPOINTMENTS_QUERY_KEY = ['appointments', 'manager'] as const;
+export const APPOINTMENTS_QUERY_KEY = ['appointments', 'list'] as const;
 
 export function useAppointments(params: AppointmentsListParams) {
-  return useQuery({
-    queryKey: [...APPOINTMENTS_QUERY_KEY, params],
-    queryFn: () => fetchAppointmentsPage(params),
-  });
+  const user = useCurrentUser();
+  const canListUsers = can(user, 'users.read');
+  return useScopedQuery([...APPOINTMENTS_QUERY_KEY, params, canListUsers], () =>
+    fetchAppointmentsPage(params, { canListUsers }),
+  );
 }
 
-export function useStaffOptions(enabled = true) {
-  return useQuery({
-    queryKey: [...APPOINTMENTS_QUERY_KEY, 'staff-options'],
-    queryFn: listStaffOptions,
-    enabled,
-  });
+/** Staff pickers need GET /roles + /users, which only SUPER_ADMIN/ADMIN may call. */
+export function useStaffOptions(enabled = true, salonId?: string | null) {
+  return useScopedQuery(
+    [...APPOINTMENTS_QUERY_KEY, 'staff-options', salonId ?? null],
+    () => listStaffOptions(salonId),
+    { enabled, capability: 'users.read' },
+  );
 }

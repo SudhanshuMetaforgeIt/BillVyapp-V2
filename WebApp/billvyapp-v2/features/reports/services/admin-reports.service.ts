@@ -1,4 +1,4 @@
-import { format, parseISO, subDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { api } from '@/services/api-client';
 import type {
   AdminReportsData,
@@ -24,8 +24,6 @@ type PaginatedResponse<T> = {
 type RawSalon = {
   id: string;
   name: string;
-  code: string;
-  isActive: boolean;
 };
 
 type RawBill = {
@@ -33,14 +31,12 @@ type RawBill = {
   salonId: string;
   total: string | number;
   paidAmount: string | number;
-  dueAmount: string | number;
   status: string;
   paymentStatus: string;
   billDate: string;
   createdAt: string;
   items?: Array<{
     id: string;
-    itemType: string;
     serviceId?: string | null;
     description?: string | null;
     quantity: number;
@@ -48,243 +44,135 @@ type RawBill = {
   }>;
 };
 
-type RawService = {
-  id: string;
-  name: string;
-  price: string | number;
-};
+const SAMPLE = 100;
 
+/**
+ * Admin reports composed from existing list endpoints. Counts come from
+ * `meta.total` and are exact; amount sums and breakdowns are computed from
+ * the most recent SAMPLE bills and flagged partial when more exist, until a
+ * report endpoint is available.
+ */
 export async function fetchAdminReportsData(
   filters: Partial<AdminReportsFilterState> = {},
 ): Promise<AdminReportsData> {
-  const billParams: Record<string, unknown> = {
-    page: 1,
-    limit: 100,
-  };
+  const scope: Record<string, unknown> = {};
+  if (filters.branchId && filters.branchId !== 'all') scope.salonId = filters.branchId;
+  if (filters.dateFrom) scope.dateFrom = filters.dateFrom;
+  if (filters.dateTo) scope.dateTo = filters.dateTo;
 
-  if (filters.branchId && filters.branchId !== 'all') {
-    billParams.salonId = filters.branchId;
-  }
-  if (filters.dateFrom) billParams.dateFrom = filters.dateFrom;
-  if (filters.dateTo) billParams.dateTo = filters.dateTo;
+  const count = (extra: Record<string, unknown>) =>
+    api
+      .get<PaginatedResponse<unknown>>('/bills', { params: { ...scope, ...extra, page: 1, limit: 1 } })
+      .then((r) => r.meta.total);
 
-  const [
-    salonsRes,
-    billsRes,
-    customersRes,
-    servicesRes,
-    usersRes,
-  ] = await Promise.allSettled([
-    api.get<PaginatedResponse<RawSalon>>('/salons', {
-      params: { page: 1, limit: 100 },
-    }),
-    api.get<PaginatedResponse<RawBill>>('/bills', { params: billParams }),
-    api.get<PaginatedResponse<unknown>>('/customers', {
-      params: { page: 1, limit: 1 },
-    }),
-    api.get<PaginatedResponse<RawService>>('/services', {
-      params: { page: 1, limit: 100 },
-    }),
-    api.get<PaginatedResponse<unknown>>('/users', {
-      params: { page: 1, limit: 1 },
-    }),
-  ]);
+  const [salonsRes, billsRes, paid, partial, unpaid, cancelled, customers, services, staff] =
+    await Promise.all([
+      api.get<PaginatedResponse<RawSalon>>('/salons', { params: { page: 1, limit: 100 } }),
+      api.get<PaginatedResponse<RawBill>>('/bills', { params: { ...scope, page: 1, limit: SAMPLE } }),
+      count({ paymentStatus: 'PAID' }),
+      count({ paymentStatus: 'PARTIAL' }),
+      count({ status: 'COMPLETED', paymentStatus: 'UNPAID' }),
+      count({ status: 'CANCELLED' }),
+      api.get<PaginatedResponse<unknown>>('/customers', { params: { page: 1, limit: 1 } }).then((r) => r.meta.total),
+      api.get<PaginatedResponse<unknown>>('/services', { params: { page: 1, limit: 1 } }).then((r) => r.meta.total),
+      api.get<PaginatedResponse<unknown>>('/users', { params: { page: 1, limit: 1 } }).then((r) => r.meta.total),
+    ]);
 
-  const getArray = <T>(res: PromiseSettledResult<unknown>): T[] => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'data' in res.value &&
-      Array.isArray((res.value as { data: unknown }).data)
-    ) {
-      return (res.value as { data: T[] }).data;
-    }
-    return [];
-  };
-
-  const getTotal = (res: PromiseSettledResult<unknown>): number => {
-    if (
-      res.status === 'fulfilled' &&
-      res.value &&
-      typeof res.value === 'object' &&
-      'meta' in res.value &&
-      res.value.meta &&
-      typeof (res.value.meta as { total?: unknown }).total === 'number'
-    ) {
-      return (res.value.meta as { total: number }).total;
-    }
-    return 0;
-  };
-
-  const rawSalons = getArray<RawSalon>(salonsRes);
-  const rawBills = getArray<RawBill>(billsRes);
-  const rawServices = getArray<RawService>(servicesRes);
-
-  const totalBillsCount = getTotal(billsRes) || rawBills.length;
-  const totalCustomersCount = getTotal(customersRes);
-  const totalServicesCount = getTotal(servicesRes) || rawServices.length;
-  const totalStaffCount = getTotal(usersRes);
-
+  const rawSalons = salonsRes.data;
+  const rawBills = billsRes.data;
+  const totalBillsCount = billsRes.meta.total;
+  const samplePartial = billsRes.meta.total > rawBills.length;
   const salonMap = new Map(rawSalons.map((s) => [s.id, s.name]));
 
-  // Metrics calculation
   let totalRevenue = 0;
-  let paidCount = 0;
-  let pendingCount = 0;
-  let overdueCount = 0;
-  let cancelledCount = 0;
-
   const branchRevenueMap: Record<string, number> = {};
   const serviceRevenueMap: Record<string, { name: string; revenue: number; quantity: number }> = {};
   const dailyRevenueMap: Record<string, number> = {};
 
   for (const b of rawBills) {
+    if (b.status === 'CANCELLED' || b.status === 'DRAFT') continue;
+    const collected = Number(b.paidAmount) || 0;
     const total = Number(b.total) || 0;
-    const isPaid = b.paymentStatus === 'PAID';
-    const isCancelled = b.status === 'CANCELLED';
+    totalRevenue += collected;
 
-    if (isCancelled) {
-      cancelledCount++;
-    } else if (isPaid) {
-      paidCount++;
-      totalRevenue += total;
-    } else if (b.status === 'PENDING') {
-      pendingCount++;
-      totalRevenue += Number(b.paidAmount) || 0;
-    } else {
-      overdueCount++;
-      totalRevenue += Number(b.paidAmount) || 0;
+    const salonName = salonMap.get(b.salonId) ?? 'Unknown salon';
+    branchRevenueMap[salonName] = (branchRevenueMap[salonName] ?? 0) + total;
+
+    const date = parseISO(b.billDate || b.createdAt);
+    if (!Number.isNaN(date.getTime())) {
+      const key = format(date, 'MMM dd');
+      dailyRevenueMap[key] = (dailyRevenueMap[key] ?? 0) + total;
     }
 
-    // Branch revenue
-    if (!isCancelled) {
-      const sName = salonMap.get(b.salonId) || 'Main Branch';
-      branchRevenueMap[sName] = (branchRevenueMap[sName] || 0) + total;
-    }
-
-    // Daily revenue point
-    try {
-      const d = format(parseISO(b.billDate || b.createdAt), 'MMM dd');
-      dailyRevenueMap[d] = (dailyRevenueMap[d] || 0) + total;
-    } catch {
-      // ignore
-    }
-
-    // Line items aggregation
-    if (b.items && Array.isArray(b.items)) {
-      for (const it of b.items) {
-        const sName = it.description || 'Service';
-        const lineTotal = Number(it.total) || (Number(it.quantity) || 1) * 500;
-        const lineQty = Number(it.quantity) || 1;
-
-        if (!serviceRevenueMap[sName]) {
-          serviceRevenueMap[sName] = { name: sName, revenue: 0, quantity: 0 };
-        }
-        serviceRevenueMap[sName].revenue += lineTotal;
-        serviceRevenueMap[sName].quantity += lineQty;
-      }
+    for (const it of b.items ?? []) {
+      const key = it.serviceId ?? it.description ?? it.id;
+      const entry = (serviceRevenueMap[key] ??= {
+        name: it.description?.trim() || 'Unnamed item',
+        revenue: 0,
+        quantity: 0,
+      });
+      entry.revenue += Number(it.total) || 0;
+      entry.quantity += Number(it.quantity) || 0;
     }
   }
 
-  const calcPct = (cnt: number, tot: number) =>
-    tot > 0 ? Number(((cnt / tot) * 100).toFixed(1)) : 0;
+  const pct = (n: number) => (totalBillsCount > 0 ? Number(((n / totalBillsCount) * 100).toFixed(1)) : 0);
 
-  // Bills overview summary
   const billsOverview: BillsOverviewSummary = {
     total: totalBillsCount,
-    paid: paidCount,
-    paidPct: calcPct(paidCount, totalBillsCount),
-    pending: pendingCount,
-    pendingPct: calcPct(pendingCount, totalBillsCount),
-    overdue: overdueCount,
-    overduePct: calcPct(overdueCount, totalBillsCount),
-    cancelled: cancelledCount,
-    cancelledPct: calcPct(cancelledCount, totalBillsCount),
+    paid,
+    paidPct: pct(paid),
+    pending: partial,
+    pendingPct: pct(partial),
+    overdue: unpaid,
+    overduePct: pct(unpaid),
+    cancelled,
+    cancelledPct: pct(cancelled),
   };
 
-  // Branch Comparison
-  const branchComparison: BranchComparisonItem[] = rawSalons.map((s, idx) => {
-    const rev = branchRevenueMap[s.name] || 0;
-    return {
-      id: s.id,
-      name: s.name,
-      revenue: rev,
-      growth: rev > 0 ? `+ ${(18.2 - idx * 2.5).toFixed(1)}%` : '0%',
-      positive: rev > 0,
-    };
-  });
+  const branchComparison: BranchComparisonItem[] = rawSalons.map((s) => ({
+    id: s.id,
+    name: s.name,
+    revenue: branchRevenueMap[s.name] ?? 0,
+    growth: '—',
+    positive: false,
+  }));
 
-  // Revenue by branch
-  const revenueByBranch: RevenueByBranchItem[] = Object.entries(
-    branchRevenueMap,
-  ).map(([branchName, revenue]) => ({
-    branchName,
+  const revenueByBranch: RevenueByBranchItem[] = Object.entries(branchRevenueMap).map(
+    ([branchName, revenue]) => ({ branchName, revenue }),
+  );
+
+  const revenueSeries: RevenuePoint[] = Object.entries(dailyRevenueMap).map(([date, revenue]) => ({
+    date,
     revenue,
   }));
 
-  // Revenue series (Daily points)
-  let revenueSeries: RevenuePoint[] = Object.entries(dailyRevenueMap).map(
-    ([date, revenue]) => ({
-      date,
-      revenue,
-    }),
-  );
-
-  // If no data points, generate a clean 7-day flat zero series
-  if (revenueSeries.length === 0) {
-    const today = new Date();
-    revenueSeries = Array.from({ length: 7 }, (_, i) => {
-      const d = subDays(today, 6 - i);
-      return {
-        date: format(d, 'MMM dd'),
-        revenue: 0,
-      };
-    });
-  }
-
-  // Top services by revenue
-  const topServicesByRevenue: TopServiceByRevenueItem[] = Object.values(
-    serviceRevenueMap,
-  )
+  const services_ = Object.values(serviceRevenueMap);
+  const topServicesByRevenue: TopServiceByRevenueItem[] = [...services_]
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
-    .map((s, idx) => ({
-      id: String(idx + 1),
-      name: s.name,
-      revenue: s.revenue,
-    }));
-
-  // Top services by quantity
-  const topServicesByQuantity: TopServiceByQuantityItem[] = Object.values(
-    serviceRevenueMap,
-  )
+    .map((s, idx) => ({ id: String(idx + 1), name: s.name, revenue: s.revenue }));
+  const topServicesByQuantity: TopServiceByQuantityItem[] = [...services_]
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 5)
-    .map((s) => ({
-      name: s.name,
-      quantity: s.quantity,
-    }));
+    .map((s) => ({ name: s.name, quantity: s.quantity }));
 
-  const branches = rawSalons.map((s) => ({ id: s.id, name: s.name }));
+  const sampleNote = samplePartial
+    ? `Partial — latest ${SAMPLE} of ${totalBillsCount} bills`
+    : 'Collected in selected period';
 
   return {
     stats: {
       totalRevenue,
-      totalRevenueChange:
-        totalRevenue > 0 ? '+ 18.6% vs last month' : 'No data yet',
+      totalRevenueChange: sampleNote,
       totalBills: totalBillsCount,
-      totalBillsChange:
-        totalBillsCount > 0 ? '+ 15.8% vs last month' : 'No data yet',
-      totalCustomers: totalCustomersCount,
-      totalCustomersChange:
-        totalCustomersCount > 0 ? '+ 16.2% vs last month' : 'No data yet',
-      totalServices: totalServicesCount,
-      totalServicesChange:
-        totalServicesCount > 0 ? '+ 12.4% vs last month' : 'No data yet',
-      totalStaff: totalStaffCount,
-      totalStaffChange:
-        totalStaffCount > 0 ? '+ 8.6% vs last month' : 'No data yet',
+      totalBillsChange: 'Selected period',
+      totalCustomers: customers,
+      totalCustomersChange: 'Current total',
+      totalServices: services,
+      totalServicesChange: 'Current total',
+      totalStaff: staff,
+      totalStaffChange: 'Current total',
     },
     revenueSeries,
     billsOverview,
@@ -292,6 +180,6 @@ export async function fetchAdminReportsData(
     revenueByBranch,
     topServicesByRevenue,
     topServicesByQuantity,
-    branches,
+    branches: rawSalons.map((s) => ({ id: s.id, name: s.name })),
   };
 }

@@ -49,7 +49,7 @@ export type AdminSummaryItem = {
 
 // ─── Recent Bills ─────────────────────────────────────────────────────────────
 
-export type AdminBillStatus = 'paid' | 'pending' | 'failed';
+export type AdminBillStatus = 'paid' | 'partial' | 'unpaid' | 'draft' | 'cancelled' | 'refunded';
 
 export type AdminRecentBill = {
   id: string;

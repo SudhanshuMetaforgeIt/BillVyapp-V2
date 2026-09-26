@@ -38,8 +38,16 @@ export function AdminCreateCustomerDialog({
       setError('First name is required.');
       return;
     }
+    if (!lastName.trim()) {
+      setError('Last name is required.');
+      return;
+    }
     if (!phone.trim()) {
       setError('Phone number is required.');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Email is required.');
       return;
     }
 
@@ -47,15 +55,11 @@ export function AdminCreateCustomerDialog({
       setLoading(true);
       setError(null);
 
-      const generatedEmail =
-        email.trim() ||
-        `${firstName.toLowerCase().replace(/\s+/g, '')}.${Date.now()}@billvy.dev`;
-
       await createCustomerMutation.mutateAsync({
         firstName: firstName.trim(),
-        lastName: lastName.trim() || 'Customer',
+        lastName: lastName.trim(),
         phone: phone.trim(),
-        email: generatedEmail,
+        email: email.trim(),
         gender,
         dateOfBirth: dateOfBirth || undefined,
         salonId: salonId || undefined,
@@ -157,7 +161,7 @@ export function AdminCreateCustomerDialog({
             </div>
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
-                Email Address (optional)
+                Email Address
               </label>
               <input
                 type="email"

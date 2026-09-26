@@ -65,9 +65,10 @@ describe('RolesService', () => {
 });
 
 describe('RolesController authorization', () => {
-  it('requires SUPER_ADMIN', () => {
+  it('requires SUPER_ADMIN or ADMIN', () => {
     expect(Reflect.getMetadata(ROLES_KEY, RolesController)).toEqual([
       RoleCode.SUPER_ADMIN,
+      RoleCode.ADMIN,
     ]);
   });
 });
