@@ -213,10 +213,10 @@ export function CustomerHeader() {
               className="flex items-center gap-2 rounded-full border border-[#E9E2D5] bg-white p-1 pr-3 hover:border-[#FFB347] transition-colors"
             >
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#FFE5CC] text-xs font-bold text-[#FF7B00]">
-                {user?.firstName?.[0] || 'A'}
+                {user?.firstName?.[0]?.toUpperCase() || 'C'}
               </div>
               <span className="hidden sm:inline text-xs font-semibold text-[#1C1C1E]">
-                {user ? `${user.firstName}` : 'Akshith'}
+                {user?.firstName || 'Customer'}
               </span>
               <ChevronDown className="size-3 text-[#7D766C]" />
             </button>
@@ -225,10 +225,10 @@ export function CustomerHeader() {
               <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-[#E9E2D5] bg-white p-2 shadow-xl z-50">
                 <div className="border-b border-[#F0EAE1] px-3 py-2">
                   <p className="text-xs font-bold text-[#1C1C1E]">
-                    {user ? `${user.firstName} ${user.lastName || ''}` : 'Akshith Kola'}
+                    {user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Customer'}
                   </p>
                   <p className="text-[11px] text-[#7D766C] truncate">
-                    {user?.email || 'customer@billvyapp.com'}
+                    {user?.email || ''}
                   </p>
                   <span className="mt-1 inline-block rounded-full bg-[#FFF0DE] px-2 py-0.5 text-[10px] font-semibold text-[#FF7B00]">
                     Verified Customer

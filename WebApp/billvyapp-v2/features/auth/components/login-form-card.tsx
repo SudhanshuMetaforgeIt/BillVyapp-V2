@@ -203,41 +203,6 @@ export function LoginFormCard() {
             Create Account
           </Link>
         </p>
-
-        {/* Customer Demo Credentials Card */}
-        <div
-          data-auth-animate="secondary"
-          className="mt-6 rounded-xl border border-[#FFD099] bg-[#FFF8EE] p-3.5 text-xs"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-[#1C1C1E]">Customer Demo Credentials</span>
-            <button
-              type="button"
-              onClick={() => {
-                setValue('email', 'customer@billvyapp.com');
-                setValue('phone', '9876500123');
-                setValue('password', 'Customer@123');
-              }}
-              className="rounded-lg bg-[#FF7B00] px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs hover:bg-[#E66F00] transition-colors"
-            >
-              Auto Fill
-            </button>
-          </div>
-          <div className="mt-2 space-y-0.5 text-[#524B40]">
-            <div>
-              <span className="text-[#8C8375]">Email:</span>{' '}
-              <span className="font-mono font-semibold text-[#1C1C1E]">
-                customer@billvyapp.com
-              </span>
-            </div>
-            <div>
-              <span className="text-[#8C8375]">Password:</span>{' '}
-              <span className="font-mono font-semibold text-[#1C1C1E]">
-                Customer@123
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

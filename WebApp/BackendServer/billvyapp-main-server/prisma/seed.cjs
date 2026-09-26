@@ -11,6 +11,7 @@
  *  SUPER_ADMIN │ login.test@billvyapp.local     │ Billvy@Dev123   │ Global
  *  ADMIN       │ admin.test@billvyapp.local     │ Billvy@Dev123   │ Franchise
  *  MANAGER     │ manager.test@billvyapp.local   │ Billvy@Dev123   │ Salon
+ *  CUSTOMER    │ customer@billvyapp.com         │ Customer@123    │ Customer
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -172,6 +173,16 @@ async function main() {
       franchiseId: franchise.id,
       salonId: salon.id,
     },
+    {
+      firstName: 'Akshith',
+      lastName: 'Kola',
+      email: 'customer@billvyapp.com',
+      phone: '9876500123',
+      password: 'Customer@123',
+      roleCode: 'CUSTOMER',
+      franchiseId: null,
+      salonId: null,
+    },
   ];
 
   for (const u of testUsers) {
@@ -184,6 +195,7 @@ async function main() {
     const passwordHash = await hashPassword(u.password);
     const existing = await prisma.user.findUnique({ where: { email: u.email } });
 
+    let userId;
     if (existing) {
       await prisma.user.update({
         where: { email: u.email },
@@ -198,6 +210,7 @@ async function main() {
           phone: u.phone,
         },
       });
+      userId = existing.id;
       console.log(`  ↺  ${u.email} (already exists — password refreshed)`);
     } else {
       const created = await prisma.user.create({
@@ -213,7 +226,23 @@ async function main() {
           isActive: true,
         },
       });
+      userId = created.id;
       console.log(`  ✓  ${u.email} (${created.id})`);
+    }
+
+    if (u.roleCode === 'CUSTOMER') {
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { userId },
+      });
+      if (!existingCustomer) {
+        await prisma.customer.create({
+          data: {
+            userId,
+            customerCode: 'CUST-DEMO0001',
+          },
+        });
+        console.log(`  ✓  Customer profile created for ${u.email}`);
+      }
     }
   }
 
@@ -224,6 +253,7 @@ async function main() {
   console.log('│ SUPER_ADMIN │ login.test@billvyapp.local     │ Billvy@Dev123   │');
   console.log('│ ADMIN       │ admin.test@billvyapp.local     │ Billvy@Dev123   │');
   console.log('│ MANAGER     │ manager.test@billvyapp.local   │ Billvy@Dev123   │');
+  console.log('│ CUSTOMER    │ customer@billvyapp.com         │ Customer@123    │');
   console.log('└─────────────┴────────────────────────────────┴─────────────────┘\n');
 }
 

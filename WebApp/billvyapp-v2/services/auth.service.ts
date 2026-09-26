@@ -47,35 +47,9 @@ export interface VerifyOtpPayload {
 export const authService = {
   /** Staff, admin, and customer sign-in. Persists the token pair on success. */
   async login(payload: LoginPayload): Promise<AuthSession> {
-    const isCustomerDemo =
-      payload.email.toLowerCase() === 'customer@billvyapp.com' ||
-      payload.email.toLowerCase() === 'customer@billvy.com';
-
-    try {
-      const session = await api.post<AuthSession>('/auth/login', payload);
-      tokenStorage.set(session);
-      return session;
-    } catch (err) {
-      if (isCustomerDemo) {
-        const mockCustomerSession: AuthSession = {
-          user: {
-            id: 'usr-customer-01',
-            email: payload.email,
-            firstName: 'Akshith',
-            lastName: 'Kola',
-            role: 'CUSTOMER',
-            franchiseId: null,
-            salonId: null,
-          },
-          accessToken: 'mock-customer-access-token',
-          refreshToken: 'mock-customer-refresh-token',
-          tokenType: 'Bearer',
-        };
-        tokenStorage.set(mockCustomerSession);
-        return mockCustomerSession;
-      }
-      throw err;
-    }
+    const session = await api.post<AuthSession>('/auth/login', payload);
+    tokenStorage.set(session);
+    return session;
   },
 
   /**

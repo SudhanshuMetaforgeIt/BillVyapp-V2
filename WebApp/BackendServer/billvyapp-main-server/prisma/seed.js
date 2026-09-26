@@ -7,6 +7,7 @@
  *   Super Admin  login.test@billvyapp.local   /  Billvy@Dev123
  *   Admin        admin.test@billvyapp.local   /  Billvy@Dev123
  *   Manager      manager.test@billvyapp.local /  Billvy@Dev123
+ *   Customer     customer@billvyapp.com       /  Customer@123
  */
 const { randomUUID } = require('node:crypto');
 const argon2 = require('argon2');
@@ -185,6 +186,21 @@ async function upsertStaffUser(conn, input) {
   return id;
 }
 
+async function ensureCustomer(conn, userId, customerCode = 'CUST-DEMO0001') {
+  const rows = await conn.query('SELECT id FROM customers WHERE userId = ?', [
+    userId,
+  ]);
+  if (rows[0]) return rows[0].id;
+
+  const id = randomUUID();
+  await conn.query(
+    `INSERT INTO customers (id, userId, customerCode, createdAt, updatedAt)
+     VALUES (?, ?, ?, NOW(3), NOW(3))`,
+    [id, userId, customerCode],
+  );
+  return id;
+}
+
 async function main() {
   const pool = createPool();
   const conn = await pool.getConnection();
@@ -203,7 +219,8 @@ async function main() {
     const superAdminRole = roleByCode.get('SUPER_ADMIN');
     const adminRole = roleByCode.get('ADMIN');
     const managerRole = roleByCode.get('MANAGER');
-    if (!superAdminRole || !adminRole || !managerRole) {
+    const customerRole = roleByCode.get('CUSTOMER');
+    if (!superAdminRole || !adminRole || !managerRole || !customerRole) {
       throw new Error('Required roles were not created');
     }
 
@@ -240,10 +257,25 @@ async function main() {
       passwordHash,
     });
 
+    const customerPasswordHash = await hashPassword('Customer@123');
+    const customerUserId = await upsertStaffUser(conn, {
+      email: 'customer@billvyapp.com',
+      firstName: 'Akshith',
+      lastName: 'Kola',
+      phone: '9876500123',
+      roleId: customerRole.id,
+      franchiseId: null,
+      salonId: null,
+      passwordHash: customerPasswordHash,
+    });
+
+    await ensureCustomer(conn, customerUserId, 'CUST-DEMO0001');
+
     console.log('Seed complete. Local test credentials:');
     console.log('  Super Admin  login.test@billvyapp.local   /  Billvy@Dev123');
     console.log('  Admin        admin.test@billvyapp.local   /  Billvy@Dev123');
     console.log('  Manager      manager.test@billvyapp.local /  Billvy@Dev123');
+    console.log('  Customer     customer@billvyapp.com       /  Customer@123');
     console.log(`  Salon scope  ${salon.name} (${salon.code})`);
   } finally {
     conn.release();
