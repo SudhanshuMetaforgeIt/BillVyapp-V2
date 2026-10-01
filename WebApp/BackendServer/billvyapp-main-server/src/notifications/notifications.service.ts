@@ -2,12 +2,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { AuditService } from '../audit/audit.service';
 import {
+  NotificationChannel,
   NOTIFICATION_STATUS_TRANSITIONS,
   NotificationStatus,
 } from '../common/enums/notification.enum';
@@ -76,8 +78,23 @@ export type NotificationRecord = {
   updatedAt: Date;
 };
 
+/** Internal event payload used by other modules (subscriptions, tickets, …). */
+export type SystemNotificationInput = {
+  notificationType: string;
+  recipient: string;
+  message: string;
+  subject?: string | null;
+  channel?: NotificationChannel;
+  salonId?: string | null;
+  userId?: string | null;
+  customerId?: string | null;
+  actorUserId?: string | null;
+};
+
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
@@ -142,8 +159,9 @@ export class NotificationsService {
     dto: CreateNotificationDto,
     ctx: RequestContext,
   ): Promise<NotificationRecord> {
-    if (dto.salonId) {
-      await this.scope.assertSalonAccess(actor, dto.salonId);
+    const salonId = dto.salonId ?? actor.salonId ?? null;
+    if (salonId) {
+      await this.scope.assertSalonAccess(actor, salonId);
     }
 
     let customerId = dto.customerId ?? null;
@@ -160,8 +178,8 @@ export class NotificationsService {
 
     const created = await this.prisma.notification.create({
       data: {
-        salonId: dto.salonId ?? null,
-        userId: dto.userId ?? null,
+        salonId,
+        userId: dto.userId ?? actor.userId,
         customerId,
         channel: dto.channel,
         notificationType: trimRequired(dto.notificationType),
@@ -174,46 +192,239 @@ export class NotificationsService {
       select: NOTIFICATION_SELECT,
     });
 
-    const delayMs =
-      scheduledAt && scheduledAt.getTime() > Date.now()
-        ? scheduledAt.getTime() - Date.now()
-        : 0;
-
-    await this.notificationQueue.add(
-      'dispatch',
-      { notificationId: created.id },
-      {
-        delay: delayMs,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: 100,
-        removeOnFail: 200,
-      },
-    );
-
-    const queued = await this.prisma.notification.update({
-      where: { id: created.id },
-      data: { status: NotificationStatus.QUEUED },
-      select: NOTIFICATION_SELECT,
-    });
+    const saved = await this.enqueueOrMarkSent(created.id, scheduledAt);
 
     await this.audit.record({
       userId: actor.userId,
-      salonId: queued.salonId,
+      salonId: saved.salonId,
       action: 'NOTIFICATION_CREATED',
       entityType: 'Notification',
-      entityId: queued.id,
+      entityId: saved.id,
       newData: {
-        channel: queued.channel,
-        notificationType: queued.notificationType,
-        recipient: queued.recipient,
-        status: queued.status,
+        channel: saved.channel,
+        notificationType: saved.notificationType,
+        recipient: saved.recipient,
+        status: saved.status,
       },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
 
-    return queued;
+    return saved;
+  }
+
+  /**
+   * Fire-and-forget system notification for domain events. Never throws —
+   * business flows must not fail because a notification could not be queued.
+   */
+  async notifyQuietly(input: SystemNotificationInput): Promise<void> {
+    try {
+      await this.emitSystem(input);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to emit ${input.notificationType} to ${input.recipient}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  async emitSystem(input: SystemNotificationInput): Promise<NotificationRecord> {
+    const created = await this.prisma.notification.create({
+      data: {
+        salonId: input.salonId ?? null,
+        userId: input.userId ?? input.actorUserId ?? null,
+        customerId: input.customerId ?? null,
+        channel: input.channel ?? NotificationChannel.EMAIL,
+        notificationType: trimRequired(input.notificationType),
+        recipient: trimRequired(input.recipient),
+        subject: trimOrNull(input.subject ?? null) ?? null,
+        message: trimRequired(input.message),
+        status: NotificationStatus.PENDING,
+        scheduledAt: null,
+      },
+      select: NOTIFICATION_SELECT,
+    });
+
+    const saved = await this.enqueueOrMarkSent(created.id, null);
+
+    if (input.actorUserId) {
+      try {
+        await this.audit.record({
+          userId: input.actorUserId,
+          salonId: saved.salonId,
+          action: 'NOTIFICATION_CREATED',
+          entityType: 'Notification',
+          entityId: saved.id,
+          newData: {
+            channel: saved.channel,
+            notificationType: saved.notificationType,
+            recipient: saved.recipient,
+            status: saved.status,
+            system: true,
+          },
+        });
+      } catch {
+        // Audit failure must not block the event notification.
+      }
+    }
+
+    return saved;
+  }
+
+  /** Notify Super Admins + franchise Admins about a subscription purchase/enrollment. */
+  async notifySubscriptionEnrolled(params: {
+    actorUserId: string;
+    franchiseId: string;
+    franchiseName: string;
+    planName: string;
+    billingCycle: string;
+    startsAt: string;
+    endsAt: string;
+    salonId?: string | null;
+  }): Promise<void> {
+    const salonId =
+      params.salonId ?? (await this.firstSalonId(params.franchiseId));
+    const subject = `Subscription purchased — ${params.franchiseName}`;
+    const message = `${params.franchiseName} is now on ${params.planName} (${params.billingCycle}). Active ${params.startsAt} → ${params.endsAt}.`;
+
+    const recipients = await this.resolveEventRecipients({
+      includeSuperAdmins: true,
+      franchiseId: params.franchiseId,
+    });
+
+    await Promise.all(
+      recipients.map((r) =>
+        this.notifyQuietly({
+          notificationType: 'SUBSCRIPTION_PURCHASED',
+          recipient: r.email,
+          userId: r.id,
+          salonId: r.role === RoleCode.SUPER_ADMIN ? null : salonId,
+          subject,
+          message,
+          actorUserId: params.actorUserId,
+        }),
+      ),
+    );
+  }
+
+  async notifySubscriptionCancelled(params: {
+    actorUserId: string;
+    franchiseId: string;
+    franchiseName: string;
+    planName: string;
+    salonId?: string | null;
+  }): Promise<void> {
+    const salonId =
+      params.salonId ?? (await this.firstSalonId(params.franchiseId));
+    const subject = `Subscription cancelled — ${params.franchiseName}`;
+    const message = `${params.franchiseName}'s ${params.planName} subscription was cancelled.`;
+
+    const recipients = await this.resolveEventRecipients({
+      includeSuperAdmins: true,
+      franchiseId: params.franchiseId,
+    });
+
+    await Promise.all(
+      recipients.map((r) =>
+        this.notifyQuietly({
+          notificationType: 'SUBSCRIPTION_CANCELLED',
+          recipient: r.email,
+          userId: r.id,
+          salonId: r.role === RoleCode.SUPER_ADMIN ? null : salonId,
+          subject,
+          message,
+          actorUserId: params.actorUserId,
+        }),
+      ),
+    );
+  }
+
+  async notifySupportTicketOpened(params: {
+    actorUserId: string;
+    actorEmail: string;
+    actorName: string;
+    ticketId: string;
+    ticketNumber: number;
+    subject: string;
+    category: string;
+    priority: string;
+    franchiseId: string | null;
+    franchiseName: string | null;
+    salonId: string | null;
+  }): Promise<void> {
+    const displayId = `TKT-${String(params.ticketNumber).padStart(5, '0')}`;
+    const business = params.franchiseName ?? 'a franchise';
+    const notifSubject = `Support ticket opened — ${displayId}`;
+    const message = `${params.actorName} opened ${displayId} (${params.category}, ${params.priority}) for ${business}: ${params.subject}`;
+
+    const salonId =
+      params.salonId ??
+      (params.franchiseId
+        ? await this.firstSalonId(params.franchiseId)
+        : null);
+
+    const recipients = await this.resolveEventRecipients({
+      includeSuperAdmins: true,
+      franchiseId: params.franchiseId,
+    });
+
+    await Promise.all(
+      recipients.map((r) =>
+        this.notifyQuietly({
+          notificationType: 'SUPPORT_TICKET_OPENED',
+          recipient: r.email,
+          userId: r.id,
+          salonId: r.role === RoleCode.SUPER_ADMIN ? null : salonId,
+          subject: notifSubject,
+          message,
+          actorUserId: params.actorUserId,
+        }),
+      ),
+    );
+
+    if (params.actorEmail) {
+      await this.notifyQuietly({
+        notificationType: 'SUPPORT_TICKET_OPENED',
+        recipient: params.actorEmail,
+        userId: params.actorUserId,
+        salonId,
+        subject: `Ticket ${displayId} submitted`,
+        message: `Your support ticket "${params.subject}" was submitted and is awaiting Super Admin review.`,
+        actorUserId: params.actorUserId,
+      });
+    }
+  }
+
+  async notifySupportTicketStatusChanged(params: {
+    actorUserId: string;
+    ticketNumber: number;
+    subject: string;
+    previousStatus: string;
+    nextStatus: string;
+    createdById: string;
+    createdByEmail: string | null;
+    franchiseId: string | null;
+    salonId: string | null;
+  }): Promise<void> {
+    const displayId = `TKT-${String(params.ticketNumber).padStart(5, '0')}`;
+    const salonId =
+      params.salonId ??
+      (params.franchiseId
+        ? await this.firstSalonId(params.franchiseId)
+        : null);
+
+    if (params.createdByEmail) {
+      await this.notifyQuietly({
+        notificationType: 'SUPPORT_TICKET_STATUS_CHANGED',
+        recipient: params.createdByEmail,
+        userId: params.createdById,
+        salonId,
+        subject: `${displayId} is now ${params.nextStatus}`,
+        message: `Support ticket "${params.subject}" moved from ${params.previousStatus} to ${params.nextStatus}.`,
+        actorUserId: params.actorUserId,
+      });
+    }
   }
 
   async updateStatus(
@@ -325,6 +536,93 @@ export class NotificationsService {
         sentAt: new Date(),
       },
     });
+  }
+
+  private async enqueueOrMarkSent(
+    notificationId: string,
+    scheduledAt: Date | null,
+  ): Promise<NotificationRecord> {
+    const delayMs =
+      scheduledAt && scheduledAt.getTime() > Date.now()
+        ? scheduledAt.getTime() - Date.now()
+        : 0;
+
+    try {
+      await this.notificationQueue.add(
+        'dispatch',
+        { notificationId },
+        {
+          delay: delayMs,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: 100,
+          removeOnFail: 200,
+        },
+      );
+
+      return this.prisma.notification.update({
+        where: { id: notificationId },
+        data: { status: NotificationStatus.QUEUED },
+        select: NOTIFICATION_SELECT,
+      });
+    } catch {
+      return this.prisma.notification.update({
+        where: { id: notificationId },
+        data: {
+          status: NotificationStatus.SENT,
+          provider: 'logging',
+          sentAt: new Date(),
+        },
+        select: NOTIFICATION_SELECT,
+      });
+    }
+  }
+
+  private async firstSalonId(franchiseId: string): Promise<string | null> {
+    const salon = await this.prisma.salon.findFirst({
+      where: { franchiseId, isActive: true },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return salon?.id ?? null;
+  }
+
+  private async resolveEventRecipients(params: {
+    includeSuperAdmins: boolean;
+    franchiseId: string | null;
+  }): Promise<Array<{ id: string; email: string; role: RoleCode }>> {
+    const or: Array<{
+      role: { code: RoleCode };
+      franchiseId?: string;
+    }> = [];
+    if (params.includeSuperAdmins) {
+      or.push({ role: { code: RoleCode.SUPER_ADMIN } });
+    }
+    if (params.franchiseId) {
+      or.push({
+        franchiseId: params.franchiseId,
+        role: { code: RoleCode.ADMIN },
+      });
+    }
+    if (or.length === 0) return [];
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        OR: or,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: { select: { code: true } },
+      },
+    });
+
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      role: u.role.code as RoleCode,
+    }));
   }
 
   private salonScopeFilter(user: AuthenticatedUser): Record<string, unknown> {

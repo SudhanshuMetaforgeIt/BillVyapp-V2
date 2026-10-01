@@ -13,10 +13,15 @@ export type SalonListQuery = {
 export function listSalons(query: SalonListQuery) {
   return api.get<Paginated<Salon>>('/salons', {
     params: {
-      ...query,
+      page: query.page,
+      limit: query.limit,
       search: query.search?.trim() || undefined,
       city: query.city?.trim() || undefined,
       franchiseId: query.franchiseId || undefined,
+      // Send as explicit strings — some stacks drop/coerce boolean `false` in query params.
+      ...(query.isActive === undefined
+        ? {}
+        : { isActive: query.isActive ? 'true' : 'false' }),
     },
   });
 }

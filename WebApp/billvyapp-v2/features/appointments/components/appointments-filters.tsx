@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -53,23 +55,21 @@ export function AppointmentsFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={datePreset}
           onChange={(e) => onDatePresetChange(e.target.value as DatePreset)}
           aria-label="Date filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="today">Today</option>
           <option value="tomorrow">Tomorrow</option>
           <option value="week">Next 7 days</option>
           <option value="all">All dates</option>
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={serviceId}
           onChange={(e) => onServiceIdChange(e.target.value)}
           aria-label="Service filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="">All Services</option>
           {serviceOptions.map((service) => (
@@ -77,14 +77,13 @@ export function AppointmentsFilters({
               {service.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
         {staffOptions.length > 0 ? (
-          <select
+          <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
             value={staffId}
             onChange={(e) => onStaffIdChange(e.target.value)}
             aria-label="Staff filter"
-            className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
           >
             <option value="">All Staff</option>
             {staffOptions.map((staff) => (
@@ -92,7 +91,7 @@ export function AppointmentsFilters({
                 {staff.name}
               </option>
             ))}
-          </select>
+          </SelectInput>
         ) : null}
 
         <Button

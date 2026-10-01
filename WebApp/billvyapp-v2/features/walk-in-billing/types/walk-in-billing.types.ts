@@ -8,6 +8,12 @@ export type PaginatedResponse<T> = {
   };
 };
 
+export type WalkInCustomerGender =
+  | 'MALE'
+  | 'FEMALE'
+  | 'OTHER'
+  | 'PREFER_NOT_TO_SAY';
+
 export type WalkInCustomer = {
   id: string;
   userId: string;
@@ -16,6 +22,7 @@ export type WalkInCustomer = {
   lastName: string;
   email: string;
   phone: string;
+  gender?: WalkInCustomerGender | null;
   isActive: boolean;
 };
 
@@ -24,6 +31,7 @@ export type CreateCustomerPayload = {
   lastName: string;
   email: string;
   phone: string;
+  gender?: WalkInCustomerGender;
 };
 
 export type ServiceCategory = {

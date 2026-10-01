@@ -24,6 +24,7 @@ import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { RoleCode } from '../common/enums/role.enum';
 import { requestContext } from '../common/http/request-context';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
+import { BulkCreateServicesDto } from './dto/bulk-create-services.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { PaginatedServicesDto } from './dto/paginated-services.dto';
 import { ServiceQueryDto } from './dto/service-query.dto';
@@ -91,6 +92,21 @@ export class ServicesController {
     @Req() req: Request,
   ) {
     return this.servicesService.create(user, dto, requestContext(req));
+  }
+
+  @Post('bulk')
+  @Roles(...CATALOG_WRITE_ROLES)
+  @ApiOperation({
+    summary: 'Bulk create services',
+    description:
+      'Creates multiple services for a salon. Missing categories are created by name. Returns created count and per-row failures.',
+  })
+  bulkCreate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkCreateServicesDto,
+    @Req() req: Request,
+  ) {
+    return this.servicesService.bulkCreate(user, dto, requestContext(req));
   }
 
   @Get(':id')

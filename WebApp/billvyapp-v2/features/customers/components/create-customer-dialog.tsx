@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -148,20 +150,19 @@ export function CreateCustomerDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cust-gender">Gender (optional)</Label>
-            <select
+            <SelectInput className="h-10 w-full text-sm font-medium"
               id="cust-gender"
               value={gender}
               onChange={(e) =>
                 setGender(e.target.value as '' | CustomerGender)
               }
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="">Select gender</option>
               <option value="MALE">Male</option>
               <option value="FEMALE">Female</option>
               <option value="OTHER">Other</option>
               <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-            </select>
+            </SelectInput>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

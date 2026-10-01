@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Eye, MoreHorizontal, Pencil, Plus, Store } from 'lucide-react';
+import { Eye, Pencil, Plus, Store } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { SectionEmptyState } from '@/components/layout/section-states';
@@ -24,23 +23,22 @@ export function AdminBranchesTable({
   onViewBranch,
   onEditBranch,
 }: AdminBranchesTableProps) {
-  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
-
   return (
     <div className="space-y-3">
-      {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-2">
-        <div className="flex items-center gap-2">
-          <h2 className="relative pb-2 text-base font-bold text-text sm:text-lg">
-            All Branches ({branches.length})
-            <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-orange" />
-          </h2>
-        </div>
+      {/* Header bar — single bottom rule; tab underline sits on that rule */}
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border">
+        <h2 className="relative pb-2.5 text-base font-bold text-text sm:text-lg">
+          All Branches ({branches.length})
+          <span
+            className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-brand-orange"
+            aria-hidden
+          />
+        </h2>
 
         <Button
           type="button"
           size="sm"
-          className="gap-1.5 bg-brand-orange text-white hover:bg-brand-orange-dark shadow-sm"
+          className="mb-1.5 gap-1.5 bg-brand-orange text-white shadow-sm hover:bg-brand-orange-dark"
           onClick={onAddBranch}
         >
           <Plus className="size-4" />
@@ -70,83 +68,91 @@ export function AdminBranchesTable({
           </div>
         ) : (
           <>
-            {/* Desktop Table */}
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full text-left text-sm">
+            {/* Desktop Table — table-fixed so columns fit; no horizontal scroll */}
+            <div className="hidden min-w-0 lg:block">
+              <table className="w-full table-fixed text-left text-sm">
                 <thead className="border-b border-border bg-ivory/70 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                   <tr>
-                    <th className="px-5 py-3.5">Branch Name</th>
-                    <th className="px-5 py-3.5">Location</th>
-                    <th className="px-5 py-3.5">Branch Code</th>
-                    <th className="px-5 py-3.5">Manager</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Staff</th>
-                    <th className="px-5 py-3.5">Revenue (This Month)</th>
-                    <th className="px-5 py-3.5 text-right">Actions</th>
+                    <th className="w-[18%] px-3 py-3.5 xl:px-4">Branch</th>
+                    <th className="w-[14%] px-3 py-3.5 xl:px-4">Location</th>
+                    <th className="w-[11%] px-3 py-3.5 xl:px-4">Code</th>
+                    <th className="w-[16%] px-3 py-3.5 xl:px-4">Manager</th>
+                    <th className="w-[10%] px-3 py-3.5 xl:px-4">Status</th>
+                    <th className="w-[8%] px-3 py-3.5 xl:px-4">Staff</th>
+                    <th className="w-[14%] px-3 py-3.5 xl:px-4">Revenue</th>
+                    <th className="w-[9%] px-3 py-3.5 text-right xl:px-4">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {branches.map((b) => (
-                    <tr key={b.id} className="hover:bg-ivory/50 transition-colors">
-                      {/* Name & Photo */}
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-champagne">
-                            <Store className="size-5 text-champagne" />
+                    <tr key={b.id} className="transition-colors hover:bg-ivory/50">
+                      <td className="px-3 py-3.5 xl:px-4">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-champagne">
+                            <Store className="size-4 text-champagne" />
                           </div>
-                          <div>
-                            <p className="font-bold text-text">{b.name}</p>
-                          </div>
+                          <p className="truncate font-bold text-text" title={b.name}>
+                            {b.name}
+                          </p>
                         </div>
                       </td>
 
-                      {/* Location */}
-                      <td className="px-5 py-3.5 text-text-secondary">
-                        <p className="max-w-[160px] truncate text-xs">{b.location}</p>
+                      <td className="px-3 py-3.5 text-text-secondary xl:px-4">
+                        <p className="truncate text-xs" title={b.location}>
+                          {b.location}
+                        </p>
                       </td>
 
-                      {/* Code */}
-                      <td className="px-5 py-3.5 font-mono text-xs font-semibold text-text">
-                        {b.code}
+                      <td className="px-3 py-3.5 font-mono text-xs font-semibold text-text xl:px-4">
+                        <span className="block truncate" title={b.code}>
+                          {b.code}
+                        </span>
                       </td>
 
-                      {/* Manager */}
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
+                      <td className="px-3 py-3.5 xl:px-4">
+                        <div className="flex min-w-0 items-center gap-2">
                           <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
                             {b.managerInitials}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-text">
+                            <p
+                              className="truncate text-xs font-semibold text-text"
+                              title={b.managerName ?? undefined}
+                            >
                               {b.managerName ?? '—'}
                             </p>
-                            <p className="truncate text-[11px] text-text-muted">{b.managerPhone ?? ''}</p>
+                            <p className="truncate text-[11px] text-text-muted">
+                              {b.managerPhone ?? ''}
+                            </p>
                           </div>
                         </div>
                       </td>
 
-                      {/* Status */}
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5 xl:px-4">
                         <StatusBadge
                           label={b.status === 'active' ? 'Active' : 'Inactive'}
                           tone={b.status === 'active' ? 'success' : 'danger'}
+                          className="whitespace-nowrap"
                         />
                       </td>
 
-                      {/* Staff */}
-                      <td className="px-5 py-3.5 font-semibold text-text">{b.staffCount ?? '—'}</td>
-
-                      {/* Revenue */}
-                      <td className="px-5 py-3.5 font-bold text-text">
-                        {formatRevenue(b.revenueMonth)}
+                      <td className="px-3 py-3.5 font-semibold tabular-nums text-text xl:px-4">
+                        {b.staffCount ?? '—'}
                       </td>
 
-                      {/* Actions */}
-                      <td className="px-5 py-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-3 py-3.5 font-bold tabular-nums text-text xl:px-4">
+                        <span className="block truncate" title={formatRevenue(b.revenueMonth)}>
+                          {formatRevenue(b.revenueMonth)}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-3.5 text-right xl:px-4">
+                        <div className="flex items-center justify-end gap-0.5">
                           <button
                             type="button"
-                            className="rounded-lg p-1.5 text-text-secondary hover:bg-champagne-light hover:text-charcoal transition"
+                            className="rounded-lg p-1.5 text-text-secondary transition hover:bg-champagne-light hover:text-charcoal"
                             onClick={() => onViewBranch?.(b)}
                             aria-label={`View ${b.name}`}
                           >
@@ -154,19 +160,11 @@ export function AdminBranchesTable({
                           </button>
                           <button
                             type="button"
-                            className="rounded-lg p-1.5 text-text-secondary hover:bg-champagne-light hover:text-charcoal transition"
+                            className="rounded-lg p-1.5 text-text-secondary transition hover:bg-champagne-light hover:text-charcoal"
                             onClick={() => onEditBranch?.(b)}
                             aria-label={`Edit ${b.name}`}
                           >
                             <Pencil className="size-4" />
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-lg p-1.5 text-text-secondary hover:bg-champagne-light hover:text-charcoal transition"
-                            onClick={() => setSelectedBranch(b.id)}
-                            aria-label="More options"
-                          >
-                            <MoreHorizontal className="size-4" />
                           </button>
                         </div>
                       </td>

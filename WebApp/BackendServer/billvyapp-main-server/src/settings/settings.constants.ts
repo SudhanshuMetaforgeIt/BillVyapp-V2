@@ -7,6 +7,11 @@ export const INTEGRATION_ENTITY_TYPE = 'PlatformIntegration';
 /** Redis key prefixes safe to clear without wiping OTPs / sessions. */
 export const CACHE_CLEAR_PREFIXES = ['cache:', 'settings:cache:'] as const;
 
+/** On-disk platform configuration backups (not full MySQL dumps). */
+export const SETTINGS_BACKUP_DIR = 'backups/platform-settings';
+export const SETTINGS_BACKUP_MAX_COUNT = 20;
+export const SETTINGS_BACKUP_FORMAT_VERSION = 1;
+
 /** Keys stripped from integration config / never returned in email settings. */
 export const SECRET_CONFIG_KEYS = [
   'password',

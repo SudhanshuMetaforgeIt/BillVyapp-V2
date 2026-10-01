@@ -11,9 +11,12 @@ export type ProfileUser = {
   roleLabel: string;
   isActive: boolean;
   salonId: string | null;
+  salonName: string | null;
   franchiseId: string | null;
   createdAt: string | null;
   lastLoginAt: string | null;
+  timezone: string | null;
+  language: string | null;
 };
 
 export type UpdateProfilePayload = {

@@ -11,6 +11,8 @@ import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
+import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
+import { resolveBusinessTimezone } from '../common/datetime/datetime';
 import { RoleCode } from '../common/enums/role.enum';
 import {
   AuthenticatedUser,
@@ -18,6 +20,7 @@ import {
 } from '../common/interfaces/authenticated-user.interface';
 import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { trimRequired } from '../common/strings';
+import { FranchiseSubscriptionsService } from '../franchise-subscriptions/franchise-subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   GENERIC_AUTH_FAILURE,
@@ -46,6 +49,10 @@ export interface RequestContext {
   userAgent?: string | null;
 }
 
+/** Internal token pair — refresh is moved to an HttpOnly cookie by the controller. */
+export type IssuedAuthTokens = AuthTokensDto & { refreshToken: string };
+export type IssuedAuthSession = AuthResponseDto & { refreshToken: string };
+
 const AUTH_USER_SELECT = {
   id: true,
   firstName: true,
@@ -57,6 +64,15 @@ const AUTH_USER_SELECT = {
   franchiseId: true,
   salonId: true,
   role: { select: { code: true, isActive: true } },
+} as const;
+
+/** Richer payload for GET /auth/me (profile screens). */
+const AUTH_ME_SELECT = {
+  ...AUTH_USER_SELECT,
+  createdAt: true,
+  lastLoginAt: true,
+  salon: { select: { name: true } },
+  franchise: { select: { preferences: true } },
 } as const;
 
 const AUTH_USER_WITH_HASH_SELECT = {
@@ -77,6 +93,13 @@ type AuthUserRow = {
   role: { code: string; isActive: boolean };
 };
 
+type AuthMeRow = AuthUserRow & {
+  createdAt: Date;
+  lastLoginAt: Date | null;
+  salon: { name: string } | null;
+  franchise: { preferences: unknown } | null;
+};
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -89,11 +112,13 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly otp: OtpService,
     private readonly audit: AuditService,
+    private readonly subscriptions: FranchiseSubscriptionsService,
+    private readonly businessTimezone: BusinessTimezoneService,
   ) {}
 
   // ---------------------------------------------------------------- password
 
-  async login(dto: LoginDto, ctx: RequestContext): Promise<AuthResponseDto> {
+  async login(dto: LoginDto, ctx: RequestContext): Promise<IssuedAuthSession> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       select: AUTH_USER_WITH_HASH_SELECT,
@@ -140,7 +165,7 @@ export class AuthService {
       userAgent: ctx.userAgent,
     });
 
-    return { ...tokens, user: this.toPublicUser(user) };
+    return { ...tokens, user: await this.toPublicUser(user) };
   }
 
   // --------------------------------------------------------------- register
@@ -155,7 +180,7 @@ export class AuthService {
   async register(
     dto: RegisterCustomerDto,
     ctx: RequestContext,
-  ): Promise<AuthResponseDto> {
+  ): Promise<IssuedAuthSession> {
     const firstName = trimRequired(dto.firstName);
     const lastName = trimRequired(dto.lastName);
     const email = dto.email.trim().toLowerCase();
@@ -290,7 +315,7 @@ export class AuthService {
       userAgent: ctx.userAgent,
     });
 
-    return { ...tokens, user: this.toPublicUser(user) };
+    return { ...tokens, user: await this.toPublicUser(user) };
   }
 
   // --------------------------------------------------------------------- otp
@@ -350,7 +375,7 @@ export class AuthService {
   async verifyOtp(
     dto: VerifyOtpDto,
     ctx: RequestContext,
-  ): Promise<AuthResponseDto> {
+  ): Promise<IssuedAuthSession> {
     let valid = false;
 
     try {
@@ -410,7 +435,7 @@ export class AuthService {
       userAgent: ctx.userAgent,
     });
 
-    return { ...tokens, user: this.toPublicUser(user) };
+    return { ...tokens, user: await this.toPublicUser(user) };
   }
 
   // ----------------------------------------------------------------- refresh
@@ -422,7 +447,7 @@ export class AuthService {
   async refresh(
     refreshToken: string,
     ctx: RequestContext,
-  ): Promise<AuthTokensDto> {
+  ): Promise<IssuedAuthTokens> {
     let payload: JwtRefreshPayload;
 
     try {
@@ -518,14 +543,14 @@ export class AuthService {
   async me(identity: AuthenticatedUser): Promise<AuthUserDto> {
     const user = await this.prisma.user.findUnique({
       where: { id: identity.userId },
-      select: AUTH_USER_SELECT,
+      select: AUTH_ME_SELECT,
     });
 
     if (!user || !user.isActive || !user.role.isActive) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    return this.toPublicUser(user);
+    return this.toPublicMeUser(user);
   }
 
   // ----------------------------------------------------------------- helpers
@@ -534,7 +559,7 @@ export class AuthService {
     user: AuthUserRow,
     ctx: RequestContext,
     options: { updateLastLogin?: boolean } = {},
-  ): Promise<AuthTokensDto> {
+  ): Promise<IssuedAuthTokens> {
     const sessionId = randomUUID();
     const role = user.role.code as RoleCode;
 
@@ -610,7 +635,40 @@ export class AuthService {
     return null;
   }
 
-  private toPublicUser(user: AuthUserRow): AuthUserDto {
+  private async toPublicUser(user: AuthUserRow): Promise<AuthUserDto> {
+    const role = user.role.code as RoleCode;
+    let subscriptionActive = true;
+    let subscriptionPlanName: string | null = null;
+    let subscriptionEndsAt: string | null = null;
+
+    if (
+      (role === RoleCode.ADMIN ||
+        role === RoleCode.MANAGER ||
+        role === RoleCode.STAFF) &&
+      user.franchiseId
+    ) {
+      const sub = await this.subscriptions.findActiveForFranchise(
+        user.franchiseId,
+      );
+      subscriptionActive = Boolean(sub?.isCurrentlyActive);
+      subscriptionPlanName = sub?.planName ?? null;
+      subscriptionEndsAt = sub?.endsAt ?? null;
+
+      if (!subscriptionActive) {
+        const latest = await this.subscriptions.findLatestForFranchise(
+          user.franchiseId,
+        );
+        subscriptionPlanName = latest?.planName ?? null;
+        subscriptionEndsAt = latest?.endsAt ?? null;
+      }
+    } else if (
+      role === RoleCode.ADMIN ||
+      role === RoleCode.MANAGER ||
+      role === RoleCode.STAFF
+    ) {
+      subscriptionActive = false;
+    }
+
     return {
       id: user.id,
       firstName: user.firstName,
@@ -622,6 +680,41 @@ export class AuthService {
       salonId: user.salonId,
       profilePhoto: user.profilePhoto,
       isActive: user.isActive,
+      subscriptionActive,
+      subscriptionPlanName,
+      subscriptionEndsAt,
+    };
+  }
+
+  private async toPublicMeUser(user: AuthMeRow): Promise<AuthUserDto> {
+    const prefs =
+      user.franchise?.preferences &&
+      typeof user.franchise.preferences === 'object' &&
+      !Array.isArray(user.franchise.preferences)
+        ? (user.franchise.preferences as Record<string, unknown>)
+        : null;
+
+    const franchiseTimezone =
+      typeof prefs?.timezone === 'string' && prefs.timezone.trim()
+        ? prefs.timezone.trim()
+        : null;
+    const platformTimezone = await this.businessTimezone.getPlatformTimezone();
+    const timezone = resolveBusinessTimezone({
+      franchiseTimezone,
+      platformTimezone,
+    });
+    const language =
+      typeof prefs?.language === 'string' && prefs.language.trim()
+        ? prefs.language.trim()
+        : 'en';
+
+    return {
+      ...(await this.toPublicUser(user)),
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt,
+      salonName: user.salon?.name ?? null,
+      timezone,
+      language,
     };
   }
 

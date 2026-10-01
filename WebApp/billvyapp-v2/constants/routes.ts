@@ -39,7 +39,6 @@ export const ROUTES = {
       businesses: `/dashboard/${ROLE_SEGMENTS.ADMIN}/businesses`,
       salons: `/dashboard/${ROLE_SEGMENTS.ADMIN}/salons`,
       services: `/dashboard/${ROLE_SEGMENTS.ADMIN}/services`,
-      appointments: `/dashboard/${ROLE_SEGMENTS.ADMIN}/appointments`,
       bills: `/dashboard/${ROLE_SEGMENTS.ADMIN}/bills`,
       walkInBilling: `/dashboard/${ROLE_SEGMENTS.ADMIN}/walk-in-billing`,
       payments: `/dashboard/${ROLE_SEGMENTS.ADMIN}/payments`,
@@ -47,8 +46,6 @@ export const ROUTES = {
       purchases: `/dashboard/${ROLE_SEGMENTS.ADMIN}/purchases`,
       search: `/dashboard/${ROLE_SEGMENTS.ADMIN}/search`,
       customers: `/dashboard/${ROLE_SEGMENTS.ADMIN}/customers`,
-      inventory: `/dashboard/${ROLE_SEGMENTS.ADMIN}/inventory`,
-      memberships: `/dashboard/${ROLE_SEGMENTS.ADMIN}/memberships`,
       loyalty: `/dashboard/${ROLE_SEGMENTS.ADMIN}/loyalty`,
       staff: `/dashboard/${ROLE_SEGMENTS.ADMIN}/staff`,
       campaigns: `/dashboard/${ROLE_SEGMENTS.ADMIN}/campaigns`,
@@ -57,6 +54,7 @@ export const ROUTES = {
       support: `/dashboard/${ROLE_SEGMENTS.ADMIN}/support`,
       settings: `/dashboard/${ROLE_SEGMENTS.ADMIN}/settings`,
       profile: `/dashboard/${ROLE_SEGMENTS.ADMIN}/profile`,
+      subscriptionRequired: `/dashboard/${ROLE_SEGMENTS.ADMIN}/subscription-required`,
     },
     manager: {
       root: `/dashboard/${ROLE_SEGMENTS.MANAGER}`,
@@ -73,9 +71,10 @@ export const ROUTES = {
       services: `/dashboard/${ROLE_SEGMENTS.MANAGER}/services`,
       campaigns: `/dashboard/${ROLE_SEGMENTS.MANAGER}/campaigns`,
       notifications: `/dashboard/${ROLE_SEGMENTS.MANAGER}/notifications`,
+      support: `/dashboard/${ROLE_SEGMENTS.MANAGER}/support`,
       search: `/dashboard/${ROLE_SEGMENTS.MANAGER}/search`,
-      settings: `/dashboard/${ROLE_SEGMENTS.MANAGER}/settings`,
       profile: `/dashboard/${ROLE_SEGMENTS.MANAGER}/profile`,
+      subscriptionRequired: `/dashboard/${ROLE_SEGMENTS.MANAGER}/subscription-required`,
     },
     staff: {
       root: `/dashboard/${ROLE_SEGMENTS.STAFF}`,
@@ -83,6 +82,7 @@ export const ROUTES = {
       appointments: `/dashboard/${ROLE_SEGMENTS.STAFF}/appointments`,
       notifications: `/dashboard/${ROLE_SEGMENTS.STAFF}/notifications`,
       profile: `/dashboard/${ROLE_SEGMENTS.STAFF}/profile`,
+      subscriptionRequired: `/dashboard/${ROLE_SEGMENTS.STAFF}/subscription-required`,
     },
     customer: {
       root: `/dashboard/${ROLE_SEGMENTS.CUSTOMER}`,
@@ -104,4 +104,16 @@ export function dashboardHomeFor(role: RoleCode): string {
     return ROUTES.dashboard.staff.walkInBilling;
   }
   return `${ROUTES.dashboard.root}/${ROLE_SEGMENTS[role]}`;
+}
+
+/** Subscription gate path for franchise-scoped roles. */
+export function subscriptionRequiredPathFor(role: RoleCode): string | null {
+  if (role === 'ADMIN') return ROUTES.dashboard.admin.subscriptionRequired;
+  if (role === 'MANAGER') return ROUTES.dashboard.manager.subscriptionRequired;
+  if (role === 'STAFF') return ROUTES.dashboard.staff.subscriptionRequired;
+  return null;
+}
+
+export function needsSubscriptionGate(role: RoleCode): boolean {
+  return role === 'ADMIN' || role === 'MANAGER' || role === 'STAFF';
 }

@@ -22,6 +22,14 @@ import {
 } from '../common/pagination/pagination';
 import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { ScopeService } from '../common/scope/scope.service';
+import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
+import {
+  businessCalendarRangeToUtc,
+  calendarDateInTimeZone,
+  formatBillDateApi,
+  isDateOnlyString,
+  parseDateOnlyUtc,
+} from '../common/datetime/datetime';
 import { trimOrNull } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillQueryDto } from './dto/bill-query.dto';
@@ -260,6 +268,7 @@ export class BillsService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    private readonly businessTimezone: BusinessTimezoneService,
   ) {}
 
   async list(
@@ -267,6 +276,7 @@ export class BillsService {
     query: BillQueryDto,
   ): Promise<PaginatedResult<BillRecord>> {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
+    const timeZone = await this.businessTimezone.resolveForUser(user);
     const filters: Record<string, unknown>[] = [this.scope.salonScope(user)];
 
     if (user.role === RoleCode.CUSTOMER) {
@@ -289,13 +299,19 @@ export class BillsService {
       filters.push({ paymentStatus: query.paymentStatus });
     }
 
-    const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (query.dateFrom) dateFilter.gte = this.parseDateOnly(query.dateFrom);
-    if (query.dateTo) {
-      dateFilter.lte = this.endOfUtcDay(this.parseDateOnly(query.dateTo));
-    }
-    if (dateFilter.gte || dateFilter.lte) {
-      filters.push({ billDate: dateFilter });
+    if (query.dateFrom || query.dateTo) {
+      try {
+        const range = businessCalendarRangeToUtc(
+          query.dateFrom,
+          query.dateTo,
+          timeZone,
+        );
+        filters.push({ billDate: range });
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error ? error.message : 'Invalid date range',
+        );
+      }
     }
 
     if (query.search?.trim()) {
@@ -325,7 +341,7 @@ export class BillsService {
     ]);
 
     return paginated(
-      rows.map((row) => this.toResponse(row)),
+      rows.map((row) => this.toResponse(row, timeZone)),
       total,
       page,
       limit,
@@ -335,7 +351,8 @@ export class BillsService {
   async findOne(user: AuthenticatedUser, id: string): Promise<BillRecord> {
     const record = await this.requireBill(id);
     await this.assertBillAccess(user, record);
-    return this.toResponse(record);
+    const timeZone = await this.businessTimezone.resolveForUser(user);
+    return this.toResponse(record, timeZone);
   }
 
   async create(
@@ -351,6 +368,9 @@ export class BillsService {
     await this.requireActiveCustomer(customerId);
     await this.scope.assertCustomerAccess(actor, customerId);
 
+    const timeZone = await this.businessTimezone.resolveForUser(actor);
+    const billDate = this.resolveBillDateInput(dto.billDate, timeZone);
+
     const lines = await this.buildLines(dto.items, salonId);
     const totals = this.computeBillTotals(lines, dto);
 
@@ -361,9 +381,7 @@ export class BillsService {
             salonId,
             customerId,
             billNumber: dto.billNumber?.trim() || this.nextBillNumber(),
-            billDate: dto.billDate
-              ? this.parseDateOnly(dto.billDate)
-              : new Date(),
+            billDate,
             subtotal: totals.subtotal,
             discount: totals.discount,
             tax: totals.tax,
@@ -411,7 +429,7 @@ export class BillsService {
         userAgent: ctx.userAgent,
       });
 
-      return this.toResponse(created);
+      return this.toResponse(created, timeZone);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new ConflictException('Bill number already exists in this salon');
@@ -440,6 +458,7 @@ export class BillsService {
 
     const customerId = dto.customerId ?? existing.customerId;
     const salonId = existing.salonId;
+    const timeZone = await this.businessTimezone.resolveForUser(actor);
 
     let lines: ComputedLine[];
     if (dto.items) {
@@ -509,7 +528,7 @@ export class BillsService {
                 : existing.billNumber,
             billDate:
               dto.billDate !== undefined
-                ? this.parseDateOnly(dto.billDate)
+                ? this.resolveBillDateInput(dto.billDate, timeZone)
                 : existing.billDate,
             subtotal: totals.subtotal,
             discount: totals.discount,
@@ -548,7 +567,7 @@ export class BillsService {
         userAgent: ctx.userAgent,
       });
 
-      return this.toResponse(updated);
+      return this.toResponse(updated, timeZone);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new ConflictException('Bill number already exists in this salon');
@@ -570,7 +589,8 @@ export class BillsService {
     const next = dto.status;
 
     if (current === next) {
-      return this.toResponse(existing);
+      const timeZone = await this.businessTimezone.resolveForUser(actor);
+      return this.toResponse(existing, timeZone);
     }
 
     const allowed = BILL_STATUS_TRANSITIONS[current] ?? [];
@@ -661,7 +681,10 @@ export class BillsService {
       userAgent: ctx.userAgent,
     });
 
-    return this.toResponse(updated);
+    return this.toResponse(
+      updated,
+      await this.businessTimezone.resolveForUser(actor),
+    );
   }
 
   private async deductProductStock(
@@ -1035,27 +1058,19 @@ export class BillsService {
     return `BILL-${Date.now()}`;
   }
 
-  private parseDateOnly(value: string): Date {
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, day));
-  }
-
-  private endOfUtcDay(date: Date): Date {
-    return new Date(
-      Date.UTC(
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate(),
-        23,
-        59,
-        59,
-        999,
-      ),
-    );
-  }
-
-  private formatDateOnly(value: Date): string {
-    return value.toISOString().slice(0, 10);
+  private resolveBillDateInput(
+    value: string | undefined,
+    timeZone: string,
+  ): Date {
+    // billDate is a DATE_ONLY sentinel in DATETIME — store UTC midnight of the
+    // calendar label (not an absolute instant). Historical rows are never rewritten.
+    if (value === undefined || value === null || value === '') {
+      return parseDateOnlyUtc(calendarDateInTimeZone(timeZone));
+    }
+    if (!isDateOnlyString(value)) {
+      throw new BadRequestException('billDate must be YYYY-MM-DD');
+    }
+    return parseDateOnlyUtc(value);
   }
 
   private asNumber(value: Decimalish): number {
@@ -1071,13 +1086,13 @@ export class BillsService {
     return Number.isFinite(amount) ? amount.toFixed(2) : value.toString();
   }
 
-  private toResponse(row: BillRow): BillRecord {
+  private toResponse(row: BillRow, timeZone: string): BillRecord {
     return {
       id: row.id,
       salonId: row.salonId,
       customerId: row.customerId,
       billNumber: row.billNumber,
-      billDate: this.formatDateOnly(row.billDate),
+      billDate: formatBillDateApi(row.billDate, timeZone),
       subtotal: this.decimalString(row.subtotal),
       discount: this.decimalString(row.discount),
       tax: this.decimalString(row.tax),

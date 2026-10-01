@@ -1,5 +1,18 @@
-import { format, startOfMonth, subDays, subMonths } from 'date-fns';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
 
+import {
+  businessLastNDays,
+  businessMonthToDate,
+  businessToday,
+  businessYearToDate,
+  businessYesterday,
+} from '@/lib/business-calendar';
+import {
+  addCalendarDays,
+  isDateOnlyString,
+  startOfMonthBusinessDateOnly,
+} from '@/lib/business-timezone';
+import { formatTime } from '@/lib/format';
 import { api } from '@/services/api-client';
 import type { RevenuePoint } from '../data/placeholders';
 import type {
@@ -31,6 +44,11 @@ export type DashboardMetric = {
 };
 
 const SAMPLE = 100;
+export const REVENUE_SERIES_MAX_MONTHS = 36;
+export const REVENUE_SERIES_MAX_WEEKS = 26;
+export const REVENUE_SERIES_MAX_DAYS = 62;
+
+export type RevenueBucket = 'day' | 'week' | 'month';
 
 function truncated(page: { data: unknown[]; meta: { total: number } }): boolean {
   return page.meta.total > page.data.length;
@@ -84,15 +102,253 @@ async function sumSuccessfulPayments(
   return { sum, partial: truncated(page) };
 }
 
+type SeriesBucket = {
+  key: string;
+  label: string;
+  from: string;
+  to: string;
+};
+
+/** Label a YYYY-MM-DD calendar day without shifting by browser TZ. */
+function formatDateOnlyDayLabel(dateOnly: string): string {
+  const [y, m, d] = dateOnly.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(y, m - 1, d, 12)));
+}
+
+function formatDateOnlyMonthLabel(dateOnly: string): string {
+  const [y, m] = dateOnly.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    year: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(y, m - 1, 1, 12)));
+}
+
+/** Monday-start week for a calendar date label (UTC noon weekday). */
+function startOfWeekMonday(dateOnly: string): string {
+  const [y, m, d] = dateOnly.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay(); // 0=Sun
+  const daysFromMonday = (dow + 6) % 7;
+  return addCalendarDays(dateOnly, -daysFromMonday);
+}
+
+function endOfWeekSunday(weekStartMonday: string): string {
+  return addCalendarDays(weekStartMonday, 6);
+}
+
+function maxDateOnly(a: string, b: string): string {
+  return a >= b ? a : b;
+}
+
+function minDateOnly(a: string, b: string): string {
+  return a <= b ? a : b;
+}
+
+function buildBuckets(
+  dateFrom: string,
+  dateTo: string,
+  bucket: RevenueBucket,
+): SeriesBucket[] {
+  const buckets: SeriesBucket[] = [];
+
+  if (bucket === 'day') {
+    let cursor = dateFrom;
+    while (cursor <= dateTo) {
+      buckets.push({
+        key: cursor,
+        label: formatDateOnlyDayLabel(cursor),
+        from: cursor,
+        to: cursor,
+      });
+      cursor = addCalendarDays(cursor, 1);
+      if (buckets.length >= REVENUE_SERIES_MAX_DAYS) break;
+    }
+    return buckets;
+  }
+
+  if (bucket === 'week') {
+    let cursor = startOfWeekMonday(dateFrom);
+    const lastWeek = startOfWeekMonday(dateTo);
+    while (cursor <= lastWeek) {
+      const weekEnd = endOfWeekSunday(cursor);
+      buckets.push({
+        key: cursor,
+        label: formatDateOnlyDayLabel(cursor),
+        from: cursor,
+        to: weekEnd,
+      });
+      cursor = addCalendarDays(cursor, 7);
+      if (buckets.length >= REVENUE_SERIES_MAX_WEEKS) break;
+    }
+    return buckets;
+  }
+
+  let cursor = `${dateFrom.slice(0, 7)}-01`;
+  const lastMonth = `${dateTo.slice(0, 7)}-01`;
+  while (cursor <= lastMonth) {
+    const [y, m] = cursor.split('-').map(Number);
+    const nextMonth = new Date(Date.UTC(y, m, 1)); // m is 1-based; Date.UTC month is 0-based so `m` = next month
+    const monthEnd = addCalendarDays(
+      `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, '0')}-01`,
+      -1,
+    );
+    buckets.push({
+      key: cursor.slice(0, 7),
+      label: formatDateOnlyMonthLabel(cursor),
+      from: cursor,
+      to: monthEnd,
+    });
+    cursor = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    if (buckets.length >= REVENUE_SERIES_MAX_MONTHS) break;
+  }
+  return buckets;
+}
+
+/**
+ * Revenue buckets for an arbitrary inclusive date range.
+ * Each bucket is clipped to the requested window.
+ * Ranges are business calendar YYYY-MM-DD labels (no browser TZ).
+ */
+export async function fetchRevenueSeries(
+  dateFrom: string,
+  dateTo: string,
+  bucket: RevenueBucket = 'month',
+): Promise<RevenuePoint[]> {
+  if (!isDateOnlyString(dateFrom) || !isDateOnlyString(dateTo)) {
+    return [];
+  }
+  if (dateFrom > dateTo) {
+    return [];
+  }
+
+  const windows = buildBuckets(dateFrom, dateTo, bucket);
+  const points = await Promise.all(
+    windows.map(async (window) => {
+      const rangeStart = maxDateOnly(dateFrom, window.from);
+      const rangeEnd = minDateOnly(dateTo, window.to);
+      if (rangeStart > rangeEnd) {
+        return {
+          point: {
+            monthKey: window.key,
+            label: window.label,
+            amount: 0,
+          } satisfies RevenuePoint,
+          partial: false,
+        };
+      }
+      const { sum, partial } = await sumSuccessfulPayments(rangeStart, rangeEnd);
+      return {
+        point: {
+          monthKey: window.key,
+          label: window.label,
+          amount: sum,
+        } satisfies RevenuePoint,
+        partial,
+      };
+    }),
+  );
+
+  return points.some((p) => p.partial) ? [] : points.map((p) => p.point);
+}
+
+export function inferRevenueBucket(
+  dateFrom: string,
+  dateTo: string,
+): RevenueBucket {
+  const days = differenceInCalendarDays(parseISO(dateTo), parseISO(dateFrom));
+  if (days <= 45) return 'day';
+  if (days <= 180) return 'week';
+  return 'month';
+}
+
+export type RevenuePeriodTab = 'day' | 'week' | 'month' | 'year' | 'custom';
+
+export function revenueTabRange(tab: Exclude<RevenuePeriodTab, 'custom'>): {
+  dateFrom: string;
+  dateTo: string;
+  bucket: RevenueBucket;
+} {
+  const dateTo = businessToday();
+
+  if (tab === 'day') {
+    return {
+      ...businessLastNDays(14),
+      bucket: 'day',
+    };
+  }
+  if (tab === 'week') {
+    return {
+      dateFrom: addCalendarDays(dateTo, -7 * 7),
+      dateTo,
+      bucket: 'week',
+    };
+  }
+  if (tab === 'month') {
+    return {
+      ...businessMonthToDate(),
+      bucket: 'day',
+    };
+  }
+
+  const monthStart = startOfMonthBusinessDateOnly();
+  const [y, m] = monthStart.split('-').map(Number);
+  const lookback = new Date(Date.UTC(y, m - 1 - 11, 1));
+  return {
+    dateFrom: `${lookback.getUTCFullYear()}-${String(lookback.getUTCMonth() + 1).padStart(2, '0')}-01`,
+    dateTo,
+    bucket: 'month',
+  };
+}
+
+export function defaultRevenueDateRange(monthsBack = 6): {
+  dateFrom: string;
+  dateTo: string;
+} {
+  const dateTo = businessToday();
+  const monthStart = startOfMonthBusinessDateOnly();
+  const [y, m] = monthStart.split('-').map(Number);
+  const from = new Date(Date.UTC(y, m - 1 - Math.max(monthsBack - 1, 0), 1));
+  return {
+    dateFrom: `${from.getUTCFullYear()}-${String(from.getUTCMonth() + 1).padStart(2, '0')}-01`,
+    dateTo,
+  };
+}
+
+export function revenuePresetRange(
+  preset: '3m' | '6m' | '12m' | 'ytd',
+): { dateFrom: string; dateTo: string } {
+  if (preset === 'ytd') {
+    return businessYearToDate();
+  }
+  const months = preset === '3m' ? 3 : preset === '12m' ? 12 : 6;
+  return defaultRevenueDateRange(months);
+}
+
+
 function mapFranchiseRow(row: FranchiseListItem): RecentBusinessRow {
+  const planName = row.currentPlanName?.trim() || null;
+  const lower = planName?.toLowerCase() ?? '';
+  const planTone: RecentBusinessRow['planTone'] = !planName
+    ? 'unknown'
+    : lower.includes('pro')
+      ? 'professional'
+      : 'basic';
+
   return {
     id: row.id,
     name: row.name,
     code: row.code,
     ownerLabel: row.email ?? row.phone ?? '—',
-    // Plans are not on the franchise API yet.
-    planLabel: '—',
-    planTone: 'unknown',
+    planLabel: planName
+      ? row.subscriptionActive
+        ? planName
+        : `${planName} (inactive)`
+      : 'Not enrolled',
+    planTone,
     status: row.isActive ? 'active' : 'inactive',
     statusLabel: row.isActive ? 'Active' : 'Inactive',
   };
@@ -120,19 +376,7 @@ function mapNotification(row: NotificationListItem): ActivityItem {
  * There is no dedicated Nest dashboard aggregate API yet.
  */
 export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardData> {
-  const now = new Date();
-  const thisMonthStart = startOfMonth(now);
-  const lastMonthStart = startOfMonth(subMonths(now, 1));
-  const lastMonthEnd = subDays(thisMonthStart, 1);
-
-  const thisMonth = {
-    dateFrom: format(thisMonthStart, 'yyyy-MM-dd'),
-    dateTo: format(now, 'yyyy-MM-dd'),
-  };
-  const lastMonth = {
-    dateFrom: format(lastMonthStart, 'yyyy-MM-dd'),
-    dateTo: format(lastMonthEnd, 'yyyy-MM-dd'),
-  };
+  const thisMonth = businessMonthToDate();
 
   const [
     franchisesTotal,
@@ -141,7 +385,6 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
     usersPage,
     customersPage,
     thisMonthRevenue,
-    lastMonthRevenue,
     notificationsPage,
   ] = await Promise.all([
     api.get<PaginatedResponse<FranchiseListItem>>('/franchises', {
@@ -160,7 +403,6 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
       params: { page: 1, limit: 1 },
     }),
     sumSuccessfulPayments(thisMonth.dateFrom, thisMonth.dateTo),
-    sumSuccessfulPayments(lastMonth.dateFrom, lastMonth.dateTo),
     api.get<PaginatedResponse<NotificationListItem>>('/notifications', {
       params: { page: 1, limit: 8 },
     }),
@@ -169,12 +411,6 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
   const totalBusinesses = franchisesTotal.meta.total;
   const activeBusinesses = franchisesActive.meta.total;
   const totalUsers = usersPage.meta.total + customersPage.meta.total;
-
-  const revenuePartial = thisMonthRevenue.partial || lastMonthRevenue.partial;
-  const revenueChange =
-    !revenuePartial && lastMonthRevenue.sum > 0
-      ? ((thisMonthRevenue.sum - lastMonthRevenue.sum) / lastMonthRevenue.sum) * 100
-      : null;
 
   const metrics: DashboardMetric[] = [
     {
@@ -209,13 +445,13 @@ export async function fetchSuperAdminDashboard(): Promise<SuperAdminDashboardDat
     },
     {
       id: 'revenue-month',
-      label: 'Revenue This Month',
+      label: 'Revenue by Businesses',
       value: String(thisMonthRevenue.sum),
       rawValue: thisMonthRevenue.sum,
-      comparisonLabel: 'vs last month',
-      changePercent: revenueChange,
+      comparisonLabel: 'this month',
+      changePercent: null,
       tone: 'accent',
-      comparisonIsPlaceholder: revenueChange === null,
+      comparisonIsPlaceholder: true,
       partial: thisMonthRevenue.partial,
       partialSample: SAMPLE,
     },
@@ -341,13 +577,21 @@ function paymentMethodLabel(method: string | null | undefined): string {
   return method.replaceAll('_', ' ');
 }
 
-function startOfLocalDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function daysBetween(from: Date, to: Date): number {
-  const ms = startOfLocalDay(to).getTime() - startOfLocalDay(from).getTime();
-  return Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+function daysBetweenDateOnly(from: string, to: string): number {
+  const fromMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(from.slice(0, 10));
+  const toMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(to.slice(0, 10));
+  if (!fromMatch || !toMatch) return 0;
+  const fromUtc = Date.UTC(
+    Number(fromMatch[1]),
+    Number(fromMatch[2]) - 1,
+    Number(fromMatch[3]),
+  );
+  const toUtc = Date.UTC(
+    Number(toMatch[1]),
+    Number(toMatch[2]) - 1,
+    Number(toMatch[3]),
+  );
+  return Math.max(0, Math.floor((toUtc - fromUtc) / (24 * 60 * 60 * 1000)));
 }
 
 /**
@@ -359,11 +603,10 @@ function daysBetween(from: Date, to: Date): number {
  * Empty API results surface as zeros / empty widget states in the UI.
  */
 export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
-  const now = new Date();
-  const today = format(now, 'yyyy-MM-dd');
-  const yesterday = format(subDays(now, 1), 'yyyy-MM-dd');
-  const thisWeekStart = format(subDays(now, 6), 'yyyy-MM-dd');
-  const lastWeekStart = format(subDays(now, 13), 'yyyy-MM-dd');
+  const today = businessToday();
+  const yesterday = businessYesterday();
+  const thisWeekStart = addCalendarDays(today, -6);
+  const lastWeekStart = addCalendarDays(today, -13);
 
   const [
     todayBills,
@@ -563,8 +806,8 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
   const thisWeekTotals = new Map<string, number>();
   const lastWeekTotals = new Map<string, number>();
   for (let i = 0; i < 7; i += 1) {
-    thisWeekTotals.set(format(subDays(now, 6 - i), 'yyyy-MM-dd'), 0);
-    lastWeekTotals.set(format(subDays(now, 13 - i), 'yyyy-MM-dd'), 0);
+    thisWeekTotals.set(addCalendarDays(today, -(6 - i)), 0);
+    lastWeekTotals.set(addCalendarDays(today, -(13 - i)), 0);
   }
 
   for (const bill of rangeBills.data) {
@@ -586,13 +829,11 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
 
   const salesSeries: SalesDayPoint[] = hasSalesActivity
     ? Array.from({ length: 7 }, (_, i) => {
-        const thisDate = subDays(now, 6 - i);
-        const lastDate = subDays(now, 13 - i);
-        const thisKey = format(thisDate, 'yyyy-MM-dd');
-        const lastKey = format(lastDate, 'yyyy-MM-dd');
+        const thisKey = addCalendarDays(today, -(6 - i));
+        const lastKey = addCalendarDays(today, -(13 - i));
         return {
           dateKey: thisKey,
-          label: format(thisDate, 'MMM d'),
+          label: formatDateOnlyDayLabel(thisKey),
           thisWeek: thisWeekTotals.get(thisKey) ?? 0,
           lastWeek: lastWeekTotals.get(lastKey) ?? 0,
         };
@@ -651,7 +892,6 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     .map((bill) => {
       const successPayment = bill.payments?.find((p) => p.status === 'SUCCESS');
       const method = successPayment?.paymentMethod ?? null;
-      const created = new Date(bill.createdAt);
       return {
         id: bill.id,
         billNumber: bill.billNumber,
@@ -659,9 +899,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
         amount: toAmount(bill.total),
         paymentMethodLabel: paymentMethodLabel(method),
         paymentMethod: method,
-        timeLabel: Number.isNaN(created.getTime())
-          ? '—'
-          : format(created, 'h:mm a'),
+        timeLabel: formatTime(bill.createdAt),
       };
     });
 
@@ -674,7 +912,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
       billNumber: bill.billNumber,
       customerLabel: customerDisplayName(customerMap, bill.customerId),
       amount: toAmount(bill.dueAmount),
-      daysPending: daysBetween(new Date(bill.billDate), now),
+      daysPending: daysBetweenDateOnly(bill.billDate, today),
     }));
 
   const serviceAgg = new Map<

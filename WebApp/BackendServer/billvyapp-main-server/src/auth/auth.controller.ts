@@ -6,7 +6,10 @@ import {
   HttpStatus,
   Post,
   Req,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
@@ -14,10 +17,16 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { SkipSubscription } from '../common/decorators/skip-subscription.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
+import {
+  clearRefreshCookie,
+  REFRESH_COOKIE_NAME,
+  setRefreshCookie,
+} from './auth-cookies';
 import { AuthService, RequestContext } from './auth.service';
 import {
   AuthResponseDto,
@@ -33,10 +42,19 @@ import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 
+type TokenBundle = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+};
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Public()
   @Post('login')
@@ -45,13 +63,18 @@ export class AuthController {
   @ApiOperation({
     summary: 'Staff/admin login with email and password',
     description:
-      'Authenticates SUPER_ADMIN, ADMIN, MANAGER and STAFF. CUSTOMER accounts must use the OTP flow.',
+      'Authenticates SUPER_ADMIN, ADMIN, MANAGER and STAFF. CUSTOMER accounts must use the OTP flow. Refresh token is set as an HttpOnly cookie.',
   })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
-  login(@Body() dto: LoginDto, @Req() req: Request): Promise<AuthResponseDto> {
-    return this.authService.login(dto, this.context(req));
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.login(dto, this.context(req));
+    return this.attachRefreshCookie(res, result);
   }
 
   @Public()
@@ -61,17 +84,19 @@ export class AuthController {
   @ApiOperation({
     summary: 'Public customer self-registration',
     description:
-      'Always creates a CUSTOMER account. Role, franchise and salon cannot be supplied by the client; ValidationPipe rejects unknown fields and the service assigns CUSTOMER server-side.',
+      'Always creates a CUSTOMER account. Role, franchise and salon cannot be supplied by the client; ValidationPipe rejects unknown fields and the service assigns CUSTOMER server-side. Refresh token is set as an HttpOnly cookie.',
   })
   @ApiResponse({ status: 201, type: AuthResponseDto })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 409, description: 'Email or phone already registered' })
   @ApiResponse({ status: 429, description: 'Too many registration attempts' })
-  register(
+  async register(
     @Body() dto: RegisterCustomerDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.register(dto, this.context(req));
+    const result = await this.authService.register(dto, this.context(req));
+    return this.attachRefreshCookie(res, result);
   }
 
   @Public()
@@ -100,16 +125,18 @@ export class AuthController {
   @ApiOperation({
     summary: 'Exchange a valid OTP for tokens',
     description:
-      'Authenticates an existing CUSTOMER matched on users.phone. Never creates a user or customer record. OTP is single-use.',
+      'Authenticates an existing CUSTOMER matched on users.phone. Never creates a user or customer record. OTP is single-use. Refresh token is set as an HttpOnly cookie.',
   })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid or expired code' })
   @ApiResponse({ status: 429, description: 'Too many verification attempts' })
-  verifyOtp(
+  async verifyOtp(
     @Body() dto: VerifyOtpDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    return this.authService.verifyOtp(dto, this.context(req));
+    const result = await this.authService.verifyOtp(dto, this.context(req));
+    return this.attachRefreshCookie(res, result);
   }
 
   @Public()
@@ -119,33 +146,54 @@ export class AuthController {
   @ApiOperation({
     summary: 'Rotate an access token',
     description:
-      'The presented refresh token is revoked and a new session is issued (refresh-token rotation).',
+      'Reads the HttpOnly refresh cookie (body refreshToken is a fallback). The presented refresh token is revoked and a new session is issued (refresh-token rotation).',
   })
   @ApiResponse({ status: 200, type: AuthTokensDto })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   @ApiResponse({ status: 429, description: 'Too many refresh attempts' })
-  refresh(
+  async refresh(
     @Body() dto: RefreshTokenDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<AuthTokensDto> {
-    return this.authService.refresh(dto.refreshToken, this.context(req));
+    const refreshToken = this.readRefreshToken(req, dto.refreshToken);
+    if (!refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    const result = await this.authService.refresh(
+      refreshToken,
+      this.context(req),
+    );
+    return this.attachRefreshCookie(res, result);
   }
 
   @ApiBearerAuth()
+  @SkipSubscription()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke the current session' })
   @ApiResponse({ status: 200, type: MessageResponseDto })
   @ApiResponse({ status: 401, description: 'Authentication required' })
-  logout(
+  async logout(
     @CurrentUser() user: AuthenticatedUser,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Body() dto: LogoutDto = {},
   ): Promise<MessageResponseDto> {
-    return this.authService.logout(user, dto, this.context(req));
+    const cookieToken = this.readRefreshToken(req, undefined);
+    const result = await this.authService.logout(
+      user,
+      {
+        refreshToken: dto.refreshToken ?? cookieToken ?? undefined,
+      },
+      this.context(req),
+    );
+    clearRefreshCookie(res, this.cookieSecure());
+    return result;
   }
 
   @ApiBearerAuth()
+  @SkipSubscription()
   @Get('me')
   @ApiOperation({
     summary: 'Return the authenticated user',
@@ -156,6 +204,57 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Authentication required' })
   me(@CurrentUser() user: AuthenticatedUser): Promise<AuthUserDto> {
     return this.authService.me(user);
+  }
+
+  private attachRefreshCookie<T extends TokenBundle>(
+    res: Response,
+    result: T,
+  ): Omit<T, 'refreshToken'> {
+    setRefreshCookie(
+      res,
+      result.refreshToken,
+      this.refreshMaxAgeMs(),
+      this.cookieSecure(),
+    );
+    const { refreshToken: _refreshToken, ...publicResult } = result;
+    return publicResult;
+  }
+
+  private readRefreshToken(
+    req: Request,
+    bodyToken?: string,
+  ): string | undefined {
+    const fromCookie = req.cookies?.[REFRESH_COOKIE_NAME];
+    if (typeof fromCookie === 'string' && fromCookie.length > 0) {
+      return fromCookie;
+    }
+    if (typeof bodyToken === 'string' && bodyToken.length > 0) {
+      return bodyToken;
+    }
+    return undefined;
+  }
+
+  private cookieSecure(): boolean {
+    return this.config.get<string>('nodeEnv') === 'production';
+  }
+
+  private refreshMaxAgeMs(): number {
+    const raw = this.config.get<string>('jwt.refreshExpiresIn') ?? '7d';
+    return this.parseDurationMs(raw);
+  }
+
+  private parseDurationMs(duration: string): number {
+    const match = /^(\d+)([smhd])$/i.exec(duration.trim());
+    if (!match) return 7 * 24 * 60 * 60 * 1000;
+    const amount = Number(match[1]);
+    const unit = match[2]!.toLowerCase();
+    const multipliers: Record<string, number> = {
+      s: 1000,
+      m: 60_000,
+      h: 3_600_000,
+      d: 86_400_000,
+    };
+    return amount * (multipliers[unit] ?? 86_400_000);
   }
 
   private context(req: Request): RequestContext {

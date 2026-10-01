@@ -1,13 +1,14 @@
 'use client';
 
-import { useRef } from 'react';
-import { Bell, CalendarDays, ChevronDown } from 'lucide-react';
+import { SelectInput } from '@/components/data/form-fields';
+
+import { useRef, useState } from 'react';
+import { CalendarDays } from 'lucide-react';
 
 import { SectionErrorState } from '@/components/layout/section-states';
 import { useGSAP, playDashboardEntrance } from '@/lib/animations';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useAdminDashboard } from '../hooks/use-admin-dashboard';
-import { cn } from '@/lib/utils';
 
 import { AdminStatGrid } from './admin-stat-card';
 import { AdminRevenueOverview } from './admin-revenue-overview';
@@ -20,7 +21,19 @@ import { AdminAtAGlance } from './admin-at-a-glance';
 
 // ─── Greeting header (clean in-page hero header) ───────────────────────────
 
-function DashboardGreeting() {
+type DashboardGreetingProps = {
+  salonId: string;
+  onSalonIdChange: (salonId: string) => void;
+  branches: Array<{ id: string; name: string }>;
+  branchesLoading?: boolean;
+};
+
+function DashboardGreeting({
+  salonId,
+  onSalonIdChange,
+  branches,
+  branchesLoading,
+}: DashboardGreetingProps) {
   const user = useCurrentUser();
   const hour = new Date().getHours();
   const greeting =
@@ -29,7 +42,6 @@ function DashboardGreeting() {
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      {/* Left: greeting */}
       <div className="min-w-0">
         <h1 className="text-xl font-bold tracking-tight text-text sm:text-2xl lg:text-3xl">
           {greeting}, {firstName} 👋
@@ -39,19 +51,22 @@ function DashboardGreeting() {
         </p>
       </div>
 
-      {/* Right: controls */}
       <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-        {/* Branch selector */}
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-text shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+        <SelectInput
+          className="max-w-[14rem] disabled:cursor-wait"
           aria-label="Select branch"
+          value={salonId}
+          disabled={branchesLoading}
+          onChange={(e) => onSalonIdChange(e.target.value)}
         >
-          <span>All Branches</span>
-          <ChevronDown className="size-4 shrink-0 text-text-secondary" aria-hidden />
-        </button>
+          <option value="">All Branches</option>
+          {branches.map((branch) => (
+            <option key={branch.id} value={branch.id}>
+              {branch.name}
+            </option>
+          ))}
+        </SelectInput>
 
-        {/* Date */}
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-text shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
@@ -75,7 +90,8 @@ function DashboardGreeting() {
 
 export function AdminDashboardView() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const query = useAdminDashboard();
+  const [salonId, setSalonId] = useState('');
+  const query = useAdminDashboard(salonId || undefined);
   const data = query.data;
 
   useGSAP(
@@ -83,10 +99,10 @@ export function AdminDashboardView() {
       if (!rootRef.current || query.isLoading) return;
       playDashboardEntrance({ root: rootRef.current });
     },
-    { dependencies: [query.isLoading, query.isSuccess], scope: rootRef },
+    { dependencies: [query.isLoading, query.isSuccess, salonId], scope: rootRef },
   );
 
-  if (query.isError) {
+  if (query.isError && !data) {
     return (
       <div className="app-surface-card">
         <SectionErrorState
@@ -100,27 +116,27 @@ export function AdminDashboardView() {
 
   return (
     <div ref={rootRef} className="space-y-6 lg:space-y-7">
-      {/* In-page greeting header & branch/date controls */}
-      <DashboardGreeting />
+      <DashboardGreeting
+        salonId={salonId}
+        onSalonIdChange={setSalonId}
+        branches={data?.branches ?? []}
+        branchesLoading={query.isLoading && !data}
+      />
 
-      {/* ── Row 1: Stats ── */}
-      <AdminStatGrid stats={data?.stats ?? []} isLoading={query.isLoading} />
+      <AdminStatGrid stats={data?.stats ?? []} isLoading={query.isLoading && !data} />
 
-      {/* ── Row 2: Revenue chart | Branch performance | Business summary ── */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)] lg:gap-7">
         <AdminRevenueOverview series={data?.revenueSeries ?? []} />
         <AdminBranchPerformance branches={data?.branchPerformance ?? []} />
         <AdminBusinessSummary items={data?.businessSummary ?? []} />
       </div>
 
-      {/* ── Row 3: Recent bills | Recent customers | Quick actions ── */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-7">
         <AdminRecentBills bills={data?.recentBills ?? []} />
         <AdminRecentCustomers customers={data?.recentCustomers ?? []} />
         <AdminQuickActions actions={data?.quickActions ?? []} />
       </div>
 
-      {/* ── Row 4: At a Glance ── */}
       <AdminAtAGlance metrics={data?.glanceMetrics ?? []} />
     </div>
   );

@@ -17,6 +17,11 @@ export type FranchiseListItem = {
   phone: string | null;
   email: string | null;
   isActive: boolean;
+  currentPlanName?: string | null;
+  subscriptionStatus?: 'active' | 'expired' | 'cancelled' | null;
+  subscriptionStartsAt?: string | null;
+  subscriptionEndsAt?: string | null;
+  subscriptionActive?: boolean;
   createdAt: string;
   updatedAt: string;
 };

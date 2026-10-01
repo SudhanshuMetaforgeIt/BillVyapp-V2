@@ -26,7 +26,7 @@ export class PrismaService
   constructor(config: ConfigService) {
     super({
       adapter: new PrismaMariaDb(
-        mariaPoolConfig(config.getOrThrow<string>('database.url')),
+        buildMariaPoolConfig(config.getOrThrow<string>('database.url')),
       ),
     });
   }
@@ -39,7 +39,24 @@ export class PrismaService
         'MySQL is not reachable. Check DATABASE_URL and that MySQL is running.',
       );
     }
-    this.logger.log('Prisma connected to MySQL');
+
+    // Belt-and-suspenders: assert session TZ for the lifecycle connection.
+    // Pool connections already receive timezone:'Z' from buildMariaPoolConfig.
+    try {
+      await this.$executeRawUnsafe(`SET time_zone = '+00:00'`);
+      const rows = await this.$queryRawUnsafe<Array<{ tz: string }>>(
+        `SELECT @@session.time_zone AS tz`,
+      );
+      this.logger.log(
+        `Prisma connected to MySQL (session time_zone=${rows[0]?.tz ?? 'unknown'})`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Prisma connected but could not assert UTC session time_zone: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -65,7 +82,12 @@ export class PrismaService
   }
 }
 
-function mariaPoolConfig(databaseUrl: string) {
+/**
+ * MariaDB pool options for Prisma 7 + @prisma/adapter-mariadb.
+ * `timezone: 'Z'` forces connector + session UTC on every pooled connection.
+ * Historical DATETIME values are not rewritten by this setting.
+ */
+export function buildMariaPoolConfig(databaseUrl: string) {
   const url = new URL(databaseUrl);
   const host =
     url.hostname === 'localhost' || url.hostname === '::1'
@@ -83,5 +105,6 @@ function mariaPoolConfig(databaseUrl: string) {
     connectTimeout: 5_000,
     allowPublicKeyRetrieval: true,
     resetAfterUse: true,
+    timezone: 'Z' as const,
   };
 }

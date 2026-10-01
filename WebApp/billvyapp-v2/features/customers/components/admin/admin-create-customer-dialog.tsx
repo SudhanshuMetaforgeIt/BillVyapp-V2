@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useState } from 'react';
 import { AlertCircle, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -179,15 +181,14 @@ export function AdminCreateCustomerDialog({
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Gender
               </label>
-              <select
+              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
                 value={gender}
                 onChange={(e) => setGender(e.target.value as Gender)}
-                className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
               >
                 <option value="FEMALE">Female</option>
                 <option value="MALE">Male</option>
                 <option value="OTHER">Other</option>
-              </select>
+              </SelectInput>
             </div>
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
@@ -208,17 +209,16 @@ export function AdminCreateCustomerDialog({
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Preferred Branch Location
               </label>
-              <select
+              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
                 value={salonId}
                 onChange={(e) => setSalonId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
           )}
 

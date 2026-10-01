@@ -24,10 +24,10 @@ describe('role navigation', () => {
     expect(links).toContain(ROUTES.dashboard.superAdmin.businesses);
   });
 
-  it('gives admin franchise operations including inventory', () => {
+  it('gives admin franchise operations without inventory', () => {
     const links = hrefs('ADMIN');
-    expect(links).toContain(ROUTES.dashboard.admin.inventory);
     expect(links).toContain(ROUTES.dashboard.admin.staff);
+    expect(links).not.toContain(`${ROUTES.dashboard.admin.root}/inventory`);
     expect(links.some((href) => href.includes('/audit'))).toBe(false);
     expect(links).not.toContain(ROUTES.dashboard.superAdmin.users);
   });

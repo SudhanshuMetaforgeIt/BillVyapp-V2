@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { AppShell } from '@/components/layout/app-shell';
 import { ROUTES } from '@/constants/routes';
+import { SubscriptionGate } from '@/features/subscription/components/subscription-gate';
 
 type AdminShellProps = {
   children: ReactNode;
@@ -35,10 +36,6 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'Salons',
     subtitle: 'Branches in your franchise.',
   },
-  [ROUTES.dashboard.admin.appointments]: {
-    title: 'Appointments',
-    subtitle: 'Appointments across your salons.',
-  },
   [ROUTES.dashboard.admin.payments]: {
     title: 'Payments',
     subtitle: 'Payment records across your salons.',
@@ -62,14 +59,6 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   [ROUTES.dashboard.admin.staff]: {
     title: 'Staff',
     subtitle: 'Manage staff members across your franchise.',
-  },
-  [ROUTES.dashboard.admin.inventory]: {
-    title: 'Inventory',
-    subtitle: 'Stock levels across your franchise salons.',
-  },
-  [ROUTES.dashboard.admin.memberships]: {
-    title: 'Memberships',
-    subtitle: 'Plans and members in your franchise.',
   },
   [ROUTES.dashboard.admin.loyalty]: {
     title: 'Loyalty',
@@ -99,6 +88,10 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
     title: 'Profile',
     subtitle: 'Manage your profile information and account preferences.',
   },
+  [ROUTES.dashboard.admin.subscriptionRequired]: {
+    title: 'Subscription required',
+    subtitle: 'Your franchise must be enrolled to use BillVyApp.',
+  },
 };
 
 /**
@@ -115,7 +108,7 @@ export function AdminShell({ children }: AdminShellProps) {
       title={meta.title}
       subtitle={meta.subtitle}
     >
-      {children}
+      <SubscriptionGate>{children}</SubscriptionGate>
     </AppShell>
   );
 }

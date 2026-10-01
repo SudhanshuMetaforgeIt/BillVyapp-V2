@@ -15,12 +15,24 @@ export type BusinessListRow = {
   id: string;
   name: string;
   code: string;
+  email: string | null;
+  phone: string | null;
   ownerLabel: string;
   planLabel: string;
   planTone: BusinessPlanTone;
   status: BusinessStatus;
   statusLabel: string;
+  isActive: boolean;
   joinedOn: string;
+  subscriptionActive: boolean;
+  subscriptionEndsAt: string | null;
+};
+
+export type UpdateBusinessPayload = {
+  name: string;
+  code: string;
+  phone?: string | null;
+  email?: string | null;
 };
 
 export type BusinessStatusFilter = 'all' | BusinessStatus;

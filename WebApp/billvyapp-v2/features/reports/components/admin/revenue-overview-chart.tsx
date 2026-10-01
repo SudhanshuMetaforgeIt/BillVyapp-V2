@@ -1,7 +1,9 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+
 import type { RevenuePoint } from '../../types/admin-reports.types';
 
 type RevenueOverviewChartProps = {
@@ -59,20 +61,16 @@ export function RevenueOverviewChart({ series }: RevenueOverviewChartProps) {
         <h3 className="text-sm font-bold text-stone-900 dark:text-white">
           Revenue Overview
         </h3>
-        <div className="relative">
-          <select
+        <SelectInput className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
             value={interval}
             onChange={(e) =>
               setInterval(e.target.value as 'Daily' | 'Weekly' | 'Monthly')
             }
-            className="h-7 rounded-md border border-stone-200 bg-white pl-2 pr-6 text-[11px] font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-300 appearance-none"
           >
             <option value="Daily">Daily</option>
             <option value="Weekly">Weekly</option>
             <option value="Monthly">Monthly</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-stone-400" />
-        </div>
+          </SelectInput>
       </div>
 
       {/* Chart */}

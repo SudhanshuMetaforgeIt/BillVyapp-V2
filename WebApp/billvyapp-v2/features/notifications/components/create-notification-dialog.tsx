@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -99,18 +101,17 @@ export function CreateNotificationDialog({
         >
           <div>
             <Label htmlFor="notif-channel">Channel</Label>
-            <select
+            <SelectInput className="h-11 w-full text-sm font-medium"
               id="notif-channel"
               value={channel}
               onChange={(e) =>
                 setChannel(e.target.value as NotificationChannel)
               }
-              className="flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="EMAIL">Email</option>
               <option value="SMS">SMS</option>
               <option value="WHATSAPP">WhatsApp</option>
-            </select>
+            </SelectInput>
           </div>
 
           <div>

@@ -14,7 +14,9 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ScopeGuard } from './common/guards/scope.guard';
+import { SubscriptionActiveGuard } from './common/guards/subscription-active.guard';
 import { ScopeModule } from './common/scope/scope.module';
+import { DatetimeModule } from './common/datetime/datetime.module';
 
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
@@ -34,6 +36,9 @@ import { MediaModule } from './media/media.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PlatformPlansModule } from './platform-plans/platform-plans.module';
+import { FranchiseSubscriptionsModule } from './franchise-subscriptions/franchise-subscriptions.module';
+import { PlatformReportsModule } from './platform-reports/platform-reports.module';
 import { ProductCategoriesModule } from './product-categories/product-categories.module';
 import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
@@ -41,9 +46,10 @@ import { SalonsModule } from './salons/salons.module';
 import { SearchModule } from './search/search.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServicesModule } from './services/services.module';
+import { SettingsModule } from './settings/settings.module';
+import { SupportTicketsModule } from './support-tickets/support-tickets.module';
 import { UsersModule } from './users/users.module';
 import { VendorsModule } from './vendors/vendors.module';
-import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -71,6 +77,7 @@ import { SettingsModule } from './settings/settings.module';
       }),
     }),
     ScopeModule,
+    DatetimeModule,
     AuditModule,
 
     HealthModule,
@@ -92,11 +99,15 @@ import { SettingsModule } from './settings/settings.module';
     BillsModule,
     PaymentsModule,
     MembershipsModule,
+    PlatformPlansModule,
+    FranchiseSubscriptionsModule,
+    PlatformReportsModule,
     LoyaltyModule,
     NotificationsModule,
     MediaModule,
     SettingsModule,
     SearchModule,
+    SupportTicketsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -112,6 +123,7 @@ import { SettingsModule } from './settings/settings.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },
+    { provide: APP_GUARD, useClass: SubscriptionActiveGuard },
 
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],

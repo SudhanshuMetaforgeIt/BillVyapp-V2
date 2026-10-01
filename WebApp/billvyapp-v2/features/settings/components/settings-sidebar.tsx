@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   ChevronRight,
   DatabaseBackup,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+import { Modal } from '@/components/data/modal';
 import {
   DashboardSectionCard,
   SectionEmptyState,
@@ -17,22 +19,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { formatDateTime } from '@/lib/format';
+import { isApiError } from '@/services/api-client';
+import {
+  useCheckSystemUpdate,
+  useClearCache,
+  useCreateBackup,
+  useResetSettings,
+  useRestoreBackup,
+  useSettingsBackups,
+} from '../hooks/use-platform-settings';
 import type { SystemHealth } from '../types/settings.types';
-
-const UNAVAILABLE =
-  'This action will be available once the settings API is connected.';
+import { SettingsTextField } from './settings-fields';
 
 const QUICK_ACTIONS = [
   {
     id: 'backup',
     label: 'Backup Database',
-    description: 'Create a full database snapshot',
+    description: 'Create a platform settings snapshot',
     icon: DatabaseBackup,
   },
   {
     id: 'restore',
     label: 'Restore Database',
-    description: 'Restore from a previous backup',
+    description: 'Restore from a previous snapshot',
     icon: DatabaseZap,
   },
   {
@@ -49,11 +59,14 @@ const QUICK_ACTIONS = [
   },
 ] as const;
 
+type QuickActionId = (typeof QUICK_ACTIONS)[number]['id'];
+
 type SettingsSidebarProps = {
   health?: SystemHealth;
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  onViewLogs?: () => void;
 };
 
 function healthRows(health: SystemHealth) {
@@ -71,12 +84,124 @@ function healthRows(health: SystemHealth) {
   ];
 }
 
+function fail(error: unknown, fallback: string) {
+  toast.error(isApiError(error) ? error.message : fallback);
+}
+
 export function SettingsSidebar({
   health,
   isLoading,
   isError,
   onRetry,
+  onViewLogs,
 }: SettingsSidebarProps) {
+  const createBackup = useCreateBackup();
+  const restoreBackup = useRestoreBackup();
+  const checkUpdate = useCheckSystemUpdate();
+  const clearCache = useClearCache();
+  const resetSettings = useResetSettings();
+  const backupsQuery = useSettingsBackups();
+
+  const [busyAction, setBusyAction] = useState<QuickActionId | 'cache' | 'reset' | null>(
+    null,
+  );
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [restorePhrase, setRestorePhrase] = useState('');
+  const [resetPhrase, setResetPhrase] = useState('');
+  const [selectedBackupId, setSelectedBackupId] = useState<string>('');
+
+  const backups = backupsQuery.data ?? [];
+  const pending =
+    createBackup.isPending ||
+    restoreBackup.isPending ||
+    checkUpdate.isPending ||
+    clearCache.isPending ||
+    resetSettings.isPending;
+
+  function handleQuickAction(id: QuickActionId) {
+    if (id === 'backup') {
+      setBusyAction('backup');
+      createBackup.mutate(undefined, {
+        onSuccess: (res) => {
+          toast.success(res.message ?? `Backup created (${res.id.slice(0, 8)}…)`);
+          void backupsQuery.refetch();
+        },
+        onError: (error) => fail(error, 'Could not create backup.'),
+        onSettled: () => setBusyAction(null),
+      });
+      return;
+    }
+
+    if (id === 'restore') {
+      void backupsQuery.refetch().then((result) => {
+        const list = result.data ?? [];
+        if (list.length === 0) {
+          toast.error('No backups available. Create a backup first.');
+          return;
+        }
+        setSelectedBackupId(list[0]?.id ?? '');
+        setRestorePhrase('');
+        setRestoreOpen(true);
+      });
+      return;
+    }
+
+    if (id === 'update') {
+      setBusyAction('update');
+      checkUpdate.mutate(undefined, {
+        onSuccess: (res) => {
+          if (res.updateAvailable) {
+            toast.success(
+              `Update available: v${res.latestVersion} (current v${res.currentVersion})`,
+            );
+          } else {
+            toast.success(`${res.message} (v${res.currentVersion})`);
+          }
+        },
+        onError: (error) => fail(error, 'Could not check for updates.'),
+        onSettled: () => setBusyAction(null),
+      });
+      return;
+    }
+
+    onViewLogs?.();
+  }
+
+  function submitRestore() {
+    if (restorePhrase !== 'RESTORE') {
+      toast.error('Type RESTORE to confirm.');
+      return;
+    }
+    setBusyAction('restore');
+    restoreBackup.mutate(selectedBackupId || undefined, {
+      onSuccess: (res) => {
+        toast.success(res.message ?? 'Settings restored from backup.');
+        setRestoreOpen(false);
+        setRestorePhrase('');
+      },
+      onError: (error) => fail(error, 'Could not restore backup.'),
+      onSettled: () => setBusyAction(null),
+    });
+  }
+
+  function submitReset() {
+    if (resetPhrase !== 'RESET') {
+      toast.error('Type RESET to confirm.');
+      return;
+    }
+    setBusyAction('reset');
+    resetSettings.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Platform settings restored to defaults.');
+        setResetOpen(false);
+        setResetPhrase('');
+      },
+      onError: (error) => fail(error, 'Could not reset settings.'),
+      onSettled: () => setBusyAction(null),
+    });
+  }
+
   return (
     <div className="space-y-6 xl:space-y-7">
       <DashboardSectionCard
@@ -87,20 +212,28 @@ export function SettingsSidebar({
         <ul className="space-y-1">
           {QUICK_ACTIONS.map((action) => {
             const Icon = action.icon;
+            const isBusy = busyAction === action.id;
             return (
               <li key={action.id}>
                 <button
                   type="button"
-                  onClick={() => toast(UNAVAILABLE)}
-                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                  disabled={pending}
+                  onClick={() => handleQuickAction(action.id)}
+                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne disabled:opacity-60"
                 >
                   <span className="inline-flex size-9 items-center justify-center rounded-full bg-champagne-light text-champagne shadow-sm ring-1 ring-champagne/15">
-                    <Icon className="size-4" aria-hidden />
+                    <Icon
+                      className={cn(
+                        'size-4',
+                        isBusy && action.id === 'update' && 'animate-spin',
+                      )}
+                      aria-hidden
+                    />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block">{action.label}</span>
                     <span className="block text-xs font-normal text-text-secondary">
-                      {action.description}
+                      {isBusy ? 'Working…' : action.description}
                     </span>
                   </span>
                   <ChevronRight
@@ -180,9 +313,22 @@ export function SettingsSidebar({
             type="button"
             variant="destructive"
             size="sm"
-            onClick={() => toast(UNAVAILABLE)}
+            disabled={pending}
+            onClick={() => {
+              setBusyAction('cache');
+              clearCache.mutate(undefined, {
+                onSuccess: (res) =>
+                  toast.success(
+                    res.deletedKeys != null
+                      ? `Cleared ${res.deletedKeys} cache keys`
+                      : res.message,
+                  ),
+                onError: (error) => fail(error, 'Could not clear cache.'),
+                onSettled: () => setBusyAction(null),
+              });
+            }}
           >
-            Clear Cache
+            {busyAction === 'cache' ? 'Clearing…' : 'Clear Cache'}
           </Button>
         </div>
         <div className="flex flex-col gap-3 border-t border-destructive/20 pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -198,12 +344,104 @@ export function SettingsSidebar({
             type="button"
             variant="destructive"
             size="sm"
-            onClick={() => toast(UNAVAILABLE)}
+            disabled={pending}
+            onClick={() => {
+              setResetPhrase('');
+              setResetOpen(true);
+            }}
           >
             Reset Settings
           </Button>
         </div>
       </DashboardSectionCard>
+
+      <Modal
+        open={restoreOpen}
+        onClose={() => !restoreBackup.isPending && setRestoreOpen(false)}
+        title="Restore Database"
+        description="Restore platform settings and integrations from a previous snapshot. Type RESTORE to confirm."
+        busy={restoreBackup.isPending}
+      >
+        <div className="space-y-4">
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-text">Backup</span>
+            <select
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              value={selectedBackupId}
+              onChange={(e) => setSelectedBackupId(e.target.value)}
+              disabled={restoreBackup.isPending || backups.length === 0}
+            >
+              {backups.map((backup) => (
+                <option key={backup.id} value={backup.id}>
+                  {formatDateTime(backup.createdAt)} ·{' '}
+                  {(backup.sizeBytes / 1024).toFixed(1)} KB
+                </option>
+              ))}
+            </select>
+          </label>
+          <SettingsTextField
+            id="restore-phrase"
+            label="Confirmation phrase"
+            value={restorePhrase}
+            onChange={setRestorePhrase}
+            placeholder="RESTORE"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={restoreBackup.isPending}
+              onClick={() => setRestoreOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={restoreBackup.isPending || !selectedBackupId}
+              onClick={submitRestore}
+            >
+              {restoreBackup.isPending ? 'Restoring…' : 'Restore'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={resetOpen}
+        onClose={() => !resetSettings.isPending && setResetOpen(false)}
+        title="Reset System Settings"
+        description="This restores platform settings to factory defaults. Integrations and media are kept. Type RESET to confirm."
+        busy={resetSettings.isPending}
+      >
+        <div className="space-y-4">
+          <SettingsTextField
+            id="reset-phrase"
+            label="Confirmation phrase"
+            value={resetPhrase}
+            onChange={setResetPhrase}
+            placeholder="RESET"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={resetSettings.isPending}
+              onClick={() => setResetOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={resetSettings.isPending}
+              onClick={submitReset}
+            >
+              {resetSettings.isPending ? 'Resetting…' : 'Reset Settings'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

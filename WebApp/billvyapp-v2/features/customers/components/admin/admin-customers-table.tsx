@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -217,15 +219,14 @@ export function AdminCustomersTable({
             <div className="flex items-center gap-3">
               {/* Page size dropdown */}
               <div className="flex items-center gap-1.5">
-                <select
+                <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
                   value={limit}
                   onChange={(e) => onLimitChange(Number(e.target.value))}
-                  className="rounded-md border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300"
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
                   <option value={50}>50</option>
-                </select>
+                </SelectInput>
               </div>
 
               {/* Page navigation */}

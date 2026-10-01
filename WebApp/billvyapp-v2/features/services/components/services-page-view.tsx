@@ -148,7 +148,7 @@ export function ServicesPageView() {
             {tab === 'services' ? (
               <ServicesTable
                 rows={data?.serviceRows ?? []}
-                meta={data?.serviceMeta ?? emptyMeta}
+                meta={{ ...(data?.serviceMeta ?? emptyMeta), page }}
                 isLoading={query.isLoading && !data}
                 isError={query.isError}
                 onRetry={() => void query.refetch()}
@@ -159,7 +159,7 @@ export function ServicesPageView() {
             ) : (
               <CategoriesTable
                 rows={data?.categoryRows ?? []}
-                meta={data?.categoryMeta ?? emptyMeta}
+                meta={{ ...(data?.categoryMeta ?? emptyMeta), page }}
                 isLoading={query.isLoading && !data}
                 isError={query.isError}
                 onRetry={() => void query.refetch()}

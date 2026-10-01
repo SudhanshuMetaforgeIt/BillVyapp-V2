@@ -30,6 +30,7 @@ function franchise(overrides: Record<string, unknown> = {}) {
     code: 'NORTH',
     phone: null,
     email: null,
+    preferences: null,
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -46,6 +47,9 @@ describe('FranchisesService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    franchiseSubscription: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const scope = { franchiseTableScope: jest.fn().mockReturnValue({}) };
@@ -56,6 +60,7 @@ describe('FranchisesService', () => {
     jest.resetAllMocks();
     scope.franchiseTableScope.mockReturnValue({});
     audit.record.mockResolvedValue(undefined);
+    prisma.franchiseSubscription.findFirst.mockResolvedValue(null);
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );

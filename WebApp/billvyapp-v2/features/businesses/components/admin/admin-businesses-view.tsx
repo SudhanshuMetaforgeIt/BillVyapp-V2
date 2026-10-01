@@ -10,6 +10,8 @@ import { AdminBusinessOverviewCard } from './admin-business-overview-card';
 import { AdminBranchesTable } from './admin-branches-table';
 import { AdminBusinessesSidebar } from './admin-businesses-sidebar';
 import { AdminCreateBranchDialog } from './admin-create-branch-dialog';
+import { AdminEditBusinessDialog } from './admin-edit-business-dialog';
+import { AdminEditBranchDialog } from './admin-edit-branch-dialog';
 import type { AdminBranchItem } from '../../types/admin-my-business.types';
 
 export function AdminBusinessesView() {
@@ -18,6 +20,8 @@ export function AdminBusinessesView() {
   const data = query.data;
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editBusinessOpen, setEditBusinessOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<AdminBranchItem | null>(null);
 
   useGSAP(
     () => {
@@ -41,28 +45,24 @@ export function AdminBusinessesView() {
 
   return (
     <div ref={rootRef} className="space-y-6 lg:space-y-7 pb-10">
-      {/* ── Top 5 Metric Cards ── */}
       <AdminBusinessStatsCards stats={data?.stats} isLoading={query.isLoading} />
 
-      {/* ── Main 2-Column Grid ── */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.85fr)_minmax(18rem,1fr)] lg:gap-7">
-        {/* Left column: Business Overview + All Branches table */}
         <div className="space-y-6 lg:space-y-7 min-w-0">
           <AdminBusinessOverviewCard
             franchise={data?.franchise}
             isLoading={query.isLoading}
-            onEdit={() => {}}
+            onEdit={() => setEditBusinessOpen(true)}
           />
 
           <AdminBranchesTable
             branches={data?.branches ?? []}
             onAddBranch={() => setCreateDialogOpen(true)}
-            onViewBranch={(branch: AdminBranchItem) => {}}
-            onEditBranch={(branch: AdminBranchItem) => {}}
+            onViewBranch={(branch) => setEditingBranch(branch)}
+            onEditBranch={(branch) => setEditingBranch(branch)}
           />
         </div>
 
-        {/* Right column: Overview (All Branches) + Quick Actions + Need Help */}
         <div className="min-w-0">
           <AdminBusinessesSidebar
             overview={data?.overview}
@@ -71,10 +71,21 @@ export function AdminBusinessesView() {
         </div>
       </div>
 
-      {/* ── Create Branch Modal Dialog ── */}
       <AdminCreateBranchDialog
         isOpen={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
+      />
+
+      <AdminEditBusinessDialog
+        isOpen={editBusinessOpen}
+        onClose={() => setEditBusinessOpen(false)}
+        franchise={data?.franchise}
+      />
+
+      <AdminEditBranchDialog
+        isOpen={Boolean(editingBranch)}
+        onClose={() => setEditingBranch(null)}
+        branch={editingBranch}
       />
     </div>
   );

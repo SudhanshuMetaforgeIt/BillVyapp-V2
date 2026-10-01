@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { format, parseISO, isValid } from 'date-fns';
 import { Scissors } from 'lucide-react';
 
@@ -46,9 +48,9 @@ function StatusActions({ row }: { row: AppointmentListRow }) {
   if (next.length === 0) return <span className="text-xs text-text-secondary">—</span>;
 
   return (
-    <select
+    <SelectInput
       aria-label={`Change status of ${row.appointmentNumber}`}
-      className="h-8 rounded-lg border border-border bg-surface px-2 text-xs"
+      className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
       value=""
       disabled={update.isPending}
       onChange={(e) => {
@@ -62,7 +64,7 @@ function StatusActions({ row }: { row: AppointmentListRow }) {
           {STATUS_ACTION_LABELS[status]}
         </option>
       ))}
-    </select>
+    </SelectInput>
   );
 }
 

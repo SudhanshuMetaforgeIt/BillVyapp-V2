@@ -96,6 +96,19 @@ export class BillDocumentsController {
     );
   }
 
+  @Get(':id/download-url')
+  @Roles(...DOCUMENT_READ_ROLES)
+  @ApiOperation({
+    summary: 'Create a private presigned download URL for a bill document',
+  })
+  createDownloadUrl(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('billId', ParseUUIDPipe) billId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.documentsService.createDownloadUrl(user, billId, id);
+  }
+
   @Get(':id')
   @Roles(...DOCUMENT_READ_ROLES)
   @ApiOperation({ summary: 'Get a bill document by id' })

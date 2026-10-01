@@ -5,14 +5,18 @@ import { useDeferredValue, useEffect, useRef, useState, useTransition } from 're
 import { SectionErrorState } from '@/components/layout/section-states';
 import { MetricGrid } from '@/features/dashboard/components/metric-card';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
+import { useUpdateBusinessStatus } from '../hooks/use-business-mutations';
 import { useBusinesses } from '../hooks/use-businesses';
 import type {
+  BusinessListRow,
   BusinessStatusFilter,
 } from '../types/businesses.types';
 import { BusinessesFilters } from './businesses-filters';
 import { BusinessesSidebar } from './businesses-sidebar';
 import { BusinessesTable } from './businesses-table';
 import { CreateBusinessDialog } from './create-business-dialog';
+import { EditBusinessDialog } from './edit-business-dialog';
+import { EnrollBusinessPlanDialog } from './enroll-business-plan-dialog';
 
 const PAGE_SIZE = 7;
 
@@ -25,6 +29,10 @@ export function BusinessesPageView() {
   const [status, setStatus] = useState<BusinessStatusFilter>('all');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<BusinessListRow | null>(null);
+  const [enrolling, setEnrolling] = useState<BusinessListRow | null>(null);
+
+  const statusMutation = useUpdateBusinessStatus();
 
   useEffect(() => {
     setPage(1);
@@ -66,6 +74,8 @@ export function BusinessesPageView() {
     totalPages: 0,
   };
 
+  const openEditor = (row: BusinessListRow) => setEditing(row);
+
   return (
     <>
       <div ref={rootRef} className="space-y-6 lg:space-y-7">
@@ -95,6 +105,20 @@ export function BusinessesPageView() {
               onPageChange={(next) => {
                 startTransition(() => setPage(next));
               }}
+              onEditBusiness={openEditor}
+              onEnrollPlan={(row) => setEnrolling(row)}
+              onToggleStatus={(row) => {
+                statusMutation.mutate({
+                  id: row.id,
+                  isActive: !row.isActive,
+                  name: row.name,
+                });
+              }}
+              statusPendingId={
+                statusMutation.isPending
+                  ? (statusMutation.variables?.id ?? null)
+                  : null
+              }
             />
           </div>
 
@@ -108,6 +132,20 @@ export function BusinessesPageView() {
       </div>
 
       <CreateBusinessDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <EditBusinessDialog
+        business={editing}
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null);
+        }}
+      />
+      <EnrollBusinessPlanDialog
+        business={enrolling}
+        open={enrolling !== null}
+        onOpenChange={(open) => {
+          if (!open) setEnrolling(null);
+        }}
+      />
     </>
   );
 }

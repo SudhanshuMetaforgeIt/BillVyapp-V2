@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { Download } from 'lucide-react';
 
 import { FormField, MutationError, SelectInput } from '@/components/data/form-fields';
 import { Modal } from '@/components/data/modal';
@@ -28,6 +29,70 @@ import { BillDocumentsPanel } from './bill-documents-panel';
 import { billStatusTone, paymentStatusTone } from './bill-tones';
 
 const METHODS: PaymentMethod[] = ['CASH', 'UPI', 'CARD', 'BANK_TRANSFER', 'WALLET', 'OTHER'];
+
+function downloadBillInvoice(bill: Bill) {
+  const customerName = bill.customer ? formatFullName(bill.customer) : 'Customer';
+  const rows = bill.items
+    .map(
+      (item) =>
+        `<tr>
+          <td>${item.description ?? item.itemType}</td>
+          <td style="text-align:right">${item.quantity}</td>
+          <td style="text-align:right">${formatCurrency(item.unitPrice)}</td>
+          <td style="text-align:right">${formatCurrency(item.taxAmount)}</td>
+          <td style="text-align:right">${formatCurrency(item.total)}</td>
+        </tr>`,
+    )
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><title>Bill ${bill.billNumber}</title>
+<style>
+  body{font-family:Arial,sans-serif;padding:24px;color:#111}
+  h1{font-size:20px;margin:0 0 4px}
+  .meta{color:#555;font-size:12px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}
+  th{color:#555;font-weight:600}
+  .totals{margin-top:16px;width:280px;margin-left:auto;font-size:13px}
+  .totals div{display:flex;justify-content:space-between;padding:3px 0}
+  .totals .grand{font-weight:700;border-top:1px solid #111;margin-top:6px;padding-top:6px}
+</style></head><body>
+  <h1>Bill ${bill.billNumber}</h1>
+  <div class="meta">
+    ${bill.salon?.name ?? 'Salon'} · ${formatDate(bill.billDate)}<br/>
+    ${customerName}${bill.customer?.phone ? ` · ${bill.customer.phone}` : ''}<br/>
+    Status: ${bill.status} · Payment: ${bill.paymentStatus}
+  </div>
+  <table>
+    <thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Tax</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="totals">
+    <div><span>Subtotal</span><span>${formatCurrency(bill.subtotal)}</span></div>
+    <div><span>Discount</span><span>${formatCurrency(bill.discount)}</span></div>
+    <div><span>Tax</span><span>${formatCurrency(bill.tax)}</span></div>
+    <div><span>Round off</span><span>${formatCurrency(bill.roundOff)}</span></div>
+    <div class="grand"><span>Total</span><span>${formatCurrency(bill.total)}</span></div>
+    <div><span>Paid</span><span>${formatCurrency(bill.paidAmount)}</span></div>
+    <div><span>Due</span><span>${formatCurrency(bill.dueAmount)}</span></div>
+  </div>
+  <script>window.onload=function(){window.print();}</script>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!win) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${bill.billNumber}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 export function BillRecordDialog({ billId, onClose }: { billId: string | null; onClose: () => void }) {
   const user = useCurrentUser();
@@ -70,10 +135,28 @@ export function BillRecordDialog({ billId, onClose }: { billId: string | null; o
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={b.status} tone={billStatusTone(b.status)} />
             <StatusBadge label={b.paymentStatus} tone={paymentStatusTone(b.paymentStatus)} />
-            <span className="text-xs text-text-secondary">
+            <span className="text-sm font-medium text-text">
               {b.customer ? formatFullName(b.customer) : 'Customer'}
-              {b.customer?.phone ? ` · ${b.customer.phone}` : ''}
+              {b.customer?.phone ? (
+                <span className="font-normal text-text-secondary">
+                  {' '}
+                  · {b.customer.phone}
+                </span>
+              ) : null}
             </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="ml-auto gap-1.5"
+              onClick={() => {
+                downloadBillInvoice(b);
+                toast.success('Opening bill for download / print');
+              }}
+            >
+              <Download className="size-3.5" />
+              Download
+            </Button>
           </div>
 
           <table className="w-full text-left text-xs">

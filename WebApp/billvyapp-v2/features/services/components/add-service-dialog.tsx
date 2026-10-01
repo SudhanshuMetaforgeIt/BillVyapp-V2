@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -144,18 +146,17 @@ export function AddServiceDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="svc-cat">Category</Label>
-              <select
+              <SelectInput className="h-10 w-full text-sm font-medium"
                 id="svc-cat"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
               >
                 {categoryOptions.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="space-y-1.5">

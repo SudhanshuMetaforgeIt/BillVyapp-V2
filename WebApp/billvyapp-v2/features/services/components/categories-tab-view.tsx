@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Layers, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -40,26 +39,41 @@ export function CategoriesTabView({ onAddCategory }: CategoriesTabViewProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {categories.map((c) => (
-        <div key={c.id} className="app-surface-card p-5 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-champagne-light text-charcoal">
-                <Layers className="size-4" />
-              </span>
-              <h4 className="font-bold text-text">{c.name}</h4>
-            </div>
-            <StatusBadge
-              label={c.isActive ? 'Active' : 'Inactive'}
-              tone={c.isActive ? 'success' : 'danger'}
-            />
-          </div>
-          {c.description ? (
-            <p className="text-xs text-text-secondary">{c.description}</p>
-          ) : null}
+    <div className="space-y-4">
+      {onAddCategory ? (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            className="gap-2 bg-brand-orange text-white hover:bg-brand-orange-dark"
+            onClick={onAddCategory}
+          >
+            <Plus className="size-4" />
+            Add Service Category
+          </Button>
         </div>
-      ))}
+      ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((c) => (
+          <div key={c.id} className="app-surface-card p-5 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="flex size-9 items-center justify-center rounded-lg bg-champagne-light text-charcoal">
+                  <Layers className="size-4" />
+                </span>
+                <h4 className="font-bold text-text">{c.name}</h4>
+              </div>
+              <StatusBadge
+                label={c.isActive ? 'Active' : 'Inactive'}
+                tone={c.isActive ? 'success' : 'danger'}
+              />
+            </div>
+            {c.description ? (
+              <p className="text-xs text-text-secondary">{c.description}</p>
+            ) : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

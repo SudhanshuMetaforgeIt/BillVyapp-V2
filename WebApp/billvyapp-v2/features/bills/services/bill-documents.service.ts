@@ -50,20 +50,25 @@ export async function uploadBillDocument(input: {
 }
 
 /**
- * Bill documents expose the storage key but not the media id, so resolve the
- * media record attached to the bill, then request a presigned, expiring URL.
- * Called on click; the URL is never stored.
+ * Request a short-lived download URL for an attached bill document.
  */
 export async function getBillDocumentDownloadUrl(
   billId: string,
-  document: Pick<BillDocument, 'storageKey'>,
+  document: Pick<BillDocument, 'id' | 'storageKey'>,
 ): Promise<MediaDownload> {
-  const media = await api.get<Paginated<MediaFile>>('/media', {
-    params: { entityType: 'BILL', entityId: billId, page: 1, limit: 100 },
-  });
-  const match = media.data.find((m) => m.storageKey === document.storageKey);
-  if (!match) {
-    throw { status: 404, message: 'This document is not available for download.' };
+  try {
+    return await api.get<MediaDownload>(
+      `/bills/${billId}/documents/${document.id}/download-url`,
+    );
+  } catch {
+    // Fallback for older backends: resolve via media list by storage key.
+    const media = await api.get<Paginated<MediaFile>>('/media', {
+      params: { entityType: 'BILL', entityId: billId, page: 1, limit: 100 },
+    });
+    const match = media.data.find((m) => m.storageKey === document.storageKey);
+    if (!match) {
+      throw { status: 404, message: 'This document is not available for download.' };
+    }
+    return api.get<MediaDownload>(`/media/${match.id}/download-url`);
   }
-  return api.get<MediaDownload>(`/media/${match.id}/download-url`);
 }

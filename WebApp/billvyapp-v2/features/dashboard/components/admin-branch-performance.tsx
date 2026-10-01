@@ -1,7 +1,6 @@
 'use client';
 
 import { DashboardSectionCard, SectionEmptyState } from '@/components/layout/section-states';
-import { cn } from '@/lib/utils';
 import type { AdminBranchPerf } from '../types/admin-dashboard.types';
 
 type AdminBranchPerformanceProps = {
@@ -14,9 +13,9 @@ export function AdminBranchPerformance({ branches }: AdminBranchPerformanceProps
       title="Branch Performance"
       data-dash-animate="section"
       className="h-full"
-      bodyClassName="space-y-4 p-5"
+      bodyClassName="space-y-4 pt-2 pb-4"
     >
-      <p className="text-xs text-text-secondary">Revenue by branch</p>
+      <p className="text-xs text-text-secondary">Revenue by branch this month</p>
       {branches.length === 0 ? (
         <SectionEmptyState message="No branch performance data recorded yet." />
       ) : (
@@ -32,7 +31,7 @@ export function AdminBranchPerformance({ branches }: AdminBranchPerformanceProps
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-brand-orange transition-all duration-500"
-                  style={{ width: `${branch.percent}%` }}
+                  style={{ width: `${Math.max(branch.percent, branch.revenue > 0 ? 4 : 0)}%` }}
                   role="progressbar"
                   aria-valuenow={branch.percent}
                   aria-valuemin={0}

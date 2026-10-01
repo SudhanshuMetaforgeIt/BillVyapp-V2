@@ -31,7 +31,7 @@ const TYPE_LABELS: Record<SearchEntityType, string> = {
 /** The backend strips services/products/salons from CUSTOMER searches. */
 const TYPES_FOR_ROLE: Record<RoleCode, SearchEntityType[]> = {
   SUPER_ADMIN: ['customers', 'bills', 'appointments', 'services', 'products', 'salons'],
-  ADMIN: ['customers', 'bills', 'appointments', 'services', 'products', 'salons'],
+  ADMIN: ['customers', 'bills', 'services', 'products', 'salons'],
   MANAGER: ['customers', 'bills', 'appointments', 'services', 'products', 'salons'],
   STAFF: ['customers', 'bills', 'appointments', 'services', 'products', 'salons'],
   CUSTOMER: ['bills', 'appointments'],
@@ -45,7 +45,6 @@ function moduleHref(role: RoleCode, type: SearchEntityType): string | null {
     ADMIN: {
       customers: d.admin.customers,
       bills: d.admin.bills,
-      appointments: d.admin.appointments,
       services: d.admin.services,
       salons: d.admin.salons,
     },
@@ -57,11 +56,8 @@ function moduleHref(role: RoleCode, type: SearchEntityType): string | null {
       products: d.manager.inventory,
     },
     STAFF: {
-      customers: d.staff.customers,
-      bills: d.staff.bills,
       appointments: d.staff.appointments,
-      services: d.staff.services,
-      products: d.staff.inventory,
+      bills: d.staff.walkInBilling,
     },
     CUSTOMER: { bills: d.customer.bills, appointments: d.customer.myBookings },
   };

@@ -13,10 +13,21 @@ type ModalProps = {
   children: ReactNode;
   busy?: boolean;
   className?: string;
+  /** Overlay tint; defaults to a soft dim. */
+  backdropClassName?: string;
 };
 
 /** Same overlay/dialog treatment as the existing feature dialogs. */
-export function Modal({ open, onClose, title, description, children, busy, className }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  busy,
+  className,
+  backdropClassName,
+}: ModalProps) {
   const titleId = useId();
 
   useEffect(() => {
@@ -32,7 +43,10 @@ export function Modal({ open, onClose, title, description, children, busy, class
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4',
+        backdropClassName,
+      )}
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();

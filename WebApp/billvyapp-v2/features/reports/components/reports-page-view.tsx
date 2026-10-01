@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import toast from 'react-hot-toast';
 
 import { SectionErrorState } from '@/components/layout/section-states';
 import { MetricGrid } from '@/features/dashboard/components/metric-card';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
+import { useGenerateReport } from '../hooks/use-report-mutations';
 import { useReports } from '../hooks/use-reports';
 import { defaultReportsDateRange } from '../services/reports.service';
-import type { ReportTypeFilter } from '../types/reports.types';
+import type { ReportType, ReportTypeFilter } from '../types/reports.types';
 import { ReportsFilters } from './reports-filters';
 import { ReportsSidebar } from './reports-sidebar';
 import { ReportsTable } from './reports-table';
@@ -19,6 +19,7 @@ export function ReportsPageView() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
   const defaults = defaultReportsDateRange();
+  const generateMutation = useGenerateReport();
 
   const [dateFrom, setDateFrom] = useState(defaults.dateFrom);
   const [dateTo, setDateTo] = useState(defaults.dateTo);
@@ -67,6 +68,18 @@ export function ReportsPageView() {
     totalPages: 0,
   };
 
+  const handleGenerate = () => {
+    const type: ReportType =
+      reportType === 'all' ? 'financial' : reportType;
+    generateMutation.mutate({
+      type,
+      format: 'excel',
+      dateFrom,
+      dateTo,
+      ...(franchiseId !== 'all' ? { franchiseId } : {}),
+    });
+  };
+
   return (
     <div ref={rootRef} className="space-y-6 lg:space-y-7">
       <MetricGrid
@@ -80,6 +93,7 @@ export function ReportsPageView() {
         franchiseId={franchiseId}
         reportType={reportType}
         franchises={data?.franchises ?? []}
+        isGenerating={generateMutation.isPending}
         onDateFromChange={(value) => {
           startTransition(() => setDateFrom(value));
         }}
@@ -92,11 +106,7 @@ export function ReportsPageView() {
         onReportTypeChange={(value) => {
           startTransition(() => setReportType(value));
         }}
-        onGenerate={() =>
-          toast(
-            'Report generation will be available once the reports API is connected.',
-          )
-        }
+        onGenerate={handleGenerate}
       />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">

@@ -24,6 +24,8 @@ type SupportSidebarProps = {
   totalCount: number;
   statusSummary: SupportStatusSlice[];
   isLoading?: boolean;
+  canCreate?: boolean;
+  onCreate?: () => void;
 };
 
 const QUICK_ACTIONS = [
@@ -57,6 +59,8 @@ export function SupportSidebar({
   totalCount,
   statusSummary,
   isLoading,
+  canCreate,
+  onCreate,
 }: SupportSidebarProps) {
   return (
     <div className="space-y-6 xl:space-y-7">
@@ -70,7 +74,7 @@ export function SupportSidebar({
         ) : totalCount === 0 ? (
           <SectionEmptyState
             title="No tickets yet"
-            message="Status overview will appear once tickets are available."
+            message="Status overview will appear after tickets are raised."
             className="py-6"
           />
         ) : (
@@ -86,15 +90,22 @@ export function SupportSidebar({
         <ul className="space-y-1">
           {QUICK_ACTIONS.map((action) => {
             const Icon = action.icon;
+            const isCreate = action.id === 'create';
             return (
               <li key={action.id}>
                 <button
                   type="button"
-                  onClick={() =>
-                    toast(
-                      `${action.label} will be available once the support tickets API is connected.`,
-                    )
-                  }
+                  onClick={() => {
+                    if (isCreate && canCreate && onCreate) {
+                      onCreate();
+                      return;
+                    }
+                    if (isCreate && !canCreate) {
+                      toast('Only Admin and Manager can raise tickets.');
+                      return;
+                    }
+                    toast(`${action.label} coming soon.`);
+                  }}
                   className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 >
                   <span className="inline-flex size-9 items-center justify-center rounded-full bg-champagne-light text-champagne shadow-sm ring-1 ring-champagne/15">

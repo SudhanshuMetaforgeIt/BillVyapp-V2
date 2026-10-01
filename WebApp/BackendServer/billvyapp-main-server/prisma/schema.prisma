@@ -151,6 +151,55 @@ enum NotificationStatus {
   CANCELLED
 }
 
+/// Billing cadence for Super Admin platform subscription plans (SaaS tiers).
+enum PlatformPlanBillingCycle {
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum FranchiseSubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PlatformReportType {
+  FINANCIAL
+  BUSINESS
+  USER
+  TRANSACTION
+  SUBSCRIPTION
+  ACTIVITY
+}
+
+enum PlatformReportFormat {
+  PDF
+  EXCEL
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportTicketPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum SupportTicketCategory {
+  BILLING
+  PAYMENTS
+  ACCOUNT
+  FEATURE_REQUEST
+  SUBSCRIPTION
+  REPORTS
+}
+
 // =============================================================================
 // RBAC — ROLE / USER
 // =============================================================================
@@ -193,6 +242,8 @@ model User {
   /// Argon2/bcrypt digest only. A plain-text password must never reach this column.
   passwordHash String    @db.VarChar(255)
   profilePhoto String?   @db.VarChar(512)
+  /// Monthly salary in INR. Optional for platform roles; set by Admin for MANAGER/STAFF.
+  salary       Decimal?  @db.Decimal(12, 2)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
@@ -211,6 +262,8 @@ model User {
   createdBills        Bill[]               @relation("BillCreatedBy")
   createdStockMoves   StockMovement[]      @relation("StockMovementCreatedBy")
   uploadedMediaFiles  MediaFile[]          @relation("MediaFileUploadedBy")
+  platformReports     PlatformReport[]     @relation("PlatformReportGeneratedBy")
+  supportTickets      SupportTicket[]      @relation("SupportTicketCreatedBy")
 
   @@index([phone])
   @@index([franchiseId, salonId])
@@ -246,12 +299,17 @@ model Franchise {
   code      String   @unique @db.VarChar(50)
   phone     String?  @db.VarChar(20)
   email     String?  @db.VarChar(191)
+  /// Franchise-level UI preferences (currency, locale, notification toggles, etc.).
+  preferences Json?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  salons Salon[]
-  users  User[]
+  salons          Salon[]
+  users           User[]
+  platformReports PlatformReport[]
+  supportTickets  SupportTicket[]
+  subscriptions   FranchiseSubscription[]
 
   @@index([isActive])
   @@map("franchises")
@@ -297,6 +355,7 @@ model Salon {
   mediaFiles          MediaFile[]
   auditLogs           AuditLog[]
   notifications       Notification[]
+  supportTickets      SupportTicket[]
 
   /// Salon code is unique inside its franchise, not globally.
   @@unique([franchiseId, code])
@@ -1033,6 +1092,109 @@ model PlatformIntegration {
 // =============================================================================
 // AUDIT
 // =============================================================================
+
+// =============================================================================
+// PLATFORM SUBSCRIPTION PLANS (Super Admin SaaS tiers)
+// =============================================================================
+
+/// Catalogue of BillVyApp platform subscription plans sold to franchises.
+/// Distinct from MembershipPlan (salon customer packages).
+model PlatformPlan {
+  id           String                   @id @default(uuid()) @db.VarChar(36)
+  name         String                   @unique @db.VarChar(191)
+  description  String?                  @db.Text
+  /// Null when isCustom / contact pricing.
+  priceMonthly Decimal?                 @db.Decimal(12, 2)
+  billingCycle PlatformPlanBillingCycle @default(MONTHLY)
+  isCustom     Boolean                  @default(false)
+  iconKey      String                   @default("basic") @db.VarChar(50)
+  features     Json?
+  isActive     Boolean                  @default(true)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  subscriptions FranchiseSubscription[]
+
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("platform_plans")
+}
+
+/// Links a franchise to a platform plan for a billing period.
+model FranchiseSubscription {
+  id             String                       @id @default(uuid()) @db.VarChar(36)
+  franchiseId    String                       @db.VarChar(36)
+  platformPlanId String                       @db.VarChar(36)
+  billingCycle   PlatformPlanBillingCycle
+  status         FranchiseSubscriptionStatus  @default(ACTIVE)
+  startsAt       DateTime                     @db.Date
+  endsAt         DateTime                     @db.Date
+  notes          String?                      @db.Text
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  franchise    Franchise    @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  platformPlan PlatformPlan @relation(fields: [platformPlanId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([franchiseId, status])
+  @@index([platformPlanId])
+  @@index([startsAt, endsAt])
+  @@map("franchise_subscriptions")
+}
+
+/// Super Admin generated platform reports (snapshot + CSV download).
+model PlatformReport {
+  id            String               @id @default(uuid()) @db.VarChar(36)
+  name          String               @db.VarChar(191)
+  description   String?              @db.Text
+  type          PlatformReportType
+  format        PlatformReportFormat @default(EXCEL)
+  dateFrom      DateTime             @db.Date
+  dateTo        DateTime             @db.Date
+  franchiseId   String?              @db.VarChar(36)
+  generatedById String               @db.VarChar(36)
+  snapshot      Json
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  generatedBy User       @relation("PlatformReportGeneratedBy", fields: [generatedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([franchiseId])
+  @@index([generatedById])
+  @@map("platform_reports")
+}
+
+/// Support tickets raised by Admin / Manager; visible to Super Admin platform-wide.
+model SupportTicket {
+  id           String                 @id @default(uuid()) @db.VarChar(36)
+  /// Human-facing sequential id (TKT-00001). Unique across the platform.
+  ticketNumber Int                    @unique @default(autoincrement())
+  subject      String                 @db.VarChar(191)
+  description  String                 @db.Text
+  category     SupportTicketCategory
+  priority     SupportTicketPriority  @default(MEDIUM)
+  status       SupportTicketStatus    @default(OPEN)
+  createdById  String                 @db.VarChar(36)
+  franchiseId  String?                @db.VarChar(36)
+  salonId      String?                @db.VarChar(36)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  createdBy User       @relation("SupportTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  franchise Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  salon     Salon?     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
+  @@index([franchiseId])
+  @@index([createdById])
+  @@map("support_tickets")
+}
 
 /// Immutable audit trail. Both FKs use Restrict so audit rows can never be
 /// removed as a side effect of deleting a user or a salon.

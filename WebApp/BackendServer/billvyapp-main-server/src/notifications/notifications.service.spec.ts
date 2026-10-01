@@ -91,6 +91,8 @@ describe('NotificationsService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    salon: { findFirst: jest.fn() },
+    user: { findMany: jest.fn() },
     $transaction: jest.fn(),
   };
   const scope = {
@@ -109,6 +111,8 @@ describe('NotificationsService', () => {
     scope.requireOwnCustomerId.mockResolvedValue('cust-1');
     audit.record.mockResolvedValue(undefined);
     queue.add.mockResolvedValue({ id: 'job-1' });
+    prisma.salon.findFirst.mockResolvedValue({ id: 'salon-a1' });
+    prisma.user.findMany.mockResolvedValue([]);
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );
@@ -146,6 +150,76 @@ describe('NotificationsService', () => {
     expect(result.status).toBe('QUEUED');
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'NOTIFICATION_CREATED' }),
+    );
+  });
+
+  it('falls back to logging delivery when the queue is unavailable', async () => {
+    prisma.notification.create.mockResolvedValue(
+      notificationRow({ status: 'PENDING' }),
+    );
+    prisma.notification.update.mockResolvedValue(
+      notificationRow({ status: 'SENT', provider: 'logging' }),
+    );
+    queue.add.mockRejectedValue(new Error('Redis down'));
+
+    const result = await service.create(
+      manager,
+      {
+        channel: NotificationChannel.EMAIL,
+        notificationType: 'GENERAL',
+        recipient: 'ops@example.com',
+        message: 'Hello',
+      },
+      ctx,
+    );
+
+    expect(result.status).toBe('SENT');
+    expect(prisma.notification.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'SENT',
+          provider: 'logging',
+        }),
+      }),
+    );
+  });
+
+  it('emits subscription purchased notifications to admins', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'sa-1',
+        email: 'root@example.com',
+        role: { code: 'SUPER_ADMIN' },
+      },
+      {
+        id: 'admin-1',
+        email: 'admin@example.com',
+        role: { code: 'ADMIN' },
+      },
+    ]);
+    prisma.notification.create.mockResolvedValue(
+      notificationRow({ status: 'PENDING' }),
+    );
+    prisma.notification.update.mockResolvedValue(notificationRow());
+
+    await service.notifySubscriptionEnrolled({
+      actorUserId: 'sa-1',
+      franchiseId: 'fr-a',
+      franchiseName: 'Demo',
+      planName: 'Basic',
+      billingCycle: 'monthly',
+      startsAt: '2026-09-30',
+      endsAt: '2026-10-30',
+      salonId: 'salon-a1',
+    });
+
+    expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+    expect(prisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          notificationType: 'SUBSCRIPTION_PURCHASED',
+        }),
+      }),
     );
   });
 

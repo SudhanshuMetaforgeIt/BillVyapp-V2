@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -26,7 +28,7 @@ type NotificationsFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne';
+  'h-11 w-auto min-w-[9rem] text-sm font-medium';
 
 export function NotificationsFilters({
   search,
@@ -64,7 +66,7 @@ export function NotificationsFilters({
           />
         </div>
 
-        <select
+        <SelectInput
           value={channel}
           onChange={(e) =>
             onChannelChange(e.target.value as NotificationChannelFilter)
@@ -76,9 +78,9 @@ export function NotificationsFilters({
           <option value="EMAIL">Email</option>
           <option value="SMS">SMS</option>
           <option value="WHATSAPP">WhatsApp</option>
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as NotificationStatusFilter)
@@ -94,7 +96,7 @@ export function NotificationsFilters({
           <option value="READ">Read</option>
           <option value="FAILED">Failed</option>
           <option value="CANCELLED">Cancelled</option>
-        </select>
+        </SelectInput>
 
         <div className="flex items-center gap-2">
           <Input

@@ -6,8 +6,10 @@ import { SectionErrorState } from '@/components/layout/section-states';
 import { MetricGrid } from '@/features/dashboard/components/metric-card';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useUsers } from '../hooks/use-users';
+import { assignableRoles } from '../services/users.service';
 import type { UserStatusFilter } from '../types/users.types';
 import { CreateUserDialog } from './create-user-dialog';
+import { UserDetailsDialog } from './user-details-dialog';
 import { UsersFilters } from './users-filters';
 import { UsersSidebar } from './users-sidebar';
 import { UsersTable } from './users-table';
@@ -25,6 +27,7 @@ export function UsersPageView() {
   const [status, setStatus] = useState<UserStatusFilter>('all');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     setPage(1);
@@ -106,6 +109,7 @@ export function UsersPageView() {
               onPageChange={(next) => {
                 startTransition(() => setPage(next));
               }}
+              onViewUser={(user) => setSelectedUserId(user.id)}
             />
           </div>
 
@@ -121,8 +125,16 @@ export function UsersPageView() {
       <CreateUserDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        roles={data?.roles ?? []}
+        roles={assignableRoles(data?.roles ?? [])}
         franchises={data?.franchises ?? []}
+      />
+
+      <UserDetailsDialog
+        userId={selectedUserId}
+        open={Boolean(selectedUserId)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedUserId(null);
+        }}
       />
     </>
   );

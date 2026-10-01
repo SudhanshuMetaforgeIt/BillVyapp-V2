@@ -1,6 +1,6 @@
-import { format, startOfMonth } from 'date-fns';
-
 import { api } from '@/services/api-client';
+import { businessMonthToDate } from '@/lib/business-calendar';
+import { formatDate } from '@/lib/format';
 import type { Bill, Franchise, Paginated, Payment, Salon } from '@/types/models';
 import type {
   AdminBranchItem,
@@ -28,9 +28,7 @@ const num = (v: unknown) => {
 const isPartial = (p: Paginated<unknown>) => p.meta.total > p.data.length;
 
 export async function fetchAdminMyBusinessData(franchiseId?: string | null): Promise<AdminMyBusinessData> {
-  const now = new Date();
-  const dateFrom = format(startOfMonth(now), 'yyyy-MM-dd');
-  const dateTo = format(now, 'yyyy-MM-dd');
+  const { dateFrom, dateTo } = businessMonthToDate();
 
   const page = <T,>(path: string, params: Record<string, unknown>) =>
     api.get<Paginated<T>>(path, { params: { page: 1, ...params } });
@@ -67,7 +65,7 @@ export async function fetchAdminMyBusinessData(franchiseId?: string | null): Pro
     email: franchiseData?.email ?? null,
     phone: franchiseData?.phone ?? null,
     address: null,
-    businessSince: franchiseData ? format(new Date(franchiseData.createdAt), 'MMM dd, yyyy') : '—',
+    businessSince: franchiseData ? formatDate(franchiseData.createdAt) : '—',
     isActive: franchiseData?.isActive ?? true,
   };
 

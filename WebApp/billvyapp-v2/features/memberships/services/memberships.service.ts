@@ -1,16 +1,17 @@
 import {
-  endOfMonth,
-  format,
   isValid,
   parseISO,
-  startOfMonth,
   addDays,
   isBefore,
   isAfter,
 } from 'date-fns';
 
 import { api } from '@/services/api-client';
-import { formatCurrency, formatFullName } from '@/lib/format';
+import {
+  businessCalendarDateOfInstant,
+  businessMonthBounds,
+} from '@/lib/business-calendar';
+import { formatCurrency, formatDate, formatFullName } from '@/lib/format';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
   CreateMembershipPayload,
@@ -41,8 +42,7 @@ function maskPhone(phone: string): string {
 }
 
 function formatDateOnly(value: string): string {
-  const date = parseISO(value);
-  return isValid(date) ? format(date, 'dd MMM yyyy') : value;
+  return formatDate(value);
 }
 
 function durationLabel(days: number): string {
@@ -79,11 +79,10 @@ function isExpiringSoon(status: MembershipStatus, endDate: string): boolean {
 
 function isExpiringThisMonth(row: MembershipApiItem): boolean {
   if (row.status !== 'ACTIVE') return false;
-  const end = parseISO(row.endDate);
-  if (!isValid(end)) return false;
-  const monthStart = startOfMonth(new Date());
-  const monthEnd = endOfMonth(new Date());
-  return !isBefore(end, monthStart) && !isAfter(end, monthEnd);
+  const end = row.endDate?.slice(0, 10);
+  if (!end) return false;
+  const { dateFrom, dateTo } = businessMonthBounds();
+  return end >= dateFrom && end <= dateTo;
 }
 
 async function countMemberships(status?: MembershipStatus) {
@@ -189,13 +188,12 @@ function buildMonthSummary(
   planById: Map<string, MembershipPlanApiItem>,
   incomplete: boolean,
 ): MonthSummary {
-  const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-  const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  const { dateFrom: monthStart, dateTo: monthEnd } = businessMonthBounds();
 
   const createdThisMonth = memberships.filter((row) => {
     const created = parseISO(row.createdAt);
     if (!isValid(created)) return false;
-    const key = format(created, 'yyyy-MM-dd');
+    const key = businessCalendarDateOfInstant(created);
     return key >= monthStart && key <= monthEnd;
   });
 

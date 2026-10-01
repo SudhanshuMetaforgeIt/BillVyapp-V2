@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -8,7 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateCustomer } from '../hooks/use-create-customer';
 import { normalizeIndianPhone } from '../lib/bill-preview';
-import type { WalkInCustomer } from '../types/walk-in-billing.types';
+import type {
+  WalkInCustomer,
+  WalkInCustomerGender,
+} from '../types/walk-in-billing.types';
 
 type CreateCustomerDialogProps = {
   open: boolean;
@@ -28,6 +33,7 @@ export function CreateCustomerDialog({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState(normalizeIndianPhone(initialPhone));
+  const [gender, setGender] = useState<'' | WalkInCustomerGender>('');
 
   const create = useCreateCustomer((customer) => {
     onCreated(customer);
@@ -36,6 +42,7 @@ export function CreateCustomerDialog({
     setLastName('');
     setEmail('');
     setPhone('');
+    setGender('');
   });
 
   useEffect(() => {
@@ -110,6 +117,7 @@ export function CreateCustomerDialog({
               lastName: lastName.trim(),
               email: email.trim(),
               phone: normalizedPhone,
+              ...(gender ? { gender } : {}),
             });
           }}
         >
@@ -153,6 +161,22 @@ export function CreateCustomerDialog({
               placeholder="10-digit mobile"
               autoComplete="tel"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="walkin-gender">Gender (optional)</Label>
+            <SelectInput className="h-10 w-full text-sm font-medium"
+              id="walkin-gender"
+              value={gender}
+              onChange={(e) =>
+                setGender(e.target.value as '' | WalkInCustomerGender)
+              }
+            >
+              <option value="">Select gender</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+            </SelectInput>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -4,7 +4,11 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-import { dashboardHomeFor } from '@/constants/routes';
+import {
+  dashboardHomeFor,
+  needsSubscriptionGate,
+  subscriptionRequiredPathFor,
+} from '@/constants/routes';
 import { authService, type LoginPayload } from '@/services/auth.service';
 import type { ApiError } from '@/types/api.types';
 import type { AuthSession } from '@/types/user.types';
@@ -25,6 +29,15 @@ export function useLogin() {
     onSuccess: (session) => {
       establishSession(session);
       toast.success(`Welcome back, ${session.user.firstName}`);
+      const gatePath = subscriptionRequiredPathFor(session.user.role);
+      if (
+        needsSubscriptionGate(session.user.role) &&
+        session.user.subscriptionActive === false &&
+        gatePath
+      ) {
+        router.replace(gatePath);
+        return;
+      }
       router.replace(dashboardHomeFor(session.user.role));
     },
     onError: (error) => {

@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -223,12 +225,11 @@ export function CreateUserDialog({
 
           <div>
             <Label htmlFor="user-role">Role</Label>
-            <select
+            <SelectInput className="h-11 w-full text-sm font-medium"
               id="user-role"
               value={roleId}
               onChange={(e) => setRoleId(e.target.value)}
               required
-              className="flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="">Select role</option>
               {roles.map((role) => (
@@ -236,13 +237,13 @@ export function CreateUserDialog({
                   {ROLE_LABELS[role.code]}
                 </option>
               ))}
-            </select>
+            </SelectInput>
           </div>
 
           {needsFranchise ? (
             <div>
               <Label htmlFor="user-franchise">Business</Label>
-              <select
+              <SelectInput className="h-11 w-full text-sm font-medium"
                 id="user-franchise"
                 value={franchiseId}
                 onChange={(e) => {
@@ -250,7 +251,6 @@ export function CreateUserDialog({
                   setSalonId('');
                 }}
                 required
-                className="flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
               >
                 <option value="">Select business</option>
                 {franchises.map((franchise) => (
@@ -258,20 +258,19 @@ export function CreateUserDialog({
                     {franchise.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
           ) : null}
 
           {needsSalon ? (
             <div>
               <Label htmlFor="user-salon">Salon</Label>
-              <select
+              <SelectInput className="h-11 w-full text-sm font-medium disabled:opacity-50"
                 id="user-salon"
                 value={salonId}
                 onChange={(e) => setSalonId(e.target.value)}
                 required
                 disabled={!franchiseId || salonsLoading}
-                className="flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne disabled:opacity-50"
               >
                 <option value="">
                   {salonsLoading ? 'Loading salons…' : 'Select salon'}
@@ -281,7 +280,7 @@ export function CreateUserDialog({
                     {salon.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
           ) : null}
 

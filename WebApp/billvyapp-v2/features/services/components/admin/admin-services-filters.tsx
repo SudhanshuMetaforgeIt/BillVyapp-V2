@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Filter, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -35,10 +37,9 @@ export function AdminServicesFilters({
       {/* Dropdown Filters */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
         {/* Category dropdown */}
-        <select
+        <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
           value={filters.categoryId}
           onChange={(e) => onFilterChange({ categoryId: e.target.value, page: 1 })}
-          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-text shadow-sm focus:border-champagne focus:outline-none focus:ring-2 focus:ring-champagne"
           aria-label="Filter by category"
         >
           <option value="all">All Categories</option>
@@ -47,13 +48,12 @@ export function AdminServicesFilters({
               {c.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
         {/* Branch dropdown */}
-        <select
+        <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
           value={filters.branchId}
           onChange={(e) => onFilterChange({ branchId: e.target.value, page: 1 })}
-          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-text shadow-sm focus:border-champagne focus:outline-none focus:ring-2 focus:ring-champagne"
           aria-label="Filter by branch"
         >
           <option value="all">All Branches</option>
@@ -62,10 +62,10 @@ export function AdminServicesFilters({
               {b.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
         {/* Status dropdown */}
-        <select
+        <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
           value={filters.status}
           onChange={(e) =>
             onFilterChange({
@@ -73,13 +73,12 @@ export function AdminServicesFilters({
               page: 1,
             })
           }
-          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-text shadow-sm focus:border-champagne focus:outline-none focus:ring-2 focus:ring-champagne"
           aria-label="Filter by status"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
-        </select>
+        </SelectInput>
 
         {/* Filter button */}
         <Button

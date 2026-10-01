@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useState } from 'react';
 
 import { DashboardSectionCard, SectionEmptyState } from '@/components/layout/section-states';
@@ -19,7 +21,13 @@ const PERIODS = [
 export function AdminRevenueOverview({ series }: AdminRevenueOverviewProps) {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]['id']>('week');
 
-  const points = period === 'week' ? series.slice(-7) : series;
+  const points =
+    period === 'week'
+      ? series.slice(-7)
+      : period === 'today'
+        ? series.slice(-1)
+        : series;
+  const hasRevenue = points.some((p) => p.amount > 0);
   const max = Math.max(...points.map((p) => p.amount), 1);
 
   return (
@@ -28,26 +36,25 @@ export function AdminRevenueOverview({ series }: AdminRevenueOverviewProps) {
       data-dash-animate="section"
       className="h-full"
       action={
-        <select
+        <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
           id="admin-revenue-period"
           value={period}
           onChange={(e) => setPeriod(e.target.value as typeof period)}
           aria-label="Revenue period"
-          className="rounded-lg border border-border bg-ivory-soft px-2.5 py-1.5 text-xs font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           {PERIODS.map((p) => (
             <option key={p.id} value={p.id}>
               {p.label}
             </option>
           ))}
-        </select>
+        </SelectInput>
       }
       bodyClassName="pt-2 pb-4"
     >
       <p className="px-5 pb-2 text-xs text-text-secondary">
         Business revenue for the current period
       </p>
-      {points.length === 0 ? (
+      {points.length === 0 || !hasRevenue ? (
         <SectionEmptyState message="No revenue recorded yet for this period." />
       ) : (
         <div className="w-full overflow-x-auto px-1">

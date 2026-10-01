@@ -31,6 +31,7 @@ type RawUser = {
   email: string;
   phone?: string | null;
   profilePhoto?: string | null;
+  salary?: number | string | null;
   isActive: boolean;
   role: {
     id: string;
@@ -65,15 +66,14 @@ const ROLE_NAME_MAP: Record<string, string> = {
   SUPER_ADMIN: 'Super Admin',
   ADMIN: 'Admin',
   MANAGER: 'Salon Manager',
-  STAFF: 'Senior Stylist',
+  STAFF: 'Staff',
 };
 
-const SALARY_MAP: Record<string, number> = {
-  MANAGER: 35000,
-  STAFF: 28000,
-  ADMIN: 40000,
-  SUPER_ADMIN: 50000,
-};
+function parseSalary(value: number | string | null | undefined): number {
+  if (value == null || value === '') return 0;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
 
 export async function fetchAdminStaff(
   filters: Partial<StaffFilterState> = {},
@@ -157,7 +157,7 @@ export async function fetchAdminStaff(
     const shortCode = `ST${String(idx + 1).padStart(3, '0')}`;
     const branchName = u.salon?.name || (u.salonId ? salonMap.get(u.salonId) : null) || 'All Branches';
     const roleName = ROLE_NAME_MAP[u.role?.code] || u.role?.name || 'Staff Member';
-    const salary = SALARY_MAP[u.role?.code] || 25000;
+    const salary = parseSalary(u.salary);
 
     let formattedJoin = '—';
     try {
@@ -215,7 +215,7 @@ export async function fetchAdminStaff(
 
     if (u.isActive) {
       activeCount++;
-      totalPayroll += SALARY_MAP[u.role?.code] || 25000;
+      totalPayroll += parseSalary(u.salary);
     } else {
       inactiveCount++;
     }
@@ -282,5 +282,20 @@ export async function createStaff(
     body.salonId = payload.salonId;
   }
 
+  if (payload.salary != null && Number.isFinite(payload.salary)) {
+    body.salary = payload.salary;
+  }
+
   return api.post<RawUser>('/users', body);
+}
+
+export async function updateStaff(
+  id: string,
+  payload: { salary?: number },
+): Promise<RawUser> {
+  const body: Record<string, unknown> = {};
+  if (payload.salary != null && Number.isFinite(payload.salary)) {
+    body.salary = payload.salary;
+  }
+  return api.patch<RawUser>(`/users/${id}`, body);
 }

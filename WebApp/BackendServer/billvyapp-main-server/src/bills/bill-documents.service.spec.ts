@@ -48,6 +48,13 @@ describe('BillDocumentsService', () => {
     assertOwnCustomerAccess: jest.fn(),
   };
   const audit = { record: jest.fn() };
+  const storage = {
+    createDownloadUrl: jest.fn().mockResolvedValue({
+      storageKey: 'salons/salon-a1/file.pdf',
+      downloadUrl: 'https://example.com/file.pdf',
+      expiresInSeconds: 900,
+    }),
+  };
   let service: BillDocumentsService;
 
   beforeEach(() => {
@@ -55,6 +62,11 @@ describe('BillDocumentsService', () => {
     scope.assertSalonAccess.mockResolvedValue(undefined);
     scope.assertOwnCustomerAccess.mockResolvedValue(undefined);
     audit.record.mockResolvedValue(undefined);
+    storage.createDownloadUrl.mockResolvedValue({
+      storageKey: 'salons/salon-a1/file.pdf',
+      downloadUrl: 'https://example.com/file.pdf',
+      expiresInSeconds: 900,
+    });
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );
@@ -62,6 +74,7 @@ describe('BillDocumentsService', () => {
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
+      storage as never,
     );
   });
 

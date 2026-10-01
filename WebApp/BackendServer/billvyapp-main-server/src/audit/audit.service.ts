@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PLATFORM_SETTINGS_ID } from '../settings/settings.constants';
+import { DEFAULT_LOG_RETENTION_DAYS } from './audit.constants';
 
 export type AuditAction =
   | 'LOGIN_SUCCESS'
@@ -67,6 +69,16 @@ export type AuditAction =
   | 'MEMBERSHIP_CREATED'
   | 'MEMBERSHIP_UPDATED'
   | 'MEMBERSHIP_STATUS_CHANGED'
+  | 'PLATFORM_PLAN_CREATED'
+  | 'PLATFORM_PLAN_UPDATED'
+  | 'PLATFORM_PLAN_STATUS_CHANGED'
+  | 'FRANCHISE_SUBSCRIPTION_ENROLLED'
+  | 'FRANCHISE_SUBSCRIPTION_CANCELLED'
+  | 'FRANCHISE_SUBSCRIPTION_REQUESTED'
+  | 'PLATFORM_REPORT_GENERATED'
+  | 'PLATFORM_REPORT_DELETED'
+  | 'SUPPORT_TICKET_CREATED'
+  | 'SUPPORT_TICKET_STATUS_CHANGED'
   | 'LOYALTY_TRANSACTION_CREATED'
   | 'NOTIFICATION_CREATED'
   | 'NOTIFICATION_STATUS_CHANGED'
@@ -84,6 +96,9 @@ export type AuditAction =
   | 'SETTINGS_SYSTEM_UPDATED'
   | 'SETTINGS_CACHE_CLEARED'
   | 'SETTINGS_RESET'
+  | 'SETTINGS_BACKUP_CREATED'
+  | 'SETTINGS_BACKUP_RESTORED'
+  | 'SETTINGS_LOGS_PURGED'
   | 'SETTINGS_INTEGRATION_CREATED'
   | 'SETTINGS_INTEGRATION_UPDATED'
   | 'SETTINGS_INTEGRATION_DELETED'
@@ -136,5 +151,62 @@ export class AuditService {
         error instanceof Error ? error.stack : undefined,
       );
     }
+  }
+
+  /**
+   * Deletes audit rows older than the configured retention window.
+   * Returns how many rows were removed (0 when nothing is due).
+   */
+  async purgeExpired(options?: {
+    retentionDays?: number;
+    actorUserId?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  }): Promise<{ deleted: number; retentionDays: number; cutoff: Date }> {
+    const retentionDays =
+      options?.retentionDays ?? (await this.resolveRetentionDays());
+
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - retentionDays);
+    cutoff.setUTCHours(0, 0, 0, 0);
+
+    const result = await this.prisma.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
+
+    if (result.count > 0) {
+      await this.record({
+        userId: options?.actorUserId ?? null,
+        action: 'SETTINGS_LOGS_PURGED',
+        entityType: 'AuditLog',
+        newData: {
+          deleted: result.count,
+          retentionDays,
+          cutoff: cutoff.toISOString(),
+        },
+        ipAddress: options?.ipAddress ?? null,
+        userAgent: options?.userAgent ?? null,
+      });
+    }
+
+    this.logger.log(
+      `Audit log purge: deleted=${result.count} retentionDays=${retentionDays} cutoff=${cutoff.toISOString()}`,
+    );
+
+    return {
+      deleted: result.count,
+      retentionDays,
+      cutoff,
+    };
+  }
+
+  private async resolveRetentionDays(): Promise<number> {
+    const row = await this.prisma.platformSettings.findUnique({
+      where: { id: PLATFORM_SETTINGS_ID },
+      select: { logRetentionDays: true },
+    });
+
+    const days = row?.logRetentionDays ?? DEFAULT_LOG_RETENTION_DAYS;
+    return days > 0 ? days : DEFAULT_LOG_RETENTION_DAYS;
   }
 }

@@ -55,10 +55,19 @@ export function CategoriesTable({
 
   if (rows.length === 0) {
     return (
-      <SectionEmptyState
-        title="No categories found"
-        message="Create a service category before adding services."
-      />
+      <>
+        <SectionEmptyState
+          title="No categories found"
+          message="Create a service category before adding services."
+        />
+        {meta.total > 0 || meta.page > 1 ? (
+          <ServicesPagination
+            meta={meta}
+            noun="categories"
+            onPageChange={onPageChange}
+          />
+        ) : null}
+      </>
     );
   }
 

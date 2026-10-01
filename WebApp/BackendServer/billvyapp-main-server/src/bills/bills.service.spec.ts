@@ -230,6 +230,10 @@ describe('BillsService', () => {
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
+      {
+        resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
+        getPlatformTimezone: jest.fn().mockResolvedValue('Asia/Kolkata'),
+      } as never,
     );
   });
 
@@ -251,6 +255,26 @@ describe('BillsService', () => {
     }>(prisma.bill.create);
     expect(createArg.data.status).toBe(BillStatus.DRAFT);
     expect(createArg.data.createdBy).toBe('mgr-1');
+  });
+
+  it('stores and returns billDate as YYYY-MM-DD without timezone shifting', async () => {
+    prisma.bill.create.mockResolvedValue(
+      billRow({ billDate: new Date(Date.UTC(2026, 9, 1)) }),
+    );
+
+    const result = await service.create(
+      manager,
+      { ...createDto, billDate: '2026-10-01' },
+      ctx,
+    );
+
+    const createArg = firstMockArg<{ data: { billDate: Date } }>(
+      prisma.bill.create,
+    );
+    expect(createArg.data.billDate.toISOString()).toBe(
+      '2026-10-01T00:00:00.000Z',
+    );
+    expect(result.billDate).toBe('2026-10-01');
   });
 
   it('creates a bill with a product line using sellingPrice', async () => {
@@ -640,23 +664,18 @@ describe('BillsController authorization', () => {
     );
   });
 
-  it('restricts status changes to SUPER_ADMIN, ADMIN, MANAGER', () => {
+  it('allows STAFF to complete bills and create drafts', () => {
     expect(handlerRoles(BillsController, 'updateStatus')).toEqual(
       expect.arrayContaining([
         RoleCode.SUPER_ADMIN,
         RoleCode.ADMIN,
         RoleCode.MANAGER,
+        RoleCode.STAFF,
       ]),
-    );
-    expect(handlerRoles(BillsController, 'updateStatus')).not.toContain(
-      RoleCode.STAFF,
     );
     expect(handlerRoles(BillsController, 'updateStatus')).not.toContain(
       RoleCode.CUSTOMER,
     );
-  });
-
-  it('allows STAFF to create and update drafts', () => {
     expect(handlerRoles(BillsController, 'create')).toContain(RoleCode.STAFF);
     expect(handlerRoles(BillsController, 'update')).toContain(RoleCode.STAFF);
   });

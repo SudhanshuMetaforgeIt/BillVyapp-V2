@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -52,11 +54,10 @@ export function ServicesFilters({
 
       <div className="flex flex-wrap items-center gap-2">
         {tab === 'services' ? (
-          <select
+          <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
             value={categoryId}
             onChange={(e) => onCategoryIdChange(e.target.value)}
             aria-label="Category filter"
-            className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
           >
             <option value="">All Categories</option>
             {categoryOptions.map((cat) => (
@@ -64,21 +65,20 @@ export function ServicesFilters({
                 {cat.name}
               </option>
             ))}
-          </select>
+          </SelectInput>
         ) : null}
 
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as ServiceStatusFilter)
           }
           aria-label="Status filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
-        </select>
+        </SelectInput>
 
         {onPrimaryAction ? (
           <Button

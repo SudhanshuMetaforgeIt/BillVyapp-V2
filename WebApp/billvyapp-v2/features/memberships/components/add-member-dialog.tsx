@@ -1,12 +1,14 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
-import { format } from 'date-fns';
 import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { businessToday } from '@/lib/business-calendar';
 import { useCreateMembership } from '../hooks/use-membership-mutations';
 
 type AddMemberDialogProps = {
@@ -25,7 +27,7 @@ export function AddMemberDialog({
   const titleId = useId();
   const [customerId, setCustomerId] = useState('');
   const [planId, setPlanId] = useState('');
-  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(businessToday());
 
   const create = useCreateMembership(() => {
     onOpenChange(false);
@@ -35,7 +37,7 @@ export function AddMemberDialog({
     if (!open) return;
     setCustomerId(customerOptions[0]?.id ?? '');
     setPlanId(planOptions[0]?.id ?? '');
-    setStartDate(format(new Date(), 'yyyy-MM-dd'));
+    setStartDate(businessToday());
   }, [open, customerOptions, planOptions]);
 
   useEffect(() => {
@@ -108,11 +110,10 @@ export function AddMemberDialog({
           >
             <div className="space-y-1.5">
               <Label htmlFor="mem-customer">Customer</Label>
-              <select
+              <SelectInput className="h-10 w-full text-sm font-medium"
                 id="mem-customer"
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
               >
                 {customerOptions.map((customer) => (
                   <option key={customer.id} value={customer.id}>
@@ -120,22 +121,21 @@ export function AddMemberDialog({
                     {customer.phone ? ` · ${customer.phone}` : ''}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mem-plan">Membership plan</Label>
-              <select
+              <SelectInput className="h-10 w-full text-sm font-medium"
                 id="mem-plan"
                 value={planId}
                 onChange={(e) => setPlanId(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
               >
                 {planOptions.map((plan) => (
                   <option key={plan.id} value={plan.id}>
                     {plan.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mem-start">Start date</Label>

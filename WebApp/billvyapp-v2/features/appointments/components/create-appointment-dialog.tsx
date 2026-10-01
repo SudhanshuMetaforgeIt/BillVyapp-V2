@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -20,11 +22,13 @@ import { useStaffOptions } from '../hooks/use-appointments';
 type CreateAppointmentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: () => void;
 };
 
 export function CreateAppointmentDialog({
   open,
   onOpenChange,
+  onCreated,
 }: CreateAppointmentDialogProps) {
   const titleId = useId();
   const user = useCurrentUser();
@@ -49,6 +53,7 @@ export function CreateAppointmentDialog({
   });
   const staff = useStaffOptions(open && Boolean(salonId), salonId);
   const create = useCreateAppointment(() => {
+    onCreated?.();
     onOpenChange(false);
     reset();
   });
@@ -241,11 +246,10 @@ export function CreateAppointmentDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="appt-service">Service</Label>
-              <select
+              <SelectInput className="h-10 w-full text-sm font-medium"
                 id="appt-service"
                 value={serviceId}
                 onChange={(e) => setServiceId(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
               >
                 <option value="">Select service</option>
                 {(services.data?.data ?? []).map((service) => (
@@ -253,17 +257,16 @@ export function CreateAppointmentDialog({
                     {service.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             </div>
 
             {(staff.data ?? []).length > 0 ? (
               <div className="space-y-1.5">
                 <Label htmlFor="appt-staff">Staff (optional)</Label>
-                <select
+                <SelectInput className="h-10 w-full text-sm font-medium"
                   id="appt-staff"
                   value={staffId}
                   onChange={(e) => setStaffId(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm"
                 >
                   <option value="">Any available</option>
                   {(staff.data ?? []).map((person) => (
@@ -271,7 +274,7 @@ export function CreateAppointmentDialog({
                       {person.name}
                     </option>
                   ))}
-                </select>
+                </SelectInput>
               </div>
             ) : null}
 

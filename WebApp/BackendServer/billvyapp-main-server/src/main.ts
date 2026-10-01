@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -26,8 +27,14 @@ async function bootstrap() {
     }),
   );
 
+  app.use(cookieParser());
+
+  // credentials:true requires a concrete Allow-Origin. When CORS_ORIGIN is "*",
+  // reflect the request Origin so HttpOnly refresh cookies work cross-port
+  // (e.g. Next on :3001 talking to API on :3000).
+  const corsOrigin = config.get<string>('cors.origin', '*');
   app.enableCors({
-    origin: config.get<string>('cors.origin', '*'),
+    origin: corsOrigin === '*' ? true : corsOrigin,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

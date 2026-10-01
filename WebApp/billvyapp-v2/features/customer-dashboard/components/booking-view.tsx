@@ -3,12 +3,12 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CalendarDays, Check, Clock, Scissors } from 'lucide-react';
 
 import { ROUTES } from '@/constants/routes';
-import { formatCurrency } from '@/lib/format';
+import { businessToday } from '@/lib/business-calendar';
+import { formatCurrency, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { useBookAppointment, useCustomerSalon, useSalonServiceList } from '../hooks/use-customer-portal';
 import {
@@ -41,7 +41,7 @@ export function BookingView() {
   const servicesQuery = useSalonServiceList({ salonId, page: 1, limit: 100 });
   const book = useBookAppointment();
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = businessToday();
 
   if (!salonId) {
     return (
@@ -211,7 +211,7 @@ export function BookingView() {
             {date ? (
               <p className="flex items-center gap-2">
                 <CalendarDays className="size-3.5 text-[#FF7B00]" />
-                {format(new Date(`${date}T00:00:00`), 'EEE, dd MMM yyyy')}
+                {formatDate(date)}
                 {time ? ` at ${time}` : ''}
               </p>
             ) : null}

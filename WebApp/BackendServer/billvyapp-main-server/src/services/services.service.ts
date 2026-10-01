@@ -18,6 +18,7 @@ import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
+import { BulkCreateServicesDto } from './dto/bulk-create-services.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { ServiceQueryDto } from './dto/service-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -175,6 +176,76 @@ export class ServicesService {
     } catch (error) {
       this.rethrowUnique(error);
     }
+  }
+
+  async bulkCreate(
+    actor: AuthenticatedUser,
+    dto: BulkCreateServicesDto,
+    ctx: RequestContext,
+  ): Promise<{
+    created: number;
+    failed: Array<{ row: number; name: string; error: string }>;
+  }> {
+    await this.requireActiveSalon(dto.salonId);
+    await this.scope.assertSalonAccess(actor, dto.salonId);
+
+    const failed: Array<{ row: number; name: string; error: string }> = [];
+    let created = 0;
+
+    const categoryCache = new Map<string, string>();
+    const existingCategories = await this.prisma.serviceCategory.findMany({
+      where: { salonId: dto.salonId },
+      select: { id: true, name: true },
+    });
+    for (const cat of existingCategories) {
+      categoryCache.set(cat.name.trim().toLowerCase(), cat.id);
+    }
+
+    for (let i = 0; i < dto.services.length; i += 1) {
+      const row = dto.services[i];
+      const rowNumber = i + 1;
+      try {
+        const categoryKey = row.category.trim().toLowerCase();
+        let categoryId = categoryCache.get(categoryKey);
+        if (!categoryId) {
+          const newCat = await this.prisma.serviceCategory.create({
+            data: {
+              salonId: dto.salonId,
+              name: trimRequired(row.category),
+            },
+            select: { id: true, name: true },
+          });
+          categoryId = newCat.id;
+          categoryCache.set(categoryKey, categoryId);
+        }
+
+        await this.create(
+          actor,
+          {
+            salonId: dto.salonId,
+            categoryId,
+            name: row.name,
+            description: row.description ?? null,
+            durationMinutes: row.durationMinutes,
+            price: row.price,
+          },
+          ctx,
+        );
+        created += 1;
+      } catch (error: unknown) {
+        const message =
+          error && typeof error === 'object' && 'message' in error
+            ? String((error as { message: unknown }).message)
+            : 'Failed to create service';
+        failed.push({
+          row: rowNumber,
+          name: row.name,
+          error: message,
+        });
+      }
+    }
+
+    return { created, failed };
   }
 
   async update(

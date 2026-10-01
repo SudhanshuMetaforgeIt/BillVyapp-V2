@@ -1,14 +1,8 @@
 'use client';
 
-import {
-  ChevronDown,
-  Filter,
-  Plus,
-  RotateCw,
-  Search,
-  Upload,
-  X,
-} from 'lucide-react';
+import { SelectInput } from '@/components/data/form-fields';
+
+import { Filter, Plus, RotateCw, Search, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CustomersFilterState } from '../../types/admin-customers.types';
 
@@ -110,11 +104,9 @@ export function AdminCustomersFilters({
         </div>
 
         {/* Branch Selector */}
-        <div className="relative">
-          <select
+        <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
             value={filters.branchId}
             onChange={(e) => onChange({ branchId: e.target.value, page: 1 })}
-            className="h-9 rounded-lg border border-stone-200/80 bg-white pl-3 pr-8 text-xs font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 appearance-none"
           >
             <option value="all">All Branches</option>
             {branches.map((b) => (
@@ -122,13 +114,10 @@ export function AdminCustomersFilters({
                 {b.name}
               </option>
             ))}
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-        </div>
+          </SelectInput>
 
         {/* Status Selector */}
-        <div className="relative">
-          <select
+        <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
             value={filters.status}
             onChange={(e) =>
               onChange({
@@ -136,18 +125,14 @@ export function AdminCustomersFilters({
                 page: 1,
               })
             }
-            className="h-9 rounded-lg border border-stone-200/80 bg-white pl-3 pr-8 text-xs font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 appearance-none"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-        </div>
+          </SelectInput>
 
         {/* Gender Selector */}
-        <div className="relative">
-          <select
+        <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
             value={filters.gender}
             onChange={(e) =>
               onChange({
@@ -155,15 +140,12 @@ export function AdminCustomersFilters({
                 page: 1,
               })
             }
-            className="h-9 rounded-lg border border-stone-200/80 bg-white pl-3 pr-8 text-xs font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 appearance-none"
           >
             <option value="all">All Gender</option>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
             <option value="OTHER">Other</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-        </div>
+          </SelectInput>
 
         {/* Filter Button */}
         <Button

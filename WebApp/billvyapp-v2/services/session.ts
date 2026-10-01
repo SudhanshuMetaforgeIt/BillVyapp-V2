@@ -17,6 +17,10 @@ export function toSessionUser(me: AuthMeUser): AuthUser | null {
     role: me.role,
     franchiseId: me.franchiseId ?? null,
     salonId: me.salonId ?? null,
+    subscriptionActive: me.subscriptionActive,
+    subscriptionPlanName: me.subscriptionPlanName ?? null,
+    subscriptionEndsAt: me.subscriptionEndsAt ?? null,
+    timezone: me.timezone ?? null,
   };
 }
 

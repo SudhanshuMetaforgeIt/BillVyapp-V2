@@ -1,16 +1,35 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { SelectInput } from '@/components/data/form-fields';
+
+import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { useCreateService, useCreateServiceCategory } from '../hooks/use-admin-services';
+import {
+  useCreateService,
+  useCreateServiceCategory,
+} from '../hooks/use-admin-services';
+import type { ServiceItem } from '../types/admin-services.types';
+
+type CategoryOption = { id: string; name: string; salonId?: string };
 
 type CreateServiceDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  categories: { id: string; name: string }[];
+  categories: CategoryOption[];
   branches: { id: string; name: string }[];
+  /** Prefill branch from the services filter when adding a new service. */
+  preferredSalonId?: string;
+  /** When set, dialog edits an existing service instead of creating. */
+  editingService?: ServiceItem | null;
+  onUpdate?: (id: string, payload: {
+    categoryId: string;
+    name: string;
+    price: number;
+    durationMinutes: number;
+    description?: string;
+  }) => Promise<void>;
 };
 
 export function CreateServiceDialog({
@@ -18,23 +37,74 @@ export function CreateServiceDialog({
   onClose,
   categories,
   branches,
+  preferredSalonId,
+  editingService = null,
+  onUpdate,
 }: CreateServiceDialogProps) {
   const createServiceMutation = useCreateService();
   const createCategoryMutation = useCreateServiceCategory();
+  const isEdit = Boolean(editingService);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [salonId, setSalonId] = useState(branches[0]?.id || '');
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || '');
+  const [salonId, setSalonId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('500');
   const [durationMinutes, setDurationMinutes] = useState('30');
   const [description, setDescription] = useState('');
 
-  // Category creation toggle
   const [newCategoryMode, setNewCategoryMode] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editingService) {
+      setSalonId(editingService.salonId);
+      setCategoryId(editingService.categoryId);
+      setName(editingService.name);
+      setPrice(String(editingService.price));
+      setDurationMinutes(String(editingService.durationMinutes));
+      setDescription(editingService.description ?? '');
+      setNewCategoryMode(false);
+      setNewCategoryName('');
+      setError(null);
+      return;
+    }
+    const defaultSalon =
+      (preferredSalonId &&
+      branches.some((b) => b.id === preferredSalonId)
+        ? preferredSalonId
+        : branches[0]?.id) ?? '';
+    setSalonId(defaultSalon);
+    setCategoryId('');
+    setName('');
+    setPrice('500');
+    setDurationMinutes('30');
+    setDescription('');
+    setNewCategoryMode(false);
+    setNewCategoryName('');
+    setError(null);
+  }, [isOpen, editingService, branches, preferredSalonId]);
+
+  const salonCategories = useMemo(() => {
+    if (!salonId) return categories;
+    const scoped = categories.filter(
+      (c) => !c.salonId || c.salonId === salonId,
+    );
+    return scoped.length > 0 ? scoped : categories.filter((c) => !c.salonId);
+  }, [categories, salonId]);
+
+  useEffect(() => {
+    if (!isOpen || isEdit) return;
+    if (
+      salonCategories.length > 0 &&
+      !salonCategories.some((c) => c.id === categoryId)
+    ) {
+      setCategoryId(salonCategories[0].id);
+    }
+  }, [isOpen, isEdit, salonCategories, categoryId]);
 
   if (!isOpen) return null;
 
@@ -45,13 +115,23 @@ export function CreateServiceDialog({
       return;
     }
 
+    const parsedDuration = Number.parseInt(durationMinutes, 10);
+    const parsedPrice = Number(price);
+    if (!Number.isInteger(parsedDuration) || parsedDuration < 1) {
+      setError('Duration must be a whole number of minutes (at least 1).');
+      return;
+    }
+    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      setError('Price must be a valid number.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       let targetCategoryId = categoryId;
 
-      // If user wants to create a new category inline
       if (newCategoryMode && newCategoryName.trim()) {
         const createdCat = await createCategoryMutation.mutateAsync({
           salonId: salonId || branches[0].id,
@@ -66,21 +146,31 @@ export function CreateServiceDialog({
         return;
       }
 
-      await createServiceMutation.mutateAsync({
-        salonId: salonId || branches[0].id,
-        categoryId: targetCategoryId,
-        name: name.trim(),
-        price: Number(price),
-        durationMinutes: Number(durationMinutes),
-        description: description.trim() || undefined,
-      });
+      if (isEdit && editingService && onUpdate) {
+        await onUpdate(editingService.id, {
+          categoryId: targetCategoryId,
+          name: name.trim(),
+          price: parsedPrice,
+          durationMinutes: parsedDuration,
+          description: description.trim() || undefined,
+        });
+      } else {
+        await createServiceMutation.mutateAsync({
+          salonId: salonId || branches[0].id,
+          categoryId: targetCategoryId,
+          name: name.trim(),
+          price: parsedPrice,
+          durationMinutes: parsedDuration,
+          description: description.trim() || undefined,
+        });
+      }
 
       onClose();
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
-          : 'Failed to create service. Please check fields and try again.';
+          : `Failed to ${isEdit ? 'update' : 'create'} service. Please check fields and try again.`;
       setError(msg);
     } finally {
       setLoading(false);
@@ -92,9 +182,13 @@ export function CreateServiceDialog({
       <div className="relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
-            <h3 className="text-lg font-bold text-text">Add New Service</h3>
+            <h3 className="text-lg font-bold text-text">
+              {isEdit ? 'Edit Service' : 'Add New Service'}
+            </h3>
             <p className="text-xs text-text-secondary">
-              Configure a new service offering and pricing.
+              {isEdit
+                ? 'Update service details, pricing, and duration.'
+                : 'Pick a shop/branch first — each shop can have its own services and pricing.'}
             </p>
           </div>
           <button
@@ -113,22 +207,24 @@ export function CreateServiceDialog({
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Branch selection */}
           <div>
             <label className="block text-xs font-semibold text-text">Branch / Location *</label>
             {branches.length > 0 ? (
-              <select
+              <SelectInput className="mt-1 h-10 w-full text-sm font-medium disabled:opacity-60"
                 required
                 value={salonId}
-                onChange={(e) => setSalonId(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-champagne"
+                disabled={isEdit}
+                onChange={(e) => {
+                  setSalonId(e.target.value);
+                  setCategoryId('');
+                }}
               >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
                   </option>
                 ))}
-              </select>
+              </SelectInput>
             ) : (
               <p className="mt-1 text-xs text-danger">
                 No branches found. Please create a branch in My Businesses first.
@@ -136,7 +232,6 @@ export function CreateServiceDialog({
             )}
           </div>
 
-          {/* Service Name */}
           <div>
             <label className="block text-xs font-semibold text-text">Service Name *</label>
             <input
@@ -149,17 +244,18 @@ export function CreateServiceDialog({
             />
           </div>
 
-          {/* Category */}
           <div>
             <div className="flex items-center justify-between">
               <label className="block text-xs font-semibold text-text">Category *</label>
-              <button
-                type="button"
-                onClick={() => setNewCategoryMode(!newCategoryMode)}
-                className="text-xs font-semibold text-champagne hover:underline"
-              >
-                {newCategoryMode ? 'Select existing' : '+ Create new category'}
-              </button>
+              {!isEdit ? (
+                <button
+                  type="button"
+                  onClick={() => setNewCategoryMode(!newCategoryMode)}
+                  className="text-xs font-semibold text-champagne hover:underline"
+                >
+                  {newCategoryMode ? 'Select existing' : '+ Create new category'}
+                </button>
+              ) : null}
             </div>
 
             {newCategoryMode ? (
@@ -172,14 +268,13 @@ export function CreateServiceDialog({
                 className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-champagne"
               />
             ) : (
-              <select
+              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
                 required
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-champagne"
               >
-                {categories.length > 0 ? (
-                  categories.map((c) => (
+                {salonCategories.length > 0 ? (
+                  salonCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -187,11 +282,10 @@ export function CreateServiceDialog({
                 ) : (
                   <option value="">No categories yet (click create new category above)</option>
                 )}
-              </select>
+              </SelectInput>
             )}
           </div>
 
-          {/* Price & Duration */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-text">Price (₹) *</label>
@@ -212,7 +306,7 @@ export function CreateServiceDialog({
                 type="number"
                 required
                 min={1}
-                step="5"
+                step="1"
                 placeholder="30"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(e.target.value)}
@@ -221,7 +315,6 @@ export function CreateServiceDialog({
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-xs font-semibold text-text">Description (Optional)</label>
             <textarea
@@ -242,7 +335,13 @@ export function CreateServiceDialog({
               disabled={loading || branches.length === 0}
               className="bg-brand-orange text-white hover:bg-brand-orange-dark"
             >
-              {loading ? 'Creating…' : 'Create Service'}
+              {loading
+                ? isEdit
+                  ? 'Saving…'
+                  : 'Creating…'
+                : isEdit
+                  ? 'Save Changes'
+                  : 'Create Service'}
             </Button>
           </div>
         </form>

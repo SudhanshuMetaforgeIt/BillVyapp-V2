@@ -6,7 +6,6 @@ import { SectionErrorState } from '@/components/layout/section-states';
 import { MetricGrid } from '@/features/dashboard/components/metric-card';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useNotifications } from '../hooks/use-notifications';
-import { defaultNotificationsDateRange } from '../services/notifications.service';
 import type {
   NotificationChannelFilter,
   NotificationStatusFilter,
@@ -21,14 +20,14 @@ const PAGE_SIZE = 8;
 export function NotificationsPageView() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
-  const defaults = defaultNotificationsDateRange();
 
   const [searchInput, setSearchInput] = useState('');
   const deferredSearch = useDeferredValue(searchInput);
   const [channel, setChannel] = useState<NotificationChannelFilter>('all');
   const [status, setStatus] = useState<NotificationStatusFilter>('all');
-  const [dateFrom, setDateFrom] = useState(defaults.dateFrom);
-  const [dateTo, setDateTo] = useState(defaults.dateTo);
+  // Empty by default so existing rows are not hidden behind a month window.
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
 

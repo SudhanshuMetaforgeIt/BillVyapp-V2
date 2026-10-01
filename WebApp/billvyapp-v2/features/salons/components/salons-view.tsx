@@ -110,7 +110,13 @@ export function SalonsView() {
     search: debounced,
     isActive: status === 'all' ? undefined : status === 'active',
   };
-  const salons = useScopedQuery(['salons', query], () => listSalons(query));
+  const salons = useScopedQuery(
+    ['salons', 'list', page, PAGE_SIZE, debounced, status],
+    () => listSalons(query),
+    // Don't keep the previous filter's rows — otherwise Inactive looks like a no-op
+    // until the request finishes (and failed requests leave stale "All" data on screen).
+    { placeholderData: undefined },
+  );
 
   const toggle = useMutation<Salon, ApiError, Salon>({
     mutationFn: (salon) => updateSalonStatus(salon.id, !salon.isActive),
@@ -134,6 +140,22 @@ export function SalonsView() {
         </div>
       ),
     },
+    ...(user?.role === 'SUPER_ADMIN'
+      ? ([
+          {
+            id: 'franchise',
+            header: 'Franchise',
+            cell: (s: Salon) => (
+              <div>
+                <p className="font-medium">{s.franchise?.name ?? '—'}</p>
+                {s.franchise?.code ? (
+                  <p className="text-xs text-text-secondary">{s.franchise.code}</p>
+                ) : null}
+              </div>
+            ),
+          },
+        ] as Column<Salon>[])
+      : []),
     {
       id: 'location',
       header: 'Location',
@@ -221,11 +243,12 @@ export function SalonsView() {
                 setPage(1);
               }}
               className="w-36"
-            >
-              <option value="all">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </SelectInput>
+              options={[
+                { value: 'all', label: 'All statuses' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+            />
           </>
         }
       />

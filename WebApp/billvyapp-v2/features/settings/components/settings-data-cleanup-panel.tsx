@@ -9,6 +9,7 @@ import { isApiError } from '@/services/api-client';
 import {
   useClearCache,
   useLogRetention,
+  usePurgeExpiredLogs,
   useUpdateRetention,
 } from '../hooks/use-platform-settings';
 import { SettingsSaveButton, SettingsTextField } from './settings-fields';
@@ -21,6 +22,7 @@ export function SettingsDataCleanupPanel() {
   const retention = useLogRetention();
   const saveRetention = useUpdateRetention();
   const clearCache = useClearCache();
+  const purgeLogs = usePurgeExpiredLogs();
   const [days, setDays] = useState('90');
 
   useEffect(() => {
@@ -64,7 +66,8 @@ export function SettingsDataCleanupPanel() {
         <div>
           <p className="text-sm font-semibold text-text">Log retention</p>
           <p className="text-xs text-text-secondary">
-            How long audit and system logs are kept.
+            How long audit and system logs are kept. Expired logs are purged
+            daily at 03:00, and immediately when you save a shorter window.
           </p>
         </div>
         <SettingsTextField
@@ -74,16 +77,37 @@ export function SettingsDataCleanupPanel() {
           value={days}
           onChange={setDays}
         />
-        <SettingsSaveButton
-          disabled={saveRetention.isPending || retention.isLoading}
-          label={saveRetention.isPending ? 'Saving…' : 'Save Retention'}
-          onClick={() =>
-            saveRetention.mutate(Number(days) || 90, {
-              onSuccess: () => toast.success('Retention updated'),
-              onError: fail,
-            })
-          }
-        />
+        <div className="flex flex-wrap gap-2">
+          <SettingsSaveButton
+            disabled={saveRetention.isPending || retention.isLoading}
+            label={saveRetention.isPending ? 'Saving…' : 'Save Retention'}
+            onClick={() =>
+              saveRetention.mutate(Number(days) || 90, {
+                onSuccess: (res) =>
+                  toast.success(
+                    res.purged && res.purged > 0
+                      ? `Retention updated · purged ${res.purged} old logs`
+                      : 'Retention updated',
+                  ),
+                onError: fail,
+              })
+            }
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={purgeLogs.isPending}
+            onClick={() =>
+              purgeLogs.mutate(undefined, {
+                onSuccess: (res) => toast.success(res.message),
+                onError: fail,
+              })
+            }
+          >
+            {purgeLogs.isPending ? 'Purging…' : 'Purge Expired Logs'}
+          </Button>
+        </div>
       </div>
     </DashboardSectionCard>
   );

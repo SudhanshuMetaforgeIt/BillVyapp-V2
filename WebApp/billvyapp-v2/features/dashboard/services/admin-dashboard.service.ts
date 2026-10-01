@@ -1,4 +1,3 @@
-import { format, startOfMonth } from 'date-fns';
 import {
   BadgeCheck,
   Building2,
@@ -14,6 +13,13 @@ import {
   Wallet,
 } from 'lucide-react';
 
+import { businessMonthToDate, businessToday } from '@/lib/business-calendar';
+import {
+  addCalendarDays,
+  calendarDateInTimeZone,
+  getBusinessTimezone,
+} from '@/lib/business-timezone';
+import { formatDate } from '@/lib/format';
 import { api } from '@/services/api-client';
 import { ROUTES } from '@/constants/routes';
 import type { Bill, Customer, Paginated, Payment, Salon } from '@/types/models';
@@ -38,6 +44,8 @@ export type AdminDashboardData = {
   recentCustomers: AdminRecentCustomer[];
   quickActions: AdminQuickAction[];
   glanceMetrics: AdminGlanceMetric[];
+  /** All franchise salons for the branch picker (unfiltered). */
+  branches: Array<{ id: string; name: string }>;
 };
 
 export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
@@ -64,6 +72,40 @@ const num = (v: unknown) => {
 };
 const isPartial = (p: Paginated<unknown>) => p.meta.total > p.data.length;
 
+/** Daily revenue buckets from start of month through today (zeros included). */
+function buildDailyRevenueSeries(
+  payments: Payment[],
+  dateFrom: string,
+  dateTo: string,
+): AdminRevenuePoint[] {
+  const timeZone = getBusinessTimezone();
+  const byDay = new Map<string, number>();
+  for (const payment of payments) {
+    const dayKey = calendarDateInTimeZone(
+      timeZone,
+      new Date(payment.paymentDate),
+    );
+    byDay.set(dayKey, (byDay.get(dayKey) ?? 0) + num(payment.amount));
+  }
+
+  const points: AdminRevenuePoint[] = [];
+  let cursor = dateFrom;
+  while (cursor <= dateTo) {
+    const [y, m, d] = cursor.split('-').map(Number);
+    points.push({
+      dayKey: cursor,
+      label: new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      }).format(new Date(Date.UTC(y, m - 1, d, 12))),
+      amount: byDay.get(cursor) ?? 0,
+    });
+    cursor = addCalendarDays(cursor, 1);
+  }
+  return points;
+}
+
 function billStatus(b: Bill): AdminBillStatus {
   if (b.status === 'DRAFT') return 'draft';
   if (b.status === 'CANCELLED') return 'cancelled';
@@ -73,24 +115,35 @@ function billStatus(b: Bill): AdminBillStatus {
   return 'unpaid';
 }
 
+export type AdminDashboardParams = {
+  salonId?: string;
+};
+
 /**
  * Franchise overview composed from existing list endpoints. Counts use
  * `meta.total` and are exact. Money totals are summed from at most SAMPLE
  * rows and labelled partial when the server holds more; an exact figure
  * needs a backend report endpoint.
+ *
+ * Optional `salonId` scopes bills/customers/etc. to one branch. Payments
+ * have no salon filter on the API, so those samples are filtered client-side.
  */
-export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
-  const now = new Date();
-  const today = format(now, 'yyyy-MM-dd');
-  const monthFrom = format(startOfMonth(now), 'yyyy-MM-dd');
+export async function fetchAdminDashboard(
+  params: AdminDashboardParams = {},
+): Promise<AdminDashboardData> {
+  const salonId = params.salonId?.trim() || undefined;
+  const scope = salonId ? { salonId } : {};
 
-  const page = <T,>(path: string, params: Record<string, unknown>) =>
-    api.get<Paginated<T>>(path, { params: { page: 1, ...params } });
-  const total = (path: string, params: Record<string, unknown> = {}) =>
-    page<unknown>(path, { ...params, limit: 1 }).then((r) => r.meta.total);
+  const today = businessToday();
+  const { dateFrom: monthFrom } = businessMonthToDate();
+
+  const page = <T,>(path: string, query: Record<string, unknown>) =>
+    api.get<Paginated<T>>(path, { params: { page: 1, ...query } });
+  const total = (path: string, query: Record<string, unknown> = {}) =>
+    page<unknown>(path, { ...query, limit: 1 }).then((r) => r.meta.total);
 
   const [
-    salons,
+    allSalons,
     activeSalons,
     customers,
     recentBillsPage,
@@ -105,39 +158,95 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
     appointmentsToday,
     lowStock,
   ] = await Promise.all([
-    page<Salon>('/salons', { limit: 10 }),
+    page<Salon>('/salons', { limit: 100 }),
     total('/salons', { isActive: true }),
-    page<Customer>('/customers', { limit: 5 }),
-    page<Bill>('/bills', { limit: 8 }),
-    total('/users', { isActive: true }),
-    total('/services'),
-    page<Payment>('/payments', { limit: SAMPLE, status: 'SUCCESS', dateFrom: monthFrom, dateTo: today }),
-    page<Payment>('/payments', { limit: SAMPLE, status: 'SUCCESS', dateFrom: today, dateTo: today }),
-    page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', dateFrom: monthFrom, dateTo: today }),
-    page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', paymentStatus: 'UNPAID' }),
-    page<Bill>('/bills', { limit: SAMPLE, status: 'COMPLETED', paymentStatus: 'PARTIAL' }),
-    total('/bills', { dateFrom: today, dateTo: today }),
-    total('/appointments', { dateFrom: today, dateTo: today }),
-    total('/inventory', { lowStock: true }),
+    page<Customer>('/customers', { limit: 5, ...scope }),
+    page<Bill>('/bills', { limit: 8, ...scope }),
+    total('/users', { isActive: true, ...scope }),
+    total('/services', { ...scope }),
+    page<Payment>('/payments', {
+      limit: SAMPLE,
+      status: 'SUCCESS',
+      dateFrom: monthFrom,
+      dateTo: today,
+    }),
+    page<Payment>('/payments', {
+      limit: SAMPLE,
+      status: 'SUCCESS',
+      dateFrom: today,
+      dateTo: today,
+    }),
+    page<Bill>('/bills', {
+      limit: SAMPLE,
+      status: 'COMPLETED',
+      dateFrom: monthFrom,
+      dateTo: today,
+      ...scope,
+    }),
+    page<Bill>('/bills', {
+      limit: SAMPLE,
+      status: 'COMPLETED',
+      paymentStatus: 'UNPAID',
+      ...scope,
+    }),
+    page<Bill>('/bills', {
+      limit: SAMPLE,
+      status: 'COMPLETED',
+      paymentStatus: 'PARTIAL',
+      ...scope,
+    }),
+    total('/bills', { dateFrom: today, dateTo: today, ...scope }),
+    total('/appointments', { dateFrom: today, dateTo: today, ...scope }),
+    total('/inventory', { lowStock: true, ...scope }),
   ]);
 
-  const sumPayments = (p: Paginated<Payment>) => p.data.reduce((s, r) => s + num(r.amount), 0);
-  const monthRevenue = sumPayments(monthPayments);
-  const todaySales = sumPayments(todayPayments);
+  const filterPayments = (p: Paginated<Payment>): Paginated<Payment> => {
+    if (!salonId) return p;
+    const data = p.data.filter((row) => row.salonId === salonId);
+    return {
+      data,
+      meta: {
+        ...p.meta,
+        total: data.length,
+        totalPages: data.length === 0 ? 0 : 1,
+      },
+    };
+  };
+
+  const monthPaymentsScoped = filterPayments(monthPayments);
+  const todayPaymentsScoped = filterPayments(todayPayments);
+
+  const sumPayments = (p: Paginated<Payment>) =>
+    p.data.reduce((s, r) => s + num(r.amount), 0);
+  const monthRevenue = sumPayments(monthPaymentsScoped);
+  const todaySales = sumPayments(todayPaymentsScoped);
   const dueRows = [...dueBillsUnpaid.data, ...dueBillsPartial.data];
   const pendingCollection = dueRows.reduce((s, b) => s + num(b.dueAmount), 0);
   const pendingPartial = isPartial(dueBillsUnpaid) || isPartial(dueBillsPartial);
 
   const partialLabel = (sample: number) => `partial — latest ${sample} records`;
 
+  const branchList = salonId
+    ? allSalons.data.filter((s) => s.id === salonId)
+    : allSalons.data;
+
+  const branchCount = salonId ? branchList.length : allSalons.meta.total;
+  const activeBranchCount = salonId
+    ? branchList.filter((s) => s.isActive).length
+    : activeSalons;
+
   const stats: AdminStat[] = [
     {
       id: 'total-branches',
-      label: 'Total Branches',
-      rawValue: salons.meta.total,
-      displayValue: salons.meta.total.toLocaleString('en-IN'),
+      label: salonId ? 'Selected Branch' : 'Total Branches',
+      rawValue: branchCount,
+      displayValue: salonId
+        ? branchList[0]?.name ?? '—'
+        : branchCount.toLocaleString('en-IN'),
       changePercent: null,
-      comparisonLabel: `${activeSalons.toLocaleString('en-IN')} active`,
+      comparisonLabel: salonId
+        ? 'filtered view'
+        : `${activeBranchCount.toLocaleString('en-IN')} active`,
       icon: Store,
       iconTone: 'emerald',
     },
@@ -157,7 +266,9 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
       rawValue: monthRevenue,
       displayValue: inr(monthRevenue),
       changePercent: null,
-      comparisonLabel: isPartial(monthPayments) ? partialLabel(SAMPLE) : 'successful payments',
+      comparisonLabel: isPartial(monthPaymentsScoped)
+        ? partialLabel(SAMPLE)
+        : 'successful payments',
       icon: IndianRupee,
       iconTone: 'orange',
     },
@@ -188,27 +299,35 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
     branchRevenue.set(b.salonId, (branchRevenue.get(b.salonId) ?? 0) + num(b.total));
   }
   const topRevenue = Math.max(0, ...branchRevenue.values());
-  const branchPerformance: AdminBranchPerf[] = isPartial(monthBills)
-    ? []
-    : salons.data.map((salon) => {
-        const revenue = branchRevenue.get(salon.id) ?? 0;
-        return {
-          id: salon.id,
-          name: salon.name,
-          revenue,
-          percent: topRevenue > 0 ? Math.round((revenue / topRevenue) * 100) : 0,
-        };
-      });
+  const branchPerformance: AdminBranchPerf[] = branchList.map((salon) => {
+    const revenue = branchRevenue.get(salon.id) ?? 0;
+    return {
+      id: salon.id,
+      name: salon.name,
+      revenue,
+      percent: topRevenue > 0 ? Math.round((revenue / topRevenue) * 100) : 0,
+    };
+  });
 
   const businessSummary: AdminSummaryItem[] = [
     {
       id: 'active-branches',
-      label: 'Active Branches',
-      value: activeSalons.toLocaleString('en-IN'),
+      label: salonId ? 'Branch Status' : 'Active Branches',
+      value: salonId
+        ? branchList[0]?.isActive
+          ? 'Active'
+          : 'Inactive'
+        : activeBranchCount.toLocaleString('en-IN'),
       tone: 'emerald',
       icon: BadgeCheck,
     },
-    { id: 'services', label: 'Services', value: services.toLocaleString('en-IN'), tone: 'champagne', icon: Star },
+    {
+      id: 'services',
+      label: 'Services',
+      value: services.toLocaleString('en-IN'),
+      tone: 'champagne',
+      icon: Star,
+    },
     {
       id: 'pending-collection',
       label: pendingPartial ? 'Pending Collection (partial)' : 'Pending Collection',
@@ -216,13 +335,22 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
       tone: 'danger',
       icon: Wallet,
     },
-    { id: 'low-stock', label: 'Low Stock Items', value: lowStock.toLocaleString('en-IN'), tone: 'neutral', icon: Package },
+    {
+      id: 'low-stock',
+      label: 'Low Stock Items',
+      value: lowStock.toLocaleString('en-IN'),
+      tone: 'neutral',
+      icon: Package,
+    },
   ];
 
   const recentBills: AdminRecentBill[] = recentBillsPage.data.map((b) => ({
     id: b.id,
     billNo: b.billNumber,
-    customer: b.customer ? [b.customer.firstName, b.customer.lastName].filter(Boolean).join(' ') || b.customer.customerCode : '—',
+    customer: b.customer
+      ? [b.customer.firstName, b.customer.lastName].filter(Boolean).join(' ') ||
+        b.customer.customerCode
+      : '—',
     amount: num(b.total),
     status: billStatus(b),
   }));
@@ -234,19 +362,27 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
       name,
       initials: name.slice(0, 2).toUpperCase(),
       branch: c.branchName ?? '—',
-      dateLabel: format(new Date(c.createdAt), 'dd MMM'),
+      dateLabel: formatDate(c.createdAt),
     };
   });
 
   const glanceMetrics: AdminGlanceMetric[] = [
     {
       id: 'today-sales',
-      label: isPartial(todayPayments) ? "Today's Collections (partial)" : "Today's Collections",
+      label: isPartial(todayPaymentsScoped)
+        ? "Today's Collections (partial)"
+        : "Today's Collections",
       displayValue: inr(todaySales),
       icon: IndianRupee,
       iconTone: 'orange',
     },
-    { id: 'bills-today', label: 'Bills Today', displayValue: billsToday.toLocaleString('en-IN'), icon: Receipt, iconTone: 'emerald' },
+    {
+      id: 'bills-today',
+      label: 'Bills Today',
+      displayValue: billsToday.toLocaleString('en-IN'),
+      icon: Receipt,
+      iconTone: 'emerald',
+    },
     {
       id: 'appointments',
       label: "Today's Appointments",
@@ -263,14 +399,21 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
     },
   ];
 
+  const revenueSeries = buildDailyRevenueSeries(
+    monthPaymentsScoped.data,
+    monthFrom,
+    today,
+  );
+
   return {
     stats,
-    revenueSeries: [],
+    revenueSeries,
     branchPerformance,
     businessSummary,
     recentBills,
     recentCustomers,
     quickActions: ADMIN_QUICK_ACTIONS,
     glanceMetrics,
+    branches: allSalons.data.map((s) => ({ id: s.id, name: s.name })),
   };
 }

@@ -52,10 +52,19 @@ export function ServicesTable({
 
   if (rows.length === 0) {
     return (
-      <SectionEmptyState
-        title="No services found"
-        message="Try adjusting filters, or add a new service."
-      />
+      <>
+        <SectionEmptyState
+          title="No services found"
+          message="Try adjusting filters, or add a new service."
+        />
+        {meta.total > 0 || meta.page > 1 ? (
+          <ServicesPagination
+            meta={meta}
+            noun="services"
+            onPageChange={onPageChange}
+          />
+        ) : null}
+      </>
     );
   }
 

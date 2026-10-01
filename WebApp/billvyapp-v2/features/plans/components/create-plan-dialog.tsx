@@ -1,12 +1,17 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  useCreatePlan,
+  useUpdatePlan,
+} from '../hooks/use-plan-mutations';
 import type { BillingCycle, PlatformPlan, PlanStatus } from '../types/plans.types';
 
 type CreatePlanDialogProps = {
@@ -27,6 +32,12 @@ export function CreatePlanDialog({
   const [isCustom, setIsCustom] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [status, setStatus] = useState<PlanStatus>('active');
+
+  const close = () => onOpenChange(false);
+
+  const create = useCreatePlan(close);
+  const update = useUpdatePlan(close);
+  const pending = create.isPending || update.isPending;
 
   useEffect(() => {
     if (!open) return;
@@ -50,23 +61,26 @@ export function CreatePlanDialog({
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onOpenChange(false);
+      if (event.key === 'Escape' && !pending) onOpenChange(false);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onOpenChange]);
+  }, [open, onOpenChange, pending]);
 
   if (!open) return null;
 
   const canSubmit =
-    name.trim().length > 0 && (isCustom || (price.trim().length > 0 && Number(price) >= 0));
+    name.trim().length > 0 &&
+    (isCustom || (price.trim().length > 0 && Number(price) >= 0));
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onOpenChange(false);
+        if (event.target === event.currentTarget && !pending) {
+          onOpenChange(false);
+        }
       }}
     >
       <div
@@ -83,6 +97,7 @@ export function CreatePlanDialog({
             type="button"
             className="rounded-md p-1.5 text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             aria-label="Close"
+            disabled={pending}
             onClick={() => onOpenChange(false)}
           >
             <X className="size-4" />
@@ -93,13 +108,23 @@ export function CreatePlanDialog({
           className="space-y-4 p-5"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!canSubmit) return;
-            toast(
-              isEdit
-                ? 'Plan updates will save once the plans API is available.'
-                : 'Plan creation will save once the plans API is available.',
-            );
-            onOpenChange(false);
+            if (!canSubmit || pending) return;
+            const payload = {
+              name: name.trim(),
+              priceMonthly: isCustom ? null : Number(price),
+              billingCycle,
+              isCustom,
+              status,
+            };
+            if (isEdit && editPlan) {
+              update.mutate({
+                id: editPlan.id,
+                payload,
+                previousStatus: editPlan.status,
+              });
+              return;
+            }
+            create.mutate(payload);
           }}
         >
           <div>
@@ -143,41 +168,52 @@ export function CreatePlanDialog({
 
           <div>
             <Label htmlFor="plan-cycle">Billing cycle</Label>
-            <select
+            <SelectInput
+              className="h-11 w-full text-sm font-medium"
               id="plan-cycle"
               value={billingCycle}
               onChange={(e) => setBillingCycle(e.target.value as BillingCycle)}
-              className="flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
               <option value="custom">Custom</option>
-            </select>
+            </SelectInput>
           </div>
 
           <div>
             <Label htmlFor="plan-status">Status</Label>
-            <select
+            <SelectInput
+              className="h-11 w-full text-sm font-medium"
               id="plan-status"
               value={status}
               onChange={(e) => setStatus(e.target.value as PlanStatus)}
-              className="flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
-            </select>
+            </SelectInput>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || pending}
               className="bg-brand-orange text-white hover:bg-brand-orange-deep"
             >
-              {isEdit ? 'Save changes' : 'Create plan'}
+              {pending
+                ? isEdit
+                  ? 'Saving…'
+                  : 'Creating…'
+                : isEdit
+                  ? 'Save changes'
+                  : 'Create plan'}
             </Button>
           </div>
         </form>

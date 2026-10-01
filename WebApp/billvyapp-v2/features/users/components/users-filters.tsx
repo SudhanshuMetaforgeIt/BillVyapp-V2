@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -28,7 +30,7 @@ type UsersFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne';
+  'h-11 w-auto min-w-[9rem] text-sm font-medium';
 
 export function UsersFilters({
   search,
@@ -66,7 +68,7 @@ export function UsersFilters({
           />
         </div>
 
-        <select
+        <SelectInput
           value={roleId}
           onChange={(e) => onRoleChange(e.target.value)}
           aria-label="Filter by role"
@@ -78,9 +80,9 @@ export function UsersFilters({
               {ROLE_LABELS[role.code]}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput
           value={status}
           onChange={(e) => onStatusChange(e.target.value as UserStatusFilter)}
           aria-label="Filter by status"
@@ -89,9 +91,9 @@ export function UsersFilters({
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput
           value={franchiseId}
           onChange={(e) => onFranchiseChange(e.target.value)}
           aria-label="Filter by business"
@@ -103,7 +105,7 @@ export function UsersFilters({
               {franchise.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
       </div>
 
       <Button

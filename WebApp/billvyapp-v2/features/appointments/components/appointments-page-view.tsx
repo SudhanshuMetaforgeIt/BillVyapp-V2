@@ -32,7 +32,7 @@ export function AppointmentsPageView() {
 
   const [searchInput, setSearchInput] = useState('');
   const deferredSearch = useDeferredValue(searchInput);
-  const [datePreset, setDatePreset] = useState<DatePreset>('today');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [statusTab, setStatusTab] = useState<AppointmentStatusTab>('all');
   const [staffId, setStaffId] = useState('');
   const [serviceId, setServiceId] = useState('');
@@ -146,6 +146,11 @@ export function AppointmentsPageView() {
       <CreateAppointmentDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
+        onCreated={() => {
+          setDatePreset('all');
+          setStatusTab('all');
+          setPage(1);
+        }}
       />
     </>
   );

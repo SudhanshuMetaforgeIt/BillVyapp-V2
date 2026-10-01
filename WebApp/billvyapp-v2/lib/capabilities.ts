@@ -45,7 +45,7 @@ export const CAPABILITIES = {
 
   'bills.read': ALL,
   'bills.write': INTERNAL,
-  'bills.status': MANAGEMENT,
+  'bills.status': INTERNAL,
   'billDocuments.read': ALL,
   'billDocuments.write': INTERNAL,
 

@@ -3,6 +3,7 @@ import {
   CalendarDays,
   FileText,
   Gift,
+  Headphones,
   LayoutDashboard,
   Megaphone,
   Package,
@@ -22,7 +23,8 @@ const base = `/dashboard/${ROLE_SEGMENTS.MANAGER}`;
 
 /**
  * Salon Manager sidebar navigation.
- * Notifications live behind the header bell; Profile and Settings live in the user menu.
+ * Notifications live behind the header bell; Profile lives in the user menu.
+ * Franchise settings are Admin-only.
  */
 export const MANAGER_NAVIGATION: NavSection[] = [
   {
@@ -53,6 +55,7 @@ export const MANAGER_NAVIGATION: NavSection[] = [
     id: 'tools',
     label: 'Tools',
     items: [
+      { id: 'support', label: 'Support', href: `${base}/support`, icon: Headphones },
       { id: 'search', label: 'Search', href: `${base}/search`, icon: Search },
     ],
   },

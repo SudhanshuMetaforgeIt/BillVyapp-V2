@@ -7,7 +7,9 @@ import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
 import {
   clearSettingsCache,
+  checkSystemUpdateStatus,
   createIntegration,
+  createSettingsBackup,
   deleteIntegration,
   getEmailSettings,
   getGeneralSettings,
@@ -17,6 +19,11 @@ import {
   getSystemSettings,
   listIntegrations,
   listSettingsActivity,
+  listSettingsBackups,
+  listSettingsLogs,
+  purgeExpiredLogs,
+  resetPlatformSettings,
+  restoreSettingsBackup,
   testEmailSettings,
   updateBrandingSettings,
   updateEmailSettings,
@@ -31,10 +38,13 @@ import {
   type EmailSettings,
   type GeneralSettings,
   type Integration,
+  type LogPurgeResult,
   type LogRetention,
   type NotificationsSettings,
   type SecuritySettings,
+  type SettingsBackup,
   type SystemSettings,
+  type SystemUpdateStatus,
 } from '../services/settings.service';
 
 export function useGeneralSettings() {
@@ -91,6 +101,20 @@ export function useSettingsActivity(page: number) {
     () => listSettingsActivity(page, 20),
     { capability: 'settings.manage' },
   );
+}
+
+export function useSettingsLogs(page: number) {
+  return useScopedQuery(
+    ['settings', 'logs', page],
+    () => listSettingsLogs(page, 20),
+    { capability: 'settings.manage' },
+  );
+}
+
+export function useSettingsBackups() {
+  return useScopedQuery(['settings', 'backups'], listSettingsBackups, {
+    capability: 'settings.manage',
+  });
 }
 
 function useSettingsMutation<TData, TVars>(
@@ -160,9 +184,47 @@ export function useUpdateRetention() {
   return useSettingsMutation(updateLogRetention);
 }
 
+export function usePurgeExpiredLogs() {
+  const qc = useQueryClient();
+  return useMutation<LogPurgeResult, ApiError, void>({
+    mutationFn: purgeExpiredLogs,
+    onSuccess: () => invalidateAfter(qc, 'settings'),
+  });
+}
+
 export function useClearCache() {
   return useMutation<{ message: string; deletedKeys?: number }, ApiError, void>({
     mutationFn: clearSettingsCache,
+  });
+}
+
+export function useResetSettings() {
+  const qc = useQueryClient();
+  return useMutation<GeneralSettings, ApiError, void>({
+    mutationFn: resetPlatformSettings,
+    onSuccess: () => invalidateAfter(qc, 'settings'),
+  });
+}
+
+export function useCreateBackup() {
+  const qc = useQueryClient();
+  return useMutation<SettingsBackup, ApiError, void>({
+    mutationFn: createSettingsBackup,
+    onSuccess: () => invalidateAfter(qc, 'settings'),
+  });
+}
+
+export function useRestoreBackup() {
+  const qc = useQueryClient();
+  return useMutation<SettingsBackup, ApiError, string | undefined>({
+    mutationFn: (backupId) => restoreSettingsBackup(backupId),
+    onSuccess: () => invalidateAfter(qc, 'settings'),
+  });
+}
+
+export function useCheckSystemUpdate() {
+  return useMutation<SystemUpdateStatus, ApiError, void>({
+    mutationFn: checkSystemUpdateStatus,
   });
 }
 
@@ -170,8 +232,11 @@ export type {
   EmailSettings,
   GeneralSettings,
   Integration,
+  LogPurgeResult,
   LogRetention,
   NotificationsSettings,
   SecuritySettings,
+  SettingsBackup,
   SystemSettings,
+  SystemUpdateStatus,
 };

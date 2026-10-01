@@ -1,7 +1,9 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import React, { useEffect, useState } from 'react';
-import { Pencil, ChevronDown, Check, X } from 'lucide-react';
+import { Pencil, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -162,24 +164,21 @@ export function AdminProfilePersonalCard({ profile }: Props) {
             />
           </div>
 
-          {/* Designation (Dropdown with chevron icon) */}
+          {/* Designation */}
           <div>
             <Label className="text-xs font-medium text-stone-700 dark:text-stone-300">
               Designation
             </Label>
-            <div className="relative mt-1.5">
-              <select
-                value={designation}
-                onChange={(e) => setDesignation(e.target.value)}
-                disabled={!isEditing}
-                className="h-10 w-full appearance-none rounded-xl border border-stone-200 bg-white px-3 pr-8 text-xs text-stone-900 outline-none transition-colors dark:border-stone-800 dark:bg-stone-900 dark:text-white disabled:bg-stone-50/50 dark:disabled:bg-stone-800/40"
-              >
-                <option value="Administrator">Administrator</option>
-                <option value="Franchise Owner">Franchise Owner</option>
-                <option value="Branch Manager">Branch Manager</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-stone-400" />
-            </div>
+            <SelectInput
+              className="mt-1.5 h-10 w-full text-sm font-medium disabled:cursor-not-allowed"
+              value={designation}
+              onChange={(e) => setDesignation(e.target.value)}
+              disabled={!isEditing}
+            >
+              <option value="Administrator">Administrator</option>
+              <option value="Franchise Owner">Franchise Owner</option>
+              <option value="Branch Manager">Branch Manager</option>
+            </SelectInput>
           </div>
 
           {/* Phone Number */}
@@ -196,24 +195,21 @@ export function AdminProfilePersonalCard({ profile }: Props) {
             />
           </div>
 
-          {/* Language (Dropdown with chevron icon) */}
+          {/* Language */}
           <div>
             <Label className="text-xs font-medium text-stone-700 dark:text-stone-300">
               Language
             </Label>
-            <div className="relative mt-1.5">
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                disabled={!isEditing}
-                className="h-10 w-full appearance-none rounded-xl border border-stone-200 bg-white px-3 pr-8 text-xs text-stone-900 outline-none transition-colors dark:border-stone-800 dark:bg-stone-900 dark:text-white disabled:bg-stone-50/50 dark:disabled:bg-stone-800/40"
-              >
-                <option value="English">English</option>
-                <option value="Hindi">Hindi</option>
-                <option value="Kannada">Kannada</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-stone-400" />
-            </div>
+            <SelectInput
+              className="mt-1.5 h-10 w-full text-sm font-medium disabled:cursor-not-allowed"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              disabled={!isEditing}
+            >
+              <option value="English">English</option>
+              <option value="Hindi">Hindi</option>
+              <option value="Kannada">Kannada</option>
+            </SelectInput>
           </div>
         </div>
       </form>

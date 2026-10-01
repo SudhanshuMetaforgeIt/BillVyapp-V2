@@ -21,6 +21,12 @@ jest.mock('../prisma/prisma.service', () => ({
 jest.mock('../audit/audit.service', () => ({
   AuditService: class AuditService {},
 }));
+jest.mock('../franchise-subscriptions/franchise-subscriptions.service', () => ({
+  FranchiseSubscriptionsService: class FranchiseSubscriptionsService {},
+}));
+jest.mock('../common/datetime/business-timezone.service', () => ({
+  BusinessTimezoneService: class BusinessTimezoneService {},
+}));
 
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
@@ -37,6 +43,12 @@ function staffUser(overrides: Record<string, unknown> = {}) {
     salonId: null,
     passwordHash: 'hashed-password',
     role: { code: RoleCode.ADMIN, isActive: true },
+    createdAt: new Date('2026-01-15T10:00:00.000Z'),
+    lastLoginAt: new Date('2026-09-30T05:00:00.000Z'),
+    salon: null,
+    franchise: {
+      preferences: { timezone: 'Asia/Kolkata', language: 'en' },
+    },
     ...overrides,
   };
 }
@@ -97,6 +109,15 @@ describe('AuthService', () => {
     verify: jest.fn(),
   };
   const audit = { record: jest.fn() };
+  const subscriptions = {
+    findActiveForFranchise: jest.fn(),
+    findLatestForFranchise: jest.fn(),
+    isFranchiseSubscriptionActive: jest.fn(),
+  };
+  const businessTimezone = {
+    getPlatformTimezone: jest.fn().mockResolvedValue('Asia/Kolkata'),
+    resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
+  };
 
   let auth: AuthService;
 
@@ -122,6 +143,15 @@ describe('AuthService', () => {
     prisma.user.update.mockResolvedValue({});
     sessions.create.mockResolvedValue(undefined);
     audit.record.mockResolvedValue(undefined);
+    subscriptions.findActiveForFranchise.mockResolvedValue({
+      id: 'sub-1',
+      planName: 'Basic',
+      endsAt: '2027-09-30',
+      isCurrentlyActive: true,
+    });
+    subscriptions.findLatestForFranchise.mockResolvedValue(null);
+    businessTimezone.getPlatformTimezone.mockResolvedValue('Asia/Kolkata');
+    businessTimezone.resolveForUser.mockResolvedValue('Asia/Kolkata');
 
     auth = new AuthService(
       prisma as unknown as PrismaService,
@@ -131,6 +161,8 @@ describe('AuthService', () => {
       sessions as unknown as SessionService,
       otp as unknown as OtpService,
       audit as unknown as AuditService,
+      subscriptions as never,
+      businessTimezone as never,
     );
   });
 
@@ -478,6 +510,14 @@ describe('AuthService', () => {
         salonId: null,
         profilePhoto: null,
         isActive: true,
+        subscriptionActive: true,
+        subscriptionPlanName: 'Basic',
+        subscriptionEndsAt: '2027-09-30',
+        createdAt: new Date('2026-01-15T10:00:00.000Z'),
+        lastLoginAt: new Date('2026-09-30T05:00:00.000Z'),
+        salonName: null,
+        timezone: 'Asia/Kolkata',
+        language: 'en',
       });
       expect(me).not.toHaveProperty('passwordHash');
     });

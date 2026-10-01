@@ -4,6 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { promises as fs } from 'fs';
+import { join } from 'path';
 import type { Prisma } from '../generated/prisma/client';
 import { Prisma as PrismaRuntime } from '../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -25,12 +28,16 @@ import {
   INTEGRATION_ENTITY_TYPE,
   PLATFORM_SETTINGS_ID,
   SECRET_CONFIG_KEYS,
+  SETTINGS_BACKUP_DIR,
+  SETTINGS_BACKUP_FORMAT_VERSION,
+  SETTINGS_BACKUP_MAX_COUNT,
   SETTINGS_ENTITY_TYPE,
 } from './settings.constants';
 import type {
   BrandingUploadDto,
   ConfirmDestructiveDto,
   ConfirmResetDto,
+  ConfirmRestoreDto,
   CreateIntegrationDto,
   TestEmailDto,
   UpdateBrandingSettingsDto,
@@ -478,7 +485,41 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
-    return { retentionDays: updated.logRetentionDays };
+    // Apply the new window immediately so shortening retention takes effect now.
+    const purge = await this.audit.purgeExpired({
+      retentionDays: updated.logRetentionDays,
+      actorUserId: actor.userId,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return {
+      retentionDays: updated.logRetentionDays,
+      purged: purge.deleted,
+    };
+  }
+
+  async purgeExpiredLogs(
+    actor: AuthenticatedUser,
+    dto: ConfirmDestructiveDto,
+    ctx: RequestContext,
+  ) {
+    this.assertConfirmed(dto.confirm);
+    const purge = await this.audit.purgeExpired({
+      actorUserId: actor.userId,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return {
+      message:
+        purge.deleted > 0
+          ? `Purged ${purge.deleted} expired log entries.`
+          : 'No expired log entries to purge.',
+      deleted: purge.deleted,
+      retentionDays: purge.retentionDays,
+      cutoff: purge.cutoff,
+    };
   }
 
   // ------------------------------------------------------------------ email
@@ -753,6 +794,252 @@ export class SettingsService {
     });
 
     return this.toGeneral(updated);
+  }
+
+  // -------------------------------------------------- backup / restore / update
+
+  async createBackup(actor: AuthenticatedUser, ctx: RequestContext) {
+    const settings = await this.ensureSettings();
+    const integrations = await this.prisma.platformIntegration.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const id = randomUUID();
+    const createdAt = new Date();
+    const payload = {
+      formatVersion: SETTINGS_BACKUP_FORMAT_VERSION,
+      id,
+      createdAt: createdAt.toISOString(),
+      createdBy: actor.userId,
+      settings: {
+        ...settings,
+        createdAt: settings.createdAt.toISOString(),
+        updatedAt: settings.updatedAt.toISOString(),
+      },
+      integrations: integrations.map((row) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+    };
+
+    const dir = await this.ensureBackupDir();
+    const filePath = join(dir, `${id}.json`);
+    const body = JSON.stringify(payload, null, 2);
+    await fs.writeFile(filePath, body, 'utf8');
+    await this.pruneOldBackups(dir);
+
+    const stat = await fs.stat(filePath);
+
+    await this.audit.record({
+      userId: actor.userId,
+      action: 'SETTINGS_BACKUP_CREATED',
+      entityType: SETTINGS_ENTITY_TYPE,
+      entityId: PLATFORM_SETTINGS_ID,
+      newData: {
+        backupId: id,
+        sizeBytes: stat.size,
+        integrationCount: integrations.length,
+      } as Prisma.InputJsonValue,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return {
+      id,
+      createdAt,
+      createdBy: actor.userId,
+      sizeBytes: stat.size,
+      message: 'Platform settings snapshot created.',
+    };
+  }
+
+  async listBackups() {
+    const dir = await this.ensureBackupDir();
+    const files = await fs.readdir(dir);
+    const items: Array<{
+      id: string;
+      createdAt: Date;
+      createdBy: string | null;
+      sizeBytes: number;
+    }> = [];
+
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      try {
+        const filePath = join(dir, file);
+        const raw = await fs.readFile(filePath, 'utf8');
+        const parsed = JSON.parse(raw) as {
+          id?: string;
+          createdAt?: string;
+          createdBy?: string | null;
+        };
+        const stat = await fs.stat(filePath);
+        items.push({
+          id: parsed.id ?? file.replace(/\.json$/, ''),
+          createdAt: parsed.createdAt
+            ? new Date(parsed.createdAt)
+            : stat.mtime,
+          createdBy: parsed.createdBy ?? null,
+          sizeBytes: stat.size,
+        });
+      } catch {
+        // Skip unreadable / corrupt backup files.
+      }
+    }
+
+    return items.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+  }
+
+  async restoreBackup(
+    actor: AuthenticatedUser,
+    dto: ConfirmRestoreDto,
+    ctx: RequestContext,
+  ) {
+    this.assertConfirmed(dto.confirm);
+    if (dto.confirmationPhrase !== 'RESTORE') {
+      throw new BadRequestException(
+        'confirmationPhrase must be exactly RESTORE',
+      );
+    }
+
+    const backups = await this.listBackups();
+    if (backups.length === 0) {
+      throw new NotFoundException('No backups available to restore');
+    }
+
+    const targetId = dto.backupId ?? backups[0].id;
+    const backupMeta = backups.find((b) => b.id === targetId);
+    if (!backupMeta) {
+      throw new NotFoundException('Backup not found');
+    }
+
+    const filePath = join(await this.ensureBackupDir(), `${targetId}.json`);
+    let payload: {
+      formatVersion?: number;
+      settings?: SettingsRow & {
+        createdAt: string;
+        updatedAt: string;
+      };
+      integrations?: Array<
+        IntegrationRow & { createdAt: string; updatedAt: string }
+      >;
+    };
+    try {
+      payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as typeof payload;
+    } catch {
+      throw new BadRequestException('Backup file is corrupt or unreadable');
+    }
+
+    if (!payload.settings) {
+      throw new BadRequestException('Backup does not contain settings data');
+    }
+
+    const existing = await this.ensureSettings();
+    const snap = payload.settings;
+
+    const updated = await this.prisma.platformSettings.update({
+      where: { id: PLATFORM_SETTINGS_ID },
+      data: {
+        platformName: snap.platformName,
+        tagline: snap.tagline,
+        adminEmail: snap.adminEmail,
+        contactNumber: snap.contactNumber,
+        timezone: snap.timezone,
+        dateFormat: snap.dateFormat,
+        logoMediaFileId: snap.logoMediaFileId,
+        faviconMediaFileId: snap.faviconMediaFileId,
+        primaryColor: snap.primaryColor,
+        secondaryColor: snap.secondaryColor,
+        maintenanceMode: snap.maintenanceMode,
+        passwordMinLength: snap.passwordMinLength,
+        passwordRequireUppercase: snap.passwordRequireUppercase,
+        passwordRequireLowercase: snap.passwordRequireLowercase,
+        passwordRequireNumbers: snap.passwordRequireNumbers,
+        passwordRequireSpecial: snap.passwordRequireSpecial,
+        sessionTimeoutMinutes: snap.sessionTimeoutMinutes,
+        maxLoginAttempts: snap.maxLoginAttempts,
+        lockoutDurationMinutes: snap.lockoutDurationMinutes,
+        logRetentionDays: snap.logRetentionDays,
+        smtpHost: snap.smtpHost,
+        smtpPort: snap.smtpPort,
+        smtpUser: snap.smtpUser,
+        smtpPassword: snap.smtpPassword,
+        smtpFromEmail: snap.smtpFromEmail,
+        smtpFromName: snap.smtpFromName,
+        smtpSecure: snap.smtpSecure,
+        notificationDefaults:
+          snap.notificationDefaults === null
+            ? PrismaRuntime.DbNull
+            : (snap.notificationDefaults as Prisma.InputJsonValue),
+        systemConfig:
+          snap.systemConfig === null
+            ? PrismaRuntime.DbNull
+            : (snap.systemConfig as Prisma.InputJsonValue),
+      },
+      select: SETTINGS_SELECT,
+    });
+
+    for (const integration of payload.integrations ?? []) {
+      await this.prisma.platformIntegration.upsert({
+        where: { provider: integration.provider },
+        create: {
+          name: integration.name,
+          provider: integration.provider,
+          status: integration.status,
+          config:
+            integration.config === null
+              ? PrismaRuntime.DbNull
+              : (integration.config as Prisma.InputJsonValue),
+          isActive: integration.isActive,
+        },
+        update: {
+          name: integration.name,
+          status: integration.status,
+          config:
+            integration.config === null
+              ? PrismaRuntime.DbNull
+              : (integration.config as Prisma.InputJsonValue),
+          isActive: integration.isActive,
+        },
+      });
+    }
+
+    await this.audit.record({
+      userId: actor.userId,
+      action: 'SETTINGS_BACKUP_RESTORED',
+      entityType: SETTINGS_ENTITY_TYPE,
+      entityId: PLATFORM_SETTINGS_ID,
+      oldData: this.toGeneral(existing) as unknown as Prisma.InputJsonValue,
+      newData: {
+        backupId: targetId,
+        settings: this.toGeneral(updated),
+        integrationCount: payload.integrations?.length ?? 0,
+      } as unknown as Prisma.InputJsonValue,
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return {
+      message: 'Platform settings restored from backup.',
+      id: targetId,
+      createdAt: backupMeta.createdAt,
+      createdBy: backupMeta.createdBy,
+      sizeBytes: backupMeta.sizeBytes,
+    };
+  }
+
+  checkSystemUpdate() {
+    const currentVersion = this.readPackageVersion();
+    return {
+      currentVersion,
+      latestVersion: currentVersion,
+      updateAvailable: false,
+      message: 'Platform is up to date.',
+      checkedAt: new Date(),
+    };
   }
 
   // ----------------------------------------------------------- integrations
@@ -1050,6 +1337,46 @@ export class SettingsService {
       }
     } while (cursor !== '0');
     return deleted;
+  }
+
+  private backupRootDir(): string {
+    const storageRoot = process.env.STORAGE_LOCAL_ROOT ?? './storage';
+    return join(storageRoot, SETTINGS_BACKUP_DIR);
+  }
+
+  private async ensureBackupDir(): Promise<string> {
+    const dir = this.backupRootDir();
+    await fs.mkdir(dir, { recursive: true });
+    return dir;
+  }
+
+  private async pruneOldBackups(dir: string): Promise<void> {
+    const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.json'));
+    if (files.length <= SETTINGS_BACKUP_MAX_COUNT) return;
+
+    const withMtime = await Promise.all(
+      files.map(async (file) => {
+        const stat = await fs.stat(join(dir, file));
+        return { file, mtimeMs: stat.mtimeMs };
+      }),
+    );
+    withMtime.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    const excess = withMtime.slice(SETTINGS_BACKUP_MAX_COUNT);
+    await Promise.all(
+      excess.map(({ file }) => fs.unlink(join(dir, file)).catch(() => undefined)),
+    );
+  }
+
+  private readPackageVersion(): string {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pkg = require(join(process.cwd(), 'package.json')) as {
+        version?: string;
+      };
+      return pkg.version ?? '0.0.0';
+    } catch {
+      return '0.0.0';
+    }
   }
 
   private toGeneral(row: SettingsRow) {

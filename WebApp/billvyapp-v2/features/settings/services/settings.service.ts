@@ -53,6 +53,7 @@ export type SystemSettings = {
 
 export type LogRetention = {
   retentionDays: number;
+  purged?: number;
 };
 
 export type Integration = {
@@ -208,6 +209,17 @@ export function updateLogRetention(retentionDays: number): Promise<LogRetention>
   return api.patch<LogRetention>('/settings/logs/retention', { retentionDays });
 }
 
+export type LogPurgeResult = {
+  message: string;
+  deleted: number;
+  retentionDays: number;
+  cutoff: string;
+};
+
+export function purgeExpiredLogs(): Promise<LogPurgeResult> {
+  return api.post<LogPurgeResult>('/settings/logs/purge', { confirm: true });
+}
+
 export function listSettingsLogs(page = 1, limit = 20) {
   return api.get<Paginated<AuditActivity>>('/settings/logs', {
     params: { page, limit },
@@ -225,4 +237,47 @@ export function clearSettingsCache(): Promise<{ message: string; deletedKeys?: n
     '/settings/cache/clear',
     { confirm: true },
   );
+}
+
+export function resetPlatformSettings(): Promise<GeneralSettings> {
+  return api.post<GeneralSettings>('/settings/reset', {
+    confirm: true,
+    confirmationPhrase: 'RESET',
+  });
+}
+
+export type SettingsBackup = {
+  id: string;
+  createdAt: string;
+  createdBy: string | null;
+  sizeBytes: number;
+  message?: string;
+};
+
+export type SystemUpdateStatus = {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  message: string;
+  checkedAt: string;
+};
+
+export function createSettingsBackup(): Promise<SettingsBackup> {
+  return api.post<SettingsBackup>('/settings/backup');
+}
+
+export function listSettingsBackups(): Promise<SettingsBackup[]> {
+  return api.get<SettingsBackup[]>('/settings/backups');
+}
+
+export function restoreSettingsBackup(backupId?: string): Promise<SettingsBackup> {
+  return api.post<SettingsBackup>('/settings/restore', {
+    confirm: true,
+    confirmationPhrase: 'RESTORE',
+    ...(backupId ? { backupId } : {}),
+  });
+}
+
+export function checkSystemUpdateStatus(): Promise<SystemUpdateStatus> {
+  return api.get<SystemUpdateStatus>('/settings/system/update-status');
 }

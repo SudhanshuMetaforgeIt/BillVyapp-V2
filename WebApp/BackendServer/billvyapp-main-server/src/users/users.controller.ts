@@ -43,7 +43,8 @@ export class UsersController {
   @Get()
   @ApiOperation({
     summary: 'List platform users',
-    description: 'Excludes CUSTOMER accounts. Never returns passwordHash.',
+    description:
+      'Defaults to platform roles (excludes CUSTOMER). Pass roleId for a specific role, including CUSTOMER. Never returns passwordHash.',
   })
   @ApiResponse({ status: 200, type: PaginatedUsersDto })
   list(

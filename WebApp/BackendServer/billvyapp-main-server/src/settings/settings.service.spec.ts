@@ -195,6 +195,23 @@ describe('SettingsService', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('requires RESTORE phrase for backup restore', async () => {
+    await expect(
+      service.restoreBackup(
+        actor,
+        { confirm: true, confirmationPhrase: 'restore' },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('reports current package version for update checks', () => {
+    const result = service.checkSystemUpdate();
+    expect(result.updateAvailable).toBe(false);
+    expect(result.currentVersion).toEqual(expect.any(String));
+    expect(result.message).toMatch(/up to date/i);
+  });
+
   it('redacts secrets from integration config', async () => {
     prisma.platformIntegration.findMany.mockResolvedValue([
       {

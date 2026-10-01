@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +19,7 @@ type BusinessesFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne';
+  'h-11 w-auto min-w-[9rem] text-sm font-medium';
 
 export function BusinessesFilters({
   search,
@@ -49,7 +51,7 @@ export function BusinessesFilters({
           />
         </div>
 
-        <select
+        <SelectInput
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as BusinessStatusFilter)
@@ -61,7 +63,7 @@ export function BusinessesFilters({
           <option value="active">Active</option>
           <option value="pending">Pending</option>
           <option value="suspended">Suspended</option>
-        </select>
+        </SelectInput>
       </div>
 
       <Button
