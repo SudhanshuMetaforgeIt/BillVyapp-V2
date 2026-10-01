@@ -30,6 +30,7 @@ describe('capabilities', () => {
     expect(can(user('STAFF'), 'customers.read')).toBe(true);
     expect(can(user('STAFF'), 'appointments.manage')).toBe(true);
     expect(can(user('STAFF'), 'bills.write')).toBe(true);
+    expect(can(user('STAFF'), 'bills.status')).toBe(true);
     expect(can(user('STAFF'), 'purchases.manage')).toBe(true);
     expect(can(user('STAFF'), 'loyalty.write')).toBe(true);
   });

@@ -1,16 +1,13 @@
 import type { MessageResponse } from '@/types/api.types';
 import type { AuthSession, AuthTokens, AuthUser } from '@/types/user.types';
+import { useAuthStore } from '@/stores/auth.store';
 import { api } from './api-client';
-import { tokenStorage } from './token-storage';
 
 /**
  * Auth API surface. One function per backend endpoint, no UI concerns.
  *
- * Endpoints mirror the NestJS AuthController:
- *   POST /auth/login       POST /auth/register
- *   POST /auth/send-otp    POST /auth/verify-otp
- *   POST /auth/refresh     POST /auth/logout
- *   GET  /auth/me
+ * Access tokens are stored in the Zustand auth store (memory only).
+ * Refresh tokens are HttpOnly cookies set by the API — never read in JS.
  */
 
 /** Full identity payload from GET /auth/me (broader than the session AuthUser). */
@@ -18,6 +15,14 @@ export type AuthMeUser = AuthUser & {
   phone: string | null;
   profilePhoto: string | null;
   isActive: boolean;
+  subscriptionActive?: boolean;
+  subscriptionPlanName?: string | null;
+  subscriptionEndsAt?: string | null;
+  createdAt?: string;
+  lastLoginAt?: string | null;
+  salonName?: string | null;
+  timezone?: string | null;
+  language?: string | null;
 };
 
 export interface LoginPayload {
@@ -50,11 +55,27 @@ export interface SendOtpResponse extends MessageResponse {
   devOtp?: string;
 }
 
+function persistAccessToken(session: AuthSession | AuthTokens): void {
+  useAuthStore.getState().setAccessToken(session.accessToken);
+}
+
+/** Clear legacy localStorage token keys from earlier builds. */
+function clearLegacyTokenStorage(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem('billvy.access-token');
+    window.localStorage.removeItem('billvy.refresh-token');
+  } catch {
+    // ignore
+  }
+}
+
 export const authService = {
-  /** Staff, admin, and customer sign-in. Persists the token pair on success. */
+  /** Staff, admin, and customer sign-in. Stores access token in Zustand. */
   async login(payload: LoginPayload): Promise<AuthSession> {
+    clearLegacyTokenStorage();
     const session = await api.post<AuthSession>('/auth/login', payload);
-    tokenStorage.set(session);
+    persistAccessToken(session);
     return session;
   },
 
@@ -65,8 +86,9 @@ export const authService = {
    * unknown fields and always assigns CUSTOMER server-side.
    */
   async register(payload: RegisterPayload): Promise<AuthSession> {
+    clearLegacyTokenStorage();
     const session = await api.post<AuthSession>('/auth/register', payload);
-    tokenStorage.set(session);
+    persistAccessToken(session);
     return session;
   },
 
@@ -81,44 +103,39 @@ export const authService = {
     return api.post<SendOtpResponse>('/auth/send-otp', payload);
   },
 
-  /** Exchanges a valid code for a session. Persists the token pair. */
+  /** Exchanges a valid code for a session. Stores access token in Zustand. */
   async verifyOtp(payload: VerifyOtpPayload): Promise<AuthSession> {
+    clearLegacyTokenStorage();
     const session = await api.post<AuthSession>('/auth/verify-otp', payload);
-    tokenStorage.set(session);
+    persistAccessToken(session);
     return session;
   },
 
   /**
-   * Manual refresh. Routine refreshing happens automatically in the Axios
-   * response interceptor; this exists for explicit session bootstrapping.
+   * Cookie-based refresh. Routine refreshing also happens in the Axios
+   * interceptor; this is used while bootstrapping after a full page reload.
    */
   async refresh(): Promise<AuthTokens> {
-    const refreshToken = tokenStorage.getRefreshToken();
-    if (!refreshToken) throw new Error('No refresh token available');
-
-    const tokens = await api.post<AuthTokens>('/auth/refresh', { refreshToken });
-    tokenStorage.set(tokens);
+    const tokens = await api.post<AuthTokens>('/auth/refresh', {});
+    persistAccessToken(tokens);
     return tokens;
   },
 
   /**
-   * Revokes the session server-side. Local tokens are cleared even if the
-   * request fails, so the user is never stuck in a half-signed-in state.
+   * Revokes the session server-side and clears the HttpOnly refresh cookie.
+   * Local access token is cleared even if the request fails.
    */
   async logout(): Promise<void> {
-    const refreshToken = tokenStorage.getRefreshToken();
     try {
-      await api.post<MessageResponse>(
-        '/auth/logout',
-        refreshToken ? { refreshToken } : {},
-      );
+      await api.post<MessageResponse>('/auth/logout', {});
     } finally {
-      tokenStorage.clear();
+      useAuthStore.getState().clearSession();
+      clearLegacyTokenStorage();
     }
   },
 
   hasStoredSession(): boolean {
-    return tokenStorage.getAccessToken() !== null;
+    return useAuthStore.getState().accessToken !== null;
   },
 
   /** Authoritative identity for the signed-in user. */

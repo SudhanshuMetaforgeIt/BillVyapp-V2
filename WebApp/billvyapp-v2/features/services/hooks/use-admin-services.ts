@@ -8,7 +8,11 @@ import {
   fetchAdminServices,
   fetchServiceCategories,
   toggleServiceStatus,
+  updateService,
+  bulkCreateServices,
   type AdminServicesResult,
+  type BulkServiceRow,
+  type BulkServicesResult,
 } from '../services/admin-services.service';
 import type { CreateServicePayload, ServicesFilterState } from '../types/admin-services.types';
 
@@ -48,7 +52,30 @@ export function useCreateService() {
     mutationFn: (payload: CreateServicePayload) => createService(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'admin'] });
+    },
+  });
+}
+
+export function useUpdateService() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...payload
+    }: {
+      id: string;
+      categoryId?: string;
+      name?: string;
+      description?: string;
+      durationMinutes?: number;
+      price?: number;
+    }) => updateService(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
     },
   });
 }
@@ -62,6 +89,22 @@ export function useCreateServiceCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+    },
+  });
+}
+
+export function useBulkCreateServices() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    BulkServicesResult,
+    Error,
+    { salonId: string; services: BulkServiceRow[] }
+  >({
+    mutationFn: bulkCreateServices,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
     },
   });
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Home, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
@@ -90,14 +92,14 @@ function PersonalForm({ customer }: { customer: Customer }) {
             <input id="cp-dob" type="date" className={customerInput} value={form.dateOfBirth} onChange={set('dateOfBirth')} />
           </CustomerField>
           <CustomerField label="Gender" htmlFor="cp-gender">
-            <select id="cp-gender" className={customerInput} value={form.gender} onChange={set('gender')}>
+            <SelectInput id="cp-gender" className={customerInput} value={form.gender} onChange={set('gender')}>
               <option value="">Not specified</option>
               {GENDERS.map((g) => (
                 <option key={g.value} value={g.value}>
                   {g.label}
                 </option>
               ))}
-            </select>
+            </SelectInput>
           </CustomerField>
         </div>
         <CustomerMutationError error={update.error} />
@@ -179,13 +181,13 @@ function AddressForm({
     <form onSubmit={submit} className="space-y-3 rounded-xl border border-[#FFD099] bg-[#FFFAF3] p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <CustomerField label="Type" htmlFor="addr-type">
-          <select id="addr-type" className={customerInput} value={form.addressType} onChange={set('addressType')}>
+          <SelectInput id="addr-type" className={customerInput} value={form.addressType} onChange={set('addressType')}>
             {ADDRESS_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </SelectInput>
         </CustomerField>
         <CustomerField label="Postal code" htmlFor="addr-postal">
           <input id="addr-postal" className={customerInput} value={form.postalCode ?? ''} onChange={set('postalCode')} />

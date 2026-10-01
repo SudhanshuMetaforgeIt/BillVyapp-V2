@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import {
   PURCHASE_STATUS_TRANSITIONS,
   PurchaseStatus,
@@ -686,7 +687,7 @@ export class PurchasesService {
   }
 
   private formatDateOnly(value: Date): string {
-    return value.toISOString().slice(0, 10);
+    return formatDateOnlyUtc(value);
   }
 
   private nextPurchaseNumber(): string {

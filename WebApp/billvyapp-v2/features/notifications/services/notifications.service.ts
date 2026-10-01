@@ -1,14 +1,13 @@
-import {
-  endOfWeek,
-  format,
-  isValid,
-  parseISO,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-} from 'date-fns';
+import { isValid, parseISO } from 'date-fns';
 
 import { api } from '@/services/api-client';
+import {
+  businessMonthToDate,
+  businessToday,
+  businessWeekRange,
+  isInstantInBusinessDateRange,
+  isInstantOnBusinessDay,
+} from '@/lib/business-calendar';
 import { formatDateTime } from '@/lib/format';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type { PaginatedResponse } from '@/features/dashboard/types/dashboard.types';
@@ -160,10 +159,7 @@ function inDateRange(iso: string, dateFrom: string, dateTo: string): boolean {
   if (!dateFrom && !dateTo) return true;
   const date = parseISO(iso);
   if (!isValid(date)) return false;
-  const day = format(date, 'yyyy-MM-dd');
-  if (dateFrom && day < dateFrom) return false;
-  if (dateTo && day > dateTo) return false;
-  return true;
+  return isInstantInBusinessDateRange(date, dateFrom, dateTo);
 }
 
 function matchesSearch(row: NotificationListRow, search: string): boolean {
@@ -296,6 +292,8 @@ export function categorizeNotificationType(
   if (t.includes('bill')) return 'Billing';
   if (t.includes('inventory') || t.includes('stock')) return 'Inventory';
   if (t.includes('membership') || t.includes('loyalty')) return 'Membership';
+  if (t.includes('subscription')) return 'Billing';
+  if (t.includes('support_ticket') || t.includes('ticket')) return 'System';
   if (t.includes('customer')) return 'Customer';
   if (t.includes('system') || t.includes('security') || t.includes('setting')) {
     return 'System';
@@ -329,19 +327,20 @@ function buildManagerMetrics(
   total: number,
   incomplete: boolean,
 ): DashboardMetric[] {
-  const now = new Date();
-  const todayStart = startOfDay(now);
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const todayLabel = businessToday();
+  const week = businessWeekRange();
 
   const unread = candidates.filter((row) => isUnreadStatus(row.status)).length;
   const today = candidates.filter((row) => {
     const created = parseISO(row.createdAt);
-    return isValid(created) && created >= todayStart;
+    return isValid(created) && isInstantOnBusinessDay(created, todayLabel);
   }).length;
   const thisWeek = candidates.filter((row) => {
     const created = parseISO(row.createdAt);
-    return isValid(created) && created >= weekStart && created <= weekEnd;
+    return (
+      isValid(created) &&
+      isInstantInBusinessDateRange(created, week.dateFrom, week.dateTo)
+    );
   }).length;
 
   return [
@@ -448,9 +447,5 @@ export function defaultNotificationsDateRange(): {
   dateFrom: string;
   dateTo: string;
 } {
-  const now = new Date();
-  return {
-    dateFrom: format(startOfMonth(now), 'yyyy-MM-dd'),
-    dateTo: format(now, 'yyyy-MM-dd'),
-  };
+  return businessMonthToDate();
 }

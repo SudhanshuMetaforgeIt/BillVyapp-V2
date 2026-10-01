@@ -11,11 +11,33 @@ export class AuthUserDto {
   @ApiProperty({ nullable: true }) salonId: string | null;
   @ApiProperty({ nullable: true }) profilePhoto: string | null;
   @ApiProperty() isActive: boolean;
+
+  /** Franchise SaaS coverage. Always true for SUPER_ADMIN / CUSTOMER. */
+  @ApiProperty({
+    description:
+      'False when ADMIN/MANAGER/STAFF franchise has no active platform subscription',
+  })
+  subscriptionActive: boolean;
+
+  @ApiPropertyOptional({ nullable: true })
+  subscriptionPlanName?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: '2027-09-30' })
+  subscriptionEndsAt?: string | null;
+
+  /** Present on GET /auth/me for profile summary. */
+  @ApiPropertyOptional() createdAt?: Date;
+  @ApiPropertyOptional({ nullable: true }) lastLoginAt?: Date | null;
+  @ApiPropertyOptional({ nullable: true }) salonName?: string | null;
+  @ApiPropertyOptional({ nullable: true, example: 'Asia/Kolkata' })
+  timezone?: string | null;
+  @ApiPropertyOptional({ nullable: true, example: 'en' })
+  language?: string | null;
 }
 
+/** Access token only — refresh token is delivered via HttpOnly cookie. */
 export class AuthTokensDto {
   @ApiProperty() accessToken: string;
-  @ApiProperty() refreshToken: string;
   @ApiProperty({ example: 'Bearer' }) tokenType: string;
 }
 

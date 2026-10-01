@@ -33,6 +33,7 @@ const USER_SELECT = {
   email: true,
   phone: true,
   profilePhoto: true,
+  salary: true,
   isActive: true,
   lastLoginAt: true,
   createdAt: true,
@@ -51,6 +52,7 @@ type UserRecord = {
   email: string;
   phone: string | null;
   profilePhoto: string | null;
+  salary: { toString(): string } | string | number | null;
   isActive: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
@@ -74,8 +76,10 @@ export class UsersService {
 
     const where = {
       ...this.scope.userTableScope(user),
-      role: { code: { not: RoleCode.CUSTOMER } },
-      ...(query.roleId ? { roleId: query.roleId } : {}),
+      // Default list stays platform staff; pass roleId to include CUSTOMER.
+      ...(query.roleId
+        ? { roleId: query.roleId }
+        : { role: { code: { not: RoleCode.CUSTOMER } } }),
       ...(query.franchiseId ? { franchiseId: query.franchiseId } : {}),
       ...(query.salonId ? { salonId: query.salonId } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
@@ -110,7 +114,6 @@ export class UsersService {
       where: {
         id,
         ...this.scope.userTableScope(user),
-        role: { code: { not: RoleCode.CUSTOMER } },
       },
       select: USER_SELECT,
     });
@@ -150,6 +153,10 @@ export class UsersService {
           phone: trimOrNull(dto.phone) ?? null,
           passwordHash,
           profilePhoto: trimOrNull(dto.profilePhoto) ?? null,
+          salary:
+            dto.salary === undefined || dto.salary === null
+              ? null
+              : dto.salary.toFixed(2),
         },
         select: USER_SELECT,
       });
@@ -165,6 +172,7 @@ export class UsersService {
           role: created.role.code,
           franchiseId: created.franchiseId,
           salonId: created.salonId,
+          salary: created.salary?.toString() ?? null,
         },
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,
@@ -235,6 +243,12 @@ export class UsersService {
           ...(dto.profilePhoto !== undefined
             ? { profilePhoto: trimOrNull(dto.profilePhoto) ?? null }
             : {}),
+          ...(dto.salary !== undefined
+            ? {
+                salary:
+                  dto.salary === null ? null : Number(dto.salary).toFixed(2),
+              }
+            : {}),
         },
         select: USER_SELECT,
       });
@@ -250,12 +264,14 @@ export class UsersService {
           role: existing.role.code,
           franchiseId: existing.franchiseId,
           salonId: existing.salonId,
+          salary: existing.salary?.toString() ?? null,
         },
         newData: {
           email: updated.email,
           role: updated.role.code,
           franchiseId: updated.franchiseId,
           salonId: updated.salonId,
+          salary: updated.salary?.toString() ?? null,
         },
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,

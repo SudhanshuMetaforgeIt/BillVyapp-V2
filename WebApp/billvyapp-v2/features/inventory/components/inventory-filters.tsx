@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { PackagePlus, Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -46,11 +48,10 @@ export function InventoryFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={categoryId}
           onChange={(e) => onCategoryIdChange(e.target.value)}
           aria-label="Category filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="">All Categories</option>
           {categoryOptions.map((cat) => (
@@ -58,21 +59,20 @@ export function InventoryFilters({
               {cat.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={stockStatus}
           onChange={(e) =>
             onStockStatusChange(e.target.value as StockStatusFilter)
           }
           aria-label="Stock status filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="all">All Stock</option>
           <option value="healthy">In Stock</option>
           <option value="low">Low Stock</option>
           <option value="out">Out of Stock</option>
-        </select>
+        </SelectInput>
 
         {onAddProduct ? (
           <Button type="button" variant="outline" className="h-10" onClick={onAddProduct}>

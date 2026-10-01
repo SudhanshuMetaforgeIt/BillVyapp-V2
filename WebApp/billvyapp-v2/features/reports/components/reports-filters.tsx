@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -14,6 +16,7 @@ type ReportsFiltersProps = {
   franchiseId: string;
   reportType: ReportTypeFilter;
   franchises: FranchiseOption[];
+  isGenerating?: boolean;
   onDateFromChange: (value: string) => void;
   onDateToChange: (value: string) => void;
   onFranchiseChange: (value: string) => void;
@@ -23,7 +26,7 @@ type ReportsFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne';
+  'h-11 w-auto min-w-[9rem] text-sm font-medium';
 
 export function ReportsFilters({
   dateFrom,
@@ -31,6 +34,7 @@ export function ReportsFilters({
   franchiseId,
   reportType,
   franchises,
+  isGenerating,
   onDateFromChange,
   onDateToChange,
   onFranchiseChange,
@@ -64,7 +68,7 @@ export function ReportsFilters({
           />
         </div>
 
-        <select
+        <SelectInput
           value={franchiseId}
           onChange={(e) => onFranchiseChange(e.target.value)}
           aria-label="Filter by business"
@@ -76,9 +80,9 @@ export function ReportsFilters({
               {franchise.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput
           value={reportType}
           onChange={(e) =>
             onReportTypeChange(e.target.value as ReportTypeFilter)
@@ -93,16 +97,17 @@ export function ReportsFilters({
           <option value="transaction">Transaction</option>
           <option value="subscription">Subscription</option>
           <option value="activity">Activity</option>
-        </select>
+        </SelectInput>
       </div>
 
       <Button
         type="button"
         size="lg"
         onClick={onGenerate}
+        disabled={isGenerating}
         className="h-11 bg-brand-orange text-white hover:bg-brand-orange-deep focus-visible:ring-brand-orange"
       >
-        Generate Report
+        {isGenerating ? 'Generating…' : 'Generate Report'}
       </Button>
     </div>
   );

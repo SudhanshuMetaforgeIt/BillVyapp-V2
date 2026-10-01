@@ -80,8 +80,8 @@ export async function createPayment(payload: CreatePaymentPayload) {
 export type SettleOutcome = 'paid' | 'completed' | 'draft';
 
 /**
- * DRAFT -> COMPLETED -> payment of the backend-computed due amount. Roles
- * without bill-status permission (STAFF) stop at the draft.
+ * DRAFT -> COMPLETED -> payment of the backend-computed due amount.
+ * Roles without bill-status permission stop at the draft.
  */
 export async function settleWalkInBill(
   input: {

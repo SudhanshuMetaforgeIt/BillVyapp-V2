@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Minus, Plus, Search, Trash2 } from 'lucide-react';
 
 import {
@@ -80,11 +82,10 @@ export function AddServicesSection({
             aria-hidden
           />
         </div>
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={categoryId}
           onChange={(e) => onCategoryChange(e.target.value)}
           aria-label="Service category"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="">All Categories</option>
           {(categories.data?.data ?? []).map((category) => (
@@ -92,7 +93,7 @@ export function AddServicesSection({
               {category.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
       </div>
 
       <div className="mt-4 min-h-40 rounded-xl border border-border/80">

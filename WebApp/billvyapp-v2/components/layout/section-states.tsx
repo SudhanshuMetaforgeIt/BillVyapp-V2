@@ -11,12 +11,14 @@ type SectionStateProps = {
   onRetry?: () => void;
   className?: string;
   actionLabel?: string;
+  action?: ReactNode;
 };
 
 export function SectionEmptyState({
   title = 'Nothing here yet',
   message,
   className,
+  action,
 }: SectionStateProps) {
   return (
     <div
@@ -27,6 +29,7 @@ export function SectionEmptyState({
     >
       <p className="text-sm font-semibold text-text">{title}</p>
       <p className="max-w-sm text-sm text-text-secondary">{message}</p>
+      {action}
     </div>
   );
 }
@@ -60,7 +63,7 @@ export function SectionErrorState({
 }
 
 type DashboardSectionCardProps = {
-  title: string;
+  title: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;

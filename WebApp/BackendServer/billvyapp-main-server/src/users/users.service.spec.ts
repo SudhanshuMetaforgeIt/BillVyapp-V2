@@ -82,6 +82,7 @@ function userRecord(overrides: Record<string, unknown> = {}) {
     email: 'priya@billvyapp.com',
     phone: '9876543210',
     profilePhoto: null,
+    salary: null,
     isActive: true,
     lastLoginAt: null,
     createdAt: new Date(),
@@ -133,6 +134,55 @@ describe('UsersService', () => {
       audit as unknown as AuditService,
       passwords as unknown as PasswordService,
     );
+  });
+
+  it('excludes CUSTOMER from the default list', async () => {
+    prisma.user.findMany.mockResolvedValue([]);
+    prisma.user.count.mockResolvedValue(0);
+
+    await service.list(actor, { page: 1, limit: 20 });
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          role: { code: { not: RoleCode.CUSTOMER } },
+        }),
+      }),
+    );
+  });
+
+  it('lists CUSTOMER accounts when filtered by roleId', async () => {
+    const customer = userRecord({
+      id: 'cust-1',
+      roleId: customerRole.id,
+      role: {
+        id: customerRole.id,
+        name: 'Customer',
+        code: RoleCode.CUSTOMER,
+      },
+    });
+    prisma.user.findMany.mockResolvedValue([customer]);
+    prisma.user.count.mockResolvedValue(1);
+
+    const result = await service.list(actor, {
+      page: 1,
+      limit: 20,
+      roleId: customerRole.id,
+    });
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          roleId: customerRole.id,
+        }),
+      }),
+    );
+    expect(
+      (prisma.user.findMany.mock.calls[0][0] as { where: Record<string, unknown> })
+        .where.role,
+    ).toBeUndefined();
+    expect(result.data).toEqual([customer]);
+    expect(result.meta.total).toBe(1);
   });
 
   it('creates an ADMIN with franchise scope', async () => {

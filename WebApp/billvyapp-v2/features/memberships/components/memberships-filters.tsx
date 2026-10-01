@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -55,11 +57,10 @@ export function MembershipsFilters({
       <div className="flex flex-wrap items-center gap-2">
         {tab === 'members' ? (
           <>
-            <select
+            <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
               value={planId}
               onChange={(e) => onPlanIdChange(e.target.value)}
               aria-label="Membership plan filter"
-              className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="">All Membership Plans</option>
               {planOptions.map((plan) => (
@@ -67,15 +68,14 @@ export function MembershipsFilters({
                   {plan.name}
                 </option>
               ))}
-            </select>
+            </SelectInput>
 
-            <select
+            <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
               value={status}
               onChange={(e) =>
                 onStatusChange(e.target.value as MembershipStatusFilter)
               }
               aria-label="Status filter"
-              className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             >
               <option value="all">All Status</option>
               <option value="ACTIVE">Active</option>
@@ -83,7 +83,7 @@ export function MembershipsFilters({
               <option value="PENDING">Pending</option>
               <option value="EXPIRED">Expired</option>
               <option value="CANCELLED">Cancelled</option>
-            </select>
+            </SelectInput>
           </>
         ) : null}
 

@@ -11,9 +11,9 @@ import { Toaster } from 'react-hot-toast';
 import { isApiError, setSessionExpiredHandler } from '@/services/api-client';
 import { authService } from '@/services/auth.service';
 import { scopeChanged, toSessionUser } from '@/services/session';
-import { tokenStorage } from '@/services/token-storage';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
+import { setBusinessTimezone } from '@/lib/business-timezone';
 
 /**
  * Application-wide providers.
@@ -45,18 +45,16 @@ function createQueryClient(): QueryClient {
 }
 
 /**
- * Reconciles the persisted user with the tokens actually held, then confirms
- * the identity with GET /auth/me. The persisted user is only a placeholder so
- * a reload does not flash a blank screen; role, franchiseId and salonId come
- * from the backend.
+ * Reconciles the persisted user with the live session.
  *
- * Any identity end (expiry, failed refresh) or scope change also drops the
- * query cache so another tenant's data can never be displayed.
+ * Access tokens are memory-only, so a full reload starts without one. We try
+ * cookie-based refresh first; then confirm identity with GET /auth/me.
  */
 function useSessionBootstrap(): void {
   const queryClient = useQueryClient();
   const setStatus = useAuthStore((state) => state.setStatus);
   const setUser = useAuthStore((state) => state.setUser);
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const clearSession = useAuthStore((state) => state.clearSession);
   const resetScope = useUiStore((state) => state.resetScope);
 
@@ -68,25 +66,40 @@ function useSessionBootstrap(): void {
     };
     setSessionExpiredHandler(endSession);
 
-    const hasToken = tokenStorage.getAccessToken() !== null;
-    const storedUser = useAuthStore.getState().user;
-
-    if (!hasToken) {
-      if (storedUser) endSession();
-      else setStatus('unauthenticated');
-      return;
+    // Drop tokens left over from the previous localStorage-based auth.
+    try {
+      window.localStorage.removeItem('billvy.access-token');
+      window.localStorage.removeItem('billvy.refresh-token');
+    } catch {
+      // ignore
     }
 
-    if (storedUser) setStatus('authenticated');
-
     let cancelled = false;
-    authService
-      .me()
-      .then((me) => {
+
+    const bootstrap = async () => {
+      const storedUser = useAuthStore.getState().user;
+      let accessToken = useAuthStore.getState().accessToken;
+
+      if (!accessToken) {
+        try {
+          const tokens = await authService.refresh();
+          if (cancelled) return;
+          accessToken = tokens.accessToken;
+          setAccessToken(accessToken);
+        } catch {
+          if (cancelled) return;
+          endSession();
+          return;
+        }
+      }
+
+      if (storedUser) setStatus('authenticated');
+
+      try {
+        const me = await authService.me();
         if (cancelled) return;
         const verified = toSessionUser(me);
         if (!verified) {
-          tokenStorage.clear();
           endSession();
           return;
         }
@@ -95,24 +108,40 @@ function useSessionBootstrap(): void {
           resetScope();
         }
         setUser(verified);
-      })
-      .catch((error: unknown) => {
+        setBusinessTimezone(verified.timezone);
+      } catch (error: unknown) {
         if (cancelled) return;
         // 401s are already handled by the client (refresh, then endSession).
-        // Network/5xx failures keep the stored identity so an offline reload
-        // does not sign the user out; the backend still guards every request.
         if (isApiError(error) && error.status === 401) return;
         if (!useAuthStore.getState().user) setStatus('unauthenticated');
-      });
+      }
+    };
+
+    void bootstrap();
 
     return () => {
       cancelled = true;
     };
-  }, [queryClient, setStatus, setUser, clearSession, resetScope]);
+  }, [
+    queryClient,
+    setStatus,
+    setUser,
+    setAccessToken,
+    clearSession,
+    resetScope,
+  ]);
+}
+
+function useBusinessTimezoneSync(): void {
+  const timezone = useAuthStore((state) => state.user?.timezone);
+  useEffect(() => {
+    setBusinessTimezone(timezone);
+  }, [timezone]);
 }
 
 function SessionBootstrap({ children }: { children: ReactNode }) {
   useSessionBootstrap();
+  useBusinessTimezoneSync();
   return <>{children}</>;
 }
 

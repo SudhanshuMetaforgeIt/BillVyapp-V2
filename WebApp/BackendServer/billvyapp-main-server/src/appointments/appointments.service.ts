@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { AuditService } from '../audit/audit.service';
+import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto';
 import {
   ACTIVE_APPOINTMENT_STATUSES,
@@ -835,7 +836,7 @@ export class AppointmentsService {
   }
 
   private formatDateOnly(value: Date): string {
-    return value.toISOString().slice(0, 10);
+    return formatDateOnlyUtc(value);
   }
 
   private formatTime(value: Date): string {

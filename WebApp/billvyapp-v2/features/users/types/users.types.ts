@@ -19,11 +19,13 @@ export type UserApiItem = {
   role: UserRoleRef;
   franchiseId: string | null;
   salonId: string | null;
+  salon?: { id: string; name: string } | null;
   firstName: string;
   lastName: string;
   email: string;
   phone: string | null;
   profilePhoto: string | null;
+  salary?: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -72,6 +74,11 @@ export type UserListRow = {
   statusLabel: string;
   lastLoginAt: string | null;
   createdAt: string;
+};
+
+export type UserDetails = UserListRow & {
+  salary: string | null;
+  updatedAt: string;
 };
 
 export type UserRoleSlice = {

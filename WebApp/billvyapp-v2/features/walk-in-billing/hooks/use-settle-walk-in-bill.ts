@@ -30,7 +30,7 @@ export function useSettleWalkInBill(onSuccess?: () => void) {
     onSuccess: (result) => {
       const number = result.bill.billNumber;
       if (result.outcome === 'draft') {
-        toast.success(`Draft bill ${number} saved for manager approval`);
+        toast.success(`Draft bill ${number} saved`);
       } else if (result.outcome === 'completed') {
         toast.success(`Bill ${number} completed — nothing due`);
       } else {

@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Calendar, ChevronDown, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AdminReportsFilterState } from '../../types/admin-reports.types';
@@ -51,11 +53,9 @@ export function AdminReportsFilters({
           <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
             Branch
           </label>
-          <div className="relative">
-            <select
+          <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
               value={filters.branchId}
               onChange={(e) => onChange({ branchId: e.target.value })}
-              className="h-9 rounded-lg border border-stone-200/80 bg-white pl-3 pr-8 text-xs font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 appearance-none min-w-[150px]"
             >
               <option value="all">All Branches</option>
               {branches.map((b) => (
@@ -63,9 +63,7 @@ export function AdminReportsFilters({
                   {b.name}
                 </option>
               ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-          </div>
+            </SelectInput>
         </div>
 
         {/* Report Type */}
@@ -73,20 +71,16 @@ export function AdminReportsFilters({
           <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
             Report Type
           </label>
-          <div className="relative">
-            <select
+          <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
               value={filters.reportType}
               onChange={(e) => onChange({ reportType: e.target.value })}
-              className="h-9 rounded-lg border border-stone-200/80 bg-white pl-3 pr-8 text-xs font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 appearance-none min-w-[140px]"
             >
               <option value="overview">Overview</option>
               <option value="sales">Sales Report</option>
               <option value="staff">Staff Report</option>
               <option value="customers">Customers Report</option>
               <option value="services">Services Report</option>
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-          </div>
+            </SelectInput>
         </div>
       </div>
 

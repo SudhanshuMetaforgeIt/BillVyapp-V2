@@ -62,7 +62,19 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
         longitude: 0,
       });
 
-      const geocoded = await geocodeSalon(salon.id, {}).then(
+      const geocodeAddress = [
+        addressLine1.trim(),
+        city.trim(),
+        state.trim(),
+        postalCode.trim(),
+        'India',
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      const geocoded = await geocodeSalon(salon.id, {
+        address: geocodeAddress,
+      }).then(
         () => true,
         () => false,
       );
@@ -71,8 +83,18 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
       if (geocoded) {
         toast.success(`${salon.name} created`);
       } else {
-        toast(`${salon.name} created, but its address could not be located. Geocode it from Salons.`);
+        toast(
+          `${salon.name} created, but its address could not be located. You can geocode it later.`,
+        );
       }
+      setName('');
+      setCode('');
+      setPhone('');
+      setEmail('');
+      setAddressLine1('');
+      setCity('');
+      setState('');
+      setPostalCode('');
       onClose();
     } catch (err: unknown) {
       const msg =

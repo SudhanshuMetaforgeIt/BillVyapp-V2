@@ -1,7 +1,6 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -18,6 +17,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { describeApiError } from '@/lib/api-errors';
 import { can } from '@/lib/capabilities';
+import { businessToday } from '@/lib/business-calendar';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
@@ -57,7 +57,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
   const user = useCurrentUser();
   const [salonId, setSalonId] = useState(user?.salonId ?? '');
   const [vendorId, setVendorId] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [purchaseDate, setPurchaseDate] = useState(businessToday());
   const [invoice, setInvoice] = useState('');
   const [notes, setNotes] = useState('');
   const [productSearch, setProductSearch] = useState('');

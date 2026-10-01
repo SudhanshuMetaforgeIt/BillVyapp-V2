@@ -51,7 +51,7 @@ export type AdminServicesResult = {
   stats: ServiceStats;
   total: number;
   totalPages: number;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; salonId: string }[];
   branches: { id: string; name: string }[];
 };
 
@@ -172,7 +172,11 @@ export async function fetchAdminServices(
     stats,
     total: getTotal(servicesRes),
     totalPages: totalPages || 1,
-    categories: categoriesList.map((c) => ({ id: c.id, name: c.name })),
+    categories: categoriesList.map((c) => ({
+      id: c.id,
+      name: c.name,
+      salonId: c.salonId,
+    })),
     branches: salonsList.map((s) => ({ id: s.id, name: s.name })),
   };
 }
@@ -230,4 +234,51 @@ export async function createServiceCategory(data: {
     servicesCount: 0,
     isActive: res.isActive,
   };
+}
+
+export async function updateService(
+  id: string,
+  payload: {
+    categoryId?: string;
+    name?: string;
+    description?: string;
+    durationMinutes?: number;
+    price?: number;
+    taxRate?: number;
+  },
+): Promise<ServiceItem> {
+  const res = await api.patch<RawService>(`/services/${id}`, payload);
+  return {
+    id: res.id,
+    name: res.name,
+    categoryName: 'General',
+    categoryId: res.categoryId,
+    branchName: 'Branch',
+    salonId: res.salonId,
+    price: Number(res.price) || 0,
+    durationMinutes: res.durationMinutes,
+    isActive: res.isActive,
+    description: res.description,
+    createdAt: res.createdAt,
+  };
+}
+
+export type BulkServiceRow = {
+  name: string;
+  category: string;
+  price: number;
+  durationMinutes: number;
+  description?: string;
+};
+
+export type BulkServicesResult = {
+  created: number;
+  failed: Array<{ row: number; name: string; error: string }>;
+};
+
+export async function bulkCreateServices(payload: {
+  salonId: string;
+  services: BulkServiceRow[];
+}): Promise<BulkServicesResult> {
+  return api.post<BulkServicesResult>('/services/bulk', payload);
 }

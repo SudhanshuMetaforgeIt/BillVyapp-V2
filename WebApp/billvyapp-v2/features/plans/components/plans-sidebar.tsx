@@ -72,7 +72,7 @@ export function PlansSidebar({
         ) : priceOverview.length === 0 ? (
           <SectionEmptyState
             title="No price data"
-            message="Price overview will appear when subscription plans are available."
+            message="Add a plan to see the price overview."
             className="py-6"
           />
         ) : (
@@ -100,7 +100,7 @@ export function PlansSidebar({
                       onAddPlan();
                       return;
                     }
-                    toast(`${action.label} will be available once plans API is live.`);
+                    toast(`${action.label} is coming soon.`);
                   }}
                   className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 >

@@ -1,11 +1,85 @@
 import { formatCurrency } from '@/lib/format';
+import { api } from '@/services/api-client';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
+  BillingCycle,
+  CreatePlanPayload,
+  PlanIconKey,
   PlansListParams,
   PlansPageData,
   PlatformPlan,
   PlanPriceSlice,
+  PlanStatus,
 } from '../types/plans.types';
+
+type PlatformPlanApiItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  priceMonthly: string | null;
+  billingCycle: BillingCycle;
+  isCustom: boolean;
+  iconKey: string;
+  features: string[] | null;
+  isActive: boolean;
+  businessCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PaginatedPlatformPlans = {
+  data: PlatformPlanApiItem[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
+const BILLING_LABELS: Record<BillingCycle, string> = {
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+  custom: 'Custom',
+};
+
+const ICON_KEYS = new Set<PlanIconKey>([
+  'basic',
+  'professional',
+  'premium',
+  'enterprise',
+  'custom',
+]);
+
+function mapIconKey(raw: string, isCustom: boolean): PlanIconKey {
+  if (isCustom) return 'custom';
+  const key = raw.trim().toLowerCase() as PlanIconKey;
+  return ICON_KEYS.has(key) ? key : 'basic';
+}
+
+function mapPlan(row: PlatformPlanApiItem): PlatformPlan {
+  const priceMonthly =
+    row.priceMonthly === null || row.priceMonthly === ''
+      ? null
+      : Number(row.priceMonthly);
+
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? '',
+    priceMonthly:
+      priceMonthly !== null && Number.isFinite(priceMonthly)
+        ? priceMonthly
+        : null,
+    billingCycle: row.billingCycle,
+    billingCycleLabel: BILLING_LABELS[row.billingCycle] ?? row.billingCycle,
+    businessCount: row.businessCount ?? 0,
+    status: (row.isActive ? 'active' : 'inactive') as PlanStatus,
+    iconKey: mapIconKey(row.iconKey, row.isCustom),
+    features: row.features ?? [],
+    isCustom: row.isCustom,
+  };
+}
 
 function buildMetrics(plans: PlatformPlan[]): DashboardMetric[] {
   const total = plans.length;
@@ -17,13 +91,30 @@ function buildMetrics(plans: PlatformPlan[]): DashboardMetric[] {
       ? 0
       : priced.reduce((sum, p) => sum + (p.priceMonthly ?? 0), 0) / priced.length;
 
+  const enrolledBusinesses = plans.reduce(
+    (sum, p) => sum + Math.max(p.businessCount, 0),
+    0,
+  );
+  const subscriptionRevenue = plans.reduce((sum, plan) => {
+    if (plan.priceMonthly === null || plan.priceMonthly <= 0) return sum;
+    if (plan.businessCount <= 0) return sum;
+    const monthlyRate =
+      plan.billingCycle === 'yearly'
+        ? plan.priceMonthly / 12
+        : plan.priceMonthly;
+    return sum + monthlyRate * plan.businessCount;
+  }, 0);
+
   return [
     {
-      id: 'total-plans',
-      label: 'Total Plans',
-      value: String(total),
-      rawValue: total,
-      comparisonLabel: 'current total',
+      id: 'subscription-revenue',
+      label: 'Subscription Revenue',
+      value: String(subscriptionRevenue),
+      rawValue: subscriptionRevenue,
+      comparisonLabel:
+        enrolledBusinesses > 0
+          ? `${enrolledBusinesses} enrolled business${enrolledBusinesses === 1 ? '' : 'es'} (MRR)`
+          : 'from active plan enrollments',
       changePercent: null,
       tone: 'accent',
       comparisonIsPlaceholder: false,
@@ -98,44 +189,80 @@ function buildPriceOverview(plans: PlatformPlan[]): {
 }
 
 /**
- * Platform subscription plans have no API yet. Returns an empty catalogue
- * derived only from whatever plans are loaded (none until an endpoint exists).
+ * Loads Super Admin Plans & Pricing from `/platform-plans`.
+ * Metrics / price overview use a wider fetch so KPI cards stay accurate
+ * while the table stays paginated.
  */
 export async function fetchPlansPage(
   params: PlansListParams,
 ): Promise<PlansPageData> {
-  const plans: PlatformPlan[] = [];
+  const listParams: Record<string, string | number | boolean> = {
+    page: params.page,
+    limit: params.limit,
+  };
+  if (params.search.trim()) listParams.search = params.search.trim();
+  if (params.status === 'active') listParams.isActive = true;
+  if (params.status === 'inactive') listParams.isActive = false;
 
-  const q = params.search.trim().toLowerCase();
-  let filtered = plans;
-  if (q) {
-    filtered = filtered.filter(
-      (plan) =>
-        plan.name.toLowerCase().includes(q) ||
-        plan.description.toLowerCase().includes(q),
-    );
-  }
-  if (params.status !== 'all') {
-    filtered = filtered.filter((plan) => plan.status === params.status);
-  }
+  const overviewParams: Record<string, string | number | boolean> = {
+    page: 1,
+    limit: 100,
+  };
+  if (params.search.trim()) overviewParams.search = params.search.trim();
 
-  const total = filtered.length;
-  const totalPages = total === 0 ? 0 : Math.ceil(total / params.limit);
-  const page = Math.min(params.page, Math.max(totalPages, 1));
-  const start = (page - 1) * params.limit;
-  const rows = filtered.slice(start, start + params.limit);
-  const overview = buildPriceOverview(plans);
+  const [listPage, overviewPage] = await Promise.all([
+    api.get<PaginatedPlatformPlans>('/platform-plans', { params: listParams }),
+    api.get<PaginatedPlatformPlans>('/platform-plans', {
+      params: overviewParams,
+    }),
+  ]);
+
+  const rows = listPage.data.map(mapPlan);
+  const overviewPlans = overviewPage.data.map(mapPlan);
+  const overview = buildPriceOverview(overviewPlans);
 
   return {
-    metrics: buildMetrics(plans),
+    metrics: buildMetrics(overviewPlans),
     rows,
-    meta: {
-      page,
-      limit: params.limit,
-      total,
-      totalPages,
-    },
+    meta: listPage.meta,
     priceOverview: overview.slices,
     averagePrice: overview.averagePrice,
   };
+}
+
+export async function createPlan(
+  payload: CreatePlanPayload,
+): Promise<PlatformPlan> {
+  const created = await api.post<PlatformPlanApiItem>('/platform-plans', {
+    name: payload.name.trim(),
+    isCustom: payload.isCustom,
+    priceMonthly: payload.isCustom ? undefined : payload.priceMonthly,
+    billingCycle: payload.billingCycle,
+    isActive: payload.status === 'active',
+  });
+  return mapPlan(created);
+}
+
+export async function updatePlan(
+  id: string,
+  payload: CreatePlanPayload,
+): Promise<PlatformPlan> {
+  const updated = await api.patch<PlatformPlanApiItem>(`/platform-plans/${id}`, {
+    name: payload.name.trim(),
+    isCustom: payload.isCustom,
+    priceMonthly: payload.isCustom ? null : payload.priceMonthly,
+    billingCycle: payload.billingCycle,
+  });
+  return mapPlan(updated);
+}
+
+export async function updatePlanStatus(
+  id: string,
+  isActive: boolean,
+): Promise<PlatformPlan> {
+  const updated = await api.patch<PlatformPlanApiItem>(
+    `/platform-plans/${id}/status`,
+    { isActive },
+  );
+  return mapPlan(updated);
 }

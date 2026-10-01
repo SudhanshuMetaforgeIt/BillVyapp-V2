@@ -44,6 +44,13 @@ const SALON_SELECT = {
   isActive: true,
   createdAt: true,
   updatedAt: true,
+  franchise: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
 } as const;
 
 @Injectable()
@@ -261,7 +268,29 @@ export class SalonsService {
       throw new NotFoundException('Salon not found');
     }
 
-    const result = await this.callGoogleGeocode(apiKey, dto);
+    const resolvedDto: GeocodeSalonDto = {
+      placeId: dto.placeId,
+      address:
+        dto.address?.trim() ||
+        [
+          existing.addressLine1,
+          existing.addressLine2,
+          existing.city,
+          existing.state,
+          existing.postalCode,
+          existing.country,
+        ]
+          .filter(Boolean)
+          .join(', '),
+    };
+
+    if (!resolvedDto.placeId?.trim() && !resolvedDto.address?.trim()) {
+      throw new BadRequestException(
+        'Provide an address or placeId, or ensure the salon has a stored address',
+      );
+    }
+
+    const result = await this.callGoogleGeocode(apiKey, resolvedDto);
     const data: Record<string, unknown> = {
       googlePlaceId: result.placeId,
       mapAddress: result.formattedAddress,

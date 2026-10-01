@@ -15,6 +15,7 @@ import type {
   RoleOption,
   SalonOption,
   UserApiItem,
+  UserDetails,
   UserListRow,
   UserRoleSlice,
   UsersListParams,
@@ -55,13 +56,16 @@ async function countUsers(params: Record<string, string | number | boolean>) {
 
 async function fetchRoles(): Promise<RoleOption[]> {
   const roles = await api.get<RoleApiItem[]>('/roles');
-  return roles
-    .filter((role) => role.code !== 'CUSTOMER')
-    .map((role) => ({
-      id: role.id,
-      name: role.name,
-      code: toRoleCode(role.code),
-    }));
+  return roles.map((role) => ({
+    id: role.id,
+    name: role.name,
+    code: toRoleCode(role.code),
+  }));
+}
+
+/** Roles that can be assigned when creating a platform user. */
+export function assignableRoles(roles: RoleOption[]): RoleOption[] {
+  return roles.filter((role) => role.code !== 'CUSTOMER');
 }
 
 async function fetchFranchises(): Promise<FranchiseOption[]> {
@@ -266,6 +270,39 @@ export async function fetchUsersPage(
     totalCount: summary.total,
     roles,
     franchises,
+  };
+}
+
+/**
+ * Loads a single user with resolved business / salon labels for the details dialog.
+ */
+export async function fetchUserById(id: string): Promise<UserDetails> {
+  const user = await api.get<UserApiItem>(`/users/${id}`);
+  const fullName = formatFullName(user);
+  const roleCode = toRoleCode(user.role.code);
+  const [businessName, salonName] = await Promise.all([
+    lookupFranchiseName(user.franchiseId, new Map()),
+    user.salon?.name
+      ? Promise.resolve(user.salon.name)
+      : lookupSalonName(user.salonId, new Map()),
+  ]);
+
+  return {
+    id: user.id,
+    fullName,
+    initials: initials(fullName),
+    email: user.email,
+    phone: user.phone,
+    roleCode,
+    roleLabel: ROLE_LABELS[roleCode],
+    businessName,
+    salonName,
+    isActive: user.isActive,
+    statusLabel: user.isActive ? 'Active' : 'Inactive',
+    lastLoginAt: user.lastLoginAt,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    salary: user.salary ?? null,
   };
 }
 

@@ -116,15 +116,21 @@ export function ManagerNotificationsTable({
         />
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
-              <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
+          <div className="min-w-0">
+            <table className="w-full table-fixed text-left text-sm">
+              <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Notification</th>
-                  <th className="px-4 py-3 font-semibold">Type</th>
-                  <th className="px-4 py-3 font-semibold">Date & Time</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 font-semibold">
+                  <th className="w-[42%] px-3 py-3 font-semibold xl:px-4">
+                    Notification
+                  </th>
+                  <th className="w-[16%] px-3 py-3 font-semibold xl:px-4">Type</th>
+                  <th className="w-[20%] px-3 py-3 font-semibold xl:px-4">
+                    Date & Time
+                  </th>
+                  <th className="w-[14%] px-3 py-3 font-semibold xl:px-4">
+                    Status
+                  </th>
+                  <th className="w-[8%] px-3 py-3 font-semibold xl:px-4">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -137,46 +143,60 @@ export function ManagerNotificationsTable({
                       key={row.id}
                       className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
                     >
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2.5">
+                      <td className="px-3 py-3.5 xl:px-4">
+                        <div className="flex min-w-0 items-center gap-2.5">
                           <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-champagne-light text-charcoal">
                             <Icon className="size-4" aria-hidden />
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate font-semibold text-text">
+                            <p
+                              className="truncate font-semibold text-text"
+                              title={row.title}
+                            >
                               {row.title}
                             </p>
-                            <p className="truncate text-xs text-text-secondary">
+                            <p
+                              className="truncate text-xs text-text-secondary"
+                              title={row.message}
+                            >
                               {row.message}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-3 py-3.5 xl:px-4">
                         <span
                           className={cn(
-                            'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                            'inline-flex max-w-full truncate rounded-full px-2.5 py-1 text-[11px] font-semibold',
                             categoryClass(row.category),
                           )}
+                          title={row.category}
                         >
                           {row.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-text-secondary">
-                        {row.dateTimeLabel}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className="inline-flex items-center gap-2 text-sm text-text">
-                          <span
-                            className={cn(
-                              'size-2 rounded-full',
-                              row.isUnread ? 'bg-[#3b6bc7]' : 'bg-charcoal-soft/40',
-                            )}
-                          />
-                          {row.readStatusLabel}
+                      <td className="px-3 py-3.5 text-text-secondary xl:px-4">
+                        <span
+                          className="block truncate"
+                          title={row.dateTimeLabel}
+                        >
+                          {row.dateTimeLabel}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-3 py-3.5 xl:px-4">
+                        <span className="inline-flex min-w-0 items-center gap-2 text-sm text-text">
+                          <span
+                            className={cn(
+                              'size-2 shrink-0 rounded-full',
+                              row.isUnread
+                                ? 'bg-[#3b6bc7]'
+                                : 'bg-charcoal-soft/40',
+                            )}
+                          />
+                          <span className="truncate">{row.readStatusLabel}</span>
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 xl:px-4">
                         <button
                           type="button"
                           className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"

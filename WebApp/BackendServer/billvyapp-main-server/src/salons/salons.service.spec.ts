@@ -41,6 +41,7 @@ function salon(overrides: Record<string, unknown> = {}) {
   return {
     id: 'salon-1',
     franchiseId: 'fr-1',
+    franchise: { id: 'fr-1', name: 'Demo Franchise', code: 'DEMO' },
     name: 'CP',
     code: 'CP01',
     phone: null,

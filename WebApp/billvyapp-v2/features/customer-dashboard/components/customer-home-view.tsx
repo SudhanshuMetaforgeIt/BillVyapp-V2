@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { format } from 'date-fns';
 import { ArrowRight, Award, CalendarDays, Clock, Crown, Receipt, Search } from 'lucide-react';
 
 import { ROUTES } from '@/constants/routes';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { businessToday } from '@/lib/business-calendar';
 import { formatDate } from '@/lib/format';
 import {
   useCustomerSalons,
@@ -49,7 +49,7 @@ function StatTile({ icon, label, value, href }: { icon: React.ReactNode; label: 
 export function CustomerHomeView() {
   const user = useCurrentUser();
   const me = useMyCustomer();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = businessToday();
   const upcoming = useMyAppointments({ page: 1, limit: 10, dateFrom: today });
   const loyalty = useMyLoyaltyBalance();
   const memberships = useMyMemberships({ page: 1, limit: 1 });

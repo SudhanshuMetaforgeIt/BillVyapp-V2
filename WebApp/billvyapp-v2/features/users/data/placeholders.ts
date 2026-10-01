@@ -6,4 +6,5 @@ export const ROLE_DONUT_COLORS: Partial<Record<RoleCode, string>> = {
   ADMIN: 'var(--bv-champagne)',
   MANAGER: 'var(--bv-emerald)',
   STAFF: '#35507a',
+  CUSTOMER: '#8a7a6a',
 };

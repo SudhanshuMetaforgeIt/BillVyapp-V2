@@ -24,6 +24,12 @@ export class UserResponseDto {
   @ApiProperty() email: string;
   @ApiPropertyOptional({ nullable: true }) phone: string | null;
   @ApiPropertyOptional({ nullable: true }) profilePhoto: string | null;
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Monthly salary in INR',
+    example: '35000.00',
+  })
+  salary: string | null;
   @ApiProperty() isActive: boolean;
   @ApiPropertyOptional({ nullable: true }) lastLoginAt: Date | null;
   @ApiProperty() createdAt: Date;

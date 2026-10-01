@@ -26,6 +26,9 @@ export function useUpdateUserStatus() {
       );
       void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
       void queryClient.invalidateQueries({
+        queryKey: [...USERS_QUERY_KEY, 'detail', variables.id],
+      });
+      void queryClient.invalidateQueries({
         queryKey: SUPER_ADMIN_DASHBOARD_QUERY_KEY,
       });
     },

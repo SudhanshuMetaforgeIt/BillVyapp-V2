@@ -42,6 +42,26 @@ export class SecuritySettingsResponseDto {
 
 export class LogRetentionResponseDto {
   @ApiProperty() retentionDays: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Number of audit rows deleted when retention was saved (immediate purge).',
+  })
+  purged?: number;
+}
+
+export class LogPurgeResponseDto {
+  @ApiProperty({ example: 'Purged 12 expired log entries.' })
+  message: string;
+
+  @ApiProperty()
+  deleted: number;
+
+  @ApiProperty()
+  retentionDays: number;
+
+  @ApiProperty()
+  cutoff: Date;
 }
 
 export class EmailSettingsResponseDto {
@@ -89,6 +109,40 @@ export class MessageResponseDto {
 
   @ApiPropertyOptional()
   deletedKeys?: number;
+}
+
+export class SettingsBackupResponseDto {
+  @ApiProperty() id: string;
+  @ApiProperty() createdAt: Date;
+  @ApiProperty() createdBy: string | null;
+  @ApiProperty({ description: 'Snapshot size in bytes on disk.' })
+  sizeBytes: number;
+  @ApiProperty({ example: 'Platform settings snapshot created.' })
+  message: string;
+}
+
+export class SettingsBackupListItemDto {
+  @ApiProperty() id: string;
+  @ApiProperty() createdAt: Date;
+  @ApiPropertyOptional({ nullable: true }) createdBy: string | null;
+  @ApiProperty() sizeBytes: number;
+}
+
+export class SystemUpdateStatusDto {
+  @ApiProperty({ example: '0.0.1' })
+  currentVersion: string;
+
+  @ApiProperty({ example: '0.0.1' })
+  latestVersion: string;
+
+  @ApiProperty()
+  updateAvailable: boolean;
+
+  @ApiProperty({ example: 'Platform is up to date.' })
+  message: string;
+
+  @ApiProperty()
+  checkedAt: Date;
 }
 
 export class AuditActivityResponseDto {

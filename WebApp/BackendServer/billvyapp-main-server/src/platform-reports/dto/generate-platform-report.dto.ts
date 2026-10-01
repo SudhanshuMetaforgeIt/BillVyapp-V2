@@ -1,0 +1,53 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsIn, IsOptional, IsUUID, Matches } from 'class-validator';
+
+export const PLATFORM_REPORT_TYPES = [
+  'financial',
+  'business',
+  'user',
+  'transaction',
+  'subscription',
+  'activity',
+] as const;
+
+export type PlatformReportTypeApi = (typeof PLATFORM_REPORT_TYPES)[number];
+
+export const PLATFORM_REPORT_FORMATS = ['pdf', 'excel'] as const;
+
+export type PlatformReportFormatApi = (typeof PLATFORM_REPORT_FORMATS)[number];
+
+export class GeneratePlatformReportDto {
+  @ApiProperty({ enum: PLATFORM_REPORT_TYPES, example: 'financial' })
+  @IsIn(PLATFORM_REPORT_TYPES)
+  type: PlatformReportTypeApi;
+
+  @ApiPropertyOptional({
+    enum: PLATFORM_REPORT_FORMATS,
+    example: 'excel',
+    description: 'Defaults to excel. PDF/Excel both download as CSV in v1.',
+  })
+  @IsOptional()
+  @IsIn(PLATFORM_REPORT_FORMATS)
+  format?: PlatformReportFormatApi;
+
+  @ApiProperty({
+    example: '2026-09-01',
+    description: 'Inclusive range start (YYYY-MM-DD)',
+  })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dateFrom must be YYYY-MM-DD' })
+  dateFrom: string;
+
+  @ApiProperty({
+    example: '2026-09-30',
+    description: 'Inclusive range end (YYYY-MM-DD)',
+  })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dateTo must be YYYY-MM-DD' })
+  dateTo: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional franchise scope for the snapshot',
+  })
+  @IsOptional()
+  @IsUUID()
+  franchiseId?: string;
+}

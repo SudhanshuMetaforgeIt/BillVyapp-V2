@@ -19,6 +19,10 @@ function accountPath(user: AuthUser | null, page: 'profile' | 'settings'): strin
   return `/dashboard/${ROLE_SEGMENTS[user.role]}/${page}`;
 }
 
+function canOpenSettings(user: AuthUser | null): boolean {
+  return user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+}
+
 export function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -111,16 +115,18 @@ export function UserMenu({ user }: UserMenuProps) {
             <span>Profile</span>
           </Link>
 
-          {/* Settings link */}
-          <Link
-            href={accountPath(user, 'settings')}
-            role="menuitem"
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-amber-600 dark:text-stone-300 dark:hover:bg-stone-800/60 dark:hover:text-amber-400"
-            onClick={() => setOpen(false)}
-          >
-            <Settings className="size-4 text-stone-400" aria-hidden />
-            <span>Settings</span>
-          </Link>
+          {/* Settings — Admin / Super Admin only */}
+          {canOpenSettings(user) ? (
+            <Link
+              href={accountPath(user, 'settings')}
+              role="menuitem"
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-amber-600 dark:text-stone-300 dark:hover:bg-stone-800/60 dark:hover:text-amber-400"
+              onClick={() => setOpen(false)}
+            >
+              <Settings className="size-4 text-stone-400" aria-hidden />
+              <span>Settings</span>
+            </Link>
+          ) : null}
 
           <div className="my-1 border-t border-stone-100 dark:border-stone-800" />
 

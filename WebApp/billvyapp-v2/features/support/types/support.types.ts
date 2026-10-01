@@ -21,6 +21,7 @@ export type SupportTicketRow = {
   id: string;
   displayId: string;
   subject: string;
+  description: string;
   preview: string;
   customerName: string;
   businessName: string;

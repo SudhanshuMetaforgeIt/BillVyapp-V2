@@ -6,6 +6,7 @@ type StatusBadgeProps = {
   label: string;
   tone?: 'success' | 'warning' | 'danger' | 'neutral' | 'accent' | 'info';
   className?: string;
+  title?: string;
 };
 
 const TONE_CLASS: Record<NonNullable<StatusBadgeProps['tone']>, string> = {
@@ -21,9 +22,11 @@ export function StatusBadge({
   label,
   tone = 'neutral',
   className,
+  title,
 }: StatusBadgeProps) {
   return (
     <span
+      title={title}
       className={cn(
         'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide',
         TONE_CLASS[tone],

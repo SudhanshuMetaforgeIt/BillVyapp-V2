@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -119,12 +121,11 @@ export function AdjustStockDialog({
         >
           <div className="space-y-1.5">
             <Label htmlFor="inv-adjust-product">Product</Label>
-            <select
+            <SelectInput className="h-10 w-full text-sm font-medium disabled:opacity-70"
               id="inv-adjust-product"
               value={productId}
               onChange={(e) => setProductId(e.target.value)}
               disabled={Boolean(presetRow)}
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne disabled:opacity-70"
             >
               {productOptions.length === 0 ? (
                 <option value="">No products available</option>
@@ -135,7 +136,7 @@ export function AdjustStockDialog({
                   </option>
                 ))
               )}
-            </select>
+            </SelectInput>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -151,20 +152,19 @@ export function AdjustStockDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="inv-adjust-type">Movement type</Label>
-              <select
+              <SelectInput className="h-10 w-full text-sm font-medium"
                 id="inv-adjust-type"
                 value={movementType}
                 onChange={(e) =>
                   setMovementType(e.target.value as MovementType)
                 }
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
               >
                 <option value="ADJUSTMENT">Adjustment</option>
                 <option value="RETURN">Return</option>
                 <option value="DAMAGE">Damage</option>
                 <option value="TRANSFER_IN">Transfer in</option>
                 <option value="TRANSFER_OUT">Transfer out</option>
-              </select>
+              </SelectInput>
             </div>
           </div>
 

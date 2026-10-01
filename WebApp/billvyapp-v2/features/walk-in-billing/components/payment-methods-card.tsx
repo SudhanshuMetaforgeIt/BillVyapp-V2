@@ -51,8 +51,8 @@ type PaymentMethodsCardProps = {
   canPay: boolean;
   isPaying: boolean;
   /**
-   * False for roles that may create bills but not complete them (STAFF):
-   * the card then saves a draft for a manager instead of collecting payment.
+   * False for roles that may create bills but not complete them:
+   * the card then saves a draft instead of collecting payment.
    */
   canCollect?: boolean;
 };

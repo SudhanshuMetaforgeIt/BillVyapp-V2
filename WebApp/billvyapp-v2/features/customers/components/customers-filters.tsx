@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -51,11 +53,10 @@ export function CustomersFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={membershipPlanId}
           onChange={(e) => onMembershipPlanIdChange(e.target.value)}
           aria-label="Membership filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="">All Memberships</option>
           {planOptions.map((plan) => (
@@ -63,35 +64,33 @@ export function CustomersFilters({
               {plan.name}
             </option>
           ))}
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={gender}
           onChange={(e) =>
             onGenderChange(e.target.value as '' | CustomerGender)
           }
           aria-label="Gender filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="">All Genders</option>
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
           <option value="OTHER">Other</option>
           <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as CustomerStatusFilter)
           }
           aria-label="Status filter"
-          className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
-        </select>
+        </SelectInput>
 
         <Button
           type="button"

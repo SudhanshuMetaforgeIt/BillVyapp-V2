@@ -7,6 +7,11 @@ import {
 import { randomBytes } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
+import {
+  calendarDateInTimeZone,
+  DEFAULT_BUSINESS_TIMEZONE,
+  formatBillDateApi,
+} from '../common/datetime/datetime';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { Gender } from '../common/enums/gender.enum';
 import { RoleCode } from '../common/enums/role.enum';
@@ -505,8 +510,11 @@ export class CustomersService {
     const latestBill = bills[0];
     const lastVisit = latestBill
       ? latestBill.billDate
-        ? latestBill.billDate.toISOString().slice(0, 10)
-        : latestBill.createdAt.toISOString().slice(0, 10)
+        ? formatBillDateApi(latestBill.billDate, DEFAULT_BUSINESS_TIMEZONE)
+        : calendarDateInTimeZone(
+            DEFAULT_BUSINESS_TIMEZONE,
+            latestBill.createdAt,
+          )
       : null;
     const branchName = latestBill?.salon?.name ?? null;
     const salonId = latestBill?.salon?.id ?? null;

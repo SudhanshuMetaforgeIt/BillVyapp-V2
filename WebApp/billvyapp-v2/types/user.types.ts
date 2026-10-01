@@ -15,11 +15,17 @@ export interface AuthUser {
   role: RoleCode;
   franchiseId: string | null;
   salonId: string | null;
+  /** False for ADMIN/MANAGER/STAFF without an active franchise plan. */
+  subscriptionActive?: boolean;
+  subscriptionPlanName?: string | null;
+  subscriptionEndsAt?: string | null;
+  /** Business timezone from franchise prefs (falls back server-side). */
+  timezone?: string | null;
 }
 
+/** Access token only — refresh lives in an HttpOnly cookie. */
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
   tokenType: string;
 }
 

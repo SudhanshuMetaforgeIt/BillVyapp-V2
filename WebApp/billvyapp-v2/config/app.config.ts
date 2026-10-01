@@ -14,15 +14,6 @@ export const appConfig = {
     timeoutMs: 30_000,
   },
 
-  auth: {
-    /**
-     * Storage keys for the token pair. Kept here so the storage layer and any
-     * future migration/cleanup code agree on the names.
-     */
-    accessTokenKey: 'billvy.access-token',
-    refreshTokenKey: 'billvy.refresh-token',
-  },
-
   /** Flip features on/off without scattering conditionals through the UI. */
   features: {
     otpLogin: true,

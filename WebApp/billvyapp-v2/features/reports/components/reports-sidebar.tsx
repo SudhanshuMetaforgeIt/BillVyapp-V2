@@ -89,9 +89,7 @@ export function ReportsSidebar({
                 <button
                   type="button"
                   onClick={() =>
-                    toast(
-                      `${action.label} will be available once the reports API is connected.`,
-                    )
+                    toast(`${action.label} coming soon.`)
                   }
                   className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 >

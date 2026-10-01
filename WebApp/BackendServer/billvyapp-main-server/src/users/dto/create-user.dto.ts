@@ -1,11 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  Min,
   MinLength,
   ValidateIf,
 } from 'class-validator';
@@ -67,4 +70,15 @@ export class CreateUserDto {
   @IsString()
   @MaxLength(512)
   profilePhoto?: string | null;
+
+  @ApiPropertyOptional({
+    example: 35000,
+    minimum: 0,
+    description: 'Monthly salary in INR. Set by Admin when creating staff.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  salary?: number | null;
 }

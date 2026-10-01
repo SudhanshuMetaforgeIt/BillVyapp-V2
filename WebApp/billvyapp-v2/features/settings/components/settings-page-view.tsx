@@ -34,6 +34,7 @@ export function SettingsPageView() {
       isLoading={healthQuery.isLoading && !healthQuery.data}
       isError={healthQuery.isError}
       onRetry={() => void healthQuery.refetch()}
+      onViewLogs={() => setTab('logs')}
     />
   );
 

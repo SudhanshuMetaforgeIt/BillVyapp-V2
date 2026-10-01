@@ -6,9 +6,9 @@ import axios, {
 } from 'axios';
 
 import { appConfig } from '@/config/app.config';
+import { useAuthStore } from '@/stores/auth.store';
 import type { ApiError, ApiErrorBody } from '@/types/api.types';
 import type { AuthTokens } from '@/types/user.types';
-import { tokenStorage } from './token-storage';
 
 /**
  * The single Axios instance for the whole application.
@@ -17,10 +17,10 @@ import { tokenStorage } from './token-storage';
  * otherwise auth headers, error normalisation and refresh handling are lost.
  *
  * Responsibilities:
- *   1. Attach the bearer token to every request.
- *   2. Normalise every failure into ApiError, so the UI never handles
- *      AxiosError shapes or leaks raw backend errors.
- *   3. Refresh the token pair once on a 401 and replay the original request.
+ *   1. Attach the bearer access token from the Zustand store.
+ *   2. Send credentials so the HttpOnly refresh cookie is included.
+ *   3. Normalise every failure into ApiError.
+ *   4. Refresh the access token once on a 401 (cookie-based) and replay.
  */
 
 /** Marks a request that has already been retried, preventing infinite loops. */
@@ -32,6 +32,7 @@ export const apiClient: AxiosInstance = axios.create({
   baseURL: appConfig.api.baseUrl,
   timeout: appConfig.api.timeoutMs,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 // ---------------------------------------------------------------- session end
@@ -42,14 +43,14 @@ let onSessionExpired: SessionExpiredHandler | null = null;
 
 /**
  * Registered once at app startup so the client can announce a dead session
- * without importing the auth store (which would be a circular dependency).
+ * without importing React components (which would be a circular dependency).
  */
 export function setSessionExpiredHandler(handler: SessionExpiredHandler): void {
   onSessionExpired = handler;
 }
 
 function endSession(): void {
-  tokenStorage.clear();
+  useAuthStore.getState().clearSession();
   onSessionExpired?.();
 }
 
@@ -79,7 +80,7 @@ function toApiError(error: unknown): ApiError {
   if (Array.isArray(data?.message)) {
     return {
       status,
-      message: data.message[0] ?? 'Please check the submitted values.',
+      message: data.message.join(', '),
       details: data.message,
     };
   }
@@ -87,9 +88,8 @@ function toApiError(error: unknown): ApiError {
   return {
     status,
     message:
-      typeof data?.message === 'string'
-        ? data.message
-        : 'Something went wrong. Please try again.',
+      (typeof data?.message === 'string' && data.message) ||
+      'Request failed. Please try again.',
   };
 }
 
@@ -111,18 +111,17 @@ export function isApiError(value: unknown): value is ApiError {
 let refreshInFlight: Promise<AuthTokens> | null = null;
 
 async function refreshTokens(): Promise<AuthTokens> {
-  const refreshToken = tokenStorage.getRefreshToken();
-  if (!refreshToken) throw new Error('No refresh token');
-
-  // A bare axios call on purpose: going through apiClient would re-enter this
-  // interceptor and recurse if the refresh itself returns 401.
+  // Cookie is sent automatically via withCredentials; body is empty.
   const { data } = await axios.post<AuthTokens>(
     `${appConfig.api.baseUrl}/auth/refresh`,
-    { refreshToken },
-    { timeout: appConfig.api.timeoutMs },
+    {},
+    {
+      timeout: appConfig.api.timeoutMs,
+      withCredentials: true,
+    },
   );
 
-  tokenStorage.set(data);
+  useAuthStore.getState().setAccessToken(data.accessToken);
   return data;
 }
 
@@ -144,7 +143,7 @@ function isCredentialAuthRequest(url?: string): boolean {
 }
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = tokenStorage.getAccessToken();
+  const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -178,7 +177,7 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // A 401 after a failed retry (or with no refresh token) means the session is gone.
+    // A 401 after a failed retry (or with no refresh cookie) means the session is gone.
     // Credential auth failures (wrong password, etc.) must not clear a live session.
     if (status === 401 && !skipRefresh) {
       endSession();

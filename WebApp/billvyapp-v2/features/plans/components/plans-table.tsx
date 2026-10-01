@@ -83,7 +83,7 @@ export function PlansTable({
       ) : rows.length === 0 ? (
         <SectionEmptyState
           title="No plans yet"
-          message="Subscription plans will appear here once the platform plans API is connected."
+          message="Add a subscription plan to get started."
         />
       ) : (
         <>

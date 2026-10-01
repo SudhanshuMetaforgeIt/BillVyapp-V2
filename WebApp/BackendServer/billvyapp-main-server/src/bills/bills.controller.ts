@@ -50,6 +50,7 @@ const BILL_STATUS_ROLES = [
   RoleCode.SUPER_ADMIN,
   RoleCode.ADMIN,
   RoleCode.MANAGER,
+  RoleCode.STAFF,
 ] as const;
 
 @ApiTags('Bills')

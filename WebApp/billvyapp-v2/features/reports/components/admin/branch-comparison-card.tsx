@@ -1,7 +1,9 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useState } from 'react';
-import { Building2, ChevronDown, TrendingUp } from 'lucide-react';
+import { Building2, TrendingUp } from 'lucide-react';
 import type { BranchComparisonItem } from '../../types/admin-reports.types';
 
 type BranchComparisonCardProps = {
@@ -26,20 +28,16 @@ export function BranchComparisonCard({ items }: BranchComparisonCardProps) {
         <h3 className="text-sm font-bold text-stone-900 dark:text-white">
           Branch Comparison
         </h3>
-        <div className="relative">
-          <select
+        <SelectInput className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
             value={metric}
             onChange={(e) =>
               setMetric(e.target.value as 'Revenue' | 'Bills' | 'Customers')
             }
-            className="h-7 rounded-md border border-stone-200 bg-white pl-2 pr-6 text-[11px] font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-300 appearance-none"
           >
             <option value="Revenue">Revenue</option>
             <option value="Bills">Bills</option>
             <option value="Customers">Customers</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-stone-400" />
-        </div>
+          </SelectInput>
       </div>
 
       {/* List */}

@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import type { ApiError } from '@/types/api.types';
-import { SERVICE_CATALOG_QUERY_KEY } from '@/features/walk-in-billing/hooks/use-service-catalog';
+import { invalidateAfter } from '@/lib/query-invalidation';
 import {
   createService,
   createServiceCategory,
@@ -17,11 +17,9 @@ import type {
   ServiceApiItem,
   ServiceCategoryApiItem,
 } from '../types/services.types';
-import { SERVICES_QUERY_KEY } from './use-services';
 
 function invalidate(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
-  void queryClient.invalidateQueries({ queryKey: SERVICE_CATALOG_QUERY_KEY });
+  void invalidateAfter(queryClient, 'services');
 }
 
 export function useCreateService(onSuccess?: (row: ServiceApiItem) => void) {

@@ -9,6 +9,7 @@ import type {
   FranchiseListItem,
   PaginatedResponse,
   PlanMixItem,
+  UpdateBusinessPayload,
 } from '../types/businesses.types';
 
 function mapStatus(isActive: boolean): Pick<
@@ -23,21 +24,56 @@ function mapStatus(isActive: boolean): Pick<
   return { status: 'suspended', statusLabel: 'Suspended' };
 }
 
+function planToneFromName(name: string | null | undefined): BusinessPlanTone {
+  if (!name) return 'unknown';
+  const lower = name.toLowerCase();
+  if (lower.includes('enterprise') || lower.includes('custom')) return 'enterprise';
+  if (lower.includes('pro')) return 'professional';
+  if (lower.includes('basic')) return 'basic';
+  return 'professional';
+}
+
 function mapFranchiseRow(row: FranchiseListItem): BusinessListRow {
   const status = mapStatus(row.isActive);
+  const planName = row.currentPlanName?.trim() || null;
 
   return {
     id: row.id,
     name: row.name,
     code: row.code,
+    email: row.email,
+    phone: row.phone,
     ownerLabel: row.email ?? row.phone ?? '—',
-    // Plans are not on the franchise API yet.
-    planLabel: '—',
-    planTone: 'unknown',
+    planLabel: planName
+      ? row.subscriptionActive
+        ? planName
+        : `${planName} (inactive)`
+      : 'Not enrolled',
+    planTone: planToneFromName(planName),
     status: status.status,
     statusLabel: status.statusLabel,
+    isActive: row.isActive,
     joinedOn: row.createdAt,
+    subscriptionActive: Boolean(row.subscriptionActive),
+    subscriptionEndsAt: row.subscriptionEndsAt ?? null,
   };
+}
+
+function buildPlanMix(rows: FranchiseListItem[]): PlanMixItem[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.subscriptionActive || !row.currentPlanName) continue;
+    const label = row.currentPlanName;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const total = Array.from(counts.values()).reduce((sum, n) => sum + n, 0);
+  const denom = Math.max(total, 1);
+  return Array.from(counts.entries()).map(([label, count], index) => ({
+    id: `plan-mix-${index}`,
+    label,
+    count,
+    percent: (count / denom) * 100,
+  }));
 }
 
 function statusToIsActive(
@@ -186,12 +222,14 @@ export async function fetchBusinessesPage(
   if (params.search.trim()) listParams.search = params.search.trim();
   if (typeof isActive === 'boolean') listParams.isActive = isActive;
 
-  // Plan filter has no API field — ignore until subscriptions exist.
-  const [listPage, counts] = await Promise.all([
+  const [listPage, counts, mixSource] = await Promise.all([
     api.get<PaginatedResponse<FranchiseListItem>>('/franchises', {
       params: listParams,
     }),
     fetchCounts(),
+    api.get<PaginatedResponse<FranchiseListItem>>('/franchises', {
+      params: { page: 1, limit: 100, isActive: true },
+    }),
   ]);
 
   return {
@@ -199,9 +237,58 @@ export async function fetchBusinessesPage(
     rows: listPage.data.map(mapFranchiseRow),
     meta: listPage.meta,
     summary: buildSummary(counts),
-    planMix: EMPTY_PLAN_MIX,
+    planMix: buildPlanMix(mixSource.data),
     total: counts.total,
   };
+}
+
+export type EnrollBusinessPayload = {
+  franchiseId: string;
+  platformPlanId: string;
+  billingCycle: 'monthly' | 'yearly' | 'custom';
+  startsAt?: string;
+  endsAt?: string;
+  notes?: string;
+};
+
+export type FranchiseSubscriptionApi = {
+  id: string;
+  franchiseId: string;
+  franchiseName: string;
+  platformPlanId: string;
+  planName: string;
+  billingCycle: 'monthly' | 'yearly' | 'custom';
+  status: 'active' | 'expired' | 'cancelled';
+  startsAt: string;
+  endsAt: string;
+  isCurrentlyActive: boolean;
+  notes: string | null;
+};
+
+export async function enrollBusinessPlan(
+  payload: EnrollBusinessPayload,
+): Promise<FranchiseSubscriptionApi> {
+  return api.post<FranchiseSubscriptionApi>('/franchise-subscriptions', payload);
+}
+
+export async function fetchActivePlatformPlans(): Promise<
+  { id: string; name: string; billingCycle: string; isCustom: boolean }[]
+> {
+  const page = await api.get<
+    PaginatedResponse<{
+      id: string;
+      name: string;
+      billingCycle: string;
+      isCustom: boolean;
+      isActive: boolean;
+    }>
+  >('/platform-plans', { params: { page: 1, limit: 100, isActive: true } });
+  return page.data.map((row) => ({
+    id: row.id,
+    name: row.name,
+    billingCycle: row.billingCycle,
+    isCustom: row.isCustom,
+  }));
 }
 
 export async function createBusiness(
@@ -213,4 +300,23 @@ export async function createBusiness(
     phone: payload.phone?.trim() || undefined,
     email: payload.email?.trim() || undefined,
   });
+}
+
+export async function updateBusiness(
+  id: string,
+  payload: UpdateBusinessPayload,
+): Promise<FranchiseListItem> {
+  return api.patch<FranchiseListItem>(`/franchises/${id}`, {
+    name: payload.name.trim(),
+    code: payload.code.trim().toUpperCase(),
+    phone: payload.phone?.trim() || null,
+    email: payload.email?.trim() || null,
+  });
+}
+
+export async function updateBusinessStatus(
+  id: string,
+  isActive: boolean,
+): Promise<FranchiseListItem> {
+  return api.patch<FranchiseListItem>(`/franchises/${id}/status`, { isActive });
 }

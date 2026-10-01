@@ -22,6 +22,12 @@ import {
   PaginatedResult,
 } from '../common/pagination/pagination';
 import { ScopeService } from '../common/scope/scope.service';
+import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
+import {
+  businessCalendarRangeToUtc,
+  calendarDateStartUtc,
+  isDateOnlyString,
+} from '../common/datetime/datetime';
 import { trimOrNull } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -104,6 +110,7 @@ export class PaymentsService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    private readonly businessTimezone: BusinessTimezoneService,
   ) {}
 
   async list(
@@ -111,6 +118,7 @@ export class PaymentsService {
     query: PaymentQueryDto,
   ): Promise<PaginatedResult<PaymentRecord>> {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
+    const timeZone = await this.businessTimezone.resolveForUser(user);
     const billFilters: Record<string, unknown>[] = [
       this.scope.salonScope(user),
     ];
@@ -133,13 +141,19 @@ export class PaymentsService {
       filters.push({ paymentMethod: query.paymentMethod });
     }
 
-    const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (query.dateFrom) dateFilter.gte = this.parseDateOnly(query.dateFrom);
-    if (query.dateTo) {
-      dateFilter.lte = this.endOfUtcDay(this.parseDateOnly(query.dateTo));
-    }
-    if (dateFilter.gte || dateFilter.lte) {
-      filters.push({ paymentDate: dateFilter });
+    if (query.dateFrom || query.dateTo) {
+      try {
+        const range = businessCalendarRangeToUtc(
+          query.dateFrom,
+          query.dateTo,
+          timeZone,
+        );
+        filters.push({ paymentDate: range });
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error ? error.message : 'Invalid date range',
+        );
+      }
     }
 
     const where = { AND: filters };
@@ -224,7 +238,10 @@ export class PaymentsService {
           paymentMethod: dto.paymentMethod,
           transactionReference: trimOrNull(dto.transactionReference) ?? null,
           paymentDate: dto.paymentDate
-            ? this.parseDateOnly(dto.paymentDate)
+            ? this.resolvePaymentDateInput(
+                dto.paymentDate,
+                await this.businessTimezone.resolveForUser(actor),
+              )
             : new Date(),
           status,
           notes: trimOrNull(dto.notes) ?? null,
@@ -425,23 +442,17 @@ export class PaymentsService {
     await this.scope.assertSalonAccess(user, bill.salonId);
   }
 
-  private parseDateOnly(value: string): Date {
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, day));
-  }
-
-  private endOfUtcDay(date: Date): Date {
-    return new Date(
-      Date.UTC(
-        date.getUTCFullYear(),
-        date.getUTCMonth(),
-        date.getUTCDate(),
-        23,
-        59,
-        59,
-        999,
-      ),
-    );
+  private resolvePaymentDateInput(value: string, timeZone: string): Date {
+    if (isDateOnlyString(value)) {
+      return calendarDateStartUtc(value, timeZone);
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException(
+        'paymentDate must be YYYY-MM-DD or an ISO-8601 timestamp',
+      );
+    }
+    return parsed;
   }
 
   private asNumber(value: Decimalish): number {

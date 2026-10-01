@@ -1,7 +1,9 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+
 import type { RevenueByBranchItem } from '../../types/admin-reports.types';
 
 type RevenueByBranchBarChartProps = {
@@ -29,19 +31,15 @@ export function RevenueByBranchBarChart({ items }: RevenueByBranchBarChartProps)
         <h3 className="text-sm font-bold text-stone-900 dark:text-white">
           Revenue by Branch
         </h3>
-        <div className="relative">
-          <select
+        <SelectInput className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="h-7 rounded-md border border-stone-200 bg-white pl-2 pr-6 text-[11px] font-medium text-stone-700 shadow-2xs focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-300 appearance-none"
           >
             <option value="This Month">This Month</option>
             <option value="Today">Today</option>
             <option value="This Week">This Week</option>
             <option value="This Year">This Year</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-stone-400" />
-        </div>
+          </SelectInput>
       </div>
 
       {/* Chart */}

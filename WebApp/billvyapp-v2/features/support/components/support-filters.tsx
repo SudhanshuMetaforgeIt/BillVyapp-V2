@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Search } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
@@ -27,7 +29,7 @@ type SupportFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne';
+  'h-11 w-auto min-w-[9rem] text-sm font-medium';
 
 export function SupportFilters({
   search,
@@ -66,7 +68,7 @@ export function SupportFilters({
           />
         </div>
 
-        <select
+        <SelectInput
           value={status}
           onChange={(e) => onStatusChange(e.target.value as TicketStatusFilter)}
           aria-label="Filter by status"
@@ -77,9 +79,9 @@ export function SupportFilters({
           <option value="in_progress">In Progress</option>
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput
           value={priority}
           onChange={(e) =>
             onPriorityChange(e.target.value as TicketPriorityFilter)
@@ -91,9 +93,9 @@ export function SupportFilters({
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
-        </select>
+        </SelectInput>
 
-        <select
+        <SelectInput
           value={category}
           onChange={(e) =>
             onCategoryChange(e.target.value as TicketCategoryFilter)
@@ -108,7 +110,7 @@ export function SupportFilters({
           <option value="feature_request">Feature Request</option>
           <option value="subscription">Subscription</option>
           <option value="reports">Reports</option>
-        </select>
+        </SelectInput>
 
         <div className="flex items-center gap-2">
           <Input

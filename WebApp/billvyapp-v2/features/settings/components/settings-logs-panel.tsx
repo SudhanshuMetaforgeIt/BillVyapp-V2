@@ -10,16 +10,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateTime } from '@/lib/format';
-import { useSettingsActivity } from '../hooks/use-platform-settings';
+import { useSettingsLogs } from '../hooks/use-platform-settings';
 
 export function SettingsLogsPanel() {
   const [page, setPage] = useState(1);
-  const query = useSettingsActivity(page);
+  const query = useSettingsLogs(page);
 
   if (query.isLoading && !query.data) return <Skeleton className="h-72 w-full rounded-xl" />;
   if (query.isError && !query.data) {
     return (
-      <DashboardSectionCard title="Activity">
+      <DashboardSectionCard title="System logs">
         <SectionErrorState message={query.error.message} onRetry={() => void query.refetch()} />
       </DashboardSectionCard>
     );
@@ -29,9 +29,9 @@ export function SettingsLogsPanel() {
   const meta = query.data?.meta;
 
   return (
-    <DashboardSectionCard title="Platform activity" bodyClassName="space-y-4">
+    <DashboardSectionCard title="System logs" bodyClassName="space-y-4">
       {rows.length === 0 ? (
-        <SectionEmptyState message="No platform activity yet." />
+        <SectionEmptyState message="No system log entries yet." />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">

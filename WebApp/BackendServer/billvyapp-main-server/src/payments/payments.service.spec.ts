@@ -158,6 +158,10 @@ describe('PaymentsService', () => {
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
+      {
+        resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
+        getPlatformTimezone: jest.fn().mockResolvedValue('Asia/Kolkata'),
+      } as never,
     );
   });
 

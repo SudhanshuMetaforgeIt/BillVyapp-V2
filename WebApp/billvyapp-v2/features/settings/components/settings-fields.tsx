@@ -3,12 +3,13 @@
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { AppSelect } from '@/components/ui/app-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 export const settingsSelectClassName =
-  'flex h-11 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50';
+  'h-11 w-full min-w-0 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50';
 
 type SettingsFieldProps = {
   id: string;
@@ -39,6 +40,7 @@ type SettingsTextFieldProps = {
   placeholder?: string;
   type?: string;
   className?: string;
+  disabled?: boolean;
 };
 
 export function SettingsTextField({
@@ -49,6 +51,7 @@ export function SettingsTextField({
   placeholder,
   type = 'text',
   className,
+  disabled = false,
 }: SettingsTextFieldProps) {
   return (
     <SettingsField id={id} label={label} className={className}>
@@ -58,6 +61,8 @@ export function SettingsTextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        disabled={disabled}
+        readOnly={disabled}
         className="bg-background"
       />
     </SettingsField>
@@ -83,25 +88,24 @@ export function SettingsSelectField({
   placeholder,
   className,
 }: SettingsSelectFieldProps) {
+  const selectOptions = [
+    ...(placeholder
+      ? [{ value: '', label: placeholder, disabled: true as const }]
+      : []),
+    ...options,
+  ];
+
   return (
     <SettingsField id={id} label={label} className={className}>
-      <select
+      <AppSelect
         id={id}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(settingsSelectClassName, 'bg-background', className)}
-      >
-        {placeholder ? (
-          <option value="" disabled>
-            {placeholder}
-          </option>
-        ) : null}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        onValueChange={onChange}
+        options={selectOptions}
+        placeholder={placeholder}
+        className={cn(settingsSelectClassName, className)}
+        size="lg"
+      />
     </SettingsField>
   );
 }

@@ -104,6 +104,37 @@ async function main() {
   });
   console.log(`  ✓ ${franchise.name} (${franchise.id})`);
 
+  // Older local DBs used code DEMO-FR for the same demo org; merge into DEMO_FRANCHISE
+  // so Admin Priya (and seed managers) keep seeing bills/salons created there.
+  const legacyDemo = await prisma.franchise.findUnique({
+    where: { code: 'DEMO-FR' },
+  });
+  if (legacyDemo && legacyDemo.id !== franchise.id) {
+    const movedSalons = await prisma.salon.updateMany({
+      where: { franchiseId: legacyDemo.id },
+      data: { franchiseId: franchise.id },
+    });
+    const movedUsers = await prisma.user.updateMany({
+      where: { franchiseId: legacyDemo.id },
+      data: { franchiseId: franchise.id },
+    });
+    await prisma.franchiseSubscription.updateMany({
+      where: { franchiseId: legacyDemo.id, status: 'ACTIVE' },
+      data: { status: 'CANCELLED' },
+    });
+    await prisma.franchise.update({
+      where: { id: legacyDemo.id },
+      data: {
+        code: `DEMO-FR-ARCHIVED-${legacyDemo.id.slice(0, 8)}`,
+        name: `${legacyDemo.name} (archived)`,
+        isActive: false,
+      },
+    });
+    console.log(
+      `  ↺ Merged legacy DEMO-FR → DEMO_FRANCHISE (${movedSalons.count} salon(s), ${movedUsers.count} user(s))`,
+    );
+  }
+
   console.log('\n💇  Upserting demo salon…');
   let salon = await prisma.salon.findFirst({
     where: { franchiseId: franchise.id, code: 'DEMO_SALON' },
@@ -128,6 +159,89 @@ async function main() {
     });
   }
   console.log(`  ✓ ${salon.name} (${salon.id})`);
+
+  // Platform plans + demo franchise enrollment
+  console.log('\n💳  Upserting platform plans…');
+  const basicPlan = await prisma.platformPlan.upsert({
+    where: { name: 'Basic' },
+    update: {
+      priceMonthly: 999,
+      billingCycle: 'MONTHLY',
+      isCustom: false,
+      isActive: true,
+      iconKey: 'basic',
+    },
+    create: {
+      name: 'Basic',
+      description: 'Core billing for a single franchise',
+      priceMonthly: 999,
+      billingCycle: 'MONTHLY',
+      isCustom: false,
+      iconKey: 'basic',
+      isActive: true,
+    },
+  });
+  const proPlan = await prisma.platformPlan.upsert({
+    where: { name: 'Professional' },
+    update: {
+      priceMonthly: 2499,
+      billingCycle: 'YEARLY',
+      isCustom: false,
+      isActive: true,
+      iconKey: 'professional',
+    },
+    create: {
+      name: 'Professional',
+      description: 'Full suite for growing franchises',
+      priceMonthly: 2499,
+      billingCycle: 'YEARLY',
+      isCustom: false,
+      iconKey: 'professional',
+      isActive: true,
+    },
+  });
+  await prisma.platformPlan.upsert({
+    where: { name: 'Enterprise Custom' },
+    update: {
+      priceMonthly: null,
+      billingCycle: 'CUSTOM',
+      isCustom: true,
+      isActive: true,
+      iconKey: 'custom',
+    },
+    create: {
+      name: 'Enterprise Custom',
+      description: 'Custom pricing and dates — contact sales',
+      priceMonthly: null,
+      billingCycle: 'CUSTOM',
+      isCustom: true,
+      iconKey: 'custom',
+      isActive: true,
+    },
+  });
+  console.log(`  ✓ ${basicPlan.name}, ${proPlan.name}, Enterprise Custom`);
+
+  console.log('\n📎  Enrolling demo franchise on Basic…');
+  await prisma.franchiseSubscription.updateMany({
+    where: { franchiseId: franchise.id, status: 'ACTIVE' },
+    data: { status: 'CANCELLED' },
+  });
+  const startsAt = new Date();
+  startsAt.setUTCHours(0, 0, 0, 0);
+  const endsAt = new Date(startsAt);
+  endsAt.setUTCMonth(endsAt.getUTCMonth() + 12);
+  const enrollment = await prisma.franchiseSubscription.create({
+    data: {
+      franchiseId: franchise.id,
+      platformPlanId: basicPlan.id,
+      billingCycle: 'MONTHLY',
+      status: 'ACTIVE',
+      startsAt,
+      endsAt,
+      notes: 'Seed enrollment for local Admin/Manager/Staff access',
+    },
+  });
+  console.log(`  ✓ Subscription ${enrollment.id} through ${endsAt.toISOString().slice(0, 10)}`);
 
   const obsoleteEmails = [
     'superadmin@billvy.dev',
@@ -256,6 +370,174 @@ async function main() {
       }
     }
   }
+
+  // 4. Demo notifications (visible across roles / scopes)
+  console.log('\n🔔  Upserting demo notifications…');
+  const customer = await prisma.customer.findFirst({
+    where: { customerCode: 'CUST-DEMO0001' },
+  });
+  const managerUser = await prisma.user.findUnique({
+    where: { email: 'manager.test@billvyapp.local' },
+  });
+  const adminUser = await prisma.user.findUnique({
+    where: { email: 'admin.test@billvyapp.local' },
+  });
+
+  const now = new Date();
+  const hoursAgo = (h) => new Date(now.getTime() - h * 60 * 60 * 1000);
+
+  const demoNotifications = [
+    {
+      key: 'seed-platform-welcome',
+      salonId: null,
+      userId: adminUser?.id ?? null,
+      customerId: null,
+      channel: 'EMAIL',
+      notificationType: 'SYSTEM_ANNOUNCEMENT',
+      recipient: 'admin.test@billvyapp.local',
+      subject: 'Welcome to BillVy',
+      message: 'Your franchise workspace is ready. Review branches and billing settings when you can.',
+      status: 'DELIVERED',
+      provider: 'logging',
+      sentAt: hoursAgo(48),
+      deliveredAt: hoursAgo(47),
+      createdAt: hoursAgo(48),
+    },
+    {
+      key: 'seed-salon-appointment',
+      salonId: salon.id,
+      userId: managerUser?.id ?? null,
+      customerId: null,
+      channel: 'SMS',
+      notificationType: 'APPOINTMENT_REMINDER',
+      recipient: '9000000002',
+      subject: null,
+      message: 'Reminder: 3 appointments are scheduled for tomorrow at BillVy Demo Salon.',
+      status: 'SENT',
+      provider: 'logging',
+      sentAt: hoursAgo(6),
+      deliveredAt: null,
+      createdAt: hoursAgo(6),
+    },
+    {
+      key: 'seed-salon-inventory',
+      salonId: salon.id,
+      userId: managerUser?.id ?? null,
+      customerId: null,
+      channel: 'EMAIL',
+      notificationType: 'INVENTORY_LOW_STOCK',
+      recipient: 'manager.test@billvyapp.local',
+      subject: 'Low stock alert',
+      message: '2 products are below reorder level. Restock soon to avoid walk-in shortages.',
+      status: 'QUEUED',
+      provider: null,
+      sentAt: null,
+      deliveredAt: null,
+      createdAt: hoursAgo(2),
+    },
+    {
+      key: 'seed-salon-payment',
+      salonId: salon.id,
+      userId: null,
+      customerId: customer?.id ?? null,
+      channel: 'WHATSAPP',
+      notificationType: 'PAYMENT_RECEIVED',
+      recipient: '9876500123',
+      subject: 'Payment received',
+      message: 'We received ₹1,499 for your recent bill. Thank you!',
+      status: 'DELIVERED',
+      provider: 'logging',
+      sentAt: hoursAgo(12),
+      deliveredAt: hoursAgo(11),
+      createdAt: hoursAgo(12),
+    },
+    {
+      key: 'seed-customer-bill',
+      salonId: salon.id,
+      userId: null,
+      customerId: customer?.id ?? null,
+      channel: 'EMAIL',
+      notificationType: 'BILL_RECEIPT',
+      recipient: 'customer@billvyapp.com',
+      subject: 'Your bill receipt',
+      message: 'Your bill from BillVy Demo Salon is ready. Open the Bills page to download it.',
+      status: 'READ',
+      provider: 'logging',
+      sentAt: hoursAgo(30),
+      deliveredAt: hoursAgo(29),
+      createdAt: hoursAgo(30),
+    },
+    {
+      key: 'seed-customer-appointment',
+      salonId: salon.id,
+      userId: null,
+      customerId: customer?.id ?? null,
+      channel: 'SMS',
+      notificationType: 'APPOINTMENT_CONFIRMED',
+      recipient: '9876500123',
+      subject: null,
+      message: 'Your appointment at BillVy Demo Salon is confirmed for this week.',
+      status: 'DELIVERED',
+      provider: 'logging',
+      sentAt: hoursAgo(4),
+      deliveredAt: hoursAgo(3),
+      createdAt: hoursAgo(4),
+    },
+    {
+      key: 'seed-failed-delivery',
+      salonId: salon.id,
+      userId: managerUser?.id ?? null,
+      customerId: null,
+      channel: 'SMS',
+      notificationType: 'MEMBERSHIP_EXPIRY',
+      recipient: '9000000099',
+      subject: null,
+      message: 'A membership is expiring soon — delivery to this number failed.',
+      status: 'FAILED',
+      provider: 'logging',
+      errorMessage: 'Recipient unreachable (seed demo)',
+      sentAt: null,
+      deliveredAt: null,
+      failedAt: hoursAgo(1),
+      createdAt: hoursAgo(1),
+    },
+  ];
+
+  // Idempotent: wipe prior seed rows tagged in recipient/subject, then recreate.
+  // Prefer matching by notificationType + recipient combo used only by seed.
+  const seedRecipients = [...new Set(demoNotifications.map((n) => n.recipient))];
+  await prisma.notification.deleteMany({
+    where: {
+      OR: [
+        { recipient: { in: seedRecipients }, provider: 'logging', notificationType: { in: demoNotifications.map((n) => n.notificationType) } },
+        { errorMessage: 'Recipient unreachable (seed demo)' },
+      ],
+    },
+  });
+
+  for (const n of demoNotifications) {
+    await prisma.notification.create({
+      data: {
+        salonId: n.salonId,
+        userId: n.userId,
+        customerId: n.customerId,
+        channel: n.channel,
+        notificationType: n.notificationType,
+        recipient: n.recipient,
+        subject: n.subject,
+        message: n.message,
+        status: n.status,
+        provider: n.provider,
+        errorMessage: n.errorMessage ?? null,
+        sentAt: n.sentAt,
+        deliveredAt: n.deliveredAt,
+        failedAt: n.failedAt ?? null,
+        createdAt: n.createdAt,
+        updatedAt: n.createdAt,
+      },
+    });
+  }
+  console.log(`  ✓ ${demoNotifications.length} demo notification(s)`);
 
   console.log('\n✅  Seed complete!\n');
   console.log('┌─────────────┬────────────────────────────────┬─────────────────┐');

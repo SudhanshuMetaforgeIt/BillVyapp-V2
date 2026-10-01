@@ -1,8 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class SalonFranchiseSummaryDto {
+  @ApiProperty() id: string;
+  @ApiProperty() name: string;
+  @ApiProperty() code: string;
+}
+
 export class SalonResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() franchiseId: string;
+  @ApiProperty({ type: SalonFranchiseSummaryDto })
+  franchise: SalonFranchiseSummaryDto;
   @ApiProperty() name: string;
   @ApiProperty() code: string;
   @ApiPropertyOptional({ nullable: true }) phone: string | null;

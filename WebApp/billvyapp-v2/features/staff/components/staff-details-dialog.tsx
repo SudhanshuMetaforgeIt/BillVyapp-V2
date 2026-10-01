@@ -1,16 +1,19 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import {
   Briefcase,
   Calendar,
-  IndianRupee,
   Mail,
   MapPin,
   Phone,
   User,
   X,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+
 import { Button } from '@/components/ui/button';
+import { useUpdateStaff } from '../hooks/use-staff';
 import type { StaffItem } from '../types/staff.types';
 
 type StaffDetailsDialogProps = {
@@ -24,9 +27,21 @@ export function StaffDetailsDialog({
   isOpen,
   onClose,
 }: StaffDetailsDialogProps) {
+  const updateStaff = useUpdateStaff();
+  const [salary, setSalary] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!staff) return;
+    setSalary(staff.salary > 0 ? String(staff.salary) : '');
+    setError(null);
+  }, [staff]);
+
   if (!isOpen || !staff) return null;
 
   const formatSalary = (val: number) => {
+    if (!val) return 'Not set';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -34,10 +49,32 @@ export function StaffDetailsDialog({
     }).format(val);
   };
 
+  const handleSaveSalary = async () => {
+    const amount = Number(salary);
+    if (!salary.trim() || !Number.isFinite(amount) || amount < 0) {
+      setError('Enter a valid monthly salary.');
+      return;
+    }
+    try {
+      setSaving(true);
+      setError(null);
+      await updateStaff.mutateAsync({ id: staff.id, salary: amount });
+      toast.success('Salary updated');
+      onClose();
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'Failed to update salary.';
+      setError(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs">
       <div className="relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-stone-800">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-stone-700 dark:bg-amber-950/60 dark:text-amber-300">
@@ -65,7 +102,6 @@ export function StaffDetailsDialog({
           </button>
         </div>
 
-        {/* Details breakdown */}
         <div className="mt-4 space-y-3 rounded-xl border border-stone-100 bg-stone-50/50 p-4 text-xs dark:border-stone-800 dark:bg-stone-800/40">
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <Phone className="h-4 w-4 text-stone-400" />
@@ -79,24 +115,33 @@ export function StaffDetailsDialog({
 
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <MapPin className="h-4 w-4 text-stone-400" />
-            <span>Assigned Branch: <strong className="font-semibold">{staff.branchName}</strong></span>
+            <span>
+              Assigned Branch:{' '}
+              <strong className="font-semibold">{staff.branchName}</strong>
+            </span>
           </div>
 
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <Briefcase className="h-4 w-4 text-stone-400" />
-            <span>Role / Code: <strong className="font-semibold">{staff.roleName} ({staff.roleCode})</strong></span>
+            <span>
+              Role / Code:{' '}
+              <strong className="font-semibold">
+                {staff.roleName} ({staff.roleCode})
+              </strong>
+            </span>
           </div>
 
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <Calendar className="h-4 w-4 text-stone-400" />
-            <span>Joined: <strong className="font-semibold">{staff.joinDate}</strong></span>
+            <span>
+              Joined: <strong className="font-semibold">{staff.joinDate}</strong>
+            </span>
           </div>
         </div>
 
-        {/* Salary & Status Cards */}
         <div className="mt-4 grid grid-cols-2 gap-3 text-center">
           <div className="rounded-xl border border-stone-100 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-800/40">
-            <div className="text-[11px] text-stone-400 font-medium">Monthly Salary</div>
+            <div className="text-[11px] text-stone-400 font-medium">Current Salary</div>
             <div className="mt-1 text-base font-bold text-stone-900 dark:text-white">
               {formatSalary(staff.salary)}
             </div>
@@ -110,14 +155,41 @@ export function StaffDetailsDialog({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-5 flex items-center justify-end border-t border-stone-100 pt-3 dark:border-stone-800">
+        <div className="mt-4 space-y-2">
+          <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
+            Update Monthly Salary (₹)
+          </label>
+          <input
+            type="number"
+            min={0}
+            step="1"
+            value={salary}
+            onChange={(e) => setSalary(e.target.value)}
+            placeholder="e.g. 28000"
+            className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
+          />
+          {error ? (
+            <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>
+          ) : null}
+        </div>
+
+        <div className="mt-5 flex items-center justify-end gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
           <Button
             type="button"
+            variant="outline"
             onClick={onClose}
-            className="h-9 px-5 text-xs font-semibold bg-stone-900 text-white hover:bg-stone-800 dark:bg-stone-100 dark:text-stone-900"
+            disabled={saving}
+            className="h-9 px-4 text-xs"
           >
             Close
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleSaveSalary()}
+            disabled={saving}
+            className="h-9 px-5 text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600"
+          >
+            {saving ? 'Saving…' : 'Save Salary'}
           </Button>
         </div>
       </div>

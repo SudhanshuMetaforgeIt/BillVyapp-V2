@@ -32,18 +32,23 @@ import {
   EmailSettingsResponseDto,
   GeneralSettingsResponseDto,
   IntegrationResponseDto,
+  LogPurgeResponseDto,
   LogRetentionResponseDto,
   LogsQueryDto,
   MessageResponseDto,
   NotificationsSettingsResponseDto,
   PaginatedActivityDto,
   SecuritySettingsResponseDto,
+  SettingsBackupListItemDto,
+  SettingsBackupResponseDto,
   SystemSettingsResponseDto,
+  SystemUpdateStatusDto,
 } from './dto/settings-response.dto';
 import {
   BrandingUploadDto,
   ConfirmDestructiveDto,
   ConfirmResetDto,
+  ConfirmRestoreDto,
   CreateIntegrationDto,
   TestEmailDto,
   UpdateBrandingSettingsDto,
@@ -215,6 +220,26 @@ export class SettingsController {
     );
   }
 
+  @Post('logs/purge')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Purge audit logs older than the retention window',
+    description:
+      'Requires confirm=true. Also runs automatically every day at 03:00.',
+  })
+  @ApiResponse({ status: 200, type: LogPurgeResponseDto })
+  purgeExpiredLogs(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ConfirmDestructiveDto,
+    @Req() req: Request,
+  ) {
+    return this.settingsService.purgeExpiredLogs(
+      user,
+      dto,
+      requestContext(req),
+    );
+  }
+
   @Get('logs')
   @ApiOperation({
     summary: 'List system-related audit log entries',
@@ -258,6 +283,44 @@ export class SettingsController {
     @Req() req: Request,
   ) {
     return this.settingsService.resetSettings(user, dto, requestContext(req));
+  }
+
+  @Post('backup')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Create a platform settings backup snapshot',
+    description:
+      'Persists a restoreable snapshot of platform settings and integrations under local storage.',
+  })
+  @ApiResponse({ status: 200, type: SettingsBackupResponseDto })
+  createBackup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: Request,
+  ) {
+    return this.settingsService.createBackup(user, requestContext(req));
+  }
+
+  @Get('backups')
+  @ApiOperation({ summary: 'List platform settings backups' })
+  @ApiResponse({ status: 200, type: [SettingsBackupListItemDto] })
+  listBackups() {
+    return this.settingsService.listBackups();
+  }
+
+  @Post('restore')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Restore platform settings from a backup',
+    description:
+      'Requires confirm=true and confirmationPhrase=RESTORE. Defaults to the latest backup when backupId is omitted.',
+  })
+  @ApiResponse({ status: 200, type: SettingsBackupResponseDto })
+  restoreBackup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ConfirmRestoreDto,
+    @Req() req: Request,
+  ) {
+    return this.settingsService.restoreBackup(user, dto, requestContext(req));
   }
 
   // ------------------------------------------------------------------ email
@@ -322,6 +385,13 @@ export class SettingsController {
   }
 
   // ------------------------------------------------------------------ system
+
+  @Get('system/update-status')
+  @ApiOperation({ summary: 'Check whether a platform update is available' })
+  @ApiResponse({ status: 200, type: SystemUpdateStatusDto })
+  checkSystemUpdate() {
+    return this.settingsService.checkSystemUpdate();
+  }
 
   @Get('system')
   @ApiOperation({ summary: 'Get system configuration flags' })

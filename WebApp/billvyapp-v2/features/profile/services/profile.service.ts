@@ -6,6 +6,17 @@ import { can } from '@/lib/capabilities';
 import type { UserApiItem } from '@/features/users/types/users.types';
 import type { ProfileUser, UpdateProfilePayload } from '../types/profile.types';
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: 'English',
+  hi: 'Hindi',
+};
+
+function languageLabel(code: string | null | undefined): string | null {
+  if (!code?.trim()) return null;
+  const key = code.trim().toLowerCase();
+  return LANGUAGE_LABELS[key] ?? code.trim();
+}
+
 function fromUserDetail(detail: UserApiItem): ProfileUser {
   const role = isRoleCode(detail.role.code) ? detail.role.code : 'SUPER_ADMIN';
 
@@ -20,9 +31,12 @@ function fromUserDetail(detail: UserApiItem): ProfileUser {
     roleLabel: ROLE_LABELS[role],
     isActive: detail.isActive,
     salonId: detail.salonId ?? null,
+    salonName: null,
     franchiseId: detail.franchiseId ?? null,
     createdAt: detail.createdAt,
     lastLoginAt: detail.lastLoginAt,
+    timezone: null,
+    language: null,
   };
 }
 
@@ -40,15 +54,19 @@ function toProfileUser(me: AuthMeUser, detail: UserApiItem | null): ProfileUser 
     roleLabel: ROLE_LABELS[role],
     isActive: me.isActive,
     salonId: me.salonId ?? detail?.salonId ?? null,
+    salonName: me.salonName ?? null,
     franchiseId: me.franchiseId ?? detail?.franchiseId ?? null,
-    createdAt: detail?.createdAt ?? null,
-    lastLoginAt: detail?.lastLoginAt ?? null,
+    createdAt: me.createdAt ?? detail?.createdAt ?? null,
+    lastLoginAt: me.lastLoginAt ?? detail?.lastLoginAt ?? null,
+    timezone: me.timezone ?? null,
+    language: languageLabel(me.language),
   };
 }
 
 /**
- * Loads the signed-in profile from GET /auth/me. Joined / last-login metadata
- * comes from GET /users/:id, which only user administrators may call.
+ * Loads the signed-in profile from GET /auth/me (includes join / last-login /
+ * salon name / franchise locale). Optionally merges GET /users/:id when the
+ * caller may administer users.
  */
 export async function fetchProfile(): Promise<ProfileUser> {
   const me = await authService.me();

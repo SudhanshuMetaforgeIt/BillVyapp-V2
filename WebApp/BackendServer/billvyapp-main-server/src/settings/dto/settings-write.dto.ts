@@ -259,6 +259,26 @@ export class ConfirmResetDto extends ConfirmDestructiveDto {
   confirmationPhrase: string;
 }
 
+export class ConfirmRestoreDto extends ConfirmDestructiveDto {
+  @ApiProperty({
+    example: 'RESTORE',
+    description: 'Must equal RESTORE (case-sensitive).',
+  })
+  @IsString()
+  @Matches(/^RESTORE$/)
+  confirmationPhrase: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Backup id to restore. When omitted, the most recent backup is used.',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  backupId?: string;
+}
+
 export class CreateIntegrationDto {
   @ApiProperty({ example: 'Razorpay' })
   @IsString()

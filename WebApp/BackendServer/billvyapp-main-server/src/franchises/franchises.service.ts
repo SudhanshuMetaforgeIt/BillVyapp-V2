@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -18,7 +19,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFranchiseDto } from './dto/create-franchise.dto';
 import { ListFranchisesQueryDto } from './dto/list-franchises-query.dto';
 import { UpdateFranchiseDto } from './dto/update-franchise.dto';
+import { FranchisePreferencesDto } from './dto/franchise-preferences.dto';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
+import type { Prisma } from '../generated/prisma/client';
 
 const FRANCHISE_SELECT = {
   id: true,
@@ -26,6 +29,7 @@ const FRANCHISE_SELECT = {
   code: true,
   phone: true,
   email: true,
+  preferences: true,
   isActive: true,
   createdAt: true,
   updatedAt: true,
@@ -37,7 +41,13 @@ export type FranchiseRecord = {
   code: string;
   phone: string | null;
   email: string | null;
+  preferences: unknown;
   isActive: boolean;
+  currentPlanName: string | null;
+  subscriptionStatus: 'active' | 'expired' | 'cancelled' | null;
+  subscriptionStartsAt: string | null;
+  subscriptionEndsAt: string | null;
+  subscriptionActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -81,7 +91,11 @@ export class FranchisesService {
       this.prisma.franchise.count({ where }),
     ]);
 
-    return paginated(data, total, page, limit);
+    const enriched = await Promise.all(
+      data.map((row) => this.enrichWithSubscription(row)),
+    );
+
+    return paginated(enriched, total, page, limit);
   }
 
   async findOne(user: AuthenticatedUser, id: string): Promise<FranchiseRecord> {
@@ -94,7 +108,7 @@ export class FranchisesService {
       throw new NotFoundException('Franchise not found');
     }
 
-    return franchise;
+    return this.enrichWithSubscription(franchise);
   }
 
   async create(
@@ -125,7 +139,7 @@ export class FranchisesService {
         userAgent: ctx.userAgent,
       });
 
-      return created;
+      return this.enrichWithSubscription(created);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new ConflictException('Franchise code already exists');
@@ -147,12 +161,25 @@ export class FranchisesService {
       code?: string;
       phone?: string | null;
       email?: string | null;
+      preferences?: Prisma.InputJsonValue;
     } = {};
 
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
     if (dto.code !== undefined) data.code = trimRequired(dto.code);
     if (dto.phone !== undefined) data.phone = trimOrNull(dto.phone) ?? null;
     if (dto.email !== undefined) data.email = trimOrNull(dto.email) ?? null;
+    if (dto.preferences !== undefined) {
+      const existingPrefs =
+        existing.preferences &&
+        typeof existing.preferences === 'object' &&
+        !Array.isArray(existing.preferences)
+          ? (existing.preferences as Record<string, unknown>)
+          : {};
+      data.preferences = {
+        ...existingPrefs,
+        ...dto.preferences,
+      } as Prisma.InputJsonValue;
+    }
 
     try {
       const updated = await this.prisma.franchise.update({
@@ -172,13 +199,22 @@ export class FranchisesService {
         userAgent: ctx.userAgent,
       });
 
-      return updated;
+      return this.enrichWithSubscription(updated);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
         throw new ConflictException('Franchise code already exists');
       }
       throw error;
     }
+  }
+
+  async updatePreferences(
+    user: AuthenticatedUser,
+    id: string,
+    preferences: FranchisePreferencesDto,
+    ctx: RequestContext,
+  ): Promise<FranchiseRecord> {
+    return this.update(user, id, { preferences }, ctx);
   }
 
   async updateStatus(
@@ -206,6 +242,72 @@ export class FranchisesService {
       userAgent: ctx.userAgent,
     });
 
-    return updated;
+    return this.enrichWithSubscription(updated);
+  }
+
+  private async enrichWithSubscription(row: {
+    id: string;
+    name: string;
+    code: string;
+    phone: string | null;
+    email: string | null;
+    preferences: unknown;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }): Promise<FranchiseRecord> {
+    const today = new Date();
+    const utcToday = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+
+    const active = await this.prisma.franchiseSubscription.findFirst({
+      where: {
+        franchiseId: row.id,
+        status: 'ACTIVE',
+        startsAt: { lte: utcToday },
+        endsAt: { gte: utcToday },
+      },
+      select: {
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        platformPlan: { select: { name: true } },
+      },
+      orderBy: { endsAt: 'desc' },
+    });
+
+    const latest =
+      active ??
+      (await this.prisma.franchiseSubscription.findFirst({
+        where: { franchiseId: row.id },
+        select: {
+          status: true,
+          startsAt: true,
+          endsAt: true,
+          platformPlan: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }));
+
+    const statusMap = {
+      ACTIVE: 'active',
+      EXPIRED: 'expired',
+      CANCELLED: 'cancelled',
+    } as const;
+
+    return {
+      ...row,
+      currentPlanName: latest?.platformPlan.name ?? null,
+      subscriptionStatus: latest ? statusMap[latest.status] : null,
+      subscriptionStartsAt: latest
+        ? // DATE_ONLY sentinel stored at UTC midnight
+          formatDateOnlyUtc(latest.startsAt)
+        : null,
+      subscriptionEndsAt: latest
+        ? formatDateOnlyUtc(latest.endsAt)
+        : null,
+      subscriptionActive: Boolean(active),
+    };
   }
 }

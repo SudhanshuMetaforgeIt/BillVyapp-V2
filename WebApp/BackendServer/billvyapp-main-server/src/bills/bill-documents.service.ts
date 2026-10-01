@@ -14,6 +14,7 @@ import {
 } from '../common/pagination/pagination';
 import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull } from '../common/strings';
+import { ObjectStorageService } from '../media/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBillDocumentDto } from './dto/create-bill-document.dto';
 
@@ -53,6 +54,7 @@ export class BillDocumentsService {
     private readonly prisma: PrismaService,
     private readonly scope: ScopeService,
     private readonly audit: AuditService,
+    private readonly storage: ObjectStorageService,
   ) {}
 
   async list(
@@ -86,6 +88,21 @@ export class BillDocumentsService {
   ): Promise<BillDocumentRecord> {
     await this.requireBillAccess(user, billId);
     return this.requireDocument(billId, id);
+  }
+
+  async createDownloadUrl(
+    user: AuthenticatedUser,
+    billId: string,
+    id: string,
+  ): Promise<{ storageKey: string; downloadUrl: string; expiresInSeconds: number }> {
+    await this.requireBillAccess(user, billId);
+    const document = await this.requireDocument(billId, id);
+    const download = await this.storage.createDownloadUrl(document.storageKey);
+    return {
+      storageKey: download.storageKey,
+      downloadUrl: download.downloadUrl,
+      expiresInSeconds: download.expiresInSeconds ?? 900,
+    };
   }
 
   async create(

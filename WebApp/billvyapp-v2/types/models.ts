@@ -43,6 +43,11 @@ export interface Franchise {
 export interface Salon {
   id: string;
   franchiseId: string;
+  franchise?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   name: string;
   code: string;
   phone: string | null;

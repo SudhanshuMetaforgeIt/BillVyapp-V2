@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { FranchiseSubscriptionsModule } from '../franchise-subscriptions/franchise-subscriptions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RedisOtpStore } from './otp/redis-otp.store';
@@ -14,12 +15,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
+    FranchiseSubscriptionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      // Sign options are supplied per-call in AuthService.issueSession, which
-      // needs a different secret and lifetime for access vs refresh tokens.
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('jwt.accessSecret'),
       }),
@@ -32,9 +32,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     SessionService,
     OtpService,
     JwtStrategy,
-
-    // OTP transport and storage are bound here by interface only. Swapping in a
-    // real SMS provider is a one-line change in this module.
     { provide: OTP_STORE, useClass: RedisOtpStore },
     { provide: OTP_SENDER, useClass: LoggingOtpSender },
   ],

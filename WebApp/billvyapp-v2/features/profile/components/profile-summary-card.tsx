@@ -66,24 +66,24 @@ export function ProfileSummaryCard({
       label: 'Last Login',
       value: formatDateTime(profile.lastLoginAt),
     },
-    ...(profile.salonId
+    ...(profile.salonId || profile.salonName
       ? [
           {
             icon: Building2,
             label: 'Salon',
-            value: profile.salonId,
+            value: profile.salonName?.trim() || profile.salonId || '—',
           },
         ]
       : []),
     {
       icon: Globe2,
       label: 'Timezone',
-      value: '—',
+      value: profile.timezone?.trim() || '—',
     },
     {
       icon: Languages,
       label: 'Language',
-      value: '—',
+      value: profile.language?.trim() || '—',
     },
     {
       icon: Shield,

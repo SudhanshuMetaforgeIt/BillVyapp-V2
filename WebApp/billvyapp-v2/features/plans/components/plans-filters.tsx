@@ -1,5 +1,7 @@
 'use client';
 
+import { SelectInput } from '@/components/data/form-fields';
+
 import { Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -17,7 +19,7 @@ type PlansFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 rounded-lg border border-border bg-background px-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne';
+  'h-11 w-auto min-w-[9rem] text-sm font-medium';
 
 export function PlansFilters({
   search,
@@ -49,7 +51,7 @@ export function PlansFilters({
           />
         </div>
 
-        <select
+        <SelectInput
           value={status}
           onChange={(e) => onStatusChange(e.target.value as PlanStatusFilter)}
           aria-label="Filter by status"
@@ -58,7 +60,7 @@ export function PlansFilters({
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
-        </select>
+        </SelectInput>
       </div>
 
       <Button

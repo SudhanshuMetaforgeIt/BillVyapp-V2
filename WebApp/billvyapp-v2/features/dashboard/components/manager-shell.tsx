@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { ROUTES } from '@/constants/routes';
+import { SubscriptionGate } from '@/features/subscription/components/subscription-gate';
 
 type SalonShellProps = {
   children: ReactNode;
@@ -29,6 +30,7 @@ function sharedMeta(r: {
   loyalty: string;
   services: string;
   notifications: string;
+  support: string;
   search: string;
   profile: string;
 }): PageMeta {
@@ -42,6 +44,7 @@ function sharedMeta(r: {
     [r.loyalty]: { title: 'Loyalty', subtitle: 'Customer loyalty points and adjustments.' },
     [r.services]: { title: 'Services', subtitle: 'Salon services and pricing.' },
     [r.notifications]: { title: 'Notifications', subtitle: 'Messages sent to customers.' },
+    [r.support]: { title: 'Support', subtitle: 'Raise and track support tickets.' },
     [r.search]: { title: 'Search', subtitle: 'Find customers, bills, appointments and more.' },
     [r.profile]: { title: 'Profile', subtitle: 'Your account information.' },
   };
@@ -68,13 +71,16 @@ export function ManagerShell({ children }: SalonShellProps) {
     [r.vendors]: { title: 'Vendors', subtitle: 'Suppliers for your products.' },
     [r.memberships]: { title: 'Memberships', subtitle: 'Manage membership plans and members.' },
     [r.campaigns]: { title: 'Campaigns', subtitle: 'Create and track marketing campaigns.' },
-    [r.settings]: { title: 'Settings', subtitle: 'Manage your business preferences and configurations.' },
+    [r.subscriptionRequired]: {
+      title: 'Subscription required',
+      subtitle: 'Your franchise must be enrolled to use BillVyApp.',
+    },
   };
   const meta = pageMeta[pathname] ?? { title: 'Salon Manager' };
 
   return (
     <AppShell requiredRole="MANAGER" title={meta.title} subtitle={meta.subtitle}>
-      {children}
+      <SubscriptionGate>{children}</SubscriptionGate>
     </AppShell>
   );
 }
@@ -100,12 +106,16 @@ export function StaffShell({ children }: SalonShellProps) {
       title: 'Profile',
       subtitle: 'Your account information.',
     },
+    [r.subscriptionRequired]: {
+      title: 'Subscription required',
+      subtitle: 'Your franchise must be enrolled to use BillVyApp.',
+    },
   };
   const meta = pageMeta[pathname] ?? { title: 'Salon Staff' };
 
   return (
     <AppShell requiredRole="STAFF" title={meta.title} subtitle={meta.subtitle}>
-      {children}
+      <SubscriptionGate>{children}</SubscriptionGate>
     </AppShell>
   );
 }
