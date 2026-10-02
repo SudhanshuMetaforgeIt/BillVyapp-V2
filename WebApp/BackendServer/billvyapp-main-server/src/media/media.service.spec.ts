@@ -150,6 +150,29 @@ describe('MediaService', () => {
     );
   });
 
+  it('keeps user avatar metadata out of the private media API', async () => {
+    prisma.mediaFile.findUnique.mockResolvedValue(
+      mediaRow({ entityType: 'ProfilePhoto' }),
+    );
+    await expect(service.findOne(manager, 'media-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(
+      service.createUpload(
+        manager,
+        {
+          originalFileName: 'avatar.png',
+          mimeType: 'image/png',
+          fileSize: 10,
+          entityType: 'ProfilePhotoReady',
+          entityId: manager.userId,
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('Profile photo uploads must use');
+    expect(prisma.mediaFile.create).not.toHaveBeenCalled();
+  });
+
   it('rejects customer access to another uploader', async () => {
     const customer: AuthenticatedUser = {
       ...manager,

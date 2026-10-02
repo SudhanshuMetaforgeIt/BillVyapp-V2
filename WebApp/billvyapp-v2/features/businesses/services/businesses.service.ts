@@ -4,6 +4,7 @@ import type {
   BusinessesListParams,
   BusinessesPageData,
   BusinessListRow,
+  BusinessPlanTone,
   BusinessStatusFilter,
   CreateBusinessPayload,
   FranchiseListItem,

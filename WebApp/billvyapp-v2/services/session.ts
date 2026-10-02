@@ -17,6 +17,7 @@ export function toSessionUser(me: AuthMeUser): AuthUser | null {
     role: me.role,
     franchiseId: me.franchiseId ?? null,
     salonId: me.salonId ?? null,
+    profilePhoto: me.profilePhoto ?? null,
     subscriptionActive: me.subscriptionActive,
     subscriptionPlanName: me.subscriptionPlanName ?? null,
     subscriptionEndsAt: me.subscriptionEndsAt ?? null,

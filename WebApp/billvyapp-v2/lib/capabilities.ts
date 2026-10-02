@@ -23,6 +23,8 @@ export const CAPABILITIES = {
   'salons.read': ALL,
   'salons.write': ADMINS,
   'salons.geocode': ADMINS,
+  'salonPhotos.read': ALL,
+  'salonPhotos.write': MANAGEMENT,
 
   'customers.read': ALL,
   'customers.create': INTERNAL,

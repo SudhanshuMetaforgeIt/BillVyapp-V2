@@ -242,6 +242,9 @@ model User {
   /// Argon2/bcrypt digest only. A plain-text password must never reach this column.
   passwordHash String    @db.VarChar(255)
   profilePhoto String?   @db.VarChar(512)
+  /// Current avatar; metadata and uploader ownership remain in MediaFile.
+  profilePhotoMediaFileId String? @unique @db.VarChar(36)
+  profilePhotoMediaFile MediaFile? @relation("UserProfilePhoto", fields: [profilePhotoMediaFileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   /// Monthly salary in INR. Optional for platform roles; set by Admin for MANAGER/STAFF.
   salary       Decimal?  @db.Decimal(12, 2)
   isActive     Boolean   @default(true)
@@ -364,10 +367,13 @@ model Salon {
   @@map("salons")
 }
 
-/// Object-storage metadata for salon imagery. Binary content lives in S3, never MySQL.
+/// Object-storage metadata for public salon imagery. Binary content lives in the
+/// configured public image provider (Cloudinary today), never MySQL.
 model SalonPhoto {
   id           String         @id @default(uuid()) @db.VarChar(36)
   salonId      String         @db.VarChar(36)
+  /// Storage adapter that owns the object (CLOUDINARY today; S3 later).
+  storageProvider String       @default("S3") @db.VarChar(50)
   storageKey   String         @db.VarChar(512)
   fileName     String         @db.VarChar(255)
   fileUrl      String?        @db.Text
@@ -960,6 +966,7 @@ model MediaFile {
 
   salon          Salon? @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   uploadedByUser User?  @relation("MediaFileUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  profilePhotoUser User? @relation("UserProfilePhoto")
 
   @@index([salonId])
   @@index([uploadedBy])

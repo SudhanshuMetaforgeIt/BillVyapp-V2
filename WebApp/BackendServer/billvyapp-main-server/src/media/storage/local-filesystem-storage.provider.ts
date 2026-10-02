@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { createReadStream, createWriteStream, existsSync } from 'fs';
-import { mkdir, unlink } from 'fs/promises';
+import { mkdir, unlink, readFile, writeFile } from 'fs/promises';
 import { dirname, normalize, resolve, sep } from 'path';
 import { pipeline } from 'stream/promises';
 import type { Readable } from 'stream';
@@ -101,6 +101,21 @@ export class LocalFilesystemStorageProvider
   objectExists(storageKey: string): Promise<boolean> {
     const absolute = this.resolveSafePath(storageKey);
     return Promise.resolve(existsSync(absolute));
+  }
+
+  async uploadObject(
+    storageKey: string,
+    bytes: Buffer,
+    mimeType: string,
+  ): Promise<void> {
+    void mimeType;
+    const absolute = this.resolveSafePath(storageKey);
+    await mkdir(dirname(absolute), { recursive: true });
+    await writeFile(absolute, bytes, { flag: 'wx' });
+  }
+
+  readObject(storageKey: string): Promise<Buffer> {
+    return readFile(this.resolveSafePath(storageKey));
   }
 
   assertValidSignature(

@@ -82,6 +82,14 @@ export class MediaService {
     }
 
     const where = {
+      AND: [
+        {
+          OR: [
+            { entityType: null },
+            { NOT: { entityType: { startsWith: 'ProfilePhoto' } } },
+          ],
+        },
+      ],
       ...this.mediaScope(user),
       ...(query.salonId ? { salonId: query.salonId } : {}),
       ...(query.entityType ? { entityType: query.entityType } : {}),
@@ -111,6 +119,11 @@ export class MediaService {
     dto: CreateMediaUploadDto,
     ctx: RequestContext,
   ): Promise<MediaUploadRecord> {
+    if (dto.entityType?.startsWith('ProfilePhoto')) {
+      throw new BadRequestException(
+        'Profile photo uploads must use /auth/me/profile-photo',
+      );
+    }
     if (dto.salonId) {
       await this.scope.assertSalonAccess(actor, dto.salonId);
     }
@@ -278,6 +291,10 @@ export class MediaService {
     });
 
     if (!record) {
+      throw new NotFoundException('Media file not found');
+    }
+
+    if (record.entityType?.startsWith('ProfilePhoto')) {
       throw new NotFoundException('Media file not found');
     }
 

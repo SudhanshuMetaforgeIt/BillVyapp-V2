@@ -43,6 +43,7 @@ import { ProductCategoriesModule } from './product-categories/product-categories
 import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { SalonsModule } from './salons/salons.module';
+import { SalonPhotosModule } from './salon-photos/salon-photos.module';
 import { SearchModule } from './search/search.module';
 import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { ServicesModule } from './services/services.module';
@@ -87,6 +88,7 @@ import { VendorsModule } from './vendors/vendors.module';
     UsersModule,
     FranchisesModule,
     SalonsModule,
+    SalonPhotosModule,
     CustomersModule,
     ServiceCategoriesModule,
     ServicesModule,

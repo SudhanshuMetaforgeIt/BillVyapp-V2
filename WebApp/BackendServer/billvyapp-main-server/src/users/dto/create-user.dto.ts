@@ -65,12 +65,6 @@ export class CreateUserDto {
   @MaxLength(128)
   password: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  @IsOptional()
-  @IsString()
-  @MaxLength(512)
-  profilePhoto?: string | null;
-
   @ApiPropertyOptional({
     example: 35000,
     minimum: 0,

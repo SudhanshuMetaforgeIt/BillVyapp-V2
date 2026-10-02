@@ -229,6 +229,7 @@ export class BillDocumentsService {
       select: {
         id: true,
         storageKey: true,
+        entityType: true,
         originalFileName: true,
         mimeType: true,
         fileSize: true,
@@ -239,6 +240,10 @@ export class BillDocumentsService {
 
     if (!media) {
       throw new NotFoundException('Media file not found');
+    }
+
+    if (media.entityType?.startsWith('ProfilePhoto')) {
+      throw new ForbiddenException('Profile images cannot be attached as private documents');
     }
 
     if (user.role === RoleCode.CUSTOMER) {

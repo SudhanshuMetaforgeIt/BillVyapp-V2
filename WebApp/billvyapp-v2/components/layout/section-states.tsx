@@ -68,7 +68,7 @@ type DashboardSectionCardProps = {
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
-} & HTMLAttributes<HTMLElement>;
+} & Omit<HTMLAttributes<HTMLElement>, 'title'>;
 
 export function DashboardSectionCard({
   title,

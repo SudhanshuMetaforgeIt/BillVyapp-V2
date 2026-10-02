@@ -8,6 +8,9 @@ import { ScopeService } from '../common/scope/scope.service';
 import { SalonsController } from './salons.controller';
 import { SalonsService } from './salons.service';
 import { CreateSalonDto } from './dto/create-salon.dto';
+import { ConfigService } from '@nestjs/config';
+import { SalonImageStorageService } from '../salon-photos/salon-image-storage.service';
+import { CloudinarySalonImageProvider } from '../salon-photos/storage/cloudinary-salon-image.provider';
 
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
@@ -93,12 +96,22 @@ describe('SalonsService', () => {
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );
-    prisma.franchise.findUnique.mockResolvedValue({ id: 'fr-1', isActive: true });
+    prisma.franchise.findUnique.mockResolvedValue({
+      id: 'fr-1',
+      isActive: true,
+    });
     service = new SalonsService(
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
       config as never,
+      new SalonImageStorageService(
+        { get: () => 'cloudinary' } as unknown as ConfigService,
+        {
+          providerName: 'CLOUDINARY',
+          getDeliveryUrl: () => 'https://example.com/uncropped-image',
+        } as unknown as CloudinarySalonImageProvider,
+      ),
     );
   });
 
@@ -149,6 +162,56 @@ describe('SalonsService', () => {
 
     expect(result.meta.total).toBe(1);
     expect(result.data[0].id).toBe('salon-1');
+  });
+
+  it('keeps customer discovery and detail photos provider-neutral and ordered', async () => {
+    const customerActor = { ...actor, role: RoleCode.CUSTOMER };
+    const photos = [
+      {
+        id: 'portrait',
+        storageProvider: 'CLOUDINARY',
+        storageKey: 'salons/salon-1/portrait',
+        fileUrl: 'https://example.com/old-cropped-image',
+        isPrimary: true,
+      },
+    ];
+    prisma.salon.findMany.mockResolvedValue([salon({ photos })]);
+    prisma.salon.count.mockResolvedValue(1);
+    prisma.salon.findFirst.mockResolvedValue(salon({ photos }));
+    const listing = await service.list(customerActor, { page: 1, limit: 20 });
+    const detail = await service.findOne(customerActor, 'salon-1');
+    expect(detail.photos?.[0]).toMatchObject({
+      id: 'portrait',
+      fileUrl: 'https://example.com/uncropped-image',
+    });
+    expect(detail.photos?.[0]).not.toHaveProperty('storageKey');
+    expect(detail.photos?.[0]).not.toHaveProperty('storageProvider');
+    expect(listing.data[0].photos).toEqual(detail.photos);
+    const publicPhotoSelect = {
+      select: expect.objectContaining({
+        storageProvider: true,
+        storageKey: true,
+      }) as unknown,
+      orderBy: [
+        { isPrimary: 'desc' },
+        { displayOrder: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    };
+    expect(prisma.salon.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          photos: publicPhotoSelect,
+        }) as unknown,
+      }),
+    );
+    expect(prisma.salon.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          photos: publicPhotoSelect,
+        }) as unknown,
+      }),
+    );
   });
 
   it('updates a salon without changing franchiseId', async () => {

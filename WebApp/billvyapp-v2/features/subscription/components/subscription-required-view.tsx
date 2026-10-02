@@ -117,7 +117,7 @@ export function SubscriptionRequiredView() {
           type="button"
           variant="outline"
           disabled={logout.isPending}
-          onClick={() => logout.mutate()}
+          onClick={() => void logout.logout()}
         >
           <LogOut className="mr-1.5 size-3.5" aria-hidden />
           Log out

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SalonPhotoResponseDto } from '../../salon-photos/dto/salon-photo-response.dto';
 
 export class SalonFranchiseSummaryDto {
   @ApiProperty() id: string;
@@ -28,4 +29,5 @@ export class SalonResponseDto {
   @ApiProperty() isActive: boolean;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
+  @ApiProperty({ type: [SalonPhotoResponseDto] }) photos: SalonPhotoResponseDto[];
 }

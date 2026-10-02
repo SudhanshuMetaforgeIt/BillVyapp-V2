@@ -44,9 +44,4 @@ export class CreateCustomerDto {
   @IsEnum(Gender)
   gender?: Gender;
 
-  @ApiPropertyOptional({ nullable: true })
-  @IsOptional()
-  @IsString()
-  @MaxLength(512)
-  profilePhoto?: string | null;
 }

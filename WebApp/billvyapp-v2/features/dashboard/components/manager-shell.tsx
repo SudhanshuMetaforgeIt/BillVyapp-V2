@@ -67,6 +67,7 @@ export function ManagerShell({ children }: SalonShellProps) {
   const pageMeta: PageMeta = {
     ...useRootMeta(r.root, "Here's what's happening at your salon today."),
     ...sharedMeta(r),
+    [r.salonPhotos]: { title: 'Salon Photos', subtitle: 'Manage your salon cover and gallery.' },
     [r.stockMovements]: { title: 'Stock Movements', subtitle: 'Every stock change, with its reason.' },
     [r.vendors]: { title: 'Vendors', subtitle: 'Suppliers for your products.' },
     [r.memberships]: { title: 'Memberships', subtitle: 'Manage membership plans and members.' },
