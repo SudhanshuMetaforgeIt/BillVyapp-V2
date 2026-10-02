@@ -3,16 +3,13 @@
 import {
   Building2,
   CalendarDays,
-  Camera,
   Clock3,
   Globe2,
   Languages,
   Shield,
-  UserRound,
 } from 'lucide-react';
-import Image from 'next/image';
-import toast from 'react-hot-toast';
 
+import { ProfilePhotoEditor } from './profile-photo-editor';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -100,34 +97,7 @@ export function ProfileSummaryCard({
       )}
       data-dash-animate="section"
     >
-      <div className="relative">
-        <div className="flex size-28 items-center justify-center overflow-hidden rounded-full bg-champagne-light text-2xl font-semibold text-brand-orange ring-4 ring-champagne/20">
-          {profile.profilePhoto ? (
-            <Image
-              src={profile.profilePhoto}
-              alt={fullName}
-              width={112}
-              height={112}
-              className="size-full object-cover"
-              unoptimized
-            />
-          ) : (
-            <span aria-hidden>
-              {initials ? initials : <UserRound className="size-10" />}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() =>
-            toast('Photo upload will be available once media API is connected.')
-          }
-          className="absolute right-1 bottom-1 inline-flex size-8 items-center justify-center rounded-full bg-brand-orange text-white shadow-md transition hover:bg-brand-orange/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-          aria-label="Change profile photo"
-        >
-          <Camera className="size-3.5" aria-hidden />
-        </button>
-      </div>
+      <ProfilePhotoEditor name={fullName} initials={initials} />
 
       <div className="text-center">
         <p className="text-lg font-semibold text-text">{fullName || '—'}</p>

@@ -1,6 +1,7 @@
 'use client';
 
 import { SelectInput } from '@/components/data/form-fields';
+import { ProfilePhotoEditor } from '@/features/profile';
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -371,6 +372,7 @@ export function ProfileView() {
   return (
     <div className="space-y-6 pb-16">
       <CustomerPageTitle title="Profile" subtitle="Your details and saved addresses" />
+      <CustomerCard><ProfilePhotoEditor /></CustomerCard>
       {me.isLoading ? (
         <CustomerLoading label="Loading profile…" />
       ) : me.isError || !me.data ? (

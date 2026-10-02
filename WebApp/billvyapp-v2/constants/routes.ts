@@ -58,6 +58,7 @@ export const ROUTES = {
     },
     manager: {
       root: `/dashboard/${ROLE_SEGMENTS.MANAGER}`,
+      salonPhotos: `/dashboard/${ROLE_SEGMENTS.MANAGER}/salon-photos`,
       walkInBilling: `/dashboard/${ROLE_SEGMENTS.MANAGER}/walk-in-billing`,
       appointments: `/dashboard/${ROLE_SEGMENTS.MANAGER}/appointments`,
       customers: `/dashboard/${ROLE_SEGMENTS.MANAGER}/customers`,

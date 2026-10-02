@@ -15,6 +15,7 @@ export interface AuthUser {
   role: RoleCode;
   franchiseId: string | null;
   salonId: string | null;
+  profilePhoto?: string | null;
   /** False for ADMIN/MANAGER/STAFF without an active franchise plan. */
   subscriptionActive?: boolean;
   subscriptionPlanName?: string | null;

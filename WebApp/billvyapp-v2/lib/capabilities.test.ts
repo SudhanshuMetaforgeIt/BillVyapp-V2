@@ -18,6 +18,10 @@ function user(role: RoleCode) {
 }
 
 describe('capabilities', () => {
+  it('permits salon photo writes for managers and existing admins, not staff or customers', () => {
+    for (const role of ['SUPER_ADMIN', 'ADMIN', 'MANAGER'] as const) expect(can(user(role), 'salonPhotos.write')).toBe(true);
+    for (const role of ['STAFF', 'CUSTOMER'] as const) expect(can(user(role), 'salonPhotos.write')).toBe(false);
+  });
   it('hides staff from audit and vendor write', () => {
     expect(can(user('STAFF'), 'audit.read')).toBe(false);
     expect(can(user('STAFF'), 'vendors.write')).toBe(false);

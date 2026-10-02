@@ -24,7 +24,7 @@ import {
 } from '../common/pagination/pagination';
 import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { ScopeService } from '../common/scope/scope.service';
-import { trimOrNull, trimRequired } from '../common/strings';
+import { trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
@@ -204,7 +204,7 @@ export class CustomersService {
     const email = dto.email.trim().toLowerCase();
     const firstName = trimRequired(dto.firstName);
     const lastName = trimRequired(dto.lastName);
-    const profilePhoto = trimOrNull(dto.profilePhoto) ?? null;
+    const profilePhoto = null;
     const dateOfBirth = dto.dateOfBirth ?? null;
     const gender = dto.gender ?? null;
 
@@ -323,9 +323,6 @@ export class CustomersService {
     }
     if (dto.phone !== undefined) {
       userData.phone = dto.phone.trim();
-    }
-    if (dto.profilePhoto !== undefined) {
-      userData.profilePhoto = trimOrNull(dto.profilePhoto) ?? null;
     }
     if (dto.dateOfBirth !== undefined) {
       customerData.dateOfBirth = dto.dateOfBirth;
@@ -480,7 +477,6 @@ export class CustomersService {
           lastName: input.lastName,
           email: input.email,
           phone: input.phone,
-          profilePhoto: input.profilePhoto,
         },
       });
 

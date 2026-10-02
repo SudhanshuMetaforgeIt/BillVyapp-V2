@@ -67,6 +67,22 @@ export interface Salon {
   updatedAt: IsoDate;
 }
 
+/** Existing backend SalonPhotoType values; cover is represented by isPrimary. */
+export type SalonPhotoType = 'FRONT' | 'INTERIOR' | 'RECEPTION' | 'SERVICE_AREA' | 'WAITING_AREA' | 'OTHER';
+export interface SalonPhoto {
+  id: string;
+  salonId: string;
+  fileName: string;
+  fileUrl: string | null;
+  mimeType: string;
+  fileSize: number;
+  photoType: SalonPhotoType;
+  isPrimary: boolean;
+  displayOrder: number;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 
 export interface Customer {

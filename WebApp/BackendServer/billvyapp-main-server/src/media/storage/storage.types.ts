@@ -34,4 +34,12 @@ export interface ObjectStorageProvider {
 
   /** True when the object is present in the backing store. */
   objectExists(storageKey: string): Promise<boolean>;
+
+  /** Server-validated image bytes; private presigned flows remain unchanged. */
+  uploadObject(
+    storageKey: string,
+    bytes: Buffer,
+    mimeType: string,
+  ): Promise<void>;
+  readObject(storageKey: string): Promise<Buffer>;
 }

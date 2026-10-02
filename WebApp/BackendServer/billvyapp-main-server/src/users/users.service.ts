@@ -152,7 +152,6 @@ export class UsersService {
           email: dto.email.trim().toLowerCase(),
           phone: trimOrNull(dto.phone) ?? null,
           passwordHash,
-          profilePhoto: trimOrNull(dto.profilePhoto) ?? null,
           salary:
             dto.salary === undefined || dto.salary === null
               ? null
@@ -239,9 +238,6 @@ export class UsersService {
             : {}),
           ...(dto.phone !== undefined
             ? { phone: trimOrNull(dto.phone) ?? null }
-            : {}),
-          ...(dto.profilePhoto !== undefined
-            ? { profilePhoto: trimOrNull(dto.profilePhoto) ?? null }
             : {}),
           ...(dto.salary !== undefined
             ? {

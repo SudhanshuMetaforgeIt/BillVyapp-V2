@@ -113,7 +113,7 @@ export class CustomersController {
   @ApiOperation({
     summary: 'Update a customer profile',
     description:
-      'Accepts firstName, lastName, email, phone, dateOfBirth, gender and profilePhoto. Does not accept id, userId, customerCode, passwordHash, roleId, createdAt or updatedAt. A CUSTOMER may only update their own profile.',
+      'Accepts firstName, lastName, email, phone, dateOfBirth and gender. Profile photos use /auth/me/profile-photo. Does not accept id, userId, customerCode, passwordHash, roleId, createdAt or updatedAt. A CUSTOMER may only update their own profile.',
   })
   @ApiResponse({ status: 200, type: CustomerResponseDto })
   @ApiResponse({

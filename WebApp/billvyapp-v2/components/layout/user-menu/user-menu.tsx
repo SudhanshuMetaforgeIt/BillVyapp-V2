@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronDown, LogOut, Settings, UserRound } from 'lucide-react';
 
 import { ROLE_LABELS, ROLE_SEGMENTS } from '@/constants/roles';
@@ -25,6 +26,7 @@ function canOpenSettings(user: AuthUser | null): boolean {
 
 export function UserMenu({ user }: UserMenuProps) {
   const [open, setOpen] = useState(false);
+  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const { logout, isPending } = useLogout();
@@ -62,7 +64,7 @@ export function UserMenu({ user }: UserMenuProps) {
       <button
         type="button"
         className={cn(
-          'flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 shadow-xs transition-colors hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700',
+          'flex cursor-pointer items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 shadow-xs transition-colors hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500',
         )}
         aria-haspopup="menu"
@@ -71,7 +73,9 @@ export function UserMenu({ user }: UserMenuProps) {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="flex size-6 items-center justify-center rounded-full bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
-          <UserRound className="size-3.5" />
+          {user?.profilePhoto && user.profilePhoto !== failedPhoto ? (
+            <Image src={user.profilePhoto} width={24} height={24} alt="" className="size-6 rounded-full object-cover" unoptimized onError={() => setFailedPhoto(user.profilePhoto ?? null)} />
+          ) : <UserRound className="size-3.5" />}
         </span>
         <span className="truncate text-xs font-bold text-stone-800 dark:text-stone-200">
           {displayName}
@@ -108,7 +112,7 @@ export function UserMenu({ user }: UserMenuProps) {
           <Link
             href={accountPath(user, 'profile')}
             role="menuitem"
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-amber-600 dark:text-stone-300 dark:hover:bg-stone-800/60 dark:hover:text-amber-400"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-amber-600 dark:text-stone-300 dark:hover:bg-stone-800/60 dark:hover:text-amber-400"
             onClick={() => setOpen(false)}
           >
             <UserRound className="size-4 text-stone-400" aria-hidden />
@@ -120,7 +124,7 @@ export function UserMenu({ user }: UserMenuProps) {
             <Link
               href={accountPath(user, 'settings')}
               role="menuitem"
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-amber-600 dark:text-stone-300 dark:hover:bg-stone-800/60 dark:hover:text-amber-400"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 hover:text-amber-600 dark:text-stone-300 dark:hover:bg-stone-800/60 dark:hover:text-amber-400"
               onClick={() => setOpen(false)}
             >
               <Settings className="size-4 text-stone-400" aria-hidden />
@@ -135,7 +139,7 @@ export function UserMenu({ user }: UserMenuProps) {
             type="button"
             role="menuitem"
             disabled={isPending}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 disabled:opacity-60"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 disabled:cursor-not-allowed disabled:opacity-60"
             onClick={() => {
               setOpen(false);
               void logout();

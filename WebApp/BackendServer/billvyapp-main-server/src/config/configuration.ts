@@ -35,6 +35,11 @@ export default () => {
     storage: {
       // Local filesystem by default; set STORAGE_PROVIDER=s3 for Ubuntu/prod.
       provider: (process.env.STORAGE_PROVIDER ?? 'local').toLowerCase(),
+      profilePhotoProvider: (
+        process.env.PROFILE_PHOTO_STORAGE_PROVIDER ??
+        process.env.STORAGE_PROVIDER ??
+        'local'
+      ).toLowerCase(),
       localRoot: process.env.STORAGE_LOCAL_ROOT ?? './storage',
       signingSecret: process.env.STORAGE_SIGNING_SECRET,
       presignExpiresSeconds: parseInt(
@@ -54,6 +59,22 @@ export default () => {
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
       presignExpiresSeconds: parseInt(
         process.env.S3_PRESIGN_EXPIRES_SECONDS ?? '900',
+        10,
+      ),
+    },
+
+    salonImages: {
+      provider: (
+        process.env.SALON_IMAGE_STORAGE_PROVIDER ?? 'cloudinary'
+      ).toLowerCase(),
+    },
+
+    cloudinary: {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME ?? '',
+      apiKey: process.env.CLOUDINARY_API_KEY ?? '',
+      apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
+      uploadExpiresSeconds: parseInt(
+        process.env.CLOUDINARY_UPLOAD_EXPIRES_SECONDS ?? '900',
         10,
       ),
     },

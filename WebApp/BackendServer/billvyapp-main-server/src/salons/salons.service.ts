@@ -19,10 +19,12 @@ import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '../generated/prisma/client';
 import { CreateSalonDto } from './dto/create-salon.dto';
 import { GeocodeSalonDto } from './dto/geocode-salon.dto';
 import { ListSalonsQueryDto } from './dto/list-salons-query.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
+import { SalonImageStorageService } from '../salon-photos/salon-image-storage.service';
 
 const SALON_SELECT = {
   id: true,
@@ -51,6 +53,28 @@ const SALON_SELECT = {
       code: true,
     },
   },
+  photos: {
+    select: {
+      id: true,
+      salonId: true,
+      storageProvider: true,
+      storageKey: true,
+      fileName: true,
+      fileUrl: true,
+      mimeType: true,
+      fileSize: true,
+      photoType: true,
+      isPrimary: true,
+      displayOrder: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [
+      { isPrimary: 'desc' },
+      { displayOrder: 'asc' },
+      { createdAt: 'asc' },
+    ] as Prisma.SalonPhotoOrderByWithRelationInput[],
+  },
 } as const;
 
 @Injectable()
@@ -60,6 +84,7 @@ export class SalonsService {
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
+    private readonly images: SalonImageStorageService,
   ) {}
 
   async list(user: AuthenticatedUser, query: ListSalonsQueryDto) {
@@ -456,12 +481,23 @@ export class SalonsService {
   }
 
   private toResponse(row: {
+    photos?: Array<{
+      storageProvider: string;
+      storageKey: string;
+      fileUrl: string | null;
+      isPrimary: boolean;
+    }>;
     latitude: { toString(): string } | string | number;
     longitude: { toString(): string } | string | number;
     [key: string]: unknown;
   }) {
     return {
       ...row,
+      ...(row.photos
+        ? {
+            photos: row.photos.map((photo) => this.images.toPublicPhoto(photo)),
+          }
+        : {}),
       latitude: row.latitude.toString(),
       longitude: row.longitude.toString(),
     };

@@ -148,6 +148,34 @@ export class S3StorageProvider implements ObjectStorageProvider {
     }
   }
 
+  async uploadObject(
+    storageKey: string,
+    bytes: Buffer,
+    mimeType: string,
+  ): Promise<void> {
+    await this.requireClient().send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: storageKey,
+        Body: bytes,
+        ContentType: mimeType,
+        IfNoneMatch: '*',
+      }),
+    );
+  }
+
+  async readObject(storageKey: string): Promise<Buffer> {
+    const object = await this.requireClient().send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: storageKey,
+      }),
+    );
+    if (!object.Body)
+      throw new ServiceUnavailableException('Image object is missing');
+    return Buffer.from(await object.Body.transformToByteArray());
+  }
+
   private requireClient(): S3Client {
     if (!this.client || !this.configured) {
       throw new ServiceUnavailableException(

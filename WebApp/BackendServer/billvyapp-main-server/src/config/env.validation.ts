@@ -79,6 +79,10 @@ class EnvironmentVariables {
   STORAGE_PROVIDER?: string;
 
   @IsOptional()
+  @IsIn(['local', 's3', 'cloudinary', 'LOCAL', 'S3', 'CLOUDINARY'])
+  PROFILE_PHOTO_STORAGE_PROVIDER?: string;
+
+  @IsOptional()
   @IsString()
   STORAGE_LOCAL_ROOT?: string;
 
@@ -125,6 +129,27 @@ class EnvironmentVariables {
   @IsInt()
   @Min(60)
   S3_PRESIGN_EXPIRES_SECONDS?: number;
+
+  @IsOptional()
+  @IsIn(['cloudinary', 's3', 'CLOUDINARY', 'S3'])
+  SALON_IMAGE_STORAGE_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_CLOUD_NAME?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_API_SECRET?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  CLOUDINARY_UPLOAD_EXPIRES_SECONDS?: number;
 
   @IsOptional()
   @Transform(({ value }) => {
