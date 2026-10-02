@@ -200,6 +200,33 @@ enum SupportTicketCategory {
   REPORTS
 }
 
+enum CampaignType {
+  SALON
+  SERVICE
+  OFFER
+  EVENT
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CampaignTargetAudience {
+  ALL_CUSTOMERS
+  NEW_CUSTOMERS
+  EXISTING_CUSTOMERS
+  SALON_CUSTOMERS
+}
+
+enum CampaignDeliveryChannel {
+  PUSH
+  IN_APP
+}
+
 // =============================================================================
 // RBAC — ROLE / USER
 // =============================================================================
@@ -267,6 +294,7 @@ model User {
   uploadedMediaFiles  MediaFile[]          @relation("MediaFileUploadedBy")
   platformReports     PlatformReport[]     @relation("PlatformReportGeneratedBy")
   supportTickets      SupportTicket[]      @relation("SupportTicketCreatedBy")
+  createdCampaigns    Campaign[]           @relation("CampaignCreatedBy")
 
   @@index([phone])
   @@index([franchiseId, salonId])
@@ -359,6 +387,7 @@ model Salon {
   auditLogs           AuditLog[]
   notifications       Notification[]
   supportTickets      SupportTicket[]
+  campaigns           Campaign[]
 
   /// Salon code is unique inside its franchise, not globally.
   @@unique([franchiseId, code])
@@ -967,11 +996,42 @@ model MediaFile {
   salon          Salon? @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   uploadedByUser User?  @relation("MediaFileUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
   profilePhotoUser User? @relation("UserProfilePhoto")
+  campaignPromotionalFor Campaign? @relation("CampaignPromotionalMedia")
 
   @@index([salonId])
   @@index([uploadedBy])
   @@index([entityType, entityId])
   @@map("media_files")
+}
+
+/// A salon-scoped marketing activity. Delivery is intentionally not modelled in
+/// V1; the record only defines content and audience for future consumers.
+model Campaign {
+  id                       String                    @id @default(uuid()) @db.VarChar(36)
+  salonId                  String                    @db.VarChar(36)
+  createdById              String                    @db.VarChar(36)
+  name                     String                    @db.VarChar(191)
+  description              String?                   @db.Text
+  type                     CampaignType
+  targetAudience           CampaignTargetAudience
+  startDate                DateTime?
+  endDate                  DateTime?
+  status                   CampaignStatus            @default(DRAFT)
+  offerDescription         String?                   @db.Text
+  promotionalMediaFileId   String?                   @unique @db.VarChar(36)
+  message                  String?                   @db.Text
+  deliveryChannels         Json
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  salon             Salon     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy         User      @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  promotionalMedia  MediaFile? @relation("CampaignPromotionalMedia", fields: [promotionalMediaFileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([salonId, status])
+  @@index([status, startDate, endDate])
+  @@index([createdById])
+  @@map("campaigns")
 }
 
 // =============================================================================

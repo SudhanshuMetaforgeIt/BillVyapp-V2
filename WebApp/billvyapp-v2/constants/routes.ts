@@ -23,6 +23,7 @@ export const ROUTES = {
       root: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}`,
       businesses: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/businesses`,
       salons: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/salons`,
+      campaigns: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/campaigns`,
       payments: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/payments`,
       users: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/users`,
       audit: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/audit`,

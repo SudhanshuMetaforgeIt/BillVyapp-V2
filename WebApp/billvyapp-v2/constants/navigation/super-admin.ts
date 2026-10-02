@@ -5,6 +5,7 @@ import {
   Headset,
   History,
   LayoutDashboard,
+  Megaphone,
   Search,
   Shield,
   Store,
@@ -43,6 +44,7 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/salons`,
         icon: Store,
       },
+      { id: 'campaigns', label: 'Campaigns', href: `${base}/campaigns`, icon: Megaphone },
       {
         id: 'payments',
         label: 'Payments',

@@ -1,7 +1,6 @@
 'use client';
 
 import { Plus, Search } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,12 +9,14 @@ type CampaignsFiltersProps = {
   search: string;
   onSearchChange: (value: string) => void;
   apiUnavailable?: boolean;
+  onCreate?: () => void;
 };
 
 export function CampaignsFilters({
   search,
   onSearchChange,
   apiUnavailable,
+  onCreate,
 }: CampaignsFiltersProps) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -37,11 +38,8 @@ export function CampaignsFilters({
       <Button
         type="button"
         className="h-10 bg-champagne text-white hover:bg-champagne/90"
-        onClick={() =>
-          toast(
-            'Campaigns API is not available yet. This screen will light up when the backend ships.',
-          )
-        }
+        onClick={onCreate}
+        disabled={apiUnavailable}
       >
         <Plus className="size-4" />
         Create Campaign

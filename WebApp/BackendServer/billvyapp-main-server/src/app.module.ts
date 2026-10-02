@@ -29,6 +29,7 @@ import { RolesModule } from './roles/roles.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { BillsModule } from './bills/bills.module';
 import { CustomersModule } from './customers/customers.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 import { FranchisesModule } from './franchises/franchises.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
@@ -90,6 +91,7 @@ import { VendorsModule } from './vendors/vendors.module';
     SalonsModule,
     SalonPhotosModule,
     CustomersModule,
+    CampaignsModule,
     ServiceCategoriesModule,
     ServicesModule,
     AppointmentsModule,
