@@ -168,18 +168,29 @@ function billRow(overrides: Record<string, unknown> = {}) {
 describe('BillsService', () => {
   const prisma = {
     bill: {
+      findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
+    membershipRedemption: {
+      aggregate: jest.fn(),
+      create: jest.fn(),
+      groupBy: jest.fn(),
+    },
     billItem: {
+      update: jest.fn(),
       deleteMany: jest.fn(),
       createMany: jest.fn(),
     },
     salon: { findUnique: jest.fn() },
-    customer: { findUnique: jest.fn() },
+    customer: {
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn(),
+    },
     service: { findMany: jest.fn() },
     product: { findMany: jest.fn() },
     inventory: {
@@ -187,6 +198,13 @@ describe('BillsService', () => {
       update: jest.fn(),
     },
     stockMovement: { create: jest.fn() },
+    $queryRaw: jest.fn(),
+    membershipPlan: { findFirst: jest.fn(), findMany: jest.fn() },
+    membership: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const scope = {
@@ -201,6 +219,22 @@ describe('BillsService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$queryRaw.mockResolvedValue([]);
+    prisma.membershipRedemption.groupBy.mockResolvedValue([]);
+    prisma.membershipRedemption.aggregate.mockResolvedValue({
+      _sum: { quantity: 0 },
+    });
+    prisma.membershipPlan.findFirst.mockResolvedValue(null);
+    prisma.customer.findUniqueOrThrow.mockResolvedValue({
+      id: 'cust-1',
+      user: { phone: '9876543210', isActive: true },
+    });
+    prisma.bill.findUniqueOrThrow.mockImplementation(
+      () =>
+        prisma.bill.findUnique.mock.results.at(-1)?.value as Promise<
+          ReturnType<typeof billRow>
+        >,
+    );
     scope.salonScope.mockReturnValue({});
     scope.assertSalonAccess.mockResolvedValue(undefined);
     scope.assertCustomerAccess.mockResolvedValue(undefined);
@@ -237,6 +271,351 @@ describe('BillsService', () => {
     );
   });
 
+  it('completes normal billing without issuing any membership even when plans qualify', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow());
+    prisma.bill.update.mockResolvedValue(
+      billRow({ status: BillStatus.COMPLETED }),
+    );
+    await service.updateStatus(
+      manager,
+      'bill-1',
+      { status: BillStatus.COMPLETED },
+      ctx,
+    );
+    expect(prisma.membershipPlan.findFirst).not.toHaveBeenCalled();
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+    expect(prisma.customer.update).not.toHaveBeenCalled();
+  });
+  it('adds the chosen plan fee to a draft without enrolling or storing profile details yet', async () => {
+    prisma.membershipPlan.findFirst.mockResolvedValue({
+      id: 'plan',
+      name: 'Paid Club',
+      price: '100.00',
+    });
+    prisma.bill.create.mockResolvedValue(billRow());
+    await service.create(
+      manager,
+      {
+        ...createDto,
+        enrollmentPlanId: 'plan',
+        enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
+      },
+      ctx,
+    );
+    expect(prisma.bill.create).toHaveBeenCalledWith(
+      objectContaining({
+        data: objectContaining({
+          membershipFee: '100.00',
+          total: '1042.82',
+          enrollmentPlanId: 'plan',
+        }),
+      }),
+    );
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+    expect(prisma.customer.update).not.toHaveBeenCalled();
+  });
+  it('lists every qualifying active plan using the service bill amount', async () => {
+    prisma.membershipPlan.findMany.mockResolvedValue([
+      { id: 'one', price: '0' },
+      { id: 'two', price: '100' },
+    ]);
+    const offers = await service.membershipOffers(manager, createDto);
+    expect(offers.plans).toHaveLength(2);
+    expect(prisma.membershipPlan.findMany).toHaveBeenCalledWith(
+      objectContaining({
+        where: {
+          salonId: 'salon-a1',
+          isActive: true,
+          enrollmentThreshold: { not: null, lte: '942.82' },
+        },
+      }),
+    );
+  });
+  it('rejects a selected inactive, foreign or unqualified plan', async () => {
+    await expect(
+      service.create(
+        manager,
+        {
+          ...createDto,
+          enrollmentPlanId: 'plan',
+          enrollmentDetails: {
+            nameConfirmed: true,
+            whatsappSameAsBilling: true,
+          },
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('no longer qualifies');
+    expect(prisma.bill.create).not.toHaveBeenCalled();
+  });
+
+  it('enrolls after successful completion and audits the issued coupon', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({
+        enrollmentPlanId: 'plan',
+        membershipFee: '499.00',
+        enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
+        total: '1441.82',
+      }),
+    );
+    prisma.bill.update.mockResolvedValue(
+      billRow({
+        status: BillStatus.COMPLETED,
+        enrollmentPlanId: 'plan',
+        membershipFee: '499.00',
+        enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
+        total: '1441.82',
+      }),
+    );
+    prisma.membershipPlan.findFirst.mockResolvedValue({
+      id: 'plan',
+      salonId: 'salon-a1',
+      name: 'Club',
+      salon: { franchise: { code: 'STARR' } },
+      price: '499.00',
+      durationDays: 90,
+      isActive: true,
+      enrollmentThreshold: '499.00',
+      eligibleServices: [],
+    });
+    prisma.membership.create.mockImplementation(
+      ({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: 'issued', ...data }),
+    );
+    await service.updateStatus(
+      manager,
+      'bill-1',
+      { status: BillStatus.COMPLETED },
+      ctx,
+    );
+    expect(prisma.membership.create).toHaveBeenCalledWith(
+      objectContaining({
+        data: objectContaining({
+          qualifyingBillId: 'bill-1',
+          couponCode: stringMatching(
+            /^STARR-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/,
+          ),
+        }),
+      }),
+    );
+    expect(prisma.bill.update.mock.invocationCallOrder[0]).toBeLessThan(
+      prisma.membership.create.mock.invocationCallOrder[0],
+    );
+    expect(audit.record).toHaveBeenCalledWith(
+      objectContaining({
+        action: 'MEMBERSHIP_CREATED',
+        entityId: 'issued',
+      }),
+    );
+  });
+
+  it('does not repeat completion effects if another request already completed the locked bill', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow());
+    prisma.bill.findUniqueOrThrow.mockResolvedValue(
+      billRow({ status: BillStatus.COMPLETED }),
+    );
+    await service.updateStatus(
+      manager,
+      'bill-1',
+      { status: BillStatus.COMPLETED },
+      ctx,
+    );
+    expect(prisma.bill.update).not.toHaveBeenCalled();
+    expect(prisma.membershipPlan.findFirst).not.toHaveBeenCalled();
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+    expect(prisma.stockMovement.create).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale bill status rather than applying enrollment side effects', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow());
+    prisma.bill.findUniqueOrThrow.mockResolvedValue(
+      billRow({ status: BillStatus.CANCELLED }),
+    );
+    await expect(
+      service.updateStatus(
+        manager,
+        'bill-1',
+        { status: BillStatus.COMPLETED },
+        ctx,
+      ),
+    ).rejects.toThrow('Bill status changed');
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+  });
+
+  it('propagates enrollment write failure from the bill transaction without recording success', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({
+        enrollmentPlanId: 'plan',
+        membershipFee: '499.00',
+        enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
+        total: '1441.82',
+      }),
+    );
+    prisma.bill.update.mockResolvedValue(
+      billRow({
+        status: BillStatus.COMPLETED,
+        enrollmentPlanId: 'plan',
+        membershipFee: '499.00',
+        enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
+        total: '1441.82',
+      }),
+    );
+    prisma.membershipPlan.findFirst.mockResolvedValue({
+      id: 'plan',
+      name: 'Club',
+      salon: { franchise: { code: 'STARR' } },
+      price: '499.00',
+      durationDays: 90,
+      eligibleServices: [],
+    });
+    prisma.membership.create.mockRejectedValue(
+      new Error('membership write failed'),
+    );
+    await expect(
+      service.updateStatus(
+        manager,
+        'bill-1',
+        { status: BillStatus.COMPLETED },
+        ctx,
+      ),
+    ).rejects.toThrow('membership write failed');
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('rechecks payments under the bill lock before cancellation', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow());
+    prisma.bill.findUniqueOrThrow.mockResolvedValue(
+      billRow({ paidAmount: '100.00' }),
+    );
+    await expect(
+      service.updateStatus(
+        manager,
+        'bill-1',
+        { status: BillStatus.CANCELLED },
+        ctx,
+      ),
+    ).rejects.toThrow('Cannot cancel a bill that has payments');
+    expect(prisma.bill.update).not.toHaveBeenCalled();
+  });
+
+  it('supports an explicitly configured zero-percent coupon with the existing manual discount', async () => {
+    prisma.membership.findFirst.mockResolvedValue({
+      id: 'member',
+      couponCode: 'CLUB-123',
+      startDate: new Date('2000-01-01'),
+      endDate: new Date('2099-12-31'),
+      status: 'ACTIVE',
+      planSnapshot: { name: 'Club' },
+      membershipPlan: {
+        name: 'Club',
+        benefits: null,
+        benefitType: 'PERCENTAGE_DISCOUNT',
+        discountPercentage: '0',
+        eligibleServices: [{ id: 'svc-1', name: 'Haircut' }],
+      },
+    });
+    prisma.bill.create.mockResolvedValue(
+      billRow({
+        appliedMembershipId: 'member',
+        appliedMembership: { couponCode: 'CLUB-123' },
+      }),
+    );
+    const result = await service.create(
+      manager,
+      { ...createDto, couponCode: 'club-123', discount: 100 },
+      ctx,
+    );
+    expect(result.couponCode).toBe('CLUB-123');
+    expect(prisma.bill.create).toHaveBeenCalledWith(
+      objectContaining({
+        data: objectContaining({
+          appliedMembershipId: 'member',
+          discount: '100.00',
+          total: '842.82',
+        }),
+      }),
+    );
+  });
+
+  it('rejects a coupon that belongs to another customer or salon before saving a draft', async () => {
+    prisma.membership.findFirst.mockResolvedValue(null);
+    await expect(
+      service.create(manager, { ...createDto, couponCode: 'CLUB-123' }, ctx),
+    ).rejects.toThrow('not valid for this customer and salon');
+    expect(prisma.bill.create).not.toHaveBeenCalled();
+  });
+
+  it('revalidates coupons at completion and rejects cancelled memberships', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({
+        appliedMembershipId: 'member',
+        appliedMembership: { couponCode: 'CLUB-123' },
+      }),
+    );
+    prisma.membership.findFirst.mockResolvedValue({
+      id: 'member',
+      couponCode: 'CLUB-123',
+      startDate: new Date('2000-01-01'),
+      endDate: new Date('2099-12-31'),
+      status: 'CANCELLED',
+      membershipPlan: { name: 'Club', eligibleServices: [] },
+    });
+    await expect(
+      service.updateStatus(
+        manager,
+        'bill-1',
+        { status: BillStatus.COMPLETED },
+        ctx,
+      ),
+    ).rejects.toThrow('inactive');
+    expect(prisma.bill.update).not.toHaveBeenCalled();
+    expect(prisma.stockMovement.create).not.toHaveBeenCalled();
+  });
+
+  it('allows removing an expired coupon from a draft', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({
+        appliedMembershipId: 'member',
+        appliedMembership: { couponCode: 'CLUB-123' },
+      }),
+    );
+    prisma.bill.update.mockResolvedValue(billRow());
+    await service.update(manager, 'bill-1', { couponCode: null }, ctx);
+    expect(prisma.membership.findFirst).not.toHaveBeenCalled();
+    expect(prisma.bill.update).toHaveBeenCalledWith(
+      objectContaining({
+        data: objectContaining({ appliedMembershipId: null }),
+      }),
+    );
+  });
+
+  it('checks salon scope before looking up a submitted coupon', async () => {
+    scope.assertSalonAccess.mockRejectedValue(
+      new ForbiddenException('Salon outside your scope'),
+    );
+    await expect(
+      service.validateCoupon(manager, {
+        salonId: 'salon-x',
+        customerId: 'cust-1',
+        couponCode: 'CLUB-123',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.membership.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('does not attach a coupon if the draft was concurrently completed', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow());
+    prisma.bill.findUniqueOrThrow.mockResolvedValue(
+      billRow({ status: BillStatus.COMPLETED }),
+    );
+    await expect(
+      service.update(manager, 'bill-1', { couponCode: 'CLUB-123' }, ctx),
+    ).rejects.toThrow('Only DRAFT bills');
+    expect(prisma.membership.findFirst).not.toHaveBeenCalled();
+    expect(prisma.bill.update).not.toHaveBeenCalled();
+  });
+
   it('creates a DRAFT bill with snapshotted service price and tax', async () => {
     prisma.bill.create.mockResolvedValue(billRow());
 
@@ -248,7 +627,7 @@ describe('BillsService', () => {
     expect(result.total).toBe('942.82');
     expect(result.items[0].unitPrice).toBe('799.00');
     expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'BILL_CREATED' }),
+      objectContaining({ action: 'BILL_CREATED' }),
     );
     const createArg = firstMockArg<{
       data: { status: string; createdBy: string };
@@ -378,7 +757,7 @@ describe('BillsService', () => {
       where: { AND: Array<Record<string, unknown>> };
     }>(prisma.bill.findMany);
     expect(listArg.where.AND).toEqual(
-      expect.arrayContaining([{ customerId: 'cust-1' }]),
+      arrayContaining([{ customerId: 'cust-1' }]),
     );
   });
 
@@ -412,14 +791,12 @@ describe('BillsService', () => {
       where: { AND: Array<Record<string, unknown>> };
     }>(prisma.bill.findMany);
     expect(listArg.where.AND).toEqual(
-      expect.arrayContaining([
+      arrayContaining([
         { salonId: 'salon-a1' },
         { status: BillStatus.DRAFT },
         { paymentStatus: BillPaymentStatus.UNPAID },
-        expect.objectContaining({
-          OR: expect.arrayContaining([
-            { billNumber: { contains: 'BILL-1' } },
-          ]),
+        objectContaining({
+          OR: arrayContaining([{ billNumber: { contains: 'BILL-1' } }]),
         }),
       ]),
     );
@@ -438,7 +815,7 @@ describe('BillsService', () => {
 
     expect(result.notes).toBe('VIP');
     expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'BILL_UPDATED' }),
+      objectContaining({ action: 'BILL_UPDATED' }),
     );
   });
 
@@ -503,10 +880,10 @@ describe('BillsService', () => {
       referenceType: 'BILL',
     });
     expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'BILL_STATUS_CHANGED' }),
+      objectContaining({ action: 'BILL_STATUS_CHANGED' }),
     );
     expect(audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'INVENTORY_ADJUSTED' }),
+      objectContaining({ action: 'INVENTORY_ADJUSTED' }),
     );
   });
 
@@ -645,7 +1022,7 @@ describe('CreateBillDto validation', () => {
 describe('BillsController authorization', () => {
   it('allows CUSTOMER on list and findOne only', () => {
     expect(handlerRoles(BillsController, 'list')).toEqual(
-      expect.arrayContaining([
+      arrayContaining([
         RoleCode.SUPER_ADMIN,
         RoleCode.ADMIN,
         RoleCode.MANAGER,
@@ -666,7 +1043,7 @@ describe('BillsController authorization', () => {
 
   it('allows STAFF to complete bills and create drafts', () => {
     expect(handlerRoles(BillsController, 'updateStatus')).toEqual(
-      expect.arrayContaining([
+      arrayContaining([
         RoleCode.SUPER_ADMIN,
         RoleCode.ADMIN,
         RoleCode.MANAGER,
@@ -680,3 +1057,15 @@ describe('BillsController authorization', () => {
     expect(handlerRoles(BillsController, 'update')).toContain(RoleCode.STAFF);
   });
 });
+
+function objectContaining(value: Record<string, unknown>): unknown {
+  return expect.objectContaining(value) as unknown;
+}
+
+function arrayContaining(value: unknown[]): unknown {
+  return expect.arrayContaining(value) as unknown;
+}
+
+function stringMatching(value: string | RegExp): unknown {
+  return expect.stringMatching(value) as unknown;
+}

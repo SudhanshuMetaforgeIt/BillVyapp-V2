@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { SelectInput } from '@/components/data/form-fields';
+import { SelectInput } from "@/components/data/form-fields";
 
-import { useEffect, useId, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useId, useState } from "react";
+import { X } from "lucide-react";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { businessToday } from '@/lib/business-calendar';
-import { useCreateMembership } from '../hooks/use-membership-mutations';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { businessToday } from "@/lib/business-calendar";
+import { useCreateMembership } from "../hooks/use-membership-mutations";
 
 type AddMemberDialogProps = {
   open: boolean;
@@ -25,8 +25,8 @@ export function AddMemberDialog({
   customerOptions,
 }: AddMemberDialogProps) {
   const titleId = useId();
-  const [customerId, setCustomerId] = useState('');
-  const [planId, setPlanId] = useState('');
+  const [customerId, setCustomerId] = useState(customerOptions[0]?.id ?? "");
+  const [planId, setPlanId] = useState(planOptions[0]?.id ?? "");
   const [startDate, setStartDate] = useState(businessToday());
 
   const create = useCreateMembership(() => {
@@ -35,23 +35,17 @@ export function AddMemberDialog({
 
   useEffect(() => {
     if (!open) return;
-    setCustomerId(customerOptions[0]?.id ?? '');
-    setPlanId(planOptions[0]?.id ?? '');
-    setStartDate(businessToday());
-  }, [open, customerOptions, planOptions]);
-
-  useEffect(() => {
-    if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !create.isPending) onOpenChange(false);
+      if (event.key === "Escape" && !create.isPending) onOpenChange(false);
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onOpenChange, create.isPending]);
 
   if (!open) return null;
 
-  const canSubmit = Boolean(customerId) && Boolean(planId) && Boolean(startDate);
+  const canSubmit =
+    Boolean(customerId) && Boolean(planId) && Boolean(startDate);
 
   return (
     <div
@@ -92,8 +86,8 @@ export function AddMemberDialog({
         {customerOptions.length === 0 || planOptions.length === 0 ? (
           <p className="text-sm text-text-secondary">
             {customerOptions.length === 0
-              ? 'No customers available. Add a customer first.'
-              : 'No membership plans available. Create a plan first.'}
+              ? "No customers available. Add a customer first."
+              : "No membership plans available. Create a plan first."}
           </p>
         ) : (
           <form
@@ -110,7 +104,8 @@ export function AddMemberDialog({
           >
             <div className="space-y-1.5">
               <Label htmlFor="mem-customer">Customer</Label>
-              <SelectInput className="h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="h-10 w-full text-sm font-medium"
                 id="mem-customer"
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
@@ -118,14 +113,15 @@ export function AddMemberDialog({
                 {customerOptions.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
-                    {customer.phone ? ` · ${customer.phone}` : ''}
+                    {customer.phone ? ` · ${customer.phone}` : ""}
                   </option>
                 ))}
               </SelectInput>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="mem-plan">Membership plan</Label>
-              <SelectInput className="h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="h-10 w-full text-sm font-medium"
                 id="mem-plan"
                 value={planId}
                 onChange={(e) => setPlanId(e.target.value)}
@@ -157,7 +153,7 @@ export function AddMemberDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={!canSubmit || create.isPending}>
-                {create.isPending ? 'Adding…' : 'Add member'}
+                {create.isPending ? "Adding…" : "Add member"}
               </Button>
             </div>
           </form>

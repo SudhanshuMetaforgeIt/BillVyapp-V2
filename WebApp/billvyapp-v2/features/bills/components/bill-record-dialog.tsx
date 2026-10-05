@@ -5,7 +5,11 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Download } from 'lucide-react';
 
-import { FormField, MutationError, SelectInput } from '@/components/data/form-fields';
+import {
+  FormField,
+  MutationError,
+  SelectInput,
+} from '@/components/data/form-fields';
 import { Modal } from '@/components/data/modal';
 import { QueryErrorState } from '@/components/data/query-error-state';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -15,7 +19,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { can } from '@/lib/capabilities';
-import { formatCurrency, formatDate, formatDateTime, formatFullName } from '@/lib/format';
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatFullName,
+} from '@/lib/format';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
 import type { Bill, BillStatus, Payment, PaymentMethod } from '@/types/models';
@@ -25,13 +34,27 @@ import {
   getBill,
   recordCounterPayment,
 } from '../services/bill-records.service';
+import { CouponCodeCard } from '@/features/walk-in-billing/components/coupon-code-card';
+import type { ValidatedBillCoupon } from '@/features/walk-in-billing/types/walk-in-billing.types';
+import { api } from '@/services/api-client';
 import { BillDocumentsPanel } from './bill-documents-panel';
 import { billStatusTone, paymentStatusTone } from './bill-tones';
 
-const METHODS: PaymentMethod[] = ['CASH', 'UPI', 'CARD', 'BANK_TRANSFER', 'WALLET', 'OTHER'];
+const METHODS: PaymentMethod[] = [
+  'CASH',
+  'UPI',
+  'CARD',
+  'BANK_TRANSFER',
+  'WALLET',
+  'OTHER',
+];
+
+function escapeHtml(value: string) { return value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c); }
 
 function downloadBillInvoice(bill: Bill) {
-  const customerName = bill.customer ? formatFullName(bill.customer) : 'Customer';
+  const customerName = bill.customer
+    ? formatFullName(bill.customer)
+    : 'Customer';
   const rows = bill.items
     .map(
       (item) =>
@@ -39,6 +62,7 @@ function downloadBillInvoice(bill: Bill) {
           <td>${item.description ?? item.itemType}</td>
           <td style="text-align:right">${item.quantity}</td>
           <td style="text-align:right">${formatCurrency(item.unitPrice)}</td>
+          <td style="text-align:right">${formatCurrency(item.membershipDiscount ?? 0)}</td>
           <td style="text-align:right">${formatCurrency(item.taxAmount)}</td>
           <td style="text-align:right">${formatCurrency(item.total)}</td>
         </tr>`,
@@ -63,12 +87,15 @@ function downloadBillInvoice(bill: Bill) {
     ${bill.salon?.name ?? 'Salon'} · ${formatDate(bill.billDate)}<br/>
     ${customerName}${bill.customer?.phone ? ` · ${bill.customer.phone}` : ''}<br/>
     Status: ${bill.status} · Payment: ${bill.paymentStatus}
+    ${bill.enrolledCouponCode ? `<br/>New membership coupon: ${escapeHtml(bill.enrolledCouponCode)}` : ""}
+    ${bill.couponCode ? `<br/>Membership coupon: ${bill.couponCode}` : ''}
   </div>
   <table>
-    <thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Tax</th><th style="text-align:right">Total</th></tr></thead>
+    <thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Membership</th><th style="text-align:right">Tax</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
   <div class="totals">
+    ${bill.enrollmentPlanId ? `<div><span>Membership enrollment: ${escapeHtml(bill.enrollmentPlanName ?? "Membership")}</span><span>${formatCurrency(bill.membershipFee ?? 0)}</span></div>` : ""}
     <div><span>Subtotal</span><span>${formatCurrency(bill.subtotal)}</span></div>
     <div><span>Discount</span><span>${formatCurrency(bill.discount)}</span></div>
     <div><span>Tax</span><span>${formatCurrency(bill.tax)}</span></div>
@@ -94,33 +121,53 @@ function downloadBillInvoice(bill: Bill) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-export function BillRecordDialog({ billId, onClose }: { billId: string | null; onClose: () => void }) {
+export function BillRecordDialog({
+  billId,
+  onClose,
+}: {
+  billId: string | null;
+  onClose: () => void;
+}) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
-  const bill = useScopedQuery(['bills', 'detail', billId], () => getBill(billId as string), {
-    enabled: Boolean(billId),
-    placeholderData: undefined,
-  });
+  const bill = useScopedQuery(
+    ['bills', 'detail', billId],
+    () => getBill(billId as string),
+    {
+      enabled: Boolean(billId),
+      placeholderData: undefined,
+    },
+  );
 
   const status = useMutation<Bill, ApiError, BillStatus>({
     mutationFn: (next) => changeBillStatus(billId as string, next),
     onSuccess: (updated) => {
-      toast.success(`Bill ${updated.billNumber} is now ${updated.status.toLowerCase()}`);
+      toast.success(
+        `Bill ${updated.billNumber} is now ${updated.status.toLowerCase()}`,
+      );
       void invalidateAfter(queryClient, 'bills');
     },
   });
 
   const b = bill.data;
-  const nextStatuses = b && can(user, 'bills.status') ? BILL_NEXT_STATUSES[b.status] : [];
+  const nextStatuses =
+    b && can(user, 'bills.status') ? BILL_NEXT_STATUSES[b.status] : [];
   const canRecordPayment =
-    b && can(user, 'bills.write') && b.status === 'COMPLETED' && Number(b.dueAmount) > 0;
+    b &&
+    can(user, 'bills.write') &&
+    b.status === 'COMPLETED' &&
+    Number(b.dueAmount) > 0;
 
   return (
     <Modal
       open={Boolean(billId)}
       onClose={onClose}
       title={b ? `Bill ${b.billNumber}` : 'Bill'}
-      description={b ? `${b.salon?.name ?? 'Salon'} · ${formatDate(b.billDate)}` : undefined}
+      description={
+        b
+          ? `${b.salon?.name ?? 'Salon'} · ${formatDate(b.billDate)}`
+          : undefined
+      }
       className="max-w-2xl"
     >
       {bill.isLoading ? (
@@ -129,12 +176,18 @@ export function BillRecordDialog({ billId, onClose }: { billId: string | null; o
           <Skeleton className="h-24 w-full" />
         </div>
       ) : bill.isError || !b ? (
-        <QueryErrorState error={bill.error} onRetry={() => void bill.refetch()} />
+        <QueryErrorState
+          error={bill.error}
+          onRetry={() => void bill.refetch()}
+        />
       ) : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={b.status} tone={billStatusTone(b.status)} />
-            <StatusBadge label={b.paymentStatus} tone={paymentStatusTone(b.paymentStatus)} />
+            <StatusBadge
+              label={b.paymentStatus}
+              tone={paymentStatusTone(b.paymentStatus)}
+            />
             <span className="text-sm font-medium text-text">
               {b.customer ? formatFullName(b.customer) : 'Customer'}
               {b.customer?.phone ? (
@@ -159,12 +212,13 @@ export function BillRecordDialog({ billId, onClose }: { billId: string | null; o
             </Button>
           </div>
 
-          <table className="w-full text-left text-xs">
+          <div tabIndex={0} role="region" aria-label="Scrollable items" className="app-table-scroll"><table className="w-full text-left text-xs">
             <thead className="text-text-secondary">
               <tr>
                 <th className="py-1 font-medium">Item</th>
                 <th className="py-1 text-right font-medium">Qty</th>
                 <th className="py-1 text-right font-medium">Rate</th>
+                <th className="py-1 text-right font-medium">Membership</th>
                 <th className="py-1 text-right font-medium">Tax</th>
                 <th className="py-1 text-right font-medium">Total</th>
               </tr>
@@ -172,17 +226,40 @@ export function BillRecordDialog({ billId, onClose }: { billId: string | null; o
             <tbody className="divide-y divide-border">
               {b.items.map((item) => (
                 <tr key={item.id}>
-                  <td className="py-1.5">{item.description ?? item.itemType}</td>
+                  <td className="py-1.5">
+                    {item.description ?? item.itemType}
+                  </td>
                   <td className="py-1.5 text-right">{item.quantity}</td>
-                  <td className="py-1.5 text-right">{formatCurrency(item.unitPrice)}</td>
-                  <td className="py-1.5 text-right">{formatCurrency(item.taxAmount)}</td>
-                  <td className="py-1.5 text-right font-medium">{formatCurrency(item.total)}</td>
+                  <td className="py-1.5 text-right">
+                    {formatCurrency(item.unitPrice)}
+                  </td>
+                  <td className="py-1.5 text-right">
+                    {formatCurrency(item.membershipDiscount ?? 0)}
+                  </td>
+                  <td className="py-1.5 text-right">
+                    {formatCurrency(item.taxAmount)}
+                  </td>
+                  <td className="py-1.5 text-right font-medium">
+                    {formatCurrency(item.total)}
+                  </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
+
+          {b.enrolledCouponCode && <p className="text-sm">New membership coupon: <span className="font-mono">{b.enrolledCouponCode}</span></p>}
+          {b.couponCode && (
+            <p className="text-sm">
+              <span className="font-semibold">Membership coupon: </span>
+              <span className="break-all font-mono">{b.couponCode}</span>
+            </p>
+          )}
+          {b.status === 'DRAFT' && can(user, 'bills.write') && (
+            <BillCouponEditor key={`${b.id}:${b.couponCode ?? ''}`} bill={b} />
+          )}
 
           <dl className="ml-auto grid w-full max-w-xs grid-cols-2 gap-y-1 text-xs">
+            {b.enrollmentPlanId && <><dt className="text-text-secondary">Membership fee ({b.enrollmentPlanName})</dt><dd className="text-right">{formatCurrency(b.membershipFee ?? 0)}</dd></>}
             <dt className="text-text-secondary">Subtotal</dt>
             <dd className="text-right">{formatCurrency(b.subtotal)}</dd>
             <dt className="text-text-secondary">Discount</dt>
@@ -192,26 +269,38 @@ export function BillRecordDialog({ billId, onClose }: { billId: string | null; o
             <dt className="text-text-secondary">Round off</dt>
             <dd className="text-right">{formatCurrency(b.roundOff)}</dd>
             <dt className="font-semibold">Total</dt>
-            <dd className="text-right font-semibold">{formatCurrency(b.total)}</dd>
+            <dd className="text-right font-semibold">
+              {formatCurrency(b.total)}
+            </dd>
             <dt className="text-text-secondary">Paid</dt>
             <dd className="text-right">{formatCurrency(b.paidAmount)}</dd>
             <dt className="text-text-secondary">Due</dt>
-            <dd className="text-right font-semibold">{formatCurrency(b.dueAmount)}</dd>
+            <dd className="text-right font-semibold">
+              {formatCurrency(b.dueAmount)}
+            </dd>
           </dl>
 
           <section className="space-y-2">
             <h4 className="text-xs font-bold text-text">Payments</h4>
             {b.payments.length === 0 ? (
-              <p className="text-xs text-text-secondary">No payments recorded.</p>
+              <p className="text-xs text-text-secondary">
+                No payments recorded.
+              </p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border text-xs">
                 {b.payments.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between px-3 py-2">
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between px-3 py-2"
+                  >
                     <span>
                       {p.paymentMethod} · {formatDateTime(p.paymentDate)}
                     </span>
                     <span className="flex items-center gap-2">
-                      <StatusBadge label={p.status} tone={p.status === 'SUCCESS' ? 'success' : 'neutral'} />
+                      <StatusBadge
+                        label={p.status}
+                        tone={p.status === 'SUCCESS' ? 'success' : 'neutral'}
+                      />
                       {formatCurrency(p.amount)}
                     </span>
                   </li>
@@ -240,11 +329,17 @@ export function BillRecordDialog({ billId, onClose }: { billId: string | null; o
                     variant={next === 'COMPLETED' ? 'default' : 'outline'}
                     disabled={status.isPending}
                     onClick={() => {
-                      if (next !== 'COMPLETED' && !window.confirm(`Mark this bill ${next.toLowerCase()}?`)) return;
+                      if (
+                        next !== 'COMPLETED' &&
+                        !window.confirm(`Mark this bill ${next.toLowerCase()}?`)
+                      )
+                        return;
                       status.mutate(next);
                     }}
                   >
-                    {next === 'COMPLETED' ? 'Complete bill' : `Mark ${next.toLowerCase()}`}
+                    {next === 'COMPLETED'
+                      ? 'Complete bill'
+                      : `Mark ${next.toLowerCase()}`}
                   </Button>
                 ))}
               </div>
@@ -310,7 +405,11 @@ function CounterPaymentForm({ bill }: { bill: Bill }) {
         </SelectInput>
       </FormField>
       <FormField id="pay-ref" label="Reference (optional)">
-        <Input id="pay-ref" value={reference} onChange={(e) => setReference(e.target.value)} />
+        <Input
+          id="pay-ref"
+          value={reference}
+          onChange={(e) => setReference(e.target.value)}
+        />
       </FormField>
       <div className="sm:col-span-3 flex items-center justify-between gap-2">
         <p className="text-[11px] text-text-secondary">
@@ -324,5 +423,55 @@ function CounterPaymentForm({ bill }: { bill: Bill }) {
         <MutationError error={record.error} />
       </div>
     </form>
+  );
+}
+
+function BillCouponEditor({ bill }: { bill: Bill }) {
+  const [coupon, setCoupon] = useState<ValidatedBillCoupon | null>(null);
+  const client = useQueryClient();
+  const save = useMutation<Bill, ApiError, string | null>({
+    mutationFn: (couponCode) =>
+      api.patch<Bill>(`/bills/${bill.id}`, { couponCode }),
+    onSuccess: () => {
+      toast.success('Bill coupon updated');
+      void invalidateAfter(client, 'bills');
+    },
+  });
+  return (
+    <div className="space-y-2">
+      <CouponCodeCard
+        salonId={bill.salonId}
+        customerId={bill.customerId}
+        coupon={coupon}
+        onChange={setCoupon}
+        disabled={save.isPending}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          disabled={!coupon || save.isPending}
+          onClick={() => save.mutate(coupon?.couponCode ?? null)}
+        >
+          Save coupon on draft
+        </Button>
+        {bill.couponCode && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={save.isPending}
+            onClick={() => save.mutate(null)}
+          >
+            Remove saved coupon
+          </Button>
+        )}
+      </div>
+      {save.isError && (
+        <p role="alert" className="text-sm text-danger">
+          {save.error.message}
+        </p>
+      )}
+    </div>
   );
 }

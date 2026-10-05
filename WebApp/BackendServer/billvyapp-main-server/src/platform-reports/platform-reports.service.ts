@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
-import { PaymentStatus } from '../common/enums/payment.enum';
+import { ReportAnalyticsService } from './report-analytics.service';
 import type { RequestContext } from '../common/http/request-context';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -167,6 +167,7 @@ export class PlatformReportsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly businessTimezone: BusinessTimezoneService,
+    private readonly analytics: ReportAnalyticsService,
   ) {}
 
   async list(
@@ -205,7 +206,7 @@ export class PlatformReportsService {
     }
 
     const pageResult = paginated(
-      rows.map((row) => this.toRecord(row as ReportRow)),
+      rows.map((row) => this.toRecord(row)),
       total,
       page,
       limit,
@@ -232,7 +233,7 @@ export class PlatformReportsService {
       select: REPORT_SELECT,
     });
     if (!row) throw new NotFoundException('Platform report not found');
-    return this.toRecord(row as ReportRow);
+    return this.toRecord(row);
   }
 
   async generate(
@@ -247,30 +248,17 @@ export class PlatformReportsService {
       throw new BadRequestException('dateFrom must be on or before dateTo');
     }
 
-    const timeZone = await this.businessTimezone.resolveForUser(user);
     // DATE columns store the calendar labels themselves (no zone).
     const dateFrom = parseDateOnlyUtc(dto.dateFrom);
     const dateTo = parseDateOnlyUtc(dto.dateTo);
 
-    let franchiseName: string | null = null;
-    if (dto.franchiseId) {
-      const franchise = await this.prisma.franchise.findUnique({
-        where: { id: dto.franchiseId },
-        select: { id: true, name: true },
-      });
-      if (!franchise) {
-        throw new BadRequestException('Franchise not found');
-      }
-      franchiseName = franchise.name;
-    }
-
-    const metrics = await this.aggregateSnapshot({
-      dateFromLabel: dto.dateFrom,
-      dateToLabel: dto.dateTo,
-      timeZone,
-      franchiseId: dto.franchiseId ?? null,
-    });
-
+    if (dto.format === 'pdf')
+      throw new BadRequestException(
+        'PDF generation is not implemented. Use Excel-compatible CSV.',
+      );
+    const analytics = await this.analytics.query(user, dto, true);
+    const metrics = analytics.summary!;
+    const franchiseName = analytics.scope.franchiseName;
     const type = dto.type;
     const format = dto.format ?? 'excel';
     const dateRangeLabel = this.formatDateRangeLabel(dateFrom, dateTo);
@@ -282,10 +270,16 @@ export class PlatformReportsService {
     const snapshot: Record<string, unknown> = {
       dateFrom: dto.dateFrom,
       dateTo: dto.dateTo,
-      timeZone,
-      franchiseId: dto.franchiseId ?? null,
+      timeZone: analytics.scope.timeZone,
+      franchiseId: analytics.scope.franchiseId,
       franchiseName,
+      salonId: analytics.scope.salonId,
+      salonName: analytics.scope.salonName,
+      interval: dto.interval ?? 'month',
+      salonSort: dto.salonSort ?? 'revenue',
+      serviceSort: dto.serviceSort ?? 'revenue',
       metrics,
+      analytics,
     };
 
     const created = await this.prisma.platformReport.create({
@@ -296,7 +290,7 @@ export class PlatformReportsService {
         format: FORMAT_TO_DB[format],
         dateFrom,
         dateTo,
-        franchiseId: dto.franchiseId ?? null,
+        franchiseId: analytics.scope.franchiseId,
         generatedById: user.userId,
         snapshot: snapshot as Prisma.InputJsonValue,
       },
@@ -313,13 +307,15 @@ export class PlatformReportsService {
         format,
         dateFrom: dto.dateFrom,
         dateTo: dto.dateTo,
-        franchiseId: dto.franchiseId ?? null,
+        franchiseId: analytics.scope.franchiseId,
+        salonId: analytics.scope.salonId,
+        interval: dto.interval ?? 'month',
       },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
 
-    return this.toRecord(created as ReportRow);
+    return this.toRecord(created);
   }
 
   async download(
@@ -332,7 +328,7 @@ export class PlatformReportsService {
     });
     if (!row) throw new NotFoundException('Platform report not found');
 
-    const record = this.toRecord(row as ReportRow);
+    const record = this.toRecord(row);
     const body = this.snapshotToCsv(record);
     const safeName = record.name.replace(/[^\w.\- ]+/g, '_').trim() || 'report';
     return {
@@ -393,6 +389,9 @@ export class PlatformReportsService {
     return {
       ...(query.type ? { type: TYPE_TO_DB[query.type] } : {}),
       ...(query.franchiseId ? { franchiseId: query.franchiseId } : {}),
+      ...(query.salonId
+        ? { snapshot: { path: '$.salonId', equals: query.salonId } }
+        : {}),
       ...(Object.keys(createdAt).length > 0 ? { createdAt } : {}),
       ...(search
         ? {
@@ -402,96 +401,6 @@ export class PlatformReportsService {
             ],
           }
         : {}),
-    };
-  }
-
-  private async aggregateSnapshot(input: {
-    dateFromLabel: string;
-    dateToLabel: string;
-    timeZone: string;
-    franchiseId: string | null;
-  }): Promise<SnapshotMetrics> {
-    const range = businessCalendarRangeToUtc(
-      input.dateFromLabel,
-      input.dateToLabel,
-      input.timeZone,
-    );
-
-    const paymentDateFilter: Prisma.DateTimeFilter = {
-      ...(range.gte ? { gte: range.gte } : {}),
-      ...(range.lt ? { lt: range.lt } : {}),
-    };
-
-    const billSalonFilter: Prisma.PaymentWhereInput = input.franchiseId
-      ? { bill: { salon: { franchiseId: input.franchiseId } } }
-      : {};
-
-    const userWhere: Prisma.UserWhereInput = input.franchiseId
-      ? { franchiseId: input.franchiseId }
-      : {};
-
-    const customerWhere: Prisma.CustomerWhereInput = input.franchiseId
-      ? { user: { franchiseId: input.franchiseId } }
-      : {};
-
-    const salonWhere: Prisma.SalonWhereInput = input.franchiseId
-      ? { franchiseId: input.franchiseId }
-      : {};
-
-    const franchiseWhere: Prisma.FranchiseWhereInput = input.franchiseId
-      ? { id: input.franchiseId }
-      : {};
-
-    const [
-      revenueAgg,
-      successfulPayments,
-      totalPayments,
-      userCount,
-      customerCount,
-      franchiseCount,
-      salonCount,
-    ] = await Promise.all([
-      this.prisma.payment.aggregate({
-        where: {
-          status: PaymentStatus.SUCCESS,
-          paymentDate: paymentDateFilter,
-          ...billSalonFilter,
-        },
-        _sum: { amount: true },
-      }),
-      this.prisma.payment.count({
-        where: {
-          status: PaymentStatus.SUCCESS,
-          paymentDate: paymentDateFilter,
-          ...billSalonFilter,
-        },
-      }),
-      this.prisma.payment.count({
-        where: {
-          paymentDate: paymentDateFilter,
-          ...billSalonFilter,
-        },
-      }),
-      this.prisma.user.count({ where: userWhere }),
-      this.prisma.customer.count({ where: customerWhere }),
-      this.prisma.franchise.count({ where: franchiseWhere }),
-      this.prisma.salon.count({ where: salonWhere }),
-    ]);
-
-    const sum = revenueAgg._sum.amount;
-    const totalRevenue =
-      sum == null
-        ? '0.00'
-        : Number(sum.toString()).toFixed(2);
-
-    return {
-      totalRevenue,
-      successfulPayments,
-      totalPayments,
-      userCount,
-      customerCount,
-      franchiseCount,
-      salonCount,
     };
   }
 
@@ -508,6 +417,18 @@ export class PlatformReportsService {
       this.csvRow('dateTo', record.dateTo),
       this.csvRow('franchiseId', record.franchiseId ?? ''),
       this.csvRow('franchiseName', record.franchiseName ?? ''),
+      this.csvRow(
+        'salonId',
+        typeof record.snapshot.salonId === 'string'
+          ? record.snapshot.salonId
+          : '',
+      ),
+      this.csvRow(
+        'salonName',
+        typeof record.snapshot.salonName === 'string'
+          ? record.snapshot.salonName
+          : '',
+      ),
       this.csvRow('generatedBy', record.generatedBy),
       this.csvRow('generatedOn', record.generatedOn.toISOString()),
     ];
@@ -524,11 +445,31 @@ export class PlatformReportsService {
       );
     }
 
-    return `${lines.join('\n')}\n`;
+    // Append analytics without removing any legacy field/value rows.
+    const flatten = (prefix: string, value: unknown) => {
+      if (value && typeof value === 'object') {
+        for (const [key, child] of Object.entries(value))
+          flatten(`${prefix}.${key}`, child);
+      } else
+        lines.push(
+          this.csvRow(
+            prefix,
+            typeof value === 'string' ||
+              typeof value === 'number' ||
+              typeof value === 'boolean'
+              ? String(value)
+              : '',
+          ),
+        );
+    };
+    if (record.snapshot.analytics)
+      flatten('analytics', record.snapshot.analytics);
+    return `\uFEFF${lines.join('\n')}\n`;
   }
 
   private csvRow(field: string, value: string): string {
-    const escaped = `"${value.replace(/"/g, '""')}"`;
+    const safeValue = /^[=+@\-\t\r]/.test(value) ? `'${value}` : value;
+    const escaped = `"${safeValue.replace(/"/g, '""')}"`;
     return `${field},${escaped}`;
   }
 
@@ -545,9 +486,15 @@ export class PlatformReportsService {
       dateTo: this.toDateOnly(row.dateTo),
       dateRangeLabel: this.formatDateRangeLabel(row.dateFrom, row.dateTo),
       franchiseId: row.franchiseId,
-      franchiseName: row.franchise?.name ?? null,
+      franchiseName:
+        (row.snapshot &&
+        typeof row.snapshot === 'object' &&
+        'franchiseName' in row.snapshot
+          ? (row.snapshot.franchiseName as string | null)
+          : row.franchise?.name) ?? null,
       generatedById: row.generatedById,
-      generatedBy: `${row.generatedBy.firstName} ${row.generatedBy.lastName}`.trim(),
+      generatedBy:
+        `${row.generatedBy.firstName} ${row.generatedBy.lastName}`.trim(),
       generatedOn: row.createdAt,
       snapshot:
         row.snapshot && typeof row.snapshot === 'object'

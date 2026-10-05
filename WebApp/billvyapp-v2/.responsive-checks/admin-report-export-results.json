@@ -1,0 +1,288 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "document": 320,
+      "main": 320,
+      "available": 320,
+      "left": 35,
+      "right": 291
+    },
+    {
+      "width": 360,
+      "document": 360,
+      "main": 360,
+      "available": 360,
+      "left": 75,
+      "right": 331
+    },
+    {
+      "width": 375,
+      "document": 375,
+      "main": 375,
+      "available": 375,
+      "left": 90,
+      "right": 346
+    },
+    {
+      "width": 390,
+      "document": 390,
+      "main": 390,
+      "available": 390,
+      "left": 105,
+      "right": 361
+    },
+    {
+      "width": 414,
+      "document": 414,
+      "main": 414,
+      "available": 414,
+      "left": 129,
+      "right": 385
+    },
+    {
+      "width": 480,
+      "document": 480,
+      "main": 480,
+      "available": 480,
+      "left": 195,
+      "right": 451
+    },
+    {
+      "width": 640,
+      "document": 640,
+      "main": 640,
+      "available": 640,
+      "left": 350,
+      "right": 606
+    },
+    {
+      "width": 768,
+      "document": 768,
+      "main": 768,
+      "available": 768,
+      "left": 476,
+      "right": 732
+    },
+    {
+      "width": 820,
+      "document": 820,
+      "main": 820,
+      "available": 820,
+      "left": 527,
+      "right": 783
+    },
+    {
+      "width": 1024,
+      "document": 1024,
+      "main": 768,
+      "available": 768,
+      "left": 727,
+      "right": 983
+    },
+    {
+      "width": 1280,
+      "document": 1280,
+      "main": 1024,
+      "available": 1024,
+      "left": 977,
+      "right": 1233
+    },
+    {
+      "width": 1440,
+      "document": 1440,
+      "main": 1184,
+      "available": 1184,
+      "left": 1134,
+      "right": 1390
+    },
+    {
+      "width": 1920,
+      "document": 1920,
+      "main": 1664,
+      "available": 1664,
+      "left": 1611,
+      "right": 1867
+    },
+    {
+      "width": 2560,
+      "document": 2560,
+      "main": 2304,
+      "available": 2304,
+      "left": 1971,
+      "right": 2227
+    },
+    {
+      "width": 600,
+      "document": 600,
+      "main": 600,
+      "available": 600,
+      "left": 315,
+      "right": 571
+    },
+    {
+      "width": 960,
+      "document": 960,
+      "main": 960,
+      "available": 960,
+      "left": 664,
+      "right": 920
+    },
+    {
+      "width": 1200,
+      "document": 1200,
+      "main": 944,
+      "available": 944,
+      "left": 899,
+      "right": 1155
+    },
+    {
+      "expanded": true,
+      "document": 320,
+      "width": 320,
+      "main": 320,
+      "available": 320
+    },
+    {
+      "expanded": true,
+      "document": 768,
+      "width": 768,
+      "main": 768,
+      "available": 768
+    },
+    {
+      "expanded": true,
+      "document": 1280,
+      "width": 1280,
+      "main": 1024,
+      "available": 1024
+    },
+    {
+      "expanded": true,
+      "document": 1440,
+      "width": 1440,
+      "main": 1184,
+      "available": 1184
+    },
+    {
+      "expanded": true,
+      "document": 1920,
+      "width": 1920,
+      "main": 1664,
+      "available": 1664
+    },
+    {
+      "interactive": "Service quantity and branch metric selectors"
+    },
+    {
+      "workflow": "menu, shared filters, XLSX binary, generating state, duplicate prevention, history snapshot, failure, empty, no print"
+    }
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "path": "/api/admin-reports/analytics",
+      "method": "GET",
+      "q": {
+        "reportType": "overview",
+        "interval": "day"
+      }
+    },
+    {
+      "path": "/api/admin-reports",
+      "method": "GET",
+      "q": {}
+    },
+    {
+      "path": "/api/admin-reports/analytics",
+      "method": "GET",
+      "q": {
+        "branchId": "branch",
+        "reportType": "overview",
+        "interval": "day"
+      }
+    },
+    {
+      "path": "/api/admin-reports/analytics",
+      "method": "GET",
+      "q": {
+        "branchId": "branch",
+        "reportType": "overview",
+        "interval": "week"
+      }
+    },
+    {
+      "path": "/api/admin-reports/generate",
+      "method": "POST",
+      "q": {}
+    },
+    {
+      "generate": {
+        "dateFrom": "2026-10-01",
+        "dateTo": "2026-10-04",
+        "branchId": "branch",
+        "reportType": "overview",
+        "interval": "week"
+      }
+    },
+    {
+      "path": "/api/admin-reports/r0/download",
+      "method": "GET",
+      "q": {}
+    },
+    {
+      "path": "/api/admin-reports",
+      "method": "GET",
+      "q": {}
+    },
+    {
+      "path": "/api/admin-reports/analytics",
+      "method": "GET",
+      "q": {
+        "dateFrom": "2026-10-02",
+        "branchId": "branch",
+        "reportType": "overview",
+        "interval": "week"
+      }
+    },
+    {
+      "path": "/api/admin-reports/r0/download",
+      "method": "GET",
+      "q": {}
+    },
+    {
+      "path": "/api/admin-reports",
+      "method": "GET",
+      "q": {}
+    },
+    {
+      "path": "/api/admin-reports/generate",
+      "method": "POST",
+      "q": {}
+    },
+    {
+      "generate": {
+        "dateFrom": "2026-10-02",
+        "dateTo": "2026-10-04",
+        "branchId": "branch",
+        "reportType": "overview",
+        "interval": "week"
+      }
+    },
+    {
+      "path": "/api/admin-reports",
+      "method": "GET",
+      "q": {}
+    },
+    {
+      "path": "/api/admin-reports/analytics",
+      "method": "GET",
+      "q": {
+        "dateFrom": "2026-10-03",
+        "branchId": "branch",
+        "reportType": "overview",
+        "interval": "week"
+      }
+    }
+  ]
+}

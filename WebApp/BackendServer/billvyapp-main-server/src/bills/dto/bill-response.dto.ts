@@ -7,6 +7,10 @@ import {
 import { PaymentMethod, PaymentStatus } from '../../common/enums/payment.enum';
 
 export class BillItemResponseDto {
+  @ApiProperty() membershipDiscount: string;
+  @ApiProperty() membershipUnits: number;
+  @ApiProperty() membershipBenefit: boolean;
+
   @ApiProperty() id: string;
   @ApiProperty({ enum: BillItemType }) itemType: BillItemType;
   @ApiPropertyOptional({ nullable: true }) serviceId: string | null;
@@ -43,6 +47,12 @@ export class BillCustomerDto {
 }
 
 export class BillResponseDto {
+  @ApiPropertyOptional({ nullable: true }) enrollmentPlanId?: string | null;
+  @ApiPropertyOptional({ nullable: true }) enrollmentPlanName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) enrolledCouponCode?: string | null;
+  @ApiPropertyOptional() membershipFee?: string;
+
+  @ApiPropertyOptional({ nullable: true }) couponCode: string | null;
   @ApiProperty() id: string;
   @ApiProperty() salonId: string;
   @ApiProperty() customerId: string;

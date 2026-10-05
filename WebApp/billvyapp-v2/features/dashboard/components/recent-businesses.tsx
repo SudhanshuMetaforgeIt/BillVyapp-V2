@@ -72,7 +72,7 @@ export function RecentBusinesses({
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto md:block">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll hidden overflow-x-auto md:block">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>

@@ -103,7 +103,7 @@ export function SupportPageView() {
 
   return (
     <div ref={rootRef} className="space-y-6 lg:space-y-7">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 app-stat-grid">
         {isLoading
           ? Array.from({ length: 5 }).map((_, i) => (
               <MetricCardSkeleton key={i} />
@@ -152,7 +152,7 @@ export function SupportPageView() {
         ) : null}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
         <SupportTable
           rows={data?.rows ?? []}
           meta={data?.meta ?? emptyMeta}

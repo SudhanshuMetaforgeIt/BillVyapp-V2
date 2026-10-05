@@ -35,7 +35,7 @@ export function ServicesFilters({
   onPrimaryAction,
 }: ServicesFiltersProps) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+    <div className="app-toolbar">
       <div className="relative min-w-0 flex-1">
         <Input
           value={search}
@@ -54,7 +54,7 @@ export function ServicesFilters({
 
       <div className="flex flex-wrap items-center gap-2">
         {tab === 'services' ? (
-          <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+          <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
             value={categoryId}
             onChange={(e) => onCategoryIdChange(e.target.value)}
             aria-label="Category filter"
@@ -68,7 +68,7 @@ export function ServicesFilters({
           </SelectInput>
         ) : null}
 
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as ServiceStatusFilter)

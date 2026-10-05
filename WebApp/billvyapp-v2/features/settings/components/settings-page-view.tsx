@@ -43,7 +43,7 @@ export function SettingsPageView() {
       <SettingsTabs active={tab} onChange={setTab} />
 
       {tab === 'general' ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(17rem,0.85fr)] xl:gap-7">
+        <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(17rem,0.85fr)] xl:gap-7">
           <SettingsGeneralPanel />
           <div className="space-y-6 xl:space-y-7">
             <SettingsSecurityPanel />
@@ -52,7 +52,7 @@ export function SettingsPageView() {
           {sidebar}
         </div>
       ) : tab === 'security' ? (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
+        <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
           <SettingsSecurityPanel />
           {sidebar}
         </div>

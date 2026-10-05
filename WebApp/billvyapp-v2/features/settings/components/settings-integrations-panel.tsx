@@ -45,7 +45,7 @@ export function SettingsIntegrationsPanel() {
   return (
     <div className="space-y-6">
       <DashboardSectionCard title="Add integration" bodyClassName="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 panel-md:grid-cols-2">
           <SettingsTextField id="int-name" label="Name" value={name} onChange={setName} />
           <SettingsTextField id="int-provider" label="Provider" value={provider} onChange={setProvider} />
         </div>

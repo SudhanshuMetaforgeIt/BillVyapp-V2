@@ -66,6 +66,7 @@ export const CAPABILITIES = {
 
   'notifications.read': ALL,
   'notifications.write': INTERNAL,
+  'campaigns.manage': MANAGEMENT,
 
   'media.read': ALL,
   'media.write': INTERNAL,

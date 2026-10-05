@@ -260,7 +260,7 @@ export function BulkUploadDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-xl"
+        className="app-dialog relative w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-xl"
       >
         {uploading ? (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface/92 backdrop-blur-[2px]">

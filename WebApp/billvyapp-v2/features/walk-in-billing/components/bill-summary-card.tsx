@@ -13,6 +13,8 @@ export function BillSummaryCard({ preview }: BillSummaryCardProps) {
       <h2 className="mb-4 text-base font-semibold text-text">Bill Summary</h2>
 
       <dl className="space-y-3 text-sm">
+        {(preview.membershipFee ?? 0) > 0 && <div className="flex justify-between"><dt>Membership fee</dt><dd>{formatCurrency(preview.membershipFee ?? 0)}</dd></div>}
+        {(preview.membershipDiscount ?? 0) > 0 && <><div className="flex justify-between"><dt>Normal service amount</dt><dd>{formatCurrency(preview.originalSubtotal ?? 0)}</dd></div><div className="flex justify-between text-emerald"><dt>Membership discount</dt><dd>−{formatCurrency(preview.membershipDiscount ?? 0)}</dd></div></>}
         <div className="flex items-center justify-between gap-3">
           <dt className="text-text-secondary">
             Subtotal ({preview.itemCount}{' '}

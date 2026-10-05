@@ -139,7 +139,7 @@ export function AdjustStockDialog({
             </SelectInput>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 panel-md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="inv-adjust-qty">Quantity delta</Label>
               <Input

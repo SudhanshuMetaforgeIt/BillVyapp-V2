@@ -12,6 +12,10 @@ import type { WalkInPaymentMethod } from '../types/walk-in-billing.types';
 import { RECENT_BILLS_QUERY_KEY } from './use-recent-bills';
 
 export type SettleWalkInInput = {
+  enrollmentPlanId?: string | null;
+  enrollmentDetails?: import("../types/walk-in-billing.types").EnrollmentDetails;
+  expectedTotal?: number;
+  couponCode?: string | null;
   salonId: string;
   customerId: string;
   discount?: number;
@@ -26,10 +30,13 @@ export function useSettleWalkInBill(onSuccess?: () => void) {
   const canComplete = can(user, 'bills.status');
 
   return useMutation({
-    mutationFn: (input: SettleWalkInInput) => settleWalkInBill(input, { canComplete }),
+    mutationFn: (input: SettleWalkInInput) =>
+      settleWalkInBill(input, { canComplete }),
     onSuccess: (result) => {
       const number = result.bill.billNumber;
-      if (result.outcome === 'draft') {
+      if (result.outcome === 'price-changed') {
+        toast.error(`Bill ${number} ${result.bill.status === 'DRAFT' ? 'saved as a draft' : 'completed'} with updated membership pricing. Confirm the amount and record payment from Bills.`);
+      } else if (result.outcome === 'draft') {
         toast.success(`Draft bill ${number} saved`);
       } else if (result.outcome === 'completed') {
         toast.success(`Bill ${number} completed — nothing due`);

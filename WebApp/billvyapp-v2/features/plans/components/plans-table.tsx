@@ -7,10 +7,13 @@ import {
   MoreVertical,
   Octagon,
   Pencil,
+  Power,
   Send,
   TrendingUp,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Menu } from '@base-ui/react/menu';
+
+import { useUpdatePlanStatus } from '../hooks/use-plan-mutations';
 
 import {
   SectionEmptyState,
@@ -67,8 +70,63 @@ export function PlansTable({
   onPageChange,
   onEditPlan,
 }: PlansTableProps) {
+  const statusMutation = useUpdatePlanStatus();
+
+  const renderActions = (plan: PlatformPlan) => (
+    <div className="flex max-w-full flex-wrap items-center justify-end gap-1">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8 gap-1.5 border-brand-orange text-brand-orange hover:bg-brand-orange/5"
+        aria-label={`Edit ${plan.name}`}
+        onClick={() => onEditPlan(plan)}
+      >
+        <Pencil className="size-3.5" aria-hidden />
+        Edit
+      </Button>
+      <Menu.Root>
+        <Menu.Trigger
+          type="button"
+          className="rounded-md p-1.5 text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+          aria-label={`More actions for ${plan.name}`}
+          disabled={statusMutation.isPending}
+        >
+          <MoreVertical className="size-4" />
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner align="end" sideOffset={6} className="z-[300]">
+            <Menu.Popup
+              aria-label={`Actions for ${plan.name}`}
+              className="min-w-44 max-w-[calc(100vw-1rem)] rounded-xl border border-border bg-surface p-1 shadow-lg outline-none"
+            >
+              <Menu.Item
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-text outline-none data-highlighted:bg-champagne-light"
+                onClick={() => onEditPlan(plan)}
+              >
+                <Pencil className="size-3.5" aria-hidden />
+                Edit plan
+              </Menu.Item>
+              <Menu.Item
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-text outline-none data-highlighted:bg-champagne-light data-disabled:opacity-50"
+                disabled={statusMutation.isPending}
+                onClick={() => statusMutation.mutate({
+                  id: plan.id,
+                  isActive: plan.status !== 'active',
+                })}
+              >
+                <Power className="size-3.5" aria-hidden />
+                {plan.status === 'active' ? 'Deactivate plan' : 'Activate plan'}
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+    </div>
+  );
+
   return (
-    <div className="app-surface-card overflow-hidden" data-dash-animate="section">
+    <div className="app-panel app-surface-card min-w-0" data-dash-animate="section">
       {isLoading ? (
         <div className="space-y-3 p-5">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -87,8 +145,16 @@ export function PlansTable({
         />
       ) : (
         <>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[760px] text-left text-sm">
+          <div className="app-plans-table relative min-w-0">
+            <table className="w-full table-fixed text-left text-sm">
+              <colgroup>
+                <col />
+                <col className="w-[12rem]" />
+                <col className="w-[7rem]" />
+                <col className="w-[7rem]" />
+                <col className="w-[5rem]" />
+                <col className="w-[7.5rem]" />
+              </colgroup>
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Plan Name</th>
@@ -110,15 +176,15 @@ export function PlansTable({
                       className="border-b border-border last:border-0 hover:bg-ivory/60"
                     >
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           <span
-                            className={`inline-flex size-10 items-center justify-center rounded-full ${PLAN_ICON_WRAP[plan.iconKey]}`}
+                            className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full ${PLAN_ICON_WRAP[plan.iconKey]}`}
                           >
                             <Icon className="size-4" aria-hidden />
                           </span>
                           <div className="min-w-0">
                             <p className="font-semibold text-text">{plan.name}</p>
-                            <p className="truncate text-xs text-text-secondary">
+                            <p className="[overflow-wrap:anywhere] text-xs text-text-secondary">
                               {plan.description}
                             </p>
                           </div>
@@ -136,32 +202,12 @@ export function PlansTable({
                       <td className="px-5 py-3.5">
                         <StatusBadge
                           label={plan.status === 'active' ? 'Active' : 'Inactive'}
+                          className="whitespace-nowrap"
                           tone={plan.status === 'active' ? 'success' : 'neutral'}
                         />
                       </td>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5 border-brand-orange text-brand-orange hover:bg-brand-orange/5"
-                            onClick={() => onEditPlan(plan)}
-                          >
-                            <Pencil className="size-3.5" aria-hidden />
-                            Edit
-                          </Button>
-                          <button
-                            type="button"
-                            className="rounded-md p-1.5 text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                            aria-label={`More actions for ${plan.name}`}
-                            onClick={() =>
-                              toast('More plan actions will be available soon.')
-                            }
-                          >
-                            <MoreVertical className="size-4" />
-                          </button>
-                        </div>
+                        {renderActions(plan)}
                       </td>
                     </tr>
                   );
@@ -170,15 +216,15 @@ export function PlansTable({
             </table>
           </div>
 
-          <ul className="divide-y divide-border md:hidden">
+          <ul className="app-plans-cards divide-y divide-border">
             {rows.map((plan) => {
               const Icon = PLAN_ICONS[plan.iconKey];
               return (
                 <li key={plan.id} className="space-y-3 px-4 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-3">
                       <span
-                        className={`inline-flex size-10 items-center justify-center rounded-full ${PLAN_ICON_WRAP[plan.iconKey]}`}
+                        className={`inline-flex size-10 shrink-0 items-center justify-center rounded-full ${PLAN_ICON_WRAP[plan.iconKey]}`}
                       >
                         <Icon className="size-4" aria-hidden />
                       </span>
@@ -191,13 +237,18 @@ export function PlansTable({
                     </div>
                     <StatusBadge
                       label={plan.status === 'active' ? 'Active' : 'Inactive'}
-                      tone={plan.status === 'active' ? 'success' : 'neutral'}
+                      className="whitespace-nowrap"
+                          tone={plan.status === 'active' ? 'success' : 'neutral'}
                     />
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 pl-12 text-xs text-text-secondary">
-                    <span>{plan.billingCycleLabel}</span>
+                  <p className="text-sm text-text-secondary [overflow-wrap:anywhere]">
+                    {plan.description}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-secondary">
+                    <span>Billing cycle: {plan.billingCycleLabel}</span>
                     <span>{formatNumber(plan.businessCount)} businesses</span>
                   </div>
+                  {renderActions(plan)}
                 </li>
               );
             })}

@@ -78,7 +78,7 @@ export function CreateSupportTicketDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl"
+        className="app-dialog app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl"
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-border/80 bg-ivory-soft/95 px-5 py-4 backdrop-blur">
           <h2 id={titleId} className="text-base font-semibold text-text">
@@ -134,7 +134,7 @@ export function CreateSupportTicketDialog({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 panel-md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="ticket-category">Category</Label>
               <SelectInput

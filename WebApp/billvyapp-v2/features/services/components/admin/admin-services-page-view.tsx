@@ -119,7 +119,7 @@ export function AdminServicesPageView() {
     <div ref={rootRef} className="space-y-6 lg:space-y-7 pb-10">
       <ServicesStats stats={data?.stats} isLoading={query.isLoading} />
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
+      <div className="app-toolbar justify-between border-b border-border pb-3">
         <div className="flex items-center gap-6">
           <button
             type="button"

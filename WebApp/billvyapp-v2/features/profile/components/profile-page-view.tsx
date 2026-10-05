@@ -37,7 +37,7 @@ export function ProfilePageView() {
 
   return (
     <div ref={rootRef} className="space-y-6 lg:space-y-7">
-      <div className="grid gap-6 xl:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] xl:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] xl:gap-7">
         <ProfileSummaryCard profile={query.data} isLoading={isLoading} />
         <ProfilePersonalForm profile={query.data} isLoading={isLoading} />
       </div>

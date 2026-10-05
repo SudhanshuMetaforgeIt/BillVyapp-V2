@@ -1,3 +1,11 @@
+jest.mock('../generated/prisma/client', () => {
+  const runtime = jest.requireActual<
+    typeof import('@prisma/client/runtime/client')
+  >('@prisma/client/runtime/client');
+  return {
+    Prisma: { sql: runtime.sqltag, join: runtime.join, empty: runtime.empty },
+  };
+});
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { RoleCode } from '../common/enums/role.enum';
@@ -79,6 +87,7 @@ describe('PlatformReportsService', () => {
     $transaction: jest.fn(),
   };
   const audit = { record: jest.fn() };
+  const analytics = { query: jest.fn() };
   let service: PlatformReportsService;
 
   beforeEach(() => {
@@ -94,20 +103,33 @@ describe('PlatformReportsService', () => {
         resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
         getPlatformTimezone: jest.fn().mockResolvedValue('Asia/Kolkata'),
       } as never,
+      analytics as never,
     );
   });
 
   function stubAggregate() {
-    prisma.payment.aggregate.mockResolvedValue({
-      _sum: { amount: { toString: () => '1500.00' } },
+    analytics.query.mockResolvedValue({
+      scope: {
+        franchiseId: null,
+        franchiseName: null,
+        salonId: null,
+        salonName: null,
+      },
+      summary: {
+        totalRevenue: '1500.00',
+        successfulPayments: 3,
+        totalPayments: 4,
+        userCount: 10,
+        customerCount: 5,
+        franchiseCount: 2,
+        salonCount: 3,
+      },
+      revenue: {
+        series: [{ period: '2026-09-01', revenue: 1500, transactions: 3 }],
+        methods: [],
+        statuses: [],
+      },
     });
-    prisma.payment.count
-      .mockResolvedValueOnce(3)
-      .mockResolvedValueOnce(4);
-    prisma.user.count.mockResolvedValue(10);
-    prisma.customer.count.mockResolvedValue(5);
-    prisma.franchise.count.mockResolvedValue(2);
-    prisma.salon.count.mockResolvedValue(3);
   }
 
   it('generates a report with snapshot metrics', async () => {
@@ -132,6 +154,65 @@ describe('PlatformReportsService', () => {
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'PLATFORM_REPORT_GENERATED' }),
     );
+  });
+
+  it('persists the same analytics captured for dashboard filters, including salon metadata', async () => {
+    stubAggregate();
+    analytics.query.mockResolvedValueOnce({
+      scope: {
+        franchiseId: 'f',
+        franchiseName: 'Original franchise',
+        salonId: 's',
+        salonName: 'Original salon',
+      },
+      summary: {
+        totalRevenue: '1500.00',
+        successfulPayments: 3,
+        totalPayments: 4,
+      },
+    });
+    prisma.platformReport.create.mockResolvedValue(reportRow());
+    await service.generate(
+      actor,
+      {
+        type: 'business',
+        dateFrom: '2026-09-01',
+        dateTo: '2026-09-30',
+        salonId: 's',
+        interval: 'week',
+      },
+      ctx,
+    );
+    expect(analytics.query).toHaveBeenCalledWith(
+      actor,
+      expect.objectContaining({ salonId: 's', interval: 'week' }),
+      true,
+    );
+    const [[created]] = prisma.platformReport.create.mock.calls as [
+      { data: { franchiseId: string; snapshot: Record<string, unknown> } },
+    ][];
+    expect(created.data.franchiseId).toBe('f');
+    expect(created.data.snapshot).toMatchObject({
+      salonId: 's',
+      salonName: 'Original salon',
+      metrics: { totalRevenue: '1500.00' },
+    });
+  });
+
+  it('rejects unsupported PDF generation rather than relabeling CSV as PDF', async () => {
+    await expect(
+      service.generate(
+        actor,
+        {
+          type: 'business',
+          format: 'pdf',
+          dateFrom: '2026-09-01',
+          dateTo: '2026-09-30',
+        },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.platformReport.create).not.toHaveBeenCalled();
   });
 
   it('rejects inverted date ranges', async () => {
@@ -160,9 +241,9 @@ describe('PlatformReportsService', () => {
     expect(result.data).toHaveLength(1);
     expect(result.meta.total).toBe(1);
     expect(result.summary.total).toBe(1);
-    expect(result.summary.byType.find((t) => t.type === 'financial')?.count).toBe(
-      1,
-    );
+    expect(
+      result.summary.byType.find((t) => t.type === 'financial')?.count,
+    ).toBe(1);
   });
 
   it('downloads CSV of the snapshot', async () => {
@@ -176,6 +257,24 @@ describe('PlatformReportsService', () => {
     expect(file.body).toContain('1500.00');
   });
 
+  it('keeps snapshot names stable and neutralizes spreadsheet formulas in CSV', async () => {
+    const row = reportRow({
+      name: '=HYPERLINK("bad")',
+      franchise: { id: 'f', name: 'Renamed franchise' },
+      snapshot: {
+        franchiseName: 'Original franchise',
+        metrics: { totalRevenue: '1500.00' },
+        analytics: { revenue: { series: [{ revenue: 1500 }] } },
+      },
+    });
+    prisma.platformReport.findUnique.mockResolvedValue(row);
+    const report = await service.findOne(actor, 'pr-1');
+    expect(report.franchiseName).toBe('Original franchise');
+    const file = await service.download(actor, 'pr-1');
+    expect(file.body).toContain("'=HYPERLINK");
+    expect(file.body).toContain('analytics.revenue.series.0.revenue');
+  });
+
   it('throws when downloading a missing report', async () => {
     prisma.platformReport.findUnique.mockResolvedValue(null);
     await expect(service.download(actor, 'missing')).rejects.toBeInstanceOf(
@@ -186,7 +285,10 @@ describe('PlatformReportsService', () => {
 
 describe('PlatformReportsController roles', () => {
   it('is restricted to SUPER_ADMIN', () => {
-    const roles = Reflect.getMetadata(ROLES_KEY, PlatformReportsController);
+    const roles: unknown = Reflect.getMetadata(
+      ROLES_KEY,
+      PlatformReportsController,
+    );
     expect(roles).toEqual([RoleCode.SUPER_ADMIN]);
   });
 });

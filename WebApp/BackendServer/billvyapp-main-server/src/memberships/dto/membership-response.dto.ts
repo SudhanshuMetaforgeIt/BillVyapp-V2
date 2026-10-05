@@ -14,4 +14,12 @@ export class MembershipResponseDto {
   salonId: string;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
+  @ApiProperty({ nullable: true }) couponCode: string | null;
+  @ApiProperty({ nullable: true }) qualifyingBillId: string | null;
+  @ApiProperty({ nullable: true, type: Object }) qualifyingBill: {
+    id: string;
+    billNumber: string;
+  } | null;
+  @ApiProperty({ nullable: true, type: Object }) planSnapshot: unknown;
+  @ApiProperty() membershipName: string;
 }

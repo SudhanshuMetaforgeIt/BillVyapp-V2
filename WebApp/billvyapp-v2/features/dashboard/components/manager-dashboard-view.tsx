@@ -57,7 +57,7 @@ export function ManagerDashboardView({ variant = 'manager' }: { variant?: 'manag
         </p>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.9fr)_minmax(16rem,0.9fr)] xl:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.9fr)_minmax(16rem,0.9fr)] xl:gap-7">
         <ManagerSalesOverview
           series={data?.salesSeries ?? []}
           isLoading={loading}
@@ -73,7 +73,7 @@ export function ManagerDashboardView({ variant = 'manager' }: { variant?: 'manag
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.85fr)_minmax(16rem,0.85fr)] xl:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.85fr)_minmax(16rem,0.85fr)] xl:gap-7">
         <ManagerRecentBills
           rows={data?.recentBills ?? []}
           isLoading={loading}
@@ -88,7 +88,7 @@ export function ManagerDashboardView({ variant = 'manager' }: { variant?: 'manag
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)] lg:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)] lg:gap-7">
         <div className="space-y-3">
           <h2 className="text-sm font-semibold tracking-wide text-text-secondary uppercase">
             Quick Actions

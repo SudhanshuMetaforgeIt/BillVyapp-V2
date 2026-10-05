@@ -1,6 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { CouponCodeCard } from './coupon-code-card';
+
+import { MembershipEnrollmentCard, type EnrollmentChoice } from './membership-enrollment-card';
+import { useCallback, useMemo, useState } from 'react';
 
 import {
   SectionEmptyState,
@@ -12,6 +15,7 @@ import { SalonPicker } from '@/features/salons/components/salon-picker';
 import { computeBillPreview } from '../lib/bill-preview';
 import { useSettleWalkInBill } from '../hooks/use-settle-walk-in-bill';
 import type {
+  ValidatedBillCoupon,
   CartLine,
   SalonService,
   WalkInCustomer,
@@ -48,6 +52,8 @@ export function WalkInBillingPageView() {
   const [categoryId, setCategoryId] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [stylistName, setStylistName] = useState('');
+  const [isCouponValidating, setCouponValidating] = useState(false);
+  const [coupon, setCoupon] = useState<ValidatedBillCoupon | null>(null);
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
   const [paymentMethod, setPaymentMethod] =
@@ -58,15 +64,22 @@ export function WalkInBillingPageView() {
     : 0;
 
   const preview = useMemo(
-    () => computeBillPreview(cart, discountValue),
-    [cart, discountValue],
+    () => computeBillPreview(cart, discountValue, coupon),
+    [cart, discountValue, coupon],
   );
 
+  const offerKey = `${salonId}:${customer?.id}:${JSON.stringify(cart)}:${preview.total}:${coupon?.couponCode ?? ''}`;
+  const [enrollment, setEnrollment] = useState<(EnrollmentChoice & { key: string }) | null>(null);
+  const onEnrollmentChange = useCallback((choice: EnrollmentChoice) => setEnrollment({ ...choice, key: offerKey }), [offerKey]);
+  const choice = enrollment?.key === offerKey ? enrollment : null;
+  const membershipFee = Number(choice?.plan?.price ?? 0);
+  const payablePreview = { ...preview, membershipFee, total: Math.round((preview.total + membershipFee) * 100) / 100 };
   const settle = useSettleWalkInBill(() => {
     resetForm();
   });
 
   function resetForm() {
+    setEnrollment(null);
     setPhoneQuery('');
     setCustomer(null);
     setServiceSearch('');
@@ -76,6 +89,8 @@ export function WalkInBillingPageView() {
     setApplyDiscount(false);
     setDiscountAmount('');
     setPaymentMethod('UPI');
+    setCoupon(null);
+    setCouponValidating(false);
   }
 
   function addService(service: SalonService) {
@@ -111,8 +126,9 @@ export function WalkInBillingPageView() {
     Boolean(salonId) &&
     Boolean(customer) &&
     cart.length > 0 &&
-    preview.total > 0 &&
-    !settle.isPending;
+    preview.total >= 0 &&
+    !settle.isPending &&
+    !isCouponValidating && (!choice || choice.valid) && (!choice?.plan || !choice.pending);
 
   const canPickSalon = can(user, 'salons.write');
 
@@ -128,11 +144,14 @@ export function WalkInBillingPageView() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(18rem,22rem)] xl:items-start xl:gap-7">
+    <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,22rem)] xl:items-start xl:gap-7">
       <div className="space-y-5">
         {!pinnedSalonId ? (
           <section className="app-surface-card flex flex-wrap items-center gap-3 p-5">
-            <label htmlFor="walkin-salon" className="text-sm font-semibold text-text">
+            <label
+              htmlFor="walkin-salon"
+              className="text-sm font-semibold text-text"
+            >
               Branch
             </label>
             <SalonPicker
@@ -140,6 +159,8 @@ export function WalkInBillingPageView() {
               value={chosenSalonId}
               onChange={(id) => {
                 if (id === chosenSalonId) return;
+                setCoupon(null);
+                setCouponValidating(false);
                 setChosenSalonId(id);
                 setCart([]);
                 setCategoryId('');
@@ -147,7 +168,9 @@ export function WalkInBillingPageView() {
               className="w-64"
             />
             {!salonId ? (
-              <p className="text-xs text-text-secondary">Choose the branch this bill belongs to.</p>
+              <p className="text-xs text-text-secondary">
+                Choose the branch this bill belongs to.
+              </p>
             ) : null}
           </section>
         ) : null}
@@ -157,10 +180,14 @@ export function WalkInBillingPageView() {
           onPhoneQueryChange={setPhoneQuery}
           selected={customer}
           onSelect={(selected) => {
+            setCoupon(null);
+            setCouponValidating(false);
             setCustomer(selected);
             setPhoneQuery(selected.phone);
           }}
           onClear={() => {
+            setCoupon(null);
+            setCouponValidating(false);
             setCustomer(null);
             setPhoneQuery('');
           }}
@@ -175,6 +202,7 @@ export function WalkInBillingPageView() {
           categoryId={categoryId}
           onCategoryChange={setCategoryId}
           cart={cart}
+          membershipPricing={preview.membershipPricing}
           onAddService={addService}
           onChangeQty={changeQty}
           onRemove={removeLine}
@@ -190,20 +218,35 @@ export function WalkInBillingPageView() {
       </div>
 
       <div className="space-y-5 xl:sticky xl:top-4">
-        <BillSummaryCard preview={preview} />
+        <BillSummaryCard preview={payablePreview} />
+        {customer && salonId && cart.length > 0 && <MembershipEnrollmentCard key={offerKey} customer={customer} disabled={settle.isPending} onChange={onEnrollmentChange} payload={{ salonId, customerId: customer.id, couponCode: coupon?.couponCode, discount: preview.discount, items: cart.map(l => ({ itemType: 'SERVICE', serviceId: l.serviceId, quantity: l.quantity })) }} />}
+        <CouponCodeCard
+          key={`${salonId}:${customer?.id}`}
+          salonId={salonId ?? ''}
+          customerId={customer?.id ?? ''}
+          coupon={coupon}
+          onChange={setCoupon}
+          onValidationPendingChange={setCouponValidating}
+          disabled={settle.isPending}
+        />
         <PaymentMethodsCard
           value={paymentMethod}
           onChange={setPaymentMethod}
           canPay={canPay}
           canCollect={can(user, 'bills.status')}
+          zeroTotal={payablePreview.total === 0}
           isPaying={settle.isPending}
           onReset={resetForm}
           onPay={() => {
-            if (!customer || !salonId || cart.length === 0) return;
+            if (!canPay || !customer || !salonId || cart.length === 0) return;
             settle.mutate({
+              expectedTotal: payablePreview.total,
+              enrollmentPlanId: choice?.plan?.id ?? null,
+              enrollmentDetails: choice?.plan ? { ...choice.details, whatsappNumber: choice.details.whatsappSameAsBilling ? undefined : choice.details.whatsappNumber, dateOfBirth: choice.details.dateOfBirth || undefined, email: choice.details.email?.trim() || undefined, address: choice.details.address?.trim() || undefined } : undefined,
               salonId,
               customerId: customer.id,
-              discount: discountValue > 0 ? discountValue : undefined,
+              couponCode: coupon?.couponCode,
+              discount: preview.discount > 0 ? preview.discount : undefined,
               notes: stylistName.trim()
                 ? `Stylist: ${stylistName.trim()}`
                 : null,
@@ -232,6 +275,8 @@ export function WalkInBillingPageView() {
         onOpenChange={setCreateOpen}
         initialPhone={phoneQuery}
         onCreated={(created) => {
+          setCoupon(null);
+          setCouponValidating(false);
           setCustomer(created);
           setPhoneQuery(created.phone);
         }}

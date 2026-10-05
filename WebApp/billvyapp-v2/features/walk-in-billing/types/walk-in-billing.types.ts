@@ -9,10 +9,7 @@ export type PaginatedResponse<T> = {
 };
 
 export type WalkInCustomerGender =
-  | 'MALE'
-  | 'FEMALE'
-  | 'OTHER'
-  | 'PREFER_NOT_TO_SAY';
+  'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 
 export type WalkInCustomer = {
   id: string;
@@ -64,7 +61,12 @@ export type CartLine = {
 
 export type WalkInPaymentMethod = 'UPI' | 'CASH' | 'CARD' | 'WALLET';
 
+export type EnrollmentDetails = { nameConfirmed: boolean; whatsappSameAsBilling: boolean; whatsappNumber?: string; dateOfBirth?: string; address?: string; email?: string };
+export type MembershipOffer = { id: string; name: string; price: string; durationDays: number; benefits: string | null; termsAndConditions: string | null; couponUsageLimit: number | null; eligibleServices: { id: string; name: string }[] };
 export type CreateBillPayload = {
+  enrollmentPlanId?: string | null;
+  enrollmentDetails?: EnrollmentDetails;
+  couponCode?: string | null;
   salonId: string;
   customerId: string;
   discount?: number;
@@ -77,6 +79,9 @@ export type CreateBillPayload = {
 };
 
 export type BillRecord = {
+  enrolledCouponCode?: string | null;
+  membershipFee?: string; enrollmentPlanId?: string | null; enrollmentPlanName?: string | null;
+  couponCode?: string | null;
   id: string;
   salonId: string;
   customerId: string;
@@ -98,6 +103,7 @@ export type BillRecord = {
     serviceId: string | null;
     description: string | null;
     quantity: number;
+    membershipDiscount?: string; membershipUnits?: number;
     unitPrice: string;
     discount: string;
     taxRate: string;
@@ -130,10 +136,35 @@ export type PaymentRecord = {
 };
 
 export type BillPreview = {
+  membershipFee?: number;
+  membershipDiscount?: number;
+  originalSubtotal?: number;
+  membershipPricing?: Record<string, { discount: number; final: number; units: number }>;
+
   itemCount: number;
   subtotal: number;
   discount: number;
   tax: number;
   total: number;
   youSave: number;
+};
+
+export type ValidatedBillCoupon = {
+  couponUsageLimit?: number | null;
+  usedVisits?: number;
+  remainingVisits?: number | null;
+  termsAndConditions?: string | null;
+  benefitType?: 'NONE' | 'FREE_SERVICES' | 'PERCENTAGE_DISCOUNT';
+  discountPercentage?: number | null;
+  freeServiceLimit?: number | null;
+  freeServicesPerVisit?: boolean;
+  usedUnits?: number;
+  remainingUnits?: number | null;
+  customer?: { id: string; firstName: string; lastName: string; phone: string | null } | null;
+  couponCode: string;
+  membershipName: string;
+  benefits: string | null;
+  eligibleServices: { id: string; name: string }[];
+  startDate: string;
+  endDate: string;
 };

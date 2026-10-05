@@ -81,7 +81,7 @@ export function SupportTicketDetailsDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl"
+        className="app-dialog app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl"
       >
         <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-border/80 bg-ivory-soft/95 px-5 py-4 backdrop-blur">
           <div className="min-w-0">
@@ -124,7 +124,7 @@ export function SupportTicketDetailsDialog({
             ) : null}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 panel-md:grid-cols-2">
             <div>
               <p className="text-xs font-medium text-text-secondary">
                 Raised by

@@ -1,79 +1,76 @@
 'use client';
-
-import { SelectInput } from '@/components/data/form-fields';
-
 import { useState } from 'react';
-import { Building2, TrendingUp } from 'lucide-react';
+import { SelectInput } from '@/components/data/form-fields';
+import { Building2 } from 'lucide-react';
 import type { BranchComparisonItem } from '../../types/admin-reports.types';
-
-type BranchComparisonCardProps = {
+import { AdminReportPanel, reportMoney } from './admin-report-panel';
+export function BranchComparisonCard({
+  items,
+}: {
   items: BranchComparisonItem[];
-};
-
-export function BranchComparisonCard({ items }: BranchComparisonCardProps) {
-  const [metric, setMetric] = useState<'Revenue' | 'Bills' | 'Customers'>('Revenue');
-
-  const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
+}) {
+  const [metric, setMetric] = useState<'revenue' | 'bills' | 'customers'>(
+    'revenue',
+  );
+  const rows = [...items].sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0));
+  const max = Math.max(...rows.map((b) => b[metric] ?? 0), 1);
   return (
-    <div className="rounded-xl border border-stone-200/80 bg-white p-5 shadow-xs dark:border-stone-800 dark:bg-stone-900 h-full flex flex-col justify-between">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-stone-900 dark:text-white">
-          Branch Comparison
-        </h3>
-        <SelectInput className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
-            value={metric}
-            onChange={(e) =>
-              setMetric(e.target.value as 'Revenue' | 'Bills' | 'Customers')
-            }
-          >
-            <option value="Revenue">Revenue</option>
-            <option value="Bills">Bills</option>
-            <option value="Customers">Customers</option>
-          </SelectInput>
-      </div>
-
-      {/* List */}
-      <div className="mt-4 space-y-3.5">
-        {items.length === 0 ? (
-          <div className="text-xs text-stone-400 py-6 text-center">
-            No branch comparison data recorded yet.
-          </div>
-        ) : (
-          items.map((b) => (
-            <div
-              key={b.id}
-              className="flex items-center justify-between gap-3 text-xs"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-900/10 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                  <Building2 className="h-4 w-4" />
+    <AdminReportPanel
+      title="Branch performance"
+      description="Compare results across your selected branches"
+      className="h-full"
+      action={
+        <SelectInput
+          aria-label="Branch comparison metric"
+          className="h-9 w-32 text-xs"
+          value={metric}
+          onChange={(e) => setMetric(e.target.value as typeof metric)}
+        >
+          <option value="revenue">Revenue</option>
+          <option value="bills">Bills</option>
+          <option value="customers">Customers</option>
+        </SelectInput>
+      }
+    >
+      {!rows.length ? (
+        <p className="py-16 text-center text-sm text-text-secondary">
+          No branch activity in this period.
+        </p>
+      ) : (
+        <div className="space-y-5">
+          {rows.map((branch, index) => (
+            <div key={branch.id}>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-champagne-light text-champagne">
+                    <Building2 className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 break-words text-sm font-medium text-text">
+                    {branch.name}
+                  </span>
                 </div>
-                <span className="font-semibold text-stone-800 dark:text-stone-200 truncate">
-                  {b.name}
+                <span className="shrink-0 text-sm font-semibold text-text tabular-nums">
+                  {metric === 'revenue'
+                    ? reportMoney(branch.revenue)
+                    : (branch[metric] ?? 0).toLocaleString('en-IN')}
                 </span>
               </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="font-bold text-stone-900 dark:text-white">
-                  {formatINR(b.revenue)}
-                </span>
-                <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                  <TrendingUp className="h-3 w-3" />
-                  {b.growth}
-                </span>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full ${index === 0 ? 'bg-brand-orange' : 'bg-champagne'}`}
+                  style={{
+                    width: `${Math.max(0, ((branch[metric] ?? 0) / max) * 100)}%`,
+                  }}
+                />
               </div>
+              <p className="mt-2 text-xs text-text-secondary">
+                {branch.bills ?? 0} completed bills · {branch.customers ?? 0}{' '}
+                customers
+              </p>
             </div>
-          ))
-        )}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </AdminReportPanel>
   );
 }

@@ -131,6 +131,8 @@ describe('FranchisesService', () => {
     const result = await service.update(actor, 'fr-1', { name: 'West' }, ctx);
 
     expect(result.name).toBe('West');
+    expect(result.code).toBe('NORTH');
+    expect(prisma.franchise.update.mock.calls[0][0].data).not.toHaveProperty('code');
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'FRANCHISE_UPDATED' }),
     );

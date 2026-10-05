@@ -12,7 +12,15 @@ export type CampaignStatusTab =
   | 'completed'
   | 'draft';
 
+export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type CampaignType = 'SALON' | 'SERVICE' | 'OFFER' | 'EVENT';
+export type CampaignAudience = 'ALL_CUSTOMERS' | 'NEW_CUSTOMERS' | 'EXISTING_CUSTOMERS' | 'SALON_CUSTOMERS';
+export type CampaignChannel = 'PUSH' | 'IN_APP';
+export type Campaign = { id: string; salonId: string; name: string; description: string | null; type: CampaignType; targetAudience: CampaignAudience; startDate: string | null; endDate: string | null; status: CampaignStatus; offerDescription: string | null; promotionalMediaFileId: string | null; message: string | null; deliveryChannels: CampaignChannel[]; salon: { id: string; name: string }; createdAt: string; updatedAt: string };
+export type CampaignInput = Omit<Campaign, 'id' | 'status' | 'salon' | 'createdAt' | 'updatedAt'>;
+
 export type CampaignListRow = {
+  campaign: Campaign;
   id: string;
   name: string;
   description: string;
@@ -36,6 +44,6 @@ export type CampaignsPageData = {
   meta: PaginationMeta;
   metrics: import('@/features/dashboard/services/dashboard.service').DashboardMetric[];
   summary: Array<{ status: string; count: number; tone: string }>;
-  /** True until a campaigns API exists on the backend. */
+  /** Retained for the empty-state component contract. */
   apiUnavailable: boolean;
 };

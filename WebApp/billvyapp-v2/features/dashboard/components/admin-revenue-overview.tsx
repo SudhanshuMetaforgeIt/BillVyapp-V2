@@ -57,12 +57,12 @@ export function AdminRevenueOverview({ series }: AdminRevenueOverviewProps) {
       {points.length === 0 || !hasRevenue ? (
         <SectionEmptyState message="No revenue recorded yet for this period." />
       ) : (
-        <div className="w-full overflow-x-auto px-1">
+        <div tabIndex={0} role="region" aria-label="Scrollable revenue chart" className="app-chart-scroll px-1">
         <svg
           viewBox="0 0 560 220"
           role="img"
           aria-label="Daily revenue chart"
-          className="h-52 w-full min-w-[320px]"
+          className="h-52 w-full"
         >
           <title>Revenue overview</title>
 

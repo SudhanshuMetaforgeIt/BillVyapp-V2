@@ -57,7 +57,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          'app-surface-card max-h-[90svh] w-full max-w-lg overflow-y-auto p-5 shadow-xl',
+          'app-dialog app-surface-card max-h-[90svh] w-full max-w-lg overflow-y-auto p-5 shadow-xl',
           className,
         )}
       >
@@ -72,7 +72,7 @@ export function Modal({
           </div>
           <button
             type="button"
-            className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
+            className="app-dialog-close rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
             onClick={onClose}
             disabled={busy}
             aria-label="Close"

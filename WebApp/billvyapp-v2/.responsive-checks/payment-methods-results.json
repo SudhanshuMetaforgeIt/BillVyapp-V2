@@ -1,0 +1,304 @@
+{
+  "checks": [
+    {
+      "width": 320,
+      "collapsed": false,
+      "cardWidth": 296,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 360,
+      "collapsed": false,
+      "cardWidth": 336,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 375,
+      "collapsed": false,
+      "cardWidth": 351,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 390,
+      "collapsed": false,
+      "cardWidth": 366,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 414,
+      "collapsed": false,
+      "cardWidth": 390,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 480,
+      "collapsed": false,
+      "cardWidth": 456,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 640,
+      "collapsed": false,
+      "cardWidth": 614.40625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 768,
+      "collapsed": false,
+      "cardWidth": 737.28125,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 820,
+      "collapsed": false,
+      "cardWidth": 787.21875,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1024,
+      "collapsed": false,
+      "cardWidth": 727.0625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1024,
+      "collapsed": true,
+      "cardWidth": 811.90625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1280,
+      "collapsed": false,
+      "cardWidth": 287.96875,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1280,
+      "collapsed": true,
+      "cardWidth": 281.671875,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1440,
+      "collapsed": false,
+      "cardWidth": 323.84375,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1440,
+      "collapsed": true,
+      "cardWidth": 324.859375,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1920,
+      "collapsed": false,
+      "cardWidth": 457.046875,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1920,
+      "collapsed": true,
+      "cardWidth": 465.421875,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 2560,
+      "collapsed": false,
+      "cardWidth": 637.0625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 2560,
+      "collapsed": true,
+      "cardWidth": 638.0625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 600,
+      "collapsed": false,
+      "cardWidth": 576,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 960,
+      "collapsed": false,
+      "cardWidth": 921.625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1200,
+      "collapsed": false,
+      "cardWidth": 1003.078125,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    },
+    {
+      "width": 1200,
+      "collapsed": true,
+      "cardWidth": 1006.90625,
+      "rows": 4,
+      "clipped": [],
+      "labels": [
+        "CASH59.6% · ₹10,051.00",
+        "CARD28.5% · ₹4,800.00",
+        "BANK TRANSFER7.1% · ₹1,200.00",
+        "WALLET4.7% · ₹800.00"
+      ]
+    }
+  ],
+  "failures": []
+}

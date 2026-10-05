@@ -100,7 +100,7 @@ export function UserDetailsDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl"
+        className="app-dialog app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto shadow-xl"
       >
         <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-border/80 bg-ivory-soft/95 px-5 py-4 backdrop-blur">
           <div className="flex min-w-0 items-center gap-3">

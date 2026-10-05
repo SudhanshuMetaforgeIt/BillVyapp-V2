@@ -117,7 +117,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
           if (valid) create.mutate();
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 panel-md:grid-cols-2">
           {!user?.salonId ? (
             <FormField id="purchase-salon" label="Salon">
               <SalonPicker
@@ -194,7 +194,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
           ) : null}
 
           {lines.length > 0 ? (
-            <table className="w-full text-sm">
+            <div tabIndex={0} role="region" aria-label="Scrollable items" className="app-table-scroll"><table className="w-full text-sm">
               <thead className="text-xs text-text-secondary">
                 <tr>
                   <th className="py-1 text-left font-medium">Product</th>
@@ -248,7 +248,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           ) : (
             <p className="text-xs text-text-secondary">No lines yet. Totals are calculated by the server.</p>
           )}
@@ -281,7 +281,7 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
       description={`${formatDate(purchase.purchaseDate)} · ${STATUS_LABEL[purchase.status]}`}
       className="max-w-2xl"
     >
-      <table className="w-full text-sm">
+      <div tabIndex={0} role="region" aria-label="Scrollable items" className="app-table-scroll"><table className="w-full text-sm">
         <thead className="text-xs text-text-secondary">
           <tr>
             <th className="py-1 text-left font-medium">Product</th>
@@ -300,7 +300,7 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       <dl className="mt-4 grid grid-cols-[1fr_auto] gap-1 text-sm">
         <dt className="text-text-secondary">Subtotal</dt>
         <dd className="text-right">{formatCurrency(Number(purchase.subtotal))}</dd>

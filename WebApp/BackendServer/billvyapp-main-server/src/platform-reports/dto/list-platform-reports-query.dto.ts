@@ -1,5 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto';
 import {
   PLATFORM_REPORT_TYPES,
@@ -22,6 +29,11 @@ export class ListPlatformReportsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   franchiseId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  salonId?: string;
 
   @ApiPropertyOptional({
     description: 'Filter by report createdAt lower bound (YYYY-MM-DD)',

@@ -109,7 +109,7 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl animate-in fade-in zoom-in-95">
+      <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
             <h3 className="text-lg font-bold text-text">Add New Branch</h3>
@@ -133,7 +133,7 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-text">Branch Name *</label>
               <input
@@ -158,7 +158,7 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-text">Phone</label>
               <input

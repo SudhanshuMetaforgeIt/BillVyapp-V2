@@ -99,7 +99,7 @@ export function CreateStaffDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs">
-      <div className="relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
+      <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-stone-800">
           <div>
@@ -128,7 +128,7 @@ export function CreateStaffDialog({
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {/* First & Last Name */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 First Name <span className="text-rose-500">*</span>
@@ -157,7 +157,7 @@ export function CreateStaffDialog({
           </div>
 
           {/* Email & Phone */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Email Address <span className="text-rose-500">*</span>
@@ -187,7 +187,7 @@ export function CreateStaffDialog({
           </div>
 
           {/* Role & Branch */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Staff Role <span className="text-rose-500">*</span>
@@ -227,7 +227,7 @@ export function CreateStaffDialog({
           </div>
 
           {/* Salary & Password */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Monthly Salary (₹) <span className="text-rose-500">*</span>

@@ -22,14 +22,14 @@ export function AdminProfilePageView() {
       </div>
 
       {/* 2-Column Responsive Layout matching Figma */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 content-lg:grid-cols-12">
         {/* Left Column: Profile Card */}
-        <div className="lg:col-span-4 xl:col-span-4">
+        <div className="content-lg:col-span-4 content-xl:col-span-4">
           <AdminProfileOverviewCard profile={profile} />
         </div>
 
         {/* Right Column: Personal Information & Change Password */}
-        <div className="space-y-6 lg:col-span-8 xl:col-span-8">
+        <div className="space-y-6 content-lg:col-span-8 content-xl:col-span-8">
           <AdminProfilePersonalCard profile={profile} />
           <AdminProfilePasswordCard />
         </div>

@@ -39,7 +39,7 @@ export function AppointmentsFilters({
   onNewAppointment,
 }: AppointmentsFiltersProps) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+    <div className="app-toolbar">
       <div className="relative min-w-0 flex-1">
         <Input
           value={search}
@@ -55,7 +55,7 @@ export function AppointmentsFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
           value={datePreset}
           onChange={(e) => onDatePresetChange(e.target.value as DatePreset)}
           aria-label="Date filter"
@@ -66,7 +66,7 @@ export function AppointmentsFilters({
           <option value="all">All dates</option>
         </SelectInput>
 
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
           value={serviceId}
           onChange={(e) => onServiceIdChange(e.target.value)}
           aria-label="Service filter"
@@ -80,7 +80,7 @@ export function AppointmentsFilters({
         </SelectInput>
 
         {staffOptions.length > 0 ? (
-          <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+          <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
             value={staffId}
             onChange={(e) => onStaffIdChange(e.target.value)}
             aria-label="Staff filter"

@@ -1,13 +1,13 @@
 'use client';
 
-import toast from 'react-hot-toast';
-import { HelpCircle, Megaphone, Plus } from 'lucide-react';
+import { HelpCircle, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type CampaignsSidePanelProps = {
   summary: Array<{ status: string; count: number; tone: string }>;
+  onCreate?: () => void;
 };
 
 function toneClass(tone: string): string {
@@ -17,7 +17,7 @@ function toneClass(tone: string): string {
   return 'bg-charcoal-soft';
 }
 
-export function CampaignsSidePanel({ summary }: CampaignsSidePanelProps) {
+export function CampaignsSidePanel({ summary, onCreate }: CampaignsSidePanelProps) {
   const total = summary.reduce((sum, row) => sum + row.count, 0);
 
   return (
@@ -59,23 +59,10 @@ export function CampaignsSidePanel({ summary }: CampaignsSidePanelProps) {
         <Button
           type="button"
           className="h-11 w-full justify-start bg-champagne text-white hover:bg-champagne/90"
-          onClick={() =>
-            toast(
-              'Campaigns API is not available yet. This screen will light up when the backend ships.',
-            )
-          }
+          onClick={onCreate}
         >
           <Plus className="size-4" />
           Create New Campaign
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 w-full justify-start"
-          onClick={() => toast('Campaign reports are not available yet.')}
-        >
-          <Megaphone className="size-4" />
-          View Campaign Reports
         </Button>
       </div>
 
@@ -87,8 +74,7 @@ export function CampaignsSidePanel({ summary }: CampaignsSidePanelProps) {
           <div>
             <h3 className="text-sm font-semibold text-text">Need Help?</h3>
             <p className="mt-1 text-xs text-text-secondary">
-              Campaign management will connect once the backend endpoints are
-              added.
+              Create a draft, schedule it, or publish it immediately.
             </p>
           </div>
         </div>

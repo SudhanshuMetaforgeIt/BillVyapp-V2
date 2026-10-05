@@ -1,5 +1,5 @@
-import { api } from '@/services/api-client';
-import type { Paginated, Salon } from '@/types/models';
+import { api } from "@/services/api-client";
+import type { Paginated, Salon } from "@/types/models";
 
 export type SalonListQuery = {
   page: number;
@@ -11,7 +11,7 @@ export type SalonListQuery = {
 };
 
 export function listSalons(query: SalonListQuery) {
-  return api.get<Paginated<Salon>>('/salons', {
+  return api.get<Paginated<Salon>>("/salons", {
     params: {
       page: query.page,
       limit: query.limit,
@@ -21,7 +21,7 @@ export function listSalons(query: SalonListQuery) {
       // Send as explicit strings — some stacks drop/coerce boolean `false` in query params.
       ...(query.isActive === undefined
         ? {}
-        : { isActive: query.isActive ? 'true' : 'false' }),
+        : { isActive: query.isActive ? "true" : "false" }),
     },
   });
 }
@@ -38,9 +38,29 @@ export function updateSalonStatus(id: string, isActive: boolean) {
  * Server-side geocoding (the Maps key never leaves the backend). With no
  * body the backend geocodes the salon's stored address.
  */
-export function geocodeSalon(id: string, input: { address?: string; placeId?: string }) {
+export function geocodeSalon(
+  id: string,
+  input: { address?: string; placeId?: string },
+) {
   const body: Record<string, string> = {};
   if (input.address?.trim()) body.address = input.address.trim();
   if (input.placeId?.trim()) body.placeId = input.placeId.trim();
   return api.post<Salon>(`/salons/${id}/geocode`, body);
+}
+
+export async function listSalonPickerOptions(
+  activeOnly = true,
+): Promise<Salon[]> {
+  const options: Salon[] = [];
+  let page = 1;
+  while (true) {
+    const result = await listSalons({
+      page,
+      limit: 100,
+      isActive: activeOnly ? true : undefined,
+    });
+    options.push(...result.data);
+    if (page >= result.meta.totalPages) return options;
+    page++;
+  }
 }

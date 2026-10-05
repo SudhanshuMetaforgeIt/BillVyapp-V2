@@ -1,16 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { CalendarDays, ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
+import { reportDate } from './admin-report-panel';
+import { AdminServicePerformance } from './admin-service-performance';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isApiError } from '@/services/api-client';
+import {
+  downloadAdminReport,
+  fetchAdminReportHistory,
+  generateAdminReport,
+  type AdminGeneratedReport,
+} from '../../services/admin-reports.service';
+import { AdminReportHistory } from './admin-report-history';
 import { useAdminReports } from '../../hooks/use-admin-reports';
 import { AdminReportsStats } from './admin-reports-stats';
 import { AdminReportsFilters } from './admin-reports-filters';
 import { RevenueOverviewChart } from './revenue-overview-chart';
 import { BillsOverviewDonut } from './bills-overview-donut';
 import { BranchComparisonCard } from './branch-comparison-card';
-import { RevenueByBranchBarChart } from './revenue-by-branch-bar-chart';
-import { TopServicesCard } from './top-services-card';
-import { TopServicesByQuantityCard } from './top-services-by-quantity-card';
-import { ReportsQuickActions } from './reports-quick-actions';
 import type { AdminReportsFilterState } from '../../types/admin-reports.types';
 
 export function AdminReportsPageView() {
@@ -19,9 +28,18 @@ export function AdminReportsPageView() {
     dateTo: undefined,
     branchId: 'all',
     reportType: 'overview',
+    interval: 'day',
   });
 
-  const { data, isLoading } = useAdminReports(filters);
+  const { data, isLoading, isError, refetch } = useAdminReports(filters);
+  const history = useQuery({
+    queryKey: ['admin-report-history'],
+    queryFn: fetchAdminReportHistory,
+  });
+  const queryClient = useQueryClient();
+  const downloading = useRef(false);
+  const [downloadPhase, setDownloadPhase] = useState('');
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const handleFiltersChange = (updated: Partial<AdminReportsFilterState>) => {
     setFilters((prev) => ({ ...prev, ...updated }));
@@ -53,64 +71,173 @@ export function AdminReportsPageView() {
     cancelledPct: 0,
   };
   const branchComparison = data?.branchComparison || [];
-  const revenueByBranch = data?.revenueByBranch || [];
   const topServicesByRevenue = data?.topServicesByRevenue || [];
   const topServicesByQuantity = data?.topServicesByQuantity || [];
   const branches = data?.branches || [];
 
-  const handleDownloadReport = () => {
-    window.print();
+  const handleDownloadReport = async (existing?: AdminGeneratedReport) => {
+    if (downloading.current) return;
+    downloading.current = true;
+    setDownloadError(null);
+    const selected = {
+      ...filters,
+      dateFrom: filters.dateFrom || data?.scope.dateFrom,
+      dateTo: filters.dateTo || data?.scope.dateTo,
+    };
+    try {
+      setDownloadPhase(existing ? 'Downloading...' : 'Generating report...');
+      const report = existing ?? (await generateAdminReport(selected));
+      setDownloadPhase('Downloading...');
+      await downloadAdminReport(report);
+    } catch (error) {
+      setDownloadError(
+        isApiError(error) && error.status === 400
+          ? error.message
+          : 'Unable to generate or download report. Please try again.',
+      );
+    } finally {
+      downloading.current = false;
+      setDownloadPhase('');
+      void queryClient.invalidateQueries({
+        queryKey: ['admin-report-history'],
+      });
+    }
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-white">
-          Reports
-        </h1>
-        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Track your business performance and insights across all branches.
-        </p>
+    <div className="mx-auto max-w-[1680px] space-y-6 pb-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[.16em] text-champagne">
+            Franchise overview
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+            Business performance
+          </h1>
+          <p className="mt-2 text-sm text-text-secondary">
+            Revenue, branches and services at a glance.
+          </p>
+        </div>
+        {data && (
+          <div className="flex max-w-full items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-xs font-medium text-text-secondary">
+            <CalendarDays
+              className="size-4 shrink-0 text-champagne"
+              aria-hidden
+            />
+            <span>
+              {reportDate(data.scope.dateFrom)} –{' '}
+              {reportDate(data.scope.dateTo)}
+            </span>
+          </div>
+        )}
       </div>
-
-      {/* Top 5 Metric Cards */}
-      <AdminReportsStats stats={stats} loading={isLoading} />
-
-      {/* Filter Controls Bar */}
       <AdminReportsFilters
-        filters={filters}
+        filters={{
+          ...filters,
+          dateFrom: filters.dateFrom ?? data?.scope.dateFrom,
+          dateTo: filters.dateTo ?? data?.scope.dateTo,
+        }}
         onChange={handleFiltersChange}
         branches={branches}
-        onDownloadReport={handleDownloadReport}
+        onDownloadReport={() => void handleDownloadReport()}
+        downloadDisabled={!!downloadPhase || isLoading || isError}
+        downloadPhase={downloadPhase}
+        downloadError={downloadError}
       />
-
-      {/* Upper Grid (Row 1): Revenue Overview (6 cols), Bills Overview (3 cols), Branch Comparison (3 cols) */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-6">
-          <RevenueOverviewChart series={revenueSeries} />
+      {isError ? (
+        <div
+          role="alert"
+          className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700"
+        >
+          Unable to load report data.{' '}
+          <button
+            type="button"
+            className="ml-2 font-semibold underline"
+            onClick={() => void refetch()}
+          >
+            Try again
+          </button>
         </div>
-        <div className="min-w-0 lg:col-span-3 sm:col-span-6">
-          <BillsOverviewDonut summary={billsOverview} />
-        </div>
-        <div className="min-w-0 lg:col-span-3 sm:col-span-6">
-          <BranchComparisonCard items={branchComparison} />
-        </div>
-      </div>
-
-      {/* Lower Grid (Row 2): Revenue by Branch (5 cols), Top Services (4 cols), Right Stack (3 cols) */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-5">
-          <RevenueByBranchBarChart items={revenueByBranch} />
-        </div>
-        <div className="lg:col-span-4">
-          <TopServicesCard services={topServicesByRevenue} />
-        </div>
-        <div className="lg:col-span-3 space-y-4">
-          <TopServicesByQuantityCard items={topServicesByQuantity} />
-          <ReportsQuickActions />
-        </div>
-      </div>
+      ) : (
+        <>
+          <AdminReportsStats stats={stats} loading={isLoading} />
+          {isLoading ? (
+            <div
+              className="grid gap-6 content-lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]"
+              aria-label="Loading report charts"
+            >
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface"
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid items-stretch gap-6 content-lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
+                <RevenueOverviewChart
+                  series={revenueSeries}
+                  interval={filters.interval || 'day'}
+                  onIntervalChange={(interval) =>
+                    handleFiltersChange({ interval })
+                  }
+                />
+                <BillsOverviewDonut summary={billsOverview} />
+              </div>
+              <div className="grid items-stretch gap-6 content-lg:grid-cols-2">
+                <BranchComparisonCard items={branchComparison} />
+                <AdminServicePerformance
+                  revenue={topServicesByRevenue}
+                  quantity={topServicesByQuantity}
+                />
+              </div>
+            </>
+          )}
+          {data && (
+            <details className="rounded-xl px-1 text-xs text-text-secondary">
+              <summary className="w-fit cursor-pointer font-medium">
+                About these figures
+              </summary>
+              <p className="mt-2 max-w-3xl leading-relaxed">
+                Revenue is collected on completed bills dated in the selected
+                period. Customer counts include customers with bill history in
+                this scope; service and staff counts reflect the current
+                catalogue and team. Dates follow {data.scope.timeZone}. Selected
+                scope: {data.scope.branch}.
+              </p>
+            </details>
+          )}
+        </>
+      )}
+      <AdminReportHistory
+        reports={history.data || []}
+        loading={history.isLoading}
+        error={history.isError}
+        onRetry={() => void history.refetch()}
+        onDownload={(report) => void handleDownloadReport(report)}
+        disabled={!!downloadPhase}
+      />
+      <nav
+        aria-label="Related business pages"
+        className="flex flex-wrap items-center gap-x-6 gap-y-3 px-1 text-xs text-text-secondary"
+      >
+        <span>Explore your business</span>
+        {[
+          ['Bills', 'bills'],
+          ['Customers', 'customers'],
+          ['Staff', 'staff'],
+        ].map(([name, path]) => (
+          <Link
+            key={path}
+            href={`/dashboard/admin/${path}`}
+            className="inline-flex min-h-8 items-center gap-1 font-medium hover:text-brand-orange"
+          >
+            {name}
+            <ArrowUpRight className="size-3.5" aria-hidden />
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

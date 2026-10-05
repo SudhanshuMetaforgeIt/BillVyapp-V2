@@ -29,6 +29,8 @@ export type BillsOverviewSummary = {
 };
 
 export type BranchComparisonItem = {
+  bills: number;
+  customers: number;
   id: string;
   name: string;
   revenue: number;
@@ -37,6 +39,7 @@ export type BranchComparisonItem = {
 };
 
 export type RevenueByBranchItem = {
+  id: string;
   branchName: string;
   revenue: number;
 };
@@ -48,11 +51,13 @@ export type TopServiceByRevenueItem = {
 };
 
 export type TopServiceByQuantityItem = {
+  id: string;
   name: string;
   quantity: number;
 };
 
 export type AdminReportsFilterState = {
+  interval?: 'day' | 'week' | 'month';
   dateFrom?: string;
   dateTo?: string;
   branchId: string;
@@ -60,6 +65,14 @@ export type AdminReportsFilterState = {
 };
 
 export type AdminReportsData = {
+  scope: {
+    dateFrom: string;
+    dateTo: string;
+    branchId: string | null;
+    branch: string;
+    interval: 'day' | 'week' | 'month';
+    timeZone: string;
+  };
   stats: AdminReportStats;
   revenueSeries: RevenuePoint[];
   billsOverview: BillsOverviewSummary;

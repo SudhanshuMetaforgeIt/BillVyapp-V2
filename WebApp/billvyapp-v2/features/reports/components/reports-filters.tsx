@@ -1,114 +1,166 @@
 'use client';
-
 import { SelectInput } from '@/components/data/form-fields';
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { SectionErrorState } from '@/components/layout/section-states';
+import {
+  REPORT_PRESETS,
+  reportDateRange,
+} from '../services/report-date-ranges';
 import type {
-  FranchiseOption,
-  ReportTypeFilter,
+  AnalyticsParams,
+  ReportFilterOptions,
 } from '../types/reports.types';
-
-type ReportsFiltersProps = {
-  dateFrom: string;
-  dateTo: string;
-  franchiseId: string;
-  reportType: ReportTypeFilter;
-  franchises: FranchiseOption[];
-  isGenerating?: boolean;
-  onDateFromChange: (value: string) => void;
-  onDateToChange: (value: string) => void;
-  onFranchiseChange: (value: string) => void;
-  onReportTypeChange: (value: ReportTypeFilter) => void;
-  onGenerate: () => void;
-  className?: string;
-};
-
-const selectClassName =
-  'h-11 w-auto min-w-[9rem] text-sm font-medium';
-
 export function ReportsFilters({
-  dateFrom,
-  dateTo,
-  franchiseId,
-  reportType,
-  franchises,
-  isGenerating,
-  onDateFromChange,
-  onDateToChange,
-  onFranchiseChange,
-  onReportTypeChange,
+  params,
+  onChange,
+  preset,
+  onPreset,
+  options,
+  loading,
+  error,
+  retry,
   onGenerate,
-  className,
-}: ReportsFiltersProps) {
+}: {
+  params: AnalyticsParams;
+  onChange: (params: AnalyticsParams) => void;
+  preset: string;
+  onPreset: (preset: string) => void;
+  options?: ReportFilterOptions;
+  loading: boolean;
+  error: boolean;
+  retry: () => void;
+  onGenerate: () => void;
+}) {
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-3 rounded-xl border border-border/80 bg-background p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center lg:justify-between',
-        className,
-      )}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="flex items-center gap-2">
+    <div className="app-surface-card space-y-3 p-4">
+      <div className="grid gap-3 sm:grid-cols-2 content-lg:grid-cols-5">
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-text-secondary">
+          Date range
+          <SelectInput
+            className="h-11 w-full"
+            aria-label="Date range preset"
+            value={preset}
+            onChange={(e) => {
+              onPreset(e.target.value);
+              if (e.target.value !== 'Custom Range')
+                onChange({ ...params, ...reportDateRange(e.target.value) });
+            }}
+          >
+            {REPORT_PRESETS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </SelectInput>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-text-secondary">
+          From
           <Input
             type="date"
-            value={dateFrom}
-            onChange={(e) => onDateFromChange(e.target.value)}
             aria-label="Date from"
-            className="h-11 w-auto bg-background"
+            value={params.dateFrom}
+            onChange={(e) => {
+              onPreset('Custom Range');
+              onChange({ ...params, dateFrom: e.target.value });
+            }}
           />
-          <span className="text-xs text-text-secondary">to</span>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-text-secondary">
+          To
           <Input
             type="date"
-            value={dateTo}
-            onChange={(e) => onDateToChange(e.target.value)}
             aria-label="Date to"
-            className="h-11 w-auto bg-background"
+            value={params.dateTo}
+            onChange={(e) => {
+              onPreset('Custom Range');
+              onChange({ ...params, dateTo: e.target.value });
+            }}
           />
-        </div>
-
-        <SelectInput
-          value={franchiseId}
-          onChange={(e) => onFranchiseChange(e.target.value)}
-          aria-label="Filter by business"
-          className={selectClassName}
-        >
-          <option value="all">All Businesses</option>
-          {franchises.map((franchise) => (
-            <option key={franchise.id} value={franchise.id}>
-              {franchise.name}
-            </option>
-          ))}
-        </SelectInput>
-
-        <SelectInput
-          value={reportType}
-          onChange={(e) =>
-            onReportTypeChange(e.target.value as ReportTypeFilter)
-          }
-          aria-label="Filter by report type"
-          className={selectClassName}
-        >
-          <option value="all">All Report Types</option>
-          <option value="financial">Financial</option>
-          <option value="business">Business</option>
-          <option value="user">User</option>
-          <option value="transaction">Transaction</option>
-          <option value="subscription">Subscription</option>
-          <option value="activity">Activity</option>
-        </SelectInput>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-text-secondary">
+          Franchise
+          <SelectInput
+            className="h-11 w-full"
+            aria-label="Filter by franchise"
+            value={params.franchiseId}
+            disabled={loading || error}
+            onChange={(e) =>
+              onChange({
+                ...params,
+                franchiseId: e.target.value,
+                salonId: 'all',
+              })
+            }
+          >
+            <option value="all">All Franchises</option>
+            {options?.franchises.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </SelectInput>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-text-secondary">
+          Salon
+          <SelectInput
+            className="h-11 w-full"
+            aria-label="Filter by salon"
+            value={params.salonId}
+            disabled={loading || error}
+            onChange={(e) => onChange({ ...params, salonId: e.target.value })}
+          >
+            <option value="all">All Salons</option>
+            {options?.salons
+              .filter(
+                (s) =>
+                  params.franchiseId === 'all' ||
+                  s.franchiseId === params.franchiseId,
+              )
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+          </SelectInput>
+        </label>
       </div>
-
-      <Button
-        type="button"
-        size="lg"
-        onClick={onGenerate}
-        disabled={isGenerating}
-        className="h-11 bg-brand-orange text-white hover:bg-brand-orange-deep focus-visible:ring-brand-orange"
-      >
-        {isGenerating ? 'Generating…' : 'Generate Report'}
-      </Button>
+      {error && (
+        <SectionErrorState
+          message="Reporting filter options could not be loaded."
+          onRetry={retry}
+        />
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-text-secondary" aria-live="polite">
+          {params.dateFrom} – {params.dateTo} ·{' '}
+          {options?.franchises.find((f) => f.id === params.franchiseId)?.name ??
+            (params.franchiseId === 'all'
+              ? 'All Franchises'
+              : 'Selected franchise')}{' '}
+          ·{' '}
+          {options?.salons.find((s) => s.id === params.salonId)?.name ??
+            (params.salonId === 'all' ? 'All Salons' : 'Selected salon')}
+        </p>
+        <Button
+          onClick={onGenerate}
+          disabled={
+            !params.dateFrom ||
+            !params.dateTo ||
+            params.dateFrom > params.dateTo
+          }
+          className="bg-brand-orange text-white"
+        >
+          Generate Report
+        </Button>
+      </div>
+      {(!params.dateFrom ||
+        !params.dateTo ||
+        params.dateFrom > params.dateTo) && (
+        <p role="alert" className="text-sm text-danger">
+          Select a valid start and end date.
+        </p>
+      )}
     </div>
   );
 }

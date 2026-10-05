@@ -48,6 +48,7 @@ type PaymentMethodsCardProps = {
   onChange: (value: WalkInPaymentMethod) => void;
   onPay: () => void;
   onReset: () => void;
+  zeroTotal?: boolean;
   canPay: boolean;
   isPaying: boolean;
   /**
@@ -63,6 +64,7 @@ export function PaymentMethodsCard({
   onPay,
   onReset,
   canPay,
+  zeroTotal = false,
   isPaying,
   canCollect = true,
 }: PaymentMethodsCardProps) {
@@ -149,10 +151,10 @@ export function PaymentMethodsCard({
         disabled={!canPay || isPaying}
         onClick={onPay}
       >
-        {isPaying ? 'Processing…' : 'Record payment received'}
+        {isPaying ? 'Processing…' : zeroTotal ? 'Complete bill (no payment due)' : 'Record payment received'}
       </Button>
       <p className="mt-2 text-center text-xs text-text-secondary">
-        Record only after the customer has paid at the counter.
+        {zeroTotal ? "Complete the visit to record membership usage." : "Record only after the customer has paid at the counter."}
       </p>
 
       <button

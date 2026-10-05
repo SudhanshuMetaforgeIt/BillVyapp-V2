@@ -125,13 +125,13 @@ export function AdminDashboardView() {
 
       <AdminStatGrid stats={data?.stats ?? []} isLoading={query.isLoading && !data} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)] lg:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)] lg:gap-7">
         <AdminRevenueOverview series={data?.revenueSeries ?? []} />
         <AdminBranchPerformance branches={data?.branchPerformance ?? []} />
         <AdminBusinessSummary items={data?.businessSummary ?? []} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-7">
+      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-7">
         <AdminRecentBills bills={data?.recentBills ?? []} />
         <AdminRecentCustomers customers={data?.recentCustomers ?? []} />
         <AdminQuickActions actions={data?.quickActions ?? []} />

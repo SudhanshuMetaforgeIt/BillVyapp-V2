@@ -68,7 +68,13 @@ export interface Salon {
 }
 
 /** Existing backend SalonPhotoType values; cover is represented by isPrimary. */
-export type SalonPhotoType = 'FRONT' | 'INTERIOR' | 'RECEPTION' | 'SERVICE_AREA' | 'WAITING_AREA' | 'OTHER';
+export type SalonPhotoType =
+  | 'FRONT'
+  | 'INTERIOR'
+  | 'RECEPTION'
+  | 'SERVICE_AREA'
+  | 'WAITING_AREA'
+  | 'OTHER';
 export interface SalonPhoto {
   id: string;
   salonId: string;
@@ -245,11 +251,7 @@ export interface ProductVendor {
 // ---------------------------------------------------------------- purchases
 
 export type PurchaseStatus =
-  | 'DRAFT'
-  | 'ORDERED'
-  | 'PARTIALLY_RECEIVED'
-  | 'RECEIVED'
-  | 'CANCELLED';
+  'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED';
 
 export interface PurchaseItem {
   id: string;
@@ -393,20 +395,14 @@ export interface CreateAppointmentInput {
 export type BillStatus = 'DRAFT' | 'COMPLETED' | 'CANCELLED' | 'REFUNDED';
 export type BillPaymentStatus = 'UNPAID' | 'PARTIAL' | 'PAID' | 'REFUNDED';
 export type PaymentMethod =
-  | 'CASH'
-  | 'UPI'
-  | 'CARD'
-  | 'BANK_TRANSFER'
-  | 'WALLET'
-  | 'OTHER';
+  'CASH' | 'UPI' | 'CARD' | 'BANK_TRANSFER' | 'WALLET' | 'OTHER';
 export type PaymentStatus =
-  | 'PENDING'
-  | 'SUCCESS'
-  | 'FAILED'
-  | 'REFUNDED'
-  | 'CANCELLED';
+  'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
 
 export interface BillItem {
+  membershipDiscount?: Decimal;
+  membershipUnits?: number;
+  membershipBenefit?: boolean;
   id: string;
   itemType: 'SERVICE' | 'PRODUCT';
   serviceId: string | null;
@@ -429,6 +425,9 @@ export interface BillPaymentSummary {
 }
 
 export interface Bill {
+  enrolledCouponCode?: string | null;
+  membershipFee?: Decimal; enrollmentPlanId?: string | null; enrollmentPlanName?: string | null;
+  couponCode?: string | null;
   id: string;
   salonId: string;
   customerId: string;
@@ -516,11 +515,7 @@ export interface Membership {
 }
 
 export type LoyaltyTransactionType =
-  | 'EARNED'
-  | 'REDEEMED'
-  | 'EXPIRED'
-  | 'ADJUSTED'
-  | 'BONUS';
+  'EARNED' | 'REDEEMED' | 'EXPIRED' | 'ADJUSTED' | 'BONUS';
 
 export interface LoyaltyTransaction {
   id: string;
@@ -551,13 +546,7 @@ export interface CreateLoyaltyInput {
 
 export type NotificationChannel = 'WHATSAPP' | 'EMAIL' | 'SMS';
 export type NotificationStatus =
-  | 'PENDING'
-  | 'QUEUED'
-  | 'SENT'
-  | 'DELIVERED'
-  | 'READ'
-  | 'FAILED'
-  | 'CANCELLED';
+  'PENDING' | 'QUEUED' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'CANCELLED';
 
 export interface AppNotification {
   id: string;
@@ -625,12 +614,7 @@ export interface AuditLog {
 }
 
 export type SearchEntityType =
-  | 'customers'
-  | 'bills'
-  | 'appointments'
-  | 'services'
-  | 'products'
-  | 'salons';
+  'customers' | 'bills' | 'appointments' | 'services' | 'products' | 'salons';
 
 export interface SearchHit {
   type: SearchEntityType;

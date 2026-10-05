@@ -81,7 +81,7 @@ export function NotificationsPageView() {
           isLoading={query.isLoading && !data}
         />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
+        <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
           <div className="space-y-4">
             <NotificationsFilters
               search={searchInput}

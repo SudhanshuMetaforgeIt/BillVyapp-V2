@@ -5,7 +5,12 @@ import type {
   PaginationMeta,
 } from '@/features/dashboard/types/dashboard.types';
 
-export type { DashboardMetric, PaginationMeta, PaginatedResponse, RevenuePoint };
+export type {
+  DashboardMetric,
+  PaginationMeta,
+  PaginatedResponse,
+  RevenuePoint,
+};
 
 export type ReportType =
   | 'financial'
@@ -29,6 +34,13 @@ export type ReportListRow = {
   generatedOn: string;
   generatedBy: string;
   format: ReportFormat;
+  dateFrom: string;
+  dateTo: string;
+  franchiseId: string | null;
+  franchiseName: string | null;
+  salonId: string | null;
+  salonName: string | null;
+  snapshot: Record<string, unknown>;
 };
 
 export type ReportTypeSlice = {
@@ -51,6 +63,7 @@ export type ReportsListParams = {
   dateTo: string;
   franchiseId: string;
   reportType: ReportTypeFilter;
+  salonId?: string;
 };
 
 export type ReportsPageData = {
@@ -61,4 +74,62 @@ export type ReportsPageData = {
   reportsByType: ReportTypeSlice[];
   reportsTotal: number;
   franchises: FranchiseOption[];
+};
+
+export type AnalyticsRow = Record<string, string | number | null>;
+export type ReportInterval = 'day' | 'week' | 'month' | 'year';
+export type AnalyticsSection =
+  'summary' | 'revenue' | 'business' | 'insights' | 'details';
+export type AnalyticsParams = {
+  dateFrom: string;
+  dateTo: string;
+  franchiseId: string;
+  salonId: string;
+  interval: ReportInterval;
+  salonSort: 'revenue' | 'transactions' | 'customers' | 'averageBill';
+  serviceSort: 'revenue' | 'quantity' | 'transactions';
+};
+export type ReportAnalytics = {
+  scope: {
+    dateFrom: string;
+    dateTo: string;
+    franchiseId: string | null;
+    franchiseName: string | null;
+    salonId: string | null;
+    salonName: string | null;
+    timeZone: string;
+  };
+  summary?: {
+    totalRevenue: string;
+    successfulPayments: number;
+    totalPayments: number;
+    userCount: number;
+    customerCount: number;
+    franchiseCount: number;
+    salonCount: number;
+    failedPayments: number;
+    paymentSuccessRate: number | null;
+    averageTransactionValue: number | null;
+  };
+  revenue?: {
+    series: AnalyticsRow[];
+    methods: AnalyticsRow[];
+    statuses: AnalyticsRow[];
+  };
+  business?: { franchises: AnalyticsRow[]; salons: AnalyticsRow[] };
+  insights?: {
+    customers: AnalyticsRow[];
+    roles: AnalyticsRow[];
+    userFranchises: AnalyticsRow[];
+    userSalons: AnalyticsRow[];
+  };
+  details?: {
+    memberships: AnalyticsRow[];
+    plans: AnalyticsRow[];
+    services: AnalyticsRow[];
+  };
+};
+export type ReportFilterOptions = {
+  franchises: FranchiseOption[];
+  salons: { id: string; name: string; franchiseId: string }[];
 };

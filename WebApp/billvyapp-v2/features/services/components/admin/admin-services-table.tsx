@@ -69,7 +69,7 @@ export function AdminServicesTable({
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="hidden overflow-x-auto lg:block">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll hidden overflow-x-auto lg:block">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-ivory/70 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 <tr>

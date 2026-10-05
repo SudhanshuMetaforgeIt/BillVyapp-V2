@@ -67,7 +67,7 @@ export function AdminEditBusinessDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl">
+      <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
             <h3 className="text-lg font-bold text-text">Edit Business Details</h3>
@@ -109,7 +109,7 @@ export function AdminEditBusinessDialog({
               className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm uppercase"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-text">Phone</label>
               <input

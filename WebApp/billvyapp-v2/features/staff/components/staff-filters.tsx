@@ -40,7 +40,7 @@ export function StaffFilters({
   return (
     <div className="space-y-4">
       {/* Tabs & Top Right Action Buttons */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-stone-200 dark:border-stone-800 pb-2">
+      <div className="app-toolbar sm:justify-between border-b border-stone-200 dark:border-stone-800 pb-2">
         {/* Status Tabs */}
         <div className="flex items-center gap-6 overflow-x-auto text-sm">
           {TABS.map((tab) => {
@@ -92,7 +92,7 @@ export function StaffFilters({
       {/* Filter Row: Search, Branch, Role, Status, Filter */}
       <div className="flex flex-wrap items-center gap-2.5">
         {/* Search */}
-        <div className="relative flex-1 min-w-[240px]">
+        <div className="relative min-w-0 flex-[1_1_14rem]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
           <input
             type="text"
@@ -113,7 +113,7 @@ export function StaffFilters({
         </div>
 
         {/* Branch Selector */}
-        <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
+        <SelectInput className="app-select-sm h-9 w-full min-w-0 sm:w-auto sm:min-w-[140px] text-xs font-medium"
             value={filters.branchId}
             onChange={(e) => onChange({ branchId: e.target.value, page: 1 })}
           >
@@ -126,7 +126,7 @@ export function StaffFilters({
           </SelectInput>
 
         {/* Role Selector */}
-        <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
+        <SelectInput className="app-select-sm h-9 w-full min-w-0 sm:w-auto sm:min-w-[140px] text-xs font-medium"
             value={filters.roleId}
             onChange={(e) => onChange({ roleId: e.target.value, page: 1 })}
           >
@@ -139,7 +139,7 @@ export function StaffFilters({
           </SelectInput>
 
         {/* Status Selector */}
-        <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
+        <SelectInput className="app-select-sm h-9 w-full min-w-0 sm:w-auto sm:min-w-[140px] text-xs font-medium"
             value={filters.status}
             onChange={(e) =>
               onChange({

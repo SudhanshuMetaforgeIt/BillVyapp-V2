@@ -30,10 +30,10 @@ export function AdminStatCard({ stat }: AdminStatCardProps) {
       className="app-surface-card app-surface-card-interactive app-metric-card p-5"
       data-dash-animate="metric"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="app-metric-heading flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-text-secondary">{stat.label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-text sm:text-[1.75rem]">
+          <p className="app-metric-value mt-2 font-bold tracking-tight text-text">
             {stat.displayValue}
           </p>
         </div>
@@ -78,7 +78,7 @@ type AdminStatGridProps = {
 export function AdminStatGrid({ stats, isLoading }: AdminStatGridProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="app-stat-grid">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="app-surface-card p-5 space-y-3">
             <Skeleton className="h-4 w-24" />
@@ -91,7 +91,7 @@ export function AdminStatGrid({ stats, isLoading }: AdminStatGridProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="app-stat-grid">
       {stats.map((stat) => (
         <AdminStatCard key={stat.id} stat={stat} />
       ))}

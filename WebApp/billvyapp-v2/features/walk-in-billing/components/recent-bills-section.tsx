@@ -73,7 +73,7 @@ export function RecentBillsSection({ customer }: RecentBillsSectionProps) {
       ) : (query.data?.data.length ?? 0) === 0 ? (
         <SectionEmptyState message="No bills for this customer yet." />
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
           <table className="w-full min-w-[36rem] text-left text-sm">
             <thead>
               <tr className="border-b border-border/70 text-xs tracking-wide text-text-secondary uppercase">

@@ -38,7 +38,7 @@ export function TopServicesByQuantityCard({
         ) : (
           items.map((item) => (
             <div
-              key={item.name}
+              key={item.id}
               className="flex items-center justify-between"
             >
               <div className="flex items-center gap-2.5">

@@ -10,18 +10,25 @@ export type PaginatedResponse<T> = {
   meta: PaginationMeta;
 };
 
-export type MembershipsTab = 'members' | 'plans';
+export type MembershipsTab = "members" | "plans";
 
-export type MembershipStatus =
-  | 'PENDING'
-  | 'ACTIVE'
-  | 'EXPIRED'
-  | 'CANCELLED';
+export type MembershipStatus = "PENDING" | "ACTIVE" | "EXPIRED" | "CANCELLED";
 
-export type MembershipStatusFilter = 'all' | MembershipStatus | 'expiring';
+export type MembershipStatusFilter = "all" | MembershipStatus | "expiring";
 
 export type MembershipApiItem = {
   id: string;
+  couponCode?: string | null;
+  qualifyingBillId?: string | null;
+  qualifyingBill?: { id: string; billNumber: string } | null;
+  membershipName?: string;
+  planSnapshot?: {
+    name: string;
+    price: string;
+    benefits: string | null;
+    durationDays: number;
+    eligibleServices: { id: string; name: string }[];
+  } | null;
   customerId: string;
   membershipPlanId: string;
   startDate: string;
@@ -33,6 +40,18 @@ export type MembershipApiItem = {
 };
 
 export type MembershipPlanApiItem = {
+  couponUsageLimit?: number | null;
+  termsAndConditions?: string | null;
+  benefitType?: 'NONE' | 'FREE_SERVICES' | 'PERCENTAGE_DISCOUNT';
+  discountPercentage?: string | number | null;
+  freeServiceLimit?: number | null;
+  freeServicesPerVisit?: boolean;
+
+  benefits?: string | null;
+  enrollmentThreshold?: string | null;
+  couponPrefix?: string | null;
+  eligibleServices?: { id: string; name: string }[];
+  salonName?: string;
   id: string;
   salonId: string;
   name: string;
@@ -53,6 +72,9 @@ export type CustomerLite = {
 };
 
 export type MemberListRow = {
+  couponCode?: string | null;
+  includedServices?: string;
+  qualifyingBillNumber?: string | null;
   id: string;
   serial: number;
   customerId: string;
@@ -72,6 +94,10 @@ export type MemberListRow = {
 };
 
 export type PlanListRow = {
+  plan?: MembershipPlanApiItem;
+  salonName?: string;
+  thresholdLabel?: string;
+  servicesLabel?: string;
   id: string;
   name: string;
   description: string;
@@ -99,6 +125,7 @@ export type MonthSummary = {
 };
 
 export type MembershipsListParams = {
+  salonId?: string;
   tab: MembershipsTab;
   page: number;
   limit: number;
@@ -112,8 +139,8 @@ export type MembershipsPageData = {
   planRows: PlanListRow[];
   memberMeta: PaginationMeta;
   planMeta: PaginationMeta;
-  metrics: import('@/features/dashboard/services/dashboard.service').DashboardMetric[];
-  planOptions: Array<{ id: string; name: string }>;
+  metrics: import("@/features/dashboard/services/dashboard.service").DashboardMetric[];
+  planOptions: Array<{ id: string; name: string; isActive?: boolean }>;
   customerOptions: Array<{ id: string; name: string; phone: string }>;
   popularPlans: PopularPlanRow[];
   monthSummary: MonthSummary;
@@ -126,6 +153,18 @@ export type CreateMembershipPayload = {
 };
 
 export type CreateMembershipPlanPayload = {
+  couponUsageLimit?: number | null;
+  termsAndConditions?: string | null;
+  benefitType?: 'NONE' | 'FREE_SERVICES' | 'PERCENTAGE_DISCOUNT';
+  discountPercentage?: number | null;
+  freeServiceLimit?: number | null;
+  freeServicesPerVisit?: boolean;
+
+  benefits?: string | null;
+  enrollmentThreshold?: number | null;
+  couponPrefix?: string | null;
+  eligibleServiceIds?: string[];
+  isActive?: boolean;
   salonId: string;
   name: string;
   description?: string | null;

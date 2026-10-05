@@ -21,6 +21,7 @@ type CampaignsTableProps = {
   isError?: boolean;
   onRetry?: () => void;
   apiUnavailable?: boolean;
+  onOpen?: (row: CampaignListRow) => void;
 };
 
 export function CampaignsTable({
@@ -32,9 +33,8 @@ export function CampaignsTable({
   isError,
   onRetry,
   apiUnavailable,
+  onOpen,
 }: CampaignsTableProps) {
-  void meta;
-
   return (
     <div className="app-surface-card overflow-hidden" data-dash-animate="section">
       <CampaignsTabs value={statusTab} onChange={onStatusTabChange} />
@@ -59,7 +59,12 @@ export function CampaignsTable({
               : 'Try adjusting filters, or create a new campaign.'
           }
         />
-      ) : null}
+      ) : (
+        <div className="divide-y divide-border">
+          {rows.map((row) => <button key={row.id} type="button" onClick={() => onOpen?.(row)} className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left transition hover:bg-muted/40"><div><p className="font-semibold text-text">{row.name}</p><p className="text-xs text-text-secondary">{row.typeLabel} · {row.campaign.salon.name} · {row.audienceLabel} · {row.periodLabel}</p>{row.campaign.offerDescription ? <p className="mt-1 text-sm text-text-secondary">{row.campaign.offerDescription}</p> : row.description ? <p className="mt-1 text-sm text-text-secondary">{row.description}</p> : null}</div><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-text">{row.statusLabel}</span></button>)}
+          <p className="p-3 text-right text-xs text-text-secondary">{meta.total} campaign{meta.total === 1 ? '' : 's'}</p>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
   useSalonServices,
   useServiceCategories,
 } from '../hooks/use-service-catalog';
-import type { CartLine, SalonService } from '../types/walk-in-billing.types';
+import type { CartLine, SalonService, BillPreview } from '../types/walk-in-billing.types';
 
 type AddServicesSectionProps = {
   enabled: boolean;
@@ -27,6 +27,7 @@ type AddServicesSectionProps = {
   categoryId: string;
   onCategoryChange: (value: string) => void;
   cart: CartLine[];
+  membershipPricing?: BillPreview['membershipPricing'];
   onAddService: (service: SalonService) => void;
   onChangeQty: (serviceId: string, quantity: number) => void;
   onRemove: (serviceId: string) => void;
@@ -46,6 +47,7 @@ export function AddServicesSection({
   categoryId,
   onCategoryChange,
   cart,
+  membershipPricing,
   onAddService,
   onChangeQty,
   onRemove,
@@ -60,7 +62,7 @@ export function AddServicesSection({
   const services = useSalonServices(enabled, { search, categoryId, salonId });
 
   return (
-    <section className="app-surface-card p-5">
+    <section className="app-panel app-surface-card p-5">
       <div className="mb-4 flex items-center gap-2">
         <span className="inline-flex size-7 items-center justify-center rounded-full bg-brand-orange text-xs font-bold text-white">
           2
@@ -68,7 +70,7 @@ export function AddServicesSection({
         <h2 className="text-base font-semibold text-text">Add Services</h2>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 panel-md:grid-cols-2">
         <div className="relative">
           <Input
             value={search}
@@ -127,6 +129,7 @@ export function AddServicesSection({
                       <p className="text-xs text-text-secondary">
                         {formatCurrency(line.unitPrice)} · tax {line.taxRate}%
                       </p>
+                      {(membershipPricing?.[line.serviceId]?.discount ?? 0) > 0 && <p className="text-xs text-emerald">Membership benefit: −{formatCurrency(membershipPricing![line.serviceId].discount)} ({membershipPricing![line.serviceId].units} units) · Final before tax: {formatCurrency(membershipPricing![line.serviceId].final)}</p>}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -196,7 +199,7 @@ export function AddServicesSection({
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 lg:grid-cols-[1fr_auto_auto] lg:items-end">
+      <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 content-lg:grid-cols-[minmax(0,1fr)_auto_auto] content-lg:items-end">
         <div className="space-y-1.5">
           <label
             htmlFor="stylist-name"

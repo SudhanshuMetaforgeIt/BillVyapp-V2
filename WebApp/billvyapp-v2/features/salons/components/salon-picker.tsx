@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
-import { SelectInput } from '@/components/data/form-fields';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { useScopedQuery } from '@/hooks/use-scoped-query';
-import { listSalons } from '../services/salons.service';
+import { SelectInput } from "@/components/data/form-fields";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useScopedQuery } from "@/hooks/use-scoped-query";
+import { listSalonPickerOptions } from "../services/salons.service";
 
 type SalonPickerProps = {
   id?: string;
@@ -13,6 +13,7 @@ type SalonPickerProps = {
   onChange: (salonId: string) => void;
   /** Adds an "All salons" option (filters), instead of forcing a choice (forms). */
   allowAll?: boolean;
+  activeOnly?: boolean;
   className?: string;
 };
 
@@ -21,13 +22,20 @@ type SalonPickerProps = {
  * own salon; SUPER_ADMIN/ADMIN pick from the salons the backend returns for
  * their scope.
  */
-export function SalonPicker({ id, value, onChange, allowAll, className }: SalonPickerProps) {
+export function SalonPicker({
+  id,
+  value,
+  onChange,
+  allowAll,
+  activeOnly = true,
+  className,
+}: SalonPickerProps) {
   const user = useCurrentUser();
   const pinned = user?.salonId ?? null;
 
   const salons = useScopedQuery(
-    ['salons', 'picker'],
-    () => listSalons({ page: 1, limit: 100, isActive: true }),
+    ["salons", "picker", activeOnly],
+    () => listSalonPickerOptions(activeOnly),
     { enabled: !pinned, staleTime: 5 * 60_000 },
   );
 
@@ -46,8 +54,14 @@ export function SalonPicker({ id, value, onChange, allowAll, className }: SalonP
       disabled={salons.isLoading}
       className={className}
     >
-      <option value="">{allowAll ? 'All salons' : salons.isLoading ? 'Loading…' : 'Select salon'}</option>
-      {(salons.data?.data ?? []).map((s) => (
+      <option value="">
+        {allowAll
+          ? "All salons"
+          : salons.isLoading
+            ? "Loading…"
+            : "Select salon"}
+      </option>
+      {(salons.data ?? []).map((s) => (
         <option key={s.id} value={s.id}>
           {s.name}
         </option>
