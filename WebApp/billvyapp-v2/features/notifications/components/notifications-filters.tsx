@@ -28,7 +28,7 @@ type NotificationsFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 w-auto min-w-[9rem] text-sm font-medium';
+  'h-11 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium';
 
 export function NotificationsFilters({
   search,
@@ -47,7 +47,7 @@ export function NotificationsFilters({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between',
+        'app-toolbar lg:justify-between',
         className,
       )}
     >
@@ -98,7 +98,7 @@ export function NotificationsFilters({
           <option value="CANCELLED">Cancelled</option>
         </SelectInput>
 
-        <div className="flex items-center gap-2">
+        <div className="app-date-range">
           <Input
             type="date"
             value={dateFrom}

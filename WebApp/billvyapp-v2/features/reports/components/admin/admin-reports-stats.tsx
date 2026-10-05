@@ -1,120 +1,79 @@
-'use client';
-
 import {
   FileText,
   IndianRupee,
   Scissors,
-  TrendingUp,
-  User,
-  Users,
+  UserRound,
+  UsersRound,
 } from 'lucide-react';
 import type { AdminReportStats } from '../../types/admin-reports.types';
-
-type AdminReportsStatsProps = {
+import { reportMoney } from './admin-report-panel';
+export function AdminReportsStats({
+  stats,
+  loading,
+}: {
   stats: AdminReportStats;
   loading?: boolean;
-};
-
-export function AdminReportsStats({ stats, loading }: AdminReportsStatsProps) {
-  const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
+}) {
   const cards = [
     {
-      id: 'total-revenue',
       label: 'Total Revenue',
-      value: formatINR(stats.totalRevenue),
-      subtitle: stats.totalRevenueChange,
-      subtitleColor: 'text-emerald-600 dark:text-emerald-400',
+      value: reportMoney(stats.totalRevenue),
+      note: 'Collected on completed bills',
       icon: IndianRupee,
-      iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
-      hasTrendIcon: stats.totalRevenue > 0,
+      accent: true,
     },
     {
-      id: 'total-bills',
       label: 'Total Bills',
       value: stats.totalBills.toLocaleString('en-IN'),
-      subtitle: stats.totalBillsChange,
-      subtitleColor: 'text-emerald-600 dark:text-emerald-400',
+      note: 'In the selected period',
       icon: FileText,
-      iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
-      hasTrendIcon: stats.totalBills > 0,
     },
     {
-      id: 'total-customers',
       label: 'Total Customers',
       value: stats.totalCustomers.toLocaleString('en-IN'),
-      subtitle: stats.totalCustomersChange,
-      subtitleColor: 'text-emerald-600 dark:text-emerald-400',
-      icon: User,
-      iconBg: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400',
-      hasTrendIcon: stats.totalCustomers > 0,
+      note: 'Customers in this scope',
+      icon: UserRound,
     },
     {
-      id: 'total-services',
       label: 'Total Services',
       value: stats.totalServices.toLocaleString('en-IN'),
-      subtitle: stats.totalServicesChange,
-      subtitleColor: 'text-emerald-600 dark:text-emerald-400',
+      note: 'Current service catalogue',
       icon: Scissors,
-      iconBg: 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400',
-      hasTrendIcon: stats.totalServices > 0,
     },
     {
-      id: 'total-staff',
       label: 'Total Staff',
       value: stats.totalStaff.toLocaleString('en-IN'),
-      subtitle: stats.totalStaffChange,
-      subtitleColor: 'text-emerald-600 dark:text-emerald-400',
-      icon: Users,
-      iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
-      hasTrendIcon: stats.totalStaff > 0,
+      note: 'Admins, managers and staff',
+      icon: UsersRound,
     },
   ];
-
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-      {cards.map((card) => {
-        const Icon = card.icon;
-        return (
-          <div
-            key={card.id}
-            className="flex items-start gap-4 rounded-xl border border-stone-200/80 bg-white p-4 shadow-xs transition hover:shadow-sm dark:border-stone-800 dark:bg-stone-900"
-          >
-            <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}
+    <div className="grid grid-cols-2 gap-3 content-md:grid-cols-3 content-lg:grid-cols-5 sm:gap-4">
+      {cards.map(({ label, value, note, icon: Icon, accent }) => (
+        <article
+          key={label}
+          className={`min-w-0 rounded-2xl border p-4 sm:p-5 ${accent ? 'col-span-2 border-brand-orange/25 bg-gradient-to-br from-brand-orange/10 via-surface to-surface content-md:col-span-1' : 'border-border bg-surface'}`}
+        >
+          <div className="flex flex-col-reverse items-start justify-between gap-3 sm:flex-row sm:gap-2">
+            <p className="text-sm font-medium text-text-secondary">{label}</p>
+            <span
+              className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${accent ? 'bg-brand-orange/10 text-brand-orange' : 'bg-champagne-light text-champagne'}`}
             >
-              <Icon className="h-6 w-6" />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <span className="block text-xs font-medium text-stone-500 dark:text-stone-400">
-                {card.label}
-              </span>
-              <div className="mt-1 text-2xl font-bold tracking-tight text-stone-900 dark:text-white truncate">
-                {loading ? (
-                  <div className="h-7 w-16 animate-pulse rounded bg-stone-200 dark:bg-stone-800" />
-                ) : (
-                  card.value
-                )}
-              </div>
-              <div className="mt-1.5 flex items-center gap-1">
-                {card.hasTrendIcon && (
-                  <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                )}
-                <span className={`text-[11px] font-medium ${card.subtitleColor}`}>
-                  {card.subtitle}
-                </span>
-              </div>
-            </div>
+              <Icon className="size-4" aria-hidden />
+            </span>
           </div>
-        );
-      })}
+          <div className="mt-4 break-words text-3xl font-semibold tracking-tight text-text tabular-nums">
+            {loading ? (
+              <span className="block h-9 w-24 animate-pulse rounded bg-muted" />
+            ) : (
+              value
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+            {note}
+          </p>
+        </article>
+      ))}
     </div>
   );
 }

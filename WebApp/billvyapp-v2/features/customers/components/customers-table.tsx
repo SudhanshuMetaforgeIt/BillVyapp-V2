@@ -1,18 +1,17 @@
-'use client';
+"use client";
 
-import { Eye, MoreVertical } from 'lucide-react';
+import { useState } from "react";
+import { CustomerMemberships } from "@/features/memberships/components/customer-memberships";
+import { Eye, MoreVertical } from "lucide-react";
 
 import {
   SectionEmptyState,
   SectionErrorState,
-} from '@/components/layout/section-states';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import type {
-  CustomerListRow,
-  PaginationMeta,
-} from '../types/customers.types';
-import { CustomersPagination } from './customers-pagination';
+} from "@/components/layout/section-states";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import type { CustomerListRow, PaginationMeta } from "../types/customers.types";
+import { CustomersPagination } from "./customers-pagination";
 
 type CustomersTableProps = {
   rows: CustomerListRow[];
@@ -23,12 +22,12 @@ type CustomersTableProps = {
   onPageChange: (page: number) => void;
 };
 
-function membershipClass(tone: CustomerListRow['membershipTone']): string {
-  if (tone === 'gold') return 'text-[#b8860b]';
-  if (tone === 'silver') return 'text-slate-500';
-  if (tone === 'platinum') return 'text-[#6b5b95]';
-  if (tone === 'expired') return 'text-danger';
-  return 'text-text-secondary';
+function membershipClass(tone: CustomerListRow["membershipTone"]): string {
+  if (tone === "gold") return "text-[#b8860b]";
+  if (tone === "silver") return "text-slate-500";
+  if (tone === "platinum") return "text-[#6b5b95]";
+  if (tone === "expired") return "text-danger";
+  return "text-text-secondary";
 }
 
 export function CustomersTable({
@@ -39,8 +38,34 @@ export function CustomersTable({
   onRetry,
   onPageChange,
 }: CustomersTableProps) {
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerListRow | null>(null);
   return (
-    <div className="app-surface-card overflow-hidden" data-dash-animate="section">
+    <div
+      className="app-surface-card overflow-hidden"
+      data-dash-animate="section"
+    >
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Customer memberships"
+            className="app-dialog app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto p-5"
+          >
+            <button
+              className="float-right"
+              onClick={() => setSelectedCustomer(null)}
+            >
+              Close
+            </button>
+            <CustomerMemberships
+              key={selectedCustomer.id}
+              customerId={selectedCustomer.id}
+            />
+          </div>
+        </div>
+      )}
       {isLoading ? (
         <div className="space-y-3 p-5">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -59,7 +84,7 @@ export function CustomersTable({
         />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
             <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
                 <tr>
@@ -96,7 +121,7 @@ export function CustomersTable({
                           </p>
                           <p className="truncate text-xs text-text-secondary">
                             {row.genderLabel}
-                            {row.ageLabel !== '—' ? `, ${row.ageLabel}` : ''}
+                            {row.ageLabel !== "—" ? `, ${row.ageLabel}` : ""}
                           </p>
                         </div>
                       </div>
@@ -110,7 +135,7 @@ export function CustomersTable({
                     <td className="px-4 py-3.5">
                       <p
                         className={cn(
-                          'font-semibold',
+                          "font-semibold",
                           membershipClass(row.membershipTone),
                         )}
                       >
@@ -119,10 +144,10 @@ export function CustomersTable({
                       {row.membershipExpiry ? (
                         <p
                           className={cn(
-                            'text-xs',
-                            row.membershipTone === 'expired'
-                              ? 'text-danger'
-                              : 'text-text-secondary',
+                            "text-xs",
+                            row.membershipTone === "expired"
+                              ? "text-danger"
+                              : "text-text-secondary",
                           )}
                         >
                           {row.membershipExpiry}
@@ -141,10 +166,10 @@ export function CustomersTable({
                     <td className="px-4 py-3.5">
                       <span
                         className={cn(
-                          'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                          "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
                           row.isActive
-                            ? 'bg-emerald-light text-emerald'
-                            : 'bg-muted text-charcoal-soft',
+                            ? "bg-emerald-light text-emerald"
+                            : "bg-muted text-charcoal-soft",
                         )}
                       >
                         {row.statusLabel}
@@ -156,8 +181,7 @@ export function CustomersTable({
                           type="button"
                           className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
                           aria-label={`View ${row.fullName}`}
-                          disabled
-                          title="View coming soon"
+                          onClick={() => setSelectedCustomer(row)}
                         >
                           <Eye className="size-4" />
                         </button>

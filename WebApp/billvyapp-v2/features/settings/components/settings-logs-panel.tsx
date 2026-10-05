@@ -33,7 +33,7 @@ export function SettingsLogsPanel() {
       {rows.length === 0 ? (
         <SectionEmptyState message="No system log entries yet." />
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-text-secondary">
               <tr>

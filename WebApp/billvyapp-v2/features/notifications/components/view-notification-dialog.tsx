@@ -61,7 +61,7 @@ export function ViewNotificationDialog({
             />
           </div>
 
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+          <dl className="grid gap-3 text-sm panel-md:grid-cols-2">
             <div>
               <dt className="text-xs font-medium text-text-secondary">Audience</dt>
               <dd className="mt-0.5 break-all font-medium text-text">
@@ -72,7 +72,7 @@ export function ViewNotificationDialog({
               <dt className="text-xs font-medium text-text-secondary">Sent on</dt>
               <dd className="mt-0.5 font-medium text-text">{sentLabel}</dd>
             </div>
-            <div className="sm:col-span-2">
+            <div className="panel-md:col-span-2">
               <dt className="text-xs font-medium text-text-secondary">Type</dt>
               <dd className="mt-0.5 font-medium text-text">
                 {notification.typeLabel}

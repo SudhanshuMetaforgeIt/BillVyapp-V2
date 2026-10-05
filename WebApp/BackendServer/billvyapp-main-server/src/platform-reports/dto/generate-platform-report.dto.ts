@@ -24,7 +24,8 @@ export class GeneratePlatformReportDto {
   @ApiPropertyOptional({
     enum: PLATFORM_REPORT_FORMATS,
     example: 'excel',
-    description: 'Defaults to excel. PDF/Excel both download as CSV in v1.',
+    description:
+      'Excel-compatible CSV. Legacy PDF snapshots still download as CSV.',
   })
   @IsOptional()
   @IsIn(PLATFORM_REPORT_FORMATS)
@@ -50,4 +51,25 @@ export class GeneratePlatformReportDto {
   @IsOptional()
   @IsUUID()
   franchiseId?: string;
+
+  @ApiPropertyOptional({ description: 'Optional salon scope' })
+  @IsOptional()
+  @IsUUID()
+  salonId?: string;
+
+  @ApiPropertyOptional({ enum: ['day', 'week', 'month', 'year'] })
+  @IsOptional()
+  @IsIn(['day', 'week', 'month', 'year'])
+  interval?: 'day' | 'week' | 'month' | 'year';
+  @ApiPropertyOptional({
+    enum: ['revenue', 'transactions', 'customers', 'averageBill'],
+  })
+  @IsOptional()
+  @IsIn(['revenue', 'transactions', 'customers', 'averageBill'])
+  salonSort?: 'revenue' | 'transactions' | 'customers' | 'averageBill';
+
+  @ApiPropertyOptional({ enum: ['revenue', 'quantity', 'transactions'] })
+  @IsOptional()
+  @IsIn(['revenue', 'quantity', 'transactions'])
+  serviceSort?: 'revenue' | 'quantity' | 'transactions';
 }

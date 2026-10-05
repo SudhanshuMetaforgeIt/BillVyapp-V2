@@ -95,7 +95,7 @@ export function NotificationsTable({
           />
         ) : (
           <>
-            <div className="hidden min-w-0 lg:block">
+            <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll hidden min-w-0 lg:block">
               <table className="w-full table-fixed text-left text-sm">
                 <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                   <tr>

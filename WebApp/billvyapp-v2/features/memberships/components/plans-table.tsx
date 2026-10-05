@@ -1,17 +1,23 @@
-'use client';
+"use client";
 
-import { MoreVertical, Pencil, Tags } from 'lucide-react';
+import { Pencil, Tags } from "lucide-react";
 
 import {
   SectionEmptyState,
   SectionErrorState,
-} from '@/components/layout/section-states';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import type { PaginationMeta, PlanListRow } from '../types/memberships.types';
-import { MembershipsPagination } from './memberships-pagination';
+} from "@/components/layout/section-states";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { useMembershipPlanStatus } from "../hooks/use-membership-mutations";
+import type {
+  MembershipPlanApiItem,
+  PaginationMeta,
+  PlanListRow,
+} from "../types/memberships.types";
+import { MembershipsPagination } from "./memberships-pagination";
 
 type PlansTableProps = {
+  onEdit: (plan: MembershipPlanApiItem) => void;
   rows: PlanListRow[];
   meta: PaginationMeta;
   isLoading?: boolean;
@@ -21,6 +27,7 @@ type PlansTableProps = {
 };
 
 export function PlansTable({
+  onEdit,
   rows,
   meta,
   isLoading,
@@ -28,6 +35,7 @@ export function PlansTable({
   onRetry,
   onPageChange,
 }: PlansTableProps) {
+  const changeStatus = useMembershipPlanStatus();
   if (isLoading) {
     return (
       <div className="space-y-3 p-5">
@@ -58,11 +66,14 @@ export function PlansTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
         <table className="w-full min-w-[880px] text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
             <tr>
               <th className="px-4 py-3 font-semibold">Plan</th>
+              <th className="px-4 py-3 font-semibold">Salon</th>
+              <th className="px-4 py-3 font-semibold">Threshold</th>
+              <th className="px-4 py-3 font-semibold">Services</th>
               <th className="px-4 py-3 font-semibold">Price</th>
               <th className="px-4 py-3 font-semibold">Duration</th>
               <th className="px-4 py-3 font-semibold">Members</th>
@@ -93,6 +104,9 @@ export function PlansTable({
                     </div>
                   </div>
                 </td>
+                <td className="px-4 py-3.5">{row.salonName}</td>
+                <td className="px-4 py-3.5">{row.thresholdLabel}</td>
+                <td className="px-4 py-3.5">{row.servicesLabel}</td>
                 <td className="px-4 py-3.5 font-medium text-text">
                   {row.priceLabel}
                 </td>
@@ -103,10 +117,10 @@ export function PlansTable({
                 <td className="px-4 py-3.5">
                   <span
                     className={cn(
-                      'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                      "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
                       row.isActive
-                        ? 'bg-emerald-light text-emerald'
-                        : 'bg-muted text-charcoal-soft',
+                        ? "bg-emerald-light text-emerald"
+                        : "bg-muted text-charcoal-soft",
                     )}
                   >
                     {row.statusLabel}
@@ -118,19 +132,24 @@ export function PlansTable({
                       type="button"
                       className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
                       aria-label={`Edit ${row.name}`}
-                      disabled
-                      title="Edit coming soon"
+                      disabled={!row.plan || changeStatus.isPending}
+                      onClick={() => row.plan && onEdit(row.plan)}
                     >
                       <Pencil className="size-4" />
                     </button>
                     <button
                       type="button"
                       className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      aria-label={`More actions for ${row.name}`}
-                      disabled
-                      title="Actions coming soon"
+                      aria-label={`${row.isActive ? "Deactivate" : "Activate"} ${row.name}`}
+                      disabled={changeStatus.isPending}
+                      onClick={() =>
+                        changeStatus.mutate({
+                          id: row.id,
+                          isActive: !row.isActive,
+                        })
+                      }
                     >
-                      <MoreVertical className="size-4" />
+                      {row.isActive ? "Deactivate" : "Activate"}
                     </button>
                   </div>
                 </td>

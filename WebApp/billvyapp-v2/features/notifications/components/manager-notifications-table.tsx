@@ -116,7 +116,7 @@ export function ManagerNotificationsTable({
         />
       ) : (
         <>
-          <div className="min-w-0">
+          <div tabIndex={0} role="region" aria-label="Notifications table" className="app-table-scroll min-w-0">
             <table className="w-full table-fixed text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
@@ -148,7 +148,7 @@ export function ManagerNotificationsTable({
                           <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-champagne-light text-charcoal">
                             <Icon className="size-4" aria-hidden />
                           </span>
-                          <div className="min-w-0">
+                          <div tabIndex={0} role="region" aria-label="Notifications table" className="app-table-scroll min-w-0">
                             <p
                               className="truncate font-semibold text-text"
                               title={row.title}

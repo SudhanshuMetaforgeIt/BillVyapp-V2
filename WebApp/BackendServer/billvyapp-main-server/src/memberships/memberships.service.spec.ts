@@ -133,8 +133,10 @@ describe('MembershipPlansService', () => {
       id: 'salon-a1',
       isActive: true,
     });
-    prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
-      Promise.all(ops),
+    prisma.$transaction.mockImplementation((ops: unknown) =>
+      typeof ops === 'function'
+        ? ops(prisma)
+        : Promise.all(ops as Promise<unknown>[]),
     );
     service = new MembershipPlansService(
       prisma as unknown as PrismaService,
@@ -245,6 +247,7 @@ describe('MembershipPlansService', () => {
 describe('MembershipsService', () => {
   const prisma = {
     membership: {
+      findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       findUnique: jest.fn(),
@@ -283,15 +286,71 @@ describe('MembershipsService', () => {
       durationDays: 365,
       isActive: true,
       name: 'Gold Annual',
+      price: '4999.00',
+      salon: { franchise: { code: 'STARR' } },
+      eligibleServices: [],
     });
-    prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
-      Promise.all(ops),
+    prisma.$transaction.mockImplementation((ops: unknown) =>
+      typeof ops === 'function'
+        ? ops(prisma)
+        : Promise.all(ops as Promise<unknown>[]),
     );
+    prisma.membership.findUniqueOrThrow.mockResolvedValue(membershipRow());
     service = new MembershipsService(
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
     );
+  });
+
+  it('reads scoped details without regenerating the persistent coupon', async () => {
+    prisma.membership.findUnique.mockResolvedValue(
+      membershipRow({ couponCode: 'STARR-7K4P9X', qualifyingBillId: 'bill-1' }),
+    );
+    prisma.membership.findUniqueOrThrow.mockResolvedValue({
+      customer: {
+        customerCode: 'C-1',
+        dateOfBirth: null,
+        gender: null,
+        user: {
+          firstName: 'Riya',
+          lastName: 'Shah',
+          phone: '9999999999',
+          email: null,
+        },
+      },
+      membershipPlan: {
+        ...planRow(),
+        eligibleServices: [],
+        salon: { id: 'salon-a1', name: 'Salon One' },
+      },
+      qualifyingBill: {
+        id: 'bill-1',
+        billNumber: 'B-001',
+        total: '5000.00',
+        billDate: new Date(),
+      },
+      redemptions: [
+        {
+          id: 'redemption',
+          serviceName: 'Hair Spa',
+          billItem: { bill: { billNumber: 'B-002', status: 'COMPLETED' } },
+        },
+      ],
+    });
+    const first = await service.findOne(manager, 'mem-1');
+    const second = await service.findOne(manager, 'mem-1');
+    expect(first.couponCode).toBe('STARR-7K4P9X');
+    expect(second.couponCode).toBe(first.couponCode);
+    expect(first.enrollmentType).toBe('Automatic (legacy)');
+    expect(first.qualifyingBill?.total).toBe('5000.00');
+    expect(first.redemptions[0]).toMatchObject({
+      serviceName: 'Hair Spa',
+      billNumber: 'B-002',
+    });
+    expect(scope.assertSalonAccess).toHaveBeenCalledWith(manager, 'salon-a1');
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+    expect(prisma.membership.update).not.toHaveBeenCalled();
   });
 
   it('creates a membership with computed endDate', async () => {
@@ -312,6 +371,42 @@ describe('MembershipsService', () => {
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'MEMBERSHIP_CREATED' }),
     );
+  });
+
+  it('uses enrollment duration snapshot when explicitly moving start date after a plan edit', async () => {
+    prisma.membership.findUnique.mockResolvedValue(
+      membershipRow({
+        planSnapshot: { durationDays: 90, name: 'Original Club' },
+      }),
+    );
+    prisma.membershipPlan.findUnique.mockResolvedValue({
+      ...planRow(),
+      durationDays: 30,
+    });
+    prisma.membership.update.mockResolvedValue(membershipRow());
+    await service.update(manager, 'mem-1', { startDate: '2026-10-01' }, ctx);
+    expect(prisma.membership.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          startDate: new Date('2026-10-01'),
+          endDate: new Date('2026-12-30'),
+        },
+      }),
+    );
+  });
+
+  it('keeps bill-qualified memberships associated with the bill salon', async () => {
+    prisma.membership.findUnique.mockResolvedValue(
+      membershipRow({ qualifyingBillId: 'bill' }),
+    );
+    prisma.membershipPlan.findUnique.mockResolvedValue({
+      ...planRow(),
+      salonId: 'other-salon',
+    });
+    await expect(
+      service.update(manager, 'mem-1', { membershipPlanId: 'other-plan' }, ctx),
+    ).rejects.toThrow('must remain in the bill salon');
+    expect(prisma.membership.update).not.toHaveBeenCalled();
   });
 
   it('forces CUSTOMER create to own customer id', async () => {

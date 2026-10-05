@@ -37,7 +37,7 @@ export function CustomersFilters({
   onAddCustomer,
 }: CustomersFiltersProps) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+    <div className="app-toolbar">
       <div className="relative min-w-0 flex-1">
         <Input
           value={search}
@@ -53,7 +53,7 @@ export function CustomersFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
           value={membershipPlanId}
           onChange={(e) => onMembershipPlanIdChange(e.target.value)}
           aria-label="Membership filter"
@@ -66,7 +66,7 @@ export function CustomersFilters({
           ))}
         </SelectInput>
 
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
           value={gender}
           onChange={(e) =>
             onGenderChange(e.target.value as '' | CustomerGender)
@@ -80,7 +80,7 @@ export function CustomersFilters({
           <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
         </SelectInput>
 
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as CustomerStatusFilter)

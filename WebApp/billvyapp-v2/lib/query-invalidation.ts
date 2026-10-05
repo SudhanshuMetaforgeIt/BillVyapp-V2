@@ -37,7 +37,7 @@ export const INVALIDATION_MAP: Record<QueryDomain, QueryDomain[]> = {
   customers: ['customers', 'dashboard'],
   addresses: ['addresses'],
   appointments: ['appointments', 'dashboard'],
-  bills: ['bills', 'payments', 'customers', 'dashboard'],
+  bills: ['bills', 'payments', 'customers', 'dashboard', 'memberships'],
   'bill-documents': ['bill-documents'],
   payments: ['payments', 'bills', 'customers', 'dashboard'],
   inventory: ['inventory', 'stock-movements', 'dashboard'],

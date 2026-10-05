@@ -72,7 +72,7 @@ export function DataTable<T>({
         <SectionEmptyState title={emptyTitle} message={emptyMessage} />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>

@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
@@ -5,6 +6,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Matches,
 } from 'class-validator';
 
 export class CreateFranchiseDto {
@@ -18,6 +20,8 @@ export class CreateFranchiseDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @Matches(/^[A-Z0-9]+$/, { message: 'code must contain only letters and numbers' })
   code: string;
 
   @ApiPropertyOptional({ example: '01123456789', nullable: true })

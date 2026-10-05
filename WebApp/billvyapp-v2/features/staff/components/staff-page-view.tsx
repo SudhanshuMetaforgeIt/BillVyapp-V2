@@ -61,9 +61,9 @@ export function StaffPageView() {
       <StaffStats stats={stats} loading={isLoading} />
 
       {/* Main 2-Column Content Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 content-lg:grid-cols-12">
         {/* Left Section (Table & Filters) - 8 cols */}
-        <div className="space-y-5 lg:col-span-8">
+        <div className="space-y-5 content-lg:col-span-8">
           <StaffFilters
             filters={filters}
             onChange={handleFiltersChange}
@@ -89,7 +89,7 @@ export function StaffPageView() {
         </div>
 
         {/* Right Section (Sidebar with Donut & Roles) - 4 cols */}
-        <div className="lg:col-span-4">
+        <div className="content-lg:col-span-4">
           <StaffSidebar
             stats={stats}
             roleDistribution={roleDistribution}

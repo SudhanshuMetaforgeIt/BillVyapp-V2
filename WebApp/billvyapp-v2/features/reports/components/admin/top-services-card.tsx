@@ -27,8 +27,8 @@ export function TopServicesCard({ services }: TopServicesCardProps) {
           Top Services by Revenue
         </h3>
 
-        <div className="mt-4">
-          <table className="w-full text-left text-xs border-collapse">
+        <div tabIndex={0} role="region" aria-label="Top services" className="app-table-scroll mt-4">
+          <table className="w-full min-w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-stone-100 dark:border-stone-800 text-stone-400 text-[11px] font-medium">
                 <th className="pb-2 font-medium">Service</th>

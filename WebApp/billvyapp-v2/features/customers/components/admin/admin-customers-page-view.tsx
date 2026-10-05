@@ -72,9 +72,9 @@ export function AdminCustomersPageView() {
       <CustomersStats stats={stats} loading={isLoading} />
 
       {/* Main 2-Column Content Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 content-lg:grid-cols-12">
         {/* Left Section (Table & Filters) - 8 cols */}
-        <div className="space-y-5 lg:col-span-8">
+        <div className="space-y-5 content-lg:col-span-8">
           <AdminCustomersFilters
             filters={filters}
             onChange={handleFiltersChange}
@@ -102,7 +102,7 @@ export function AdminCustomersPageView() {
         </div>
 
         {/* Right Section (Customer Insights & Quick Actions) - 4 cols */}
-        <div className="lg:col-span-4">
+        <div className="content-lg:col-span-4">
           <CustomersSidebar
             insights={insights}
             onAddCustomer={() => setIsCreateOpen(true)}

@@ -77,6 +77,10 @@ function RowActions({
     const place = () => {
       const el = triggerRef.current;
       if (!el) return;
+      if (el.getClientRects().length === 0) {
+        setPos(null);
+        return;
+      }
       const rect = el.getBoundingClientRect();
       const width = 168;
       setPos({
@@ -193,7 +197,7 @@ export function BusinessesTable({
   const closeMenu = useCallback(() => setMenuRowId(null), []);
 
   return (
-    <div className="app-surface-card overflow-hidden" data-dash-animate="section">
+    <div className="app-panel app-surface-card min-w-0" data-dash-animate="section">
       {isLoading ? (
         <div className="space-y-3 p-5">
           {Array.from({ length: 7 }).map((_, i) => (
@@ -212,8 +216,16 @@ export function BusinessesTable({
         />
       ) : (
         <>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[780px] text-left text-sm">
+          <div className="app-businesses-table relative min-w-0">
+            <table className="w-full table-fixed text-left text-sm">
+              <colgroup>
+                <col style={{ width: '29%' }} />
+                <col style={{ width: '25%' }} />
+                <col style={{ width: '14%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '8%' }} />
+              </colgroup>
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
                   <th className="px-5 py-3 font-semibold">Business</th>
@@ -234,35 +246,37 @@ export function BusinessesTable({
                   >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
-                        <span className="flex size-10 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
                           {row.name.slice(0, 2).toUpperCase()}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-text">
+                          <p className="break-words font-semibold text-text">
                             {row.name}
                           </p>
-                          <p className="truncate text-xs text-text-secondary">
+                          <p className="break-words text-xs text-text-secondary">
                             {row.code}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center gap-2 text-text-secondary">
+                      <span className="inline-flex min-w-0 max-w-full items-center gap-2 text-text-secondary">
                         <UserRound className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{row.ownerLabel}</span>
+                        <span className="min-w-0 break-words">{row.ownerLabel}</span>
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusBadge
                         label={row.planLabel}
                         tone={planTone(row.planTone)}
+                        className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
                       />
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusBadge
                         label={row.statusLabel}
                         tone={statusTone(row.status)}
+                        className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
                       />
                     </td>
                     <td className="px-5 py-3.5 text-text-secondary">
@@ -290,27 +304,28 @@ export function BusinessesTable({
             </table>
           </div>
 
-          <ul className="divide-y divide-border md:hidden">
+          <ul className="app-businesses-cards divide-y divide-border">
             {rows.map((row) => (
               <li key={row.id} className="space-y-3 px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-10 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
                       {row.name.slice(0, 2).toUpperCase()}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-text">
+                      <p className="break-words font-semibold text-text">
                         {row.name}
                       </p>
-                      <p className="truncate text-xs text-text-secondary">
-                        {row.ownerLabel}
+                      <p className="break-words text-xs text-text-secondary">
+                        {row.code}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
                     <StatusBadge
                       label={row.statusLabel}
                       tone={statusTone(row.status)}
+                      className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
                     />
                     <RowActions
                       row={row}
@@ -328,10 +343,12 @@ export function BusinessesTable({
                     />
                   </div>
                 </div>
+                <p className="break-words text-sm text-text-secondary">Owner: {row.ownerLabel}</p>
                 <div className="flex flex-wrap items-center gap-2 pl-12">
                   <StatusBadge
                     label={row.planLabel}
                     tone={planTone(row.planTone)}
+                    className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
                   />
                   <span className="text-xs text-text-secondary">
                     Joined {formatDate(row.joinedOn)}

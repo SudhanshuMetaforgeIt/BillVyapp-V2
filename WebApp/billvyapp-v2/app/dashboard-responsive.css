@@ -1,0 +1,106 @@
+/* Shared responsive contract: viewport shell, content-width layouts, panel-width forms. */
+@custom-variant content-md { @container dashboard (min-width: 40rem) { @slot; } }
+@custom-variant content-lg { @container dashboard (min-width: 64rem) { @slot; } }
+@custom-variant content-xl { @container dashboard (min-width: 80rem) { @slot; } }
+@custom-variant panel-md { @container panel (min-width: 28rem) { @slot; } }
+
+:root { --app-responsive-gutter: clamp(.75rem, 2vw, 2rem); }
+/* Hide dashboard scrollbar tracks, including portalled menus, while preserving scrolling. */
+html:has(.app-dashboard),
+body:has(.app-dashboard),
+body:has(.app-dashboard) * {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
+}
+html:has(.app-dashboard)::-webkit-scrollbar,
+body:has(.app-dashboard)::-webkit-scrollbar,
+body:has(.app-dashboard) *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.app-dashboard { width: 100%; max-width: 100%; min-width: 0; }
+.app-dashboard-content { container: dashboard / inline-size; min-width: 0; max-width: 100%; padding-inline: var(--app-responsive-gutter); }
+.app-dashboard-content > * { min-width: 0; max-width: 100%; }
+.app-dashboard-content :where(.grid, .flex) > :where(div, section, article, aside, form, fieldset) { min-width: 0; }
+.app-dashboard-content :where(h1, h2, h3, p, dd, label) { overflow-wrap: anywhere; }
+.app-dashboard-content :where(input, textarea, select, img, video, canvas) { max-width: 100%; }
+.app-dashboard-content fieldset { min-width: 0; }
+.app-dashboard-content .overflow-x-auto { min-width: 0; max-width: 100%; overscroll-behavior-x: contain; }
+.app-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: clamp(1rem, 1.5vw, 1.25rem); }
+.app-metric-card { container: metric / inline-size; min-width: 0; }
+.app-metric-value { font-size: clamp(1.25rem, 8cqi, 1.75rem); overflow-wrap: anywhere; }
+@container metric (max-width: 14rem) {
+  .app-metric-heading { flex-wrap: wrap; }
+  .app-metric-heading > span { width: 2.25rem; height: 2.25rem; }
+}
+.app-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; min-width: 0; }
+.app-toolbar > * { min-width: 0; max-width: 100%; }
+.app-toolbar > :where(div, input) { flex: 1 1 14rem; }
+.app-toolbar > .flex:not(.overflow-x-auto) { flex-wrap: wrap; }
+.app-toolbar > :where(button, a) { flex: 0 1 auto; white-space: normal; }
+.app-table-scroll { position: relative; width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-gutter: stable; }
+.app-table-scroll:focus-visible { outline: 2px solid var(--bv-champagne); outline-offset: -2px; }
+.app-table-scroll > table:not([class*="min-w-"]) { min-width: max(100%, 36rem); }
+.app-table-scroll :where(th, td) { min-width: 6rem; overflow-wrap: break-word; }
+.app-dialog { container: panel / inline-size; min-width: 0; max-height: calc(100dvh - 2 * var(--app-responsive-gutter)); overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 2vw, 1.5rem); }
+.app-dialog :where(.grid, .flex) > :where(div, fieldset, section) { min-width: 0; }
+.app-dialog :where(h2, h3, p, dd, label) { overflow-wrap: anywhere; }
+.app-dialog :where(input, select, textarea) { max-width: 100%; min-width: 0; }
+.app-dialog :where(form > .flex, footer) { flex-wrap: wrap; }
+.app-dialog-close { flex-shrink: 0; min-width: 2.5rem; min-height: 2.5rem; }
+.app-dialog button[aria-label="Close"] { flex-shrink: 0; min-width: 2.5rem; min-height: 2.5rem; }
+.app-service-list { max-height: min(32rem, 60dvh); overflow-y: auto; overscroll-behavior: contain; }
+.app-chart-scroll { position: relative; width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.app-chart-scroll > svg { width: 100%; min-width: 32rem; }
+.app-chart-scroll:focus-visible { outline: 2px solid var(--bv-champagne); outline-offset: 2px; }
+.app-header-row { min-width: 0; gap: .75rem; padding-inline: var(--app-responsive-gutter); }
+.app-header-title { min-width: 0; }
+.app-header-title h1 { font-size: clamp(1.125rem, 2vw, 1.5rem); overflow-wrap: anywhere; }
+.app-header-title p { overflow-wrap: anywhere; }
+.app-header-actions { flex-shrink: 0; }
+.app-user-name { max-width: 12rem; }
+.app-user-popup { width: min(18rem, calc(100vw - 2rem)); max-height: calc(100dvh - 6rem); overflow-y: auto; }
+@media (max-width: 39.999rem) {
+  .app-header-row { flex-wrap: wrap; }
+  .app-header-title { order: 3; flex-basis: 100%; }
+  .app-header-actions { margin-left: auto; }
+  .app-user-name { display: none; }
+  .app-user-trigger { min-width: 2.5rem; min-height: 2.5rem; padding-inline: .5rem; }
+  .app-toolbar > * { flex-basis: 100%; width: 100%; }
+  .app-table-scroll :where(th, td) { padding-inline: .75rem; }
+}
+@media (pointer: coarse) {
+  .app-dashboard :where(button, [role="button"], summary), .app-sidebar-panel nav a, .app-header-actions a { min-height: 2.75rem; }
+}
+
+.app-panel { container: panel / inline-size; min-width: 0; }
+.app-businesses-table, .app-users-table, .app-plans-table { display: none; }
+.app-businesses-cards, .app-users-cards, .app-plans-cards { display: block; }
+.app-businesses-table :where(th, td), .app-users-table :where(th, td), .app-plans-table :where(th, td) { padding-inline: .75rem; overflow-wrap: anywhere; }
+.app-businesses-table :where(th, td):last-child, .app-users-table :where(th, td):last-child, .app-plans-table :where(th, td):last-child { padding-inline: .5rem; }
+@container panel (min-width: 40rem) {
+  .app-businesses-table { display: block; }
+  .app-businesses-cards { display: none; }
+}
+@container panel (min-width: 48rem) {
+  .app-users-table, .app-plans-table { display: block; }
+  .app-users-cards, .app-plans-cards { display: none; }
+}
+.app-date-range { display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; min-width: 0; }
+.app-date-range input { width: 100%; min-width: 0; }
+@container dashboard (min-width: 40rem) {
+  .app-date-range { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+}
+@container dashboard (max-width: 40rem) {
+  .app-table-scroll::before { content: 'Scroll horizontally to view all columns'; display: block; position: sticky; left: 0; width: fit-content; max-width: 100%; padding: .5rem .75rem; font-size: .75rem; color: var(--bv-text-secondary); }
+}
+
+/* Report tables switch as a whole when their panel can fit every field. */
+.app-report-table { display: none; }
+.app-report-cards { display: block; }
+@container panel (min-width: 56rem) {
+  .app-report-table { display: block; }
+  .app-report-cards { display: none; }
+}

@@ -60,7 +60,7 @@ export class MembershipPlansController {
   @ApiOperation({
     summary: 'List membership plans',
     description:
-      'CUSTOMER callers receive active plans only. Scoped by salon for staff roles.',
+      'CUSTOMER callers receive active plans only. MANAGER/STAFF are salon-scoped, ADMIN is franchise-scoped, SUPER_ADMIN has global scope. Optional salonId filter must be authorized.',
   })
   @ApiResponse({ status: 200, type: PaginatedMembershipPlansDto })
   list(
@@ -75,7 +75,7 @@ export class MembershipPlansController {
   @ApiOperation({
     summary: 'Create a membership plan',
     description:
-      'Requires salonId, name, price and durationDays. Duplicate names in a salon return 409.',
+      'Requires salonId, name, price and durationDays. Supports benefits, salon-owned eligibleServiceIds, optional enrollmentThreshold and couponPrefix, and initial isActive. Null threshold disables automatic enrollment. Duplicate names in a salon return 409.',
   })
   @ApiResponse({ status: 201, type: MembershipPlanResponseDto })
   @ApiResponse({ status: 400, description: 'Inactive salon' })
@@ -109,7 +109,7 @@ export class MembershipPlansController {
   @ApiOperation({
     summary: 'Update a membership plan',
     description:
-      'Does not accept id, salonId, createdAt, updatedAt or isActive.',
+      'Does not accept id, salonId, createdAt, updatedAt or isActive. Use the status endpoint for activation. Editing terms affects future enrollments; issued membership snapshots and validity remain intact.',
   })
   @ApiResponse({ status: 200, type: MembershipPlanResponseDto })
   @ApiResponse({ status: 404, description: 'Membership plan not found' })

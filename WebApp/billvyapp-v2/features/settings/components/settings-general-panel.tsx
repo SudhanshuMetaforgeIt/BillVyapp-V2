@@ -103,7 +103,7 @@ export function SettingsGeneralPanel() {
         data-dash-animate="section"
         bodyClassName="space-y-4"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 panel-md:grid-cols-2">
           <SettingsTextField
             id="platform-name"
             label="Platform Name"
@@ -181,7 +181,7 @@ export function SettingsGeneralPanel() {
         <p className="text-xs text-text-secondary">
           Logo and favicon uploads use the media upload flow. Colors update immediately.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 panel-md:grid-cols-2">
           <ColorField
             id="primary-color"
             label="Primary Color"

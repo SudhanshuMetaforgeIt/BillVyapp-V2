@@ -366,7 +366,7 @@ export function AdminSettingsPageView() {
         <div className="space-y-5 rounded-2xl border border-stone-200/90 bg-white p-5 shadow-xs dark:border-stone-800 dark:bg-stone-900">
           {section === 'business_profile' ? (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 content-md:grid-cols-2">
                 <SettingsTextField
                   id="admin-business-name"
                   label="Business Name"
@@ -489,7 +489,7 @@ export function AdminSettingsPageView() {
 
           {section === 'general' ? (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 content-md:grid-cols-2">
                 <SettingsSelectField
                   id="admin-currency"
                   label="Currency"

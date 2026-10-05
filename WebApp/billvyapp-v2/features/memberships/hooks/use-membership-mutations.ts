@@ -1,20 +1,21 @@
-'use client';
+"use client";
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 
-import type { ApiError } from '@/types/api.types';
+import type { ApiError } from "@/types/api.types";
 import {
   createMembership,
   createMembershipPlan,
-} from '../services/memberships.service';
+  updateMembershipPlan,
+  setMembershipPlanStatus,
+} from "../services/memberships.service";
 import type {
   CreateMembershipPayload,
   CreateMembershipPlanPayload,
   MembershipApiItem,
   MembershipPlanApiItem,
-} from '../types/memberships.types';
-import { MEMBERSHIPS_QUERY_KEY } from './use-memberships';
+} from "../types/memberships.types";
 
 export function useCreateMembership(
   onSuccess?: (row: MembershipApiItem) => void,
@@ -24,8 +25,10 @@ export function useCreateMembership(
   return useMutation<MembershipApiItem, ApiError, CreateMembershipPayload>({
     mutationFn: createMembership,
     onSuccess: (row) => {
-      toast.success('Member added');
-      void queryClient.invalidateQueries({ queryKey: MEMBERSHIPS_QUERY_KEY });
+      toast.success("Member added");
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey.includes("memberships"),
+      });
       onSuccess?.(row);
     },
     onError: (error) => {
@@ -47,11 +50,66 @@ export function useCreateMembershipPlan(
     mutationFn: createMembershipPlan,
     onSuccess: (plan) => {
       toast.success(`${plan.name} plan created`);
-      void queryClient.invalidateQueries({ queryKey: MEMBERSHIPS_QUERY_KEY });
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey.includes("memberships"),
+      });
       onSuccess?.(plan);
     },
     onError: (error) => {
       toast.error(error.message);
     },
+  });
+}
+
+export function useSaveMembershipPlan(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id?: string;
+      payload: CreateMembershipPlanPayload;
+    }) => {
+      if (!id) return createMembershipPlan(payload);
+      return updateMembershipPlan(id, {
+        name: payload.name,
+        description: payload.description,
+        price: payload.price,
+        durationDays: payload.durationDays,
+        enrollmentThreshold: payload.enrollmentThreshold,
+        benefits: payload.benefits,
+        couponUsageLimit: payload.couponUsageLimit,
+        termsAndConditions: payload.termsAndConditions,
+        benefitType: payload.benefitType,
+        freeServicesPerVisit: payload.freeServicesPerVisit,
+        freeServiceLimit: payload.freeServiceLimit,
+        discountPercentage: payload.discountPercentage,
+        couponPrefix: payload.couponPrefix,
+        eligibleServiceIds: payload.eligibleServiceIds,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Membership plan saved");
+      void queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey.includes("memberships"),
+      });
+      onSuccess?.();
+    },
+    onError: (error: ApiError) => toast.error(error.message),
+  });
+}
+export function useMembershipPlanStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      setMembershipPlanStatus(id, isActive),
+    onSuccess: () => {
+      toast.success("Plan status updated");
+      void queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey.includes("memberships"),
+      });
+    },
+    onError: (error: ApiError) => toast.error(error.message),
   });
 }

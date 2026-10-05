@@ -140,7 +140,7 @@ export function AuditLogsView() {
       >
         {selected ? (
           <div className="space-y-4 text-sm">
-            <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1.5">
+            <dl className="grid grid-cols-1 panel-md:grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1.5">
               <dt className="text-text-secondary">Entity</dt>
               <dd>{selected.entityType}</dd>
               <dt className="text-text-secondary">Entity ID</dt>

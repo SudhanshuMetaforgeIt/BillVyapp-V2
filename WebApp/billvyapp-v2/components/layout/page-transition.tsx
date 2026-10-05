@@ -20,7 +20,7 @@ export function PageTransition({ children, className }: PageTransitionProps) {
   );
 
   return (
-    <div ref={containerRef} className={className ?? 'w-full'}>
+    <div ref={containerRef} className={className ?? 'min-w-0 w-full max-w-full'}>
       {children}
     </div>
   );

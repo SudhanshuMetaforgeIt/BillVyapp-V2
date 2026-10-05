@@ -106,7 +106,7 @@ export function CreateAppointmentDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto p-5 shadow-xl"
+        className="app-dialog app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto p-5 shadow-xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -278,7 +278,7 @@ export function CreateAppointmentDialog({
               </div>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 panel-md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="appt-date">Date</Label>
                 <Input

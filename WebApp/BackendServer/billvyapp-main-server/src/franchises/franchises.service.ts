@@ -116,7 +116,7 @@ export class FranchisesService {
     dto: CreateFranchiseDto,
     ctx: RequestContext,
   ): Promise<FranchiseRecord> {
-    const code = trimRequired(dto.code);
+    const code = trimRequired(dto.code).toUpperCase();
 
     try {
       const created = await this.prisma.franchise.create({
@@ -165,7 +165,7 @@ export class FranchisesService {
     } = {};
 
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
-    if (dto.code !== undefined) data.code = trimRequired(dto.code);
+    if (dto.code !== undefined) data.code = trimRequired(dto.code).toUpperCase();
     if (dto.phone !== undefined) data.phone = trimOrNull(dto.phone) ?? null;
     if (dto.email !== undefined) data.email = trimOrNull(dto.email) ?? null;
     if (dto.preferences !== undefined) {

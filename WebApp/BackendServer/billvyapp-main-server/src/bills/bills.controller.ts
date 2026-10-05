@@ -1,4 +1,8 @@
 import {
+  ValidateBillCouponDto,
+  ValidatedBillCouponDto,
+} from './dto/validate-bill-coupon.dto';
+import {
   Body,
   Controller,
   Get,
@@ -101,6 +105,34 @@ export class BillsController {
     return this.billsService.create(user, dto, requestContext(req));
   }
 
+  @Post('membership-offers')
+  @Roles(...BILL_WRITE_ROLES)
+  @ApiOperation({
+    summary:
+      'List active membership offers qualifying for the service bill amount, excluding membership fees',
+  })
+  membershipOffers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateBillDto,
+  ) {
+    return this.billsService.membershipOffers(user, dto);
+  }
+
+  @Post('validate-coupon')
+  @Roles(...BILL_WRITE_ROLES)
+  @ApiOperation({
+    summary: 'Validate a customer membership coupon for billing',
+    description:
+      'Checks customer, salon, membership status and UTC validity dates. Does not calculate a monetary discount.',
+  })
+  @ApiResponse({ status: 201, type: ValidatedBillCouponDto })
+  validateCoupon(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ValidateBillCouponDto,
+  ) {
+    return this.billsService.validateCoupon(user, dto);
+  }
+
   @Get(':id')
   @Roles(...BILL_READ_ROLES)
   @ApiOperation({
@@ -146,7 +178,7 @@ export class BillsController {
   @ApiOperation({
     summary: 'Change bill status',
     description:
-      'Soft status only. DRAFT→COMPLETED|CANCELLED; COMPLETED→REFUNDED|CANCELLED. CANCELLED is rejected when paidAmount > 0. Completing a bill deducts PRODUCT inventory and writes SALE stock movements in a transaction.',
+      'Soft status only. DRAFT→COMPLETED|CANCELLED; COMPLETED→REFUNDED|CANCELLED. CANCELLED is rejected when paidAmount > 0. Completing a bill deducts PRODUCT inventory, writes SALE stock movements, and enrolls the customer into at most one active salon membership plan in the same transaction. Selects the highest configured threshold at or below final total, then oldest plan and stable id. Refunds preserve membership history.',
   })
   @ApiResponse({ status: 200, type: BillResponseDto })
   @ApiResponse({

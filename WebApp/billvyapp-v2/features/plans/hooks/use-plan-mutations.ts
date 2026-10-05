@@ -53,3 +53,18 @@ export function useUpdatePlan(onSuccess?: () => void) {
     },
   });
 }
+
+export function useUpdatePlanStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation<PlatformPlan, ApiError, { id: string; isActive: boolean }>({
+    mutationFn: ({ id, isActive }) => updatePlanStatus(id, isActive),
+    onSuccess: (plan) => {
+      toast.success(`${plan.name} ${plan.status === 'active' ? 'activated' : 'deactivated'}`);
+      void queryClient.invalidateQueries({ queryKey: PLANS_QUERY_KEY });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}

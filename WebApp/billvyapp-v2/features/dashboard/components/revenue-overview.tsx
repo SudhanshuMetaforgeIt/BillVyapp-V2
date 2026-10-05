@@ -394,9 +394,9 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
 
       {active ? (
         <div
-          className="pointer-events-none absolute top-0 z-10 w-[11.5rem] -translate-x-1/2 overflow-hidden rounded-xl border border-border/60 bg-surface shadow-lg"
+          className="pointer-events-none absolute top-0 z-10 w-[min(11.5rem,100%)] -translate-x-1/2 overflow-hidden rounded-xl border border-border/60 bg-surface shadow-lg"
           style={{
-            left: `clamp(6rem, ${(active.x / 640) * 100}%, calc(100% - 6rem))`,
+            left: `clamp(min(6rem,50%), ${(active.x / 640) * 100}%, max(50%,calc(100% - 6rem)))`,
           }}
         >
           <div className="px-3 pt-2.5 pb-2">

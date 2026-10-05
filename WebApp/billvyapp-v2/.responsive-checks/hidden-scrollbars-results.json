@@ -1,0 +1,103 @@
+{
+  "checks": [
+    {
+      "label": "SUPER_ADMIN main vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "SUPER_ADMIN navigation vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 0,
+      "hasOverflow": false
+    },
+    {
+      "label": "SUPER_ADMIN table horizontal",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "SUPER_ADMIN portalled dropdown",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 0,
+      "hasOverflow": false
+    },
+    {
+      "label": "ADMIN main vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "ADMIN navigation vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "ADMIN table horizontal",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "ADMIN portalled dropdown",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 0,
+      "hasOverflow": false
+    },
+    {
+      "label": "MANAGER main vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "MANAGER navigation vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 15,
+      "hasOverflow": true
+    },
+    {
+      "label": "MANAGER table horizontal",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "MANAGER portalled dropdown",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 0,
+      "hasOverflow": false
+    },
+    {
+      "label": "STAFF main vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 80,
+      "hasOverflow": true
+    },
+    {
+      "label": "STAFF navigation vertical",
+      "hidden": true,
+      "gutter": "auto",
+      "position": 0,
+      "hasOverflow": false
+    }
+  ],
+  "failures": []
+}

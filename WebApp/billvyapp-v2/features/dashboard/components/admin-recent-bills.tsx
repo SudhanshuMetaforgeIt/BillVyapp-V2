@@ -53,7 +53,7 @@ export function AdminRecentBills({ bills }: AdminRecentBillsProps) {
       ) : (
         <>
           {/* Desktop table */}
-      <div className="hidden overflow-x-auto sm:block">
+      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll hidden overflow-x-auto sm:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
             <tr>

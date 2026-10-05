@@ -30,6 +30,8 @@ import { GeneratePlatformReportDto } from './dto/generate-platform-report.dto';
 import { ListPlatformReportsQueryDto } from './dto/list-platform-reports-query.dto';
 import { PaginatedPlatformReportsDto } from './dto/paginated-platform-reports.dto';
 import { PlatformReportResponseDto } from './dto/platform-report-response.dto';
+import { ReportAnalyticsService } from './report-analytics.service';
+import { ReportAnalyticsQueryDto } from './dto/report-analytics-query.dto';
 import { PlatformReportsService } from './platform-reports.service';
 
 @ApiTags('Platform Reports')
@@ -39,7 +41,10 @@ import { PlatformReportsService } from './platform-reports.service';
 @Roles(RoleCode.SUPER_ADMIN)
 @Controller('platform-reports')
 export class PlatformReportsController {
-  constructor(private readonly platformReportsService: PlatformReportsService) {}
+  constructor(
+    private readonly platformReportsService: PlatformReportsService,
+    private readonly analytics: ReportAnalyticsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List generated platform reports' })
@@ -49,6 +54,27 @@ export class PlatformReportsController {
     @Query() query: ListPlatformReportsQueryDto,
   ) {
     return this.platformReportsService.list(user, query);
+  }
+
+  @Get('analytics')
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Read scoped server-aggregated platform analytics' })
+  analyticsSection(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ReportAnalyticsQueryDto,
+  ) {
+    return this.analytics.query(user, query);
+  }
+
+  @Get('filter-options')
+  @ApiOperation({
+    summary: 'Read reporting franchise and salon filter options',
+  })
+  filterOptions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListPlatformReportsQueryDto,
+  ) {
+    return this.analytics.options(user, query.franchiseId);
   }
 
   @Post('generate')
@@ -64,11 +90,7 @@ export class PlatformReportsController {
     @Body() dto: GeneratePlatformReportDto,
     @Req() req: Request,
   ) {
-    return this.platformReportsService.generate(
-      user,
-      dto,
-      requestContext(req),
-    );
+    return this.platformReportsService.generate(user, dto, requestContext(req));
   }
 
   @Get(':id')

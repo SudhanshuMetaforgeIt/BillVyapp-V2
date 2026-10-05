@@ -42,7 +42,7 @@ export function AppHeader({
         className,
       )}
     >
-      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
+      <div className="app-header-row flex items-center py-3.5">
         <button
           type="button"
           className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne lg:hidden"
@@ -68,14 +68,14 @@ export function AppHeader({
           </button>
         ) : null}
 
-        <div className="min-w-0 flex-1">
+        <div className="app-header-title min-w-0 flex-1">
           {title ? (
             <>
-              <h1 className="truncate text-xl font-bold tracking-tight text-text sm:text-2xl">
+              <h1 className="text-xl font-bold tracking-tight text-text sm:text-2xl">
                 {title}
               </h1>
               {subtitle ? (
-                <p className="mt-0.5 truncate text-sm text-text-secondary">{subtitle}</p>
+                <p className="mt-0.5 text-sm text-text-secondary">{subtitle}</p>
               ) : null}
             </>
           ) : (
@@ -83,7 +83,7 @@ export function AppHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="app-header-actions flex items-center gap-2 sm:gap-3">
           <Link
             href={notificationsHref}
             className="relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"

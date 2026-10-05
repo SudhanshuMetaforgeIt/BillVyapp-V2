@@ -55,8 +55,52 @@ export function UsersTable({
 }: UsersTableProps) {
   const statusMutation = useUpdateUserStatus();
 
+  const renderActions = (row: UserListRow) => (
+    <div
+      className="flex max-w-full flex-wrap items-center justify-end gap-1"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="size-8 shrink-0 px-0"
+        aria-label={`View ${row.fullName}`}
+        onClick={() => onViewUser(row)}
+      >
+        <Eye className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={statusMutation.isPending}
+        className="size-8 shrink-0 border-brand-orange px-0 text-brand-orange hover:bg-brand-orange/5"
+        aria-label={
+          row.isActive
+            ? `Deactivate ${row.fullName}`
+            : `Activate ${row.fullName}`
+        }
+        title={row.isActive ? 'Deactivate' : 'Activate'}
+        onClick={() =>
+          statusMutation.mutate({
+            id: row.id,
+            isActive: !row.isActive,
+            name: row.fullName,
+          })
+        }
+      >
+        {row.isActive ? (
+          <UserX className="size-3.5" />
+        ) : (
+          <UserCheck className="size-3.5" />
+        )}
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="app-surface-card overflow-hidden" data-dash-animate="section">
+    <div className="app-panel app-surface-card min-w-0" data-dash-animate="section">
       {isLoading ? (
         <div className="space-y-3 p-5">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -75,17 +119,26 @@ export function UsersTable({
         />
       ) : (
         <>
-          <div className="hidden lg:block">
+          <div className="app-users-table relative min-w-0">
             <table className="w-full table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[calc((100%-24rem)*0.36)]" />
+                <col className="w-[calc((100%-24rem)*0.42)]" />
+                <col className="w-[6.75rem]" />
+                <col className="w-[calc((100%-24rem)*0.22)]" />
+                <col className="w-[5rem]" />
+                <col className="w-[6.5rem]" />
+                <col className="w-[5.75rem]" />
+              </colgroup>
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
-                  <th className="w-[20%] px-4 py-3 font-semibold">User</th>
-                  <th className="w-[20%] px-4 py-3 font-semibold">Email</th>
-                  <th className="w-[12%] px-4 py-3 font-semibold">Role</th>
-                  <th className="w-[16%] px-4 py-3 font-semibold">Business</th>
-                  <th className="w-[10%] px-4 py-3 font-semibold">Status</th>
-                  <th className="w-[14%] px-4 py-3 font-semibold">Last Login</th>
-                  <th className="w-[8%] px-4 py-3 font-semibold">
+                  <th className="px-4 py-3 font-semibold">User</th>
+                  <th className="px-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Role</th>
+                  <th className="px-4 py-3 font-semibold">Business</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Last Login</th>
+                  <th className="px-4 py-3 font-semibold">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -103,11 +156,11 @@ export function UsersTable({
                           {row.initials}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-text">
+                          <p className="[overflow-wrap:anywhere] font-semibold text-text">
                             {row.fullName}
                           </p>
                           {row.salonName ? (
-                            <p className="truncate text-xs text-text-secondary">
+                            <p className="[overflow-wrap:anywhere] text-xs text-text-secondary">
                               {row.salonName}
                             </p>
                           ) : null}
@@ -115,7 +168,7 @@ export function UsersTable({
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-text-secondary">
-                      <span className="block truncate" title={row.email}>
+                      <span className="block [overflow-wrap:anywhere]" title={row.email}>
                         {row.email}
                       </span>
                     </td>
@@ -129,7 +182,7 @@ export function UsersTable({
                     </td>
                     <td className="px-4 py-3.5 text-text-secondary">
                       <span
-                        className="block truncate"
+                        className="block [overflow-wrap:anywhere]"
                         title={row.businessName}
                       >
                         {row.businessName}
@@ -144,7 +197,7 @@ export function UsersTable({
                     </td>
                     <td className="px-4 py-3.5 text-text-secondary">
                       <span
-                        className="block whitespace-nowrap"
+                        className="block max-w-full whitespace-normal [overflow-wrap:anywhere]"
                         title={
                           row.lastLoginAt
                             ? formatDateTime(row.lastLoginAt)
@@ -157,47 +210,7 @@ export function UsersTable({
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div
-                        className="flex items-center justify-end gap-1"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="size-8 shrink-0 px-0"
-                          aria-label={`View ${row.fullName}`}
-                          onClick={() => onViewUser(row)}
-                        >
-                          <Eye className="size-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={statusMutation.isPending}
-                          className="size-8 shrink-0 border-brand-orange px-0 text-brand-orange hover:bg-brand-orange/5"
-                          aria-label={
-                            row.isActive
-                              ? `Deactivate ${row.fullName}`
-                              : `Activate ${row.fullName}`
-                          }
-                          title={row.isActive ? 'Deactivate' : 'Activate'}
-                          onClick={() =>
-                            statusMutation.mutate({
-                              id: row.id,
-                              isActive: !row.isActive,
-                              name: row.fullName,
-                            })
-                          }
-                        >
-                          {row.isActive ? (
-                            <UserX className="size-3.5" />
-                          ) : (
-                            <UserCheck className="size-3.5" />
-                          )}
-                        </Button>
-                      </div>
+                      {renderActions(row)}
                     </td>
                   </tr>
                 ))}
@@ -205,48 +218,51 @@ export function UsersTable({
             </table>
           </div>
 
-          <ul className="divide-y divide-border lg:hidden">
+          <ul className="app-users-cards divide-y divide-border">
             {rows.map((row) => (
-              <li key={row.id}>
-                <button
-                  type="button"
-                  className="w-full space-y-3 px-4 py-4 text-left hover:bg-ivory/60"
-                  onClick={() => onViewUser(row)}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-10 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
-                        {row.initials}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-text">
-                          {row.fullName}
-                        </p>
-                        <p className="truncate text-xs text-text-secondary">
-                          {row.email}
-                        </p>
-                      </div>
+              <li key={row.id} className="space-y-3 px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-[1_1_12rem] cursor-pointer items-center gap-3 text-left hover:text-brand-orange"
+                    onClick={() => onViewUser(row)}
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-champagne-light text-xs font-bold text-charcoal">
+                      {row.initials}
+                    </span>
+                    <span className="min-w-0 font-semibold [overflow-wrap:anywhere]">
+                      {row.fullName}
+                    </span>
+                  </button>
+                  <StatusBadge
+                    label={row.statusLabel}
+                    tone={row.isActive ? 'success' : 'danger'}
+                    className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+                  />
+                </div>
+                <dl className="space-y-2 text-sm [overflow-wrap:anywhere]">
+                  {[
+                    ['Email', row.email],
+                    ['Business', row.businessName],
+                    ['Salon', row.salonName ?? '—'],
+                    ['Last login', row.lastLoginAt ? formatDate(row.lastLoginAt) : 'Never'],
+                    ['Joined', formatDate(row.createdAt)],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="text-xs text-text-secondary">{label}</dt>
+                      <dd>{value}</dd>
                     </div>
-                    <StatusBadge
-                      label={row.statusLabel}
-                      tone={row.isActive ? 'success' : 'danger'}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 pl-12">
-                    <StatusBadge
-                      label={tableRoleLabel(row.roleCode)}
-                      tone={roleTone(row.roleCode)}
-                      className="whitespace-nowrap"
-                      title={row.roleLabel}
-                    />
-                    <span className="text-xs text-text-secondary">
-                      {row.businessName}
-                    </span>
-                    <span className="text-xs text-text-secondary">
-                      Joined {formatDate(row.createdAt)}
-                    </span>
-                  </div>
-                </button>
+                  ))}
+                </dl>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <StatusBadge
+                    label={tableRoleLabel(row.roleCode)}
+                    tone={roleTone(row.roleCode)}
+                    className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+                    title={row.roleLabel}
+                  />
+                  {renderActions(row)}
+                </div>
               </li>
             ))}
           </ul>

@@ -1,8 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
+  IsEmail,
+  Equals,
   IsEnum,
   IsInt,
   IsNumber,
@@ -85,7 +88,54 @@ export class CreateBillItemDto {
   taxRate?: number;
 }
 
+export class BillEnrollmentDetailsDto {
+  @ApiProperty() @Equals(true) nameConfirmed: boolean;
+  @ApiProperty() @IsBoolean() whatsappSameAsBilling: boolean;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(/^\+?[0-9]{10,15}$/)
+  whatsappNumber?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(BILL_DATE_PATTERN)
+  dateOfBirth?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  address?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(191)
+  email?: string;
+}
+
 export class CreateBillDto {
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  enrollmentPlanId?: string | null;
+  @ApiPropertyOptional({ type: BillEnrollmentDetailsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BillEnrollmentDetailsDto)
+  enrollmentDetails?: BillEnrollmentDetailsDto;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'Customer membership coupon; eligible lines receive the configured membership benefit',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @Matches(/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/)
+  couponCode?: string | null;
+
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   salonId: string;

@@ -37,7 +37,7 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
     return (
       <DashboardSectionCard title="Personal Information" data-dash-animate="section" bodyClassName="space-y-4">
         <Skeleton className="h-4 w-72" />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 panel-md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-11 w-full" />
           ))}
@@ -76,7 +76,7 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-2">
+        <fieldset disabled={!editable} className="grid gap-4 panel-md:grid-cols-2">
           <Field id="full-name" label="Full Name">
             <Input
               id="full-name"

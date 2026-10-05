@@ -1,6 +1,7 @@
 import { api } from '@/services/api-client';
 import type {
   BillRecord,
+  ValidatedBillCoupon,
   CreateBillPayload,
   CreateCustomerPayload,
   CreatePaymentPayload,
@@ -77,7 +78,7 @@ export async function createPayment(payload: CreatePaymentPayload) {
   });
 }
 
-export type SettleOutcome = 'paid' | 'completed' | 'draft';
+export type SettleOutcome = 'paid' | 'completed' | 'draft' | 'price-changed';
 
 /**
  * DRAFT -> COMPLETED -> payment of the backend-computed due amount.
@@ -85,6 +86,10 @@ export type SettleOutcome = 'paid' | 'completed' | 'draft';
  */
 export async function settleWalkInBill(
   input: {
+    enrollmentPlanId?: string | null;
+    enrollmentDetails?: CreateBillPayload["enrollmentDetails"];
+    expectedTotal?: number;
+    couponCode?: string | null;
     salonId: string;
     customerId: string;
     discount?: number;
@@ -93,8 +98,14 @@ export async function settleWalkInBill(
     paymentMethod: CreatePaymentPayload['paymentMethod'];
   },
   { canComplete }: { canComplete: boolean },
-): Promise<{ bill: BillRecord; payment: PaymentRecord | null; outcome: SettleOutcome }> {
+): Promise<{
+  bill: BillRecord;
+  payment: PaymentRecord | null;
+  outcome: SettleOutcome;
+}> {
   const draft = await createBill({
+    enrollmentPlanId: input.enrollmentPlanId, enrollmentDetails: input.enrollmentDetails,
+    couponCode: input.couponCode?.trim().toUpperCase() || undefined,
     salonId: input.salonId,
     customerId: input.customerId,
     discount: input.discount && input.discount > 0 ? input.discount : undefined,
@@ -102,6 +113,8 @@ export async function settleWalkInBill(
     items: input.items,
   });
 
+  if ((input.couponCode || input.enrollmentPlanId) && input.expectedTotal !== undefined && Math.abs(Number(draft.total) - input.expectedTotal) > 0.005)
+    return { bill: draft, payment: null, outcome: 'price-changed' };
   if (!canComplete) {
     return { bill: draft, payment: null, outcome: 'draft' };
   }
@@ -112,6 +125,10 @@ export async function settleWalkInBill(
     return { bill: completed, payment: null, outcome: 'completed' };
   }
 
+  // A concurrent visit may consume allowance between draft pricing and completion.
+  // Require staff to confirm the new amount instead of recording a payment they did not receive.
+  if ((input.couponCode || input.enrollmentPlanId) && Number.isFinite(Number(draft.total)) && Number(draft.total) !== Number(completed.total))
+    return { bill: completed, payment: null, outcome: 'price-changed' };
   const payment = await createPayment({
     billId: completed.id,
     amount: dueAmount,
@@ -119,4 +136,15 @@ export async function settleWalkInBill(
   });
 
   return { bill: completed, payment, outcome: 'paid' };
+}
+
+export function validateBillCoupon(input: {
+  salonId: string;
+  customerId: string;
+  couponCode: string;
+}) {
+  return api.post<ValidatedBillCoupon>('/bills/validate-coupon', {
+    ...input,
+    couponCode: input.couponCode.trim().toUpperCase(),
+  });
 }

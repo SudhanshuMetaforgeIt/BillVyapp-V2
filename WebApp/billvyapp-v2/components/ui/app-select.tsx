@@ -33,7 +33,7 @@ export type AppSelectProps = {
   size?: keyof typeof triggerSize;
 };
 
-type MenuPos = { top: number; left: number; width: number };
+type MenuPos = { top: number; left: number; width: number; maxHeight: number; openUp: boolean };
 
 /** Layout-only utilities that belong on the outer shell, not the trigger. */
 function splitSelectClassName(className?: string): {
@@ -98,10 +98,13 @@ export function AppSelect({
     const menuMax = 288; // max-h-72
     const spaceBelow = window.innerHeight - rect.bottom - 8;
     const openUp = spaceBelow < Math.min(menuMax, options.length * 40) && rect.top > spaceBelow;
+    const width = Math.min(Math.max(rect.width, 140), window.innerWidth - 16);
     setPos({
       top: openUp ? rect.top - 6 : rect.bottom + 6,
-      left: rect.left,
-      width: Math.max(rect.width, 140),
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+      width,
+      openUp,
+      maxHeight: Math.max(40, Math.min(menuMax, openUp ? rect.top - 14 : spaceBelow - 6)),
     });
   }, [options.length]);
 
@@ -162,7 +165,8 @@ export function AppSelect({
               top: pos.top,
               left: pos.left,
               width: pos.width,
-              transform: pos.top < (triggerRef.current?.getBoundingClientRect().top ?? 0)
+              maxHeight: pos.maxHeight,
+              transform: pos.openUp
                 ? 'translateY(-100%)'
                 : undefined,
             }}
@@ -199,7 +203,7 @@ export function AppSelect({
                         <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
                       ) : null}
                     </span>
-                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                    <span className="min-w-0 flex-1 whitespace-normal break-words">{option.label}</span>
                   </button>
                 );
               })

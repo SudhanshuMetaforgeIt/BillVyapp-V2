@@ -89,7 +89,7 @@ export function CampaignsPageView() {
         skeletonCount={4}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid gap-5 content-lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-4">
           <CampaignsFilters
             search={searchInput}

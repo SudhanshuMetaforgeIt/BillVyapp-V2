@@ -87,7 +87,7 @@ export function CreatePlanDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card w-full max-w-md overflow-hidden shadow-xl"
+        className="app-surface-card max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-border/80 bg-ivory-soft/50 px-5 py-4">
           <h2 id={titleId} className="text-base font-semibold text-text">

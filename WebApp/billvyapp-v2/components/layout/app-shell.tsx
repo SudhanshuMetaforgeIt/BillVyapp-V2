@@ -84,7 +84,7 @@ export function AppShell({
   const sections = navigationForRole(user.role);
 
   return (
-    <div className="flex h-svh overflow-hidden bg-ivory text-text">
+    <div className="app-dashboard flex h-svh overflow-hidden bg-ivory text-text">
       <AppSidebar
         sections={sections}
         role={user.role}
@@ -116,7 +116,7 @@ export function AppShell({
 
         <main
           className={cn(
-            'min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-6',
+            'app-dashboard-content min-h-0 min-w-0 flex-1 overflow-y-auto py-5 lg:py-6',
             contentClassName,
           )}
         >

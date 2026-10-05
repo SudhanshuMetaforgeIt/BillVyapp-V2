@@ -102,7 +102,7 @@ function VendorDialog({ vendor, onClose }: { vendor: Vendor | null; onClose: () 
           if (valid) save.mutate(toPayload(form));
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 panel-md:grid-cols-2">
           {field('name', 'Name')}
           {field('code', 'Code')}
           {field('contactPerson', 'Contact person')}

@@ -1,163 +1,248 @@
 'use client';
-
+import { useEffect, useId, useRef, useState } from 'react';
+import { ChartNoAxesCombined } from 'lucide-react';
 import { SelectInput } from '@/components/data/form-fields';
-
-import { useState } from 'react';
-
 import type { RevenuePoint } from '../../types/admin-reports.types';
-
-type RevenueOverviewChartProps = {
+import {
+  AdminReportPanel,
+  reportDate,
+  reportMoney,
+} from './admin-report-panel';
+type Props = {
   series: RevenuePoint[];
+  interval: 'day' | 'week' | 'month';
+  onIntervalChange: (interval: 'day' | 'week' | 'month') => void;
 };
-
-export function RevenueOverviewChart({ series }: RevenueOverviewChartProps) {
-  const [interval, setInterval] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
-
-  const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
-  const maxRevenue = Math.max(...series.map((s) => s.revenue), 10000);
-  const ceilMax = Math.ceil(maxRevenue / 50000) * 50000 || 200000;
-
-  // Compute SVG coordinates
-  const width = 600;
-  const height = 220;
-  const paddingX = 45;
-  const paddingY = 25;
-  const graphWidth = width - paddingX * 2;
-  const graphHeight = height - paddingY * 2;
-
-  const points = series.map((s, idx) => {
-    const x =
-      series.length > 1
-        ? paddingX + (idx / (series.length - 1)) * graphWidth
-        : width / 2;
-    const y =
-      height - paddingY - (s.revenue / ceilMax) * graphHeight;
-    return { x, y, ...s };
-  });
-
-  const pathD = points.reduce((acc, pt, i) => {
-    if (i === 0) return `M ${pt.x} ${pt.y}`;
-    const prev = points[i - 1];
-    const cx = (prev.x + pt.x) / 2;
-    return `${acc} C ${cx} ${prev.y}, ${cx} ${pt.y}, ${pt.x} ${pt.y}`;
-  }, '');
-
-  const areaD =
-    points.length > 0
-      ? `${pathD} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`
-      : '';
-
+export function RevenueOverviewChart({
+  series,
+  interval,
+  onIntervalChange,
+}: Props) {
+  const container = useRef<HTMLDivElement>(null),
+    gradient = useId();
+  const [width, setWidth] = useState(640),
+    [active, setActive] = useState<number | null>(null);
+  useEffect(() => {
+    const el = container.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) =>
+      setWidth(Math.max(220, entries[0].contentRect.width)),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const height = 260,
+    left = 52,
+    right = 16,
+    top = 20,
+    bottom = 32;
+  const maximum = Math.max(...series.map((r) => r.revenue), 1),
+    step = Math.pow(10, Math.floor(Math.log10(maximum))) / 2,
+    ceiling = Math.ceil(maximum / step) * step;
+  const x = (i: number) =>
+    series.length > 1
+      ? left + (i / (series.length - 1)) * (width - left - right)
+      : (left + width - right) / 2;
+  const y = (value: number) =>
+    top + (1 - value / ceiling) * (height - top - bottom);
+  const points = series.map((row, index) => ({
+    ...row,
+    x: x(index),
+    y: y(row.revenue),
+  }));
+  const path = points
+    .map((p, index) => `${index ? 'L' : 'M'} ${p.x} ${p.y}`)
+    .join(' ');
+  const focused = active === null ? null : points[active];
+  const labelEvery = Math.max(
+    1,
+    Math.ceil(series.length / Math.max(2, Math.floor(width / 100))),
+  );
+  const compact = (v: number) =>
+    v >= 100000
+      ? `₹${Number((v / 100000).toFixed(1))}L`
+      : v >= 1000
+        ? `₹${Number((v / 1000).toFixed(1))}k`
+        : `₹${Math.round(v)}`;
   return (
-    <div className="rounded-xl border border-stone-200/80 bg-white p-5 shadow-xs dark:border-stone-800 dark:bg-stone-900">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-stone-900 dark:text-white">
-          Revenue Overview
-        </h3>
-        <SelectInput className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
-            value={interval}
-            onChange={(e) =>
-              setInterval(e.target.value as 'Daily' | 'Weekly' | 'Monthly')
-            }
-          >
-            <option value="Daily">Daily</option>
-            <option value="Weekly">Weekly</option>
-            <option value="Monthly">Monthly</option>
-          </SelectInput>
+    <AdminReportPanel
+      title="Revenue overview"
+      description="Collected revenue on completed bills"
+      className="h-full"
+      action={
+        <SelectInput
+          aria-label="Revenue interval"
+          className="h-9 w-28 text-xs"
+          value={interval}
+          onChange={(e) =>
+            onIntervalChange(e.target.value as Props['interval'])
+          }
+        >
+          <option value="day">Daily</option>
+          <option value="week">Weekly</option>
+          <option value="month">Monthly</option>
+        </SelectInput>
+      }
+    >
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs text-text-secondary">
+            Collected in this period
+          </p>
+          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-text">
+            {reportMoney(series.reduce((sum, row) => sum + row.revenue, 0))}
+          </p>
+        </div>
+        <span className="flex items-center gap-2 text-xs text-text-secondary">
+          <span className="size-2 rounded-full bg-brand-orange" />
+          Revenue
+        </span>
       </div>
-
-      {/* Chart */}
-      <div className="relative mt-4 w-full overflow-x-auto">
-        <div className="min-w-[500px]">
-          <svg className="w-full h-56" viewBox={`0 0 ${width} ${height}`}>
-            <defs>
-              <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
-                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
-              </linearGradient>
-            </defs>
-
-            {/* Grid Lines */}
-            {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
-              const y = height - paddingY - pct * graphHeight;
-              const labelVal = Math.round(ceilMax * pct);
-              const label =
-                labelVal >= 100000
-                  ? `₹${(labelVal / 100000).toFixed(1).replace('.0', '')}L`
-                  : labelVal >= 1000
-                  ? `₹${labelVal / 1000}K`
-                  : '₹0';
-              return (
-                <g key={i}>
+      <div ref={container} className="relative w-full min-w-0">
+        {!series.length ? (
+          <div className="flex h-[260px] flex-col items-center justify-center gap-3 text-center text-sm text-text-secondary">
+            <ChartNoAxesCombined
+              className="size-8 text-champagne"
+              aria-hidden
+            />
+            No revenue recorded in this period.
+          </div>
+        ) : (
+          <>
+            <svg
+              role="img"
+              aria-label="Revenue by period"
+              viewBox={`0 0 ${width} ${height}`}
+              className="block h-[260px] w-full overflow-visible"
+              onMouseLeave={() => setActive(null)}
+              onMouseMove={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const target =
+                  ((event.clientX - rect.left) * width) / rect.width;
+                setActive(
+                  points.reduce(
+                    (best, p, index) =>
+                      Math.abs(p.x - target) < Math.abs(points[best].x - target)
+                        ? index
+                        : best,
+                    0,
+                  ),
+                );
+              }}
+            >
+              <defs>
+                <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ff8500" stopOpacity="0.20" />
+                  <stop offset="100%" stopColor="#ff8500" stopOpacity="0.01" />
+                </linearGradient>
+              </defs>
+              {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+                <g key={t}>
                   <line
-                    x1={paddingX}
-                    y1={y}
-                    x2={width - paddingX}
-                    y2={y}
-                    className="stroke-stone-100 dark:stroke-stone-800"
-                    strokeWidth="1"
-                    strokeDasharray="4 4"
+                    x1={left}
+                    x2={width - right}
+                    y1={y(ceiling * t)}
+                    y2={y(ceiling * t)}
+                    stroke="currentColor"
+                    className="text-border"
+                    strokeDasharray={t ? '3 5' : undefined}
                   />
                   <text
-                    x={paddingX - 8}
-                    y={y + 3}
+                    x={left - 10}
+                    y={y(ceiling * t) + 4}
                     textAnchor="end"
-                    className="fill-stone-400 text-[10px]"
+                    className="fill-text-secondary"
+                    fontSize="11"
                   >
-                    {label}
+                    {compact(ceiling * t)}
                   </text>
                 </g>
-              );
-            })}
-
-            {/* Gradient Area Fill */}
-            {areaD && <path d={areaD} fill="url(#revGrad)" />}
-
-            {/* Main Smooth Curve */}
-            {pathD && (
+              ))}
               <path
-                d={pathD}
-                fill="none"
-                stroke="#f59e0b"
-                strokeWidth="2.5"
-                strokeLinecap="round"
+                d={`${path} L ${points.at(-1)!.x} ${height - bottom} L ${points[0].x} ${height - bottom} Z`}
+                fill={`url(#${gradient})`}
               />
-            )}
-
-            {/* Data Points */}
-            {points.map((pt, idx) => (
-              <g key={idx} className="group cursor-pointer">
-                <circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r="4"
-                  fill="#f59e0b"
-                  stroke="#ffffff"
-                  strokeWidth="2"
-                  className="transition hover:r-6"
+              <path
+                d={path}
+                fill="none"
+                stroke="#f58a16"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+              />
+              {focused && (
+                <line
+                  x1={focused.x}
+                  x2={focused.x}
+                  y1={top}
+                  y2={height - bottom}
+                  stroke="#c5a46d"
+                  strokeDasharray="4 4"
                 />
-                <title>{`${pt.date}: ${formatINR(pt.revenue)}`}</title>
-                {/* X Axis Label */}
-                <text
-                  x={pt.x}
-                  y={height - 5}
-                  textAnchor="middle"
-                  className="fill-stone-400 text-[9px]"
-                >
-                  {pt.date}
-                </text>
-              </g>
-            ))}
-          </svg>
-        </div>
+              )}
+              {points.map((point, index) => (
+                <g key={point.date}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={active === index ? 5 : 3.5}
+                    fill="#f58a16"
+                    stroke="var(--color-surface,white)"
+                    strokeWidth="2"
+                    tabIndex={0}
+                    aria-label={`${reportDate(point.date)}: ${reportMoney(point.revenue)}`}
+                    onFocus={() => setActive(index)}
+                    onBlur={() => setActive(null)}
+                    className="outline-none"
+                  >
+                    <title>
+                      {reportDate(point.date)}: {reportMoney(point.revenue)}
+                    </title>
+                  </circle>
+                  {(index === 0 ||
+                    index === points.length - 1 ||
+                    (index % labelEvery === 0 &&
+                      point.x - points[0].x >= 65 &&
+                      points.at(-1)!.x - point.x >= 65)) && (
+                    <text
+                      x={point.x}
+                      y={height - 8}
+                      textAnchor={
+                        index === 0
+                          ? 'start'
+                          : index === points.length - 1
+                            ? 'end'
+                            : 'middle'
+                      }
+                      fontSize="11"
+                      className="fill-text-secondary"
+                    >
+                      {new Date(`${point.date}T00:00:00Z`).toLocaleDateString(
+                        'en-IN',
+                        { day: 'numeric', month: 'short', timeZone: 'UTC' },
+                      )}
+                    </text>
+                  )}
+                </g>
+              ))}
+            </svg>
+            {focused && (
+              <div
+                className="pointer-events-none absolute top-0 z-10 rounded-lg border border-border bg-surface px-3 py-2 text-xs shadow-lg"
+                style={{
+                  left: Math.max(0, Math.min(width - 170, focused.x - 80)),
+                }}
+              >
+                <p className="text-text-secondary">
+                  {reportDate(focused.date)}
+                </p>
+                <p className="mt-1 font-semibold tabular-nums text-text">
+                  {reportMoney(focused.revenue)}
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
-    </div>
+    </AdminReportPanel>
   );
 }

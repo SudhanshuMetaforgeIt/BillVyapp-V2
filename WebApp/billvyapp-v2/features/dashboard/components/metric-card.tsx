@@ -175,10 +175,10 @@ export function MetricCard({ metric, className }: MetricCardProps) {
       )}
       data-dash-animate="metric"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="app-metric-heading flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-text-secondary">{metric.label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-text sm:text-[1.75rem]">
+          <p className="app-metric-value mt-2 font-bold tracking-tight text-text">
             {displayValue}
           </p>
         </div>
@@ -247,7 +247,7 @@ export function MetricGrid({
     return (
       <div
         className={cn(
-          'grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4',
+          'app-stat-grid',
           className,
         )}
       >
@@ -261,7 +261,7 @@ export function MetricGrid({
   return (
     <div
       className={cn(
-        'grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4',
+        'app-stat-grid',
         className,
       )}
     >

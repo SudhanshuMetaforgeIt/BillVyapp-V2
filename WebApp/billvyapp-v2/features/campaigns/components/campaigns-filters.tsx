@@ -19,7 +19,7 @@ export function CampaignsFilters({
   onCreate,
 }: CampaignsFiltersProps) {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+    <div className="app-toolbar">
       <div className="relative min-w-0 flex-1">
         <Input
           value={search}

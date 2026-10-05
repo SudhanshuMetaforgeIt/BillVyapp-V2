@@ -57,7 +57,7 @@ export function ManagerPaymentMethods({
     <DashboardSectionCard
       title="Sales by Payment Method"
       data-dash-animate="section"
-      className="h-full"
+      className="app-panel h-full"
       bodyClassName="pt-4"
     >
       {isLoading ? (
@@ -65,8 +65,8 @@ export function ManagerPaymentMethods({
       ) : slices.length === 0 || total <= 0 ? (
         <SectionEmptyState message="No payment method data for this period." />
       ) : (
-        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-          <div className="relative shrink-0">
+        <div className="grid min-w-0 grid-cols-1 items-center gap-4 panel-md:grid-cols-[11rem_minmax(0,1fr)]">
+          <div className="relative justify-self-center">
             <svg
               viewBox="0 0 200 200"
               className="size-44"
@@ -100,13 +100,13 @@ export function ManagerPaymentMethods({
             </svg>
           </div>
 
-          <ul className="w-full space-y-2.5">
+          <ul className="min-w-0 w-full space-y-2.5">
             {slices.map((slice, index) => (
               <li
                 key={slice.method}
-                className="flex items-center justify-between gap-3 text-sm"
+                className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"
               >
-                <span className="inline-flex min-w-0 items-center gap-2">
+                <span className="inline-flex min-w-0 max-w-full flex-[1_1_7rem] items-center gap-2">
                   <span
                     className="size-2.5 shrink-0 rounded-full"
                     style={{
@@ -114,11 +114,11 @@ export function ManagerPaymentMethods({
                     }}
                     aria-hidden
                   />
-                  <span className="truncate font-medium text-text">
+                  <span className="min-w-0 break-words font-medium text-text">
                     {slice.label}
                   </span>
                 </span>
-                <span className="shrink-0 text-text-secondary">
+                <span className="max-w-full break-words text-text-secondary">
                   {slice.percent}% · {formatCurrency(slice.amount)}
                 </span>
               </li>

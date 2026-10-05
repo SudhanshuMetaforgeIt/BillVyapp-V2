@@ -1,4 +1,10 @@
 import {
+  ENROLLMENT_PLAN_SELECT,
+  issueMembership,
+  membershipTerms,
+  membershipEndDate,
+} from './membership-enrollment';
+import {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -25,6 +31,10 @@ import { UpdateMembershipStatusDto } from './dto/update-membership-status.dto';
 
 const MEMBERSHIP_SELECT = {
   id: true,
+  couponCode: true,
+  qualifyingBillId: true,
+  planSnapshot: true,
+  qualifyingBill: { select: { id: true, billNumber: true } },
   customerId: true,
   membershipPlanId: true,
   startDate: true,
@@ -44,6 +54,11 @@ const MEMBERSHIP_SELECT = {
 } as const;
 
 type MembershipRow = {
+  couponCode?: string | null;
+  qualifyingBillId?: string | null;
+  planSnapshot?: unknown;
+  qualifyingBill?: { id: string; billNumber: string } | null;
+
   id: string;
   customerId: string;
   membershipPlanId: string;
@@ -62,6 +77,12 @@ type MembershipRow = {
 };
 
 export type MembershipRecord = {
+  couponCode?: string | null;
+  qualifyingBillId?: string | null;
+  planSnapshot?: unknown;
+  qualifyingBill?: { id: string; billNumber: string } | null;
+  membershipName: string;
+
   id: string;
   customerId: string;
   membershipPlanId: string;
@@ -129,13 +150,93 @@ export class MembershipsService {
     );
   }
 
-  async findOne(
-    user: AuthenticatedUser,
-    id: string,
-  ): Promise<MembershipRecord> {
+  async findOne(user: AuthenticatedUser, id: string) {
     const record = await this.requireMembership(id);
     await this.assertMembershipAccess(user, record);
-    return this.toResponse(record);
+    const details = await this.prisma.membership.findUniqueOrThrow({
+      where: { id },
+      select: {
+        customer: {
+          select: {
+            customerCode: true,
+            dateOfBirth: true,
+            whatsappNumber: true,
+            addresses: {
+              where: { isDefault: true },
+              select: { addressLine1: true },
+            },
+            gender: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phone: true,
+                email: true,
+              },
+            },
+          },
+        },
+        membershipPlan: {
+          select: {
+            ...ENROLLMENT_PLAN_SELECT,
+            salon: { select: { id: true, name: true } },
+          },
+        },
+        qualifyingBill: {
+          select: {
+            id: true,
+            billNumber: true,
+            total: true,
+            billDate: true,
+            enrollmentPlanId: true,
+          },
+        },
+        redemptions: {
+          orderBy: { redeemedAt: 'desc' },
+          select: {
+            id: true,
+            couponCode: true,
+            serviceId: true,
+            serviceName: true,
+            quantity: true,
+            membershipPlanId: true,
+            benefitType: true,
+            originalAmount: true,
+            discountAmount: true,
+            finalAmount: true,
+            redeemedAt: true,
+            redeemedBy: true,
+            salonId: true,
+            billId: true,
+            billItem: {
+              select: { bill: { select: { billNumber: true, status: true } } },
+            },
+          },
+        },
+      },
+    });
+    return {
+      ...this.toResponse(record),
+      customer: details.customer,
+      redemptions: details.redemptions.map(({ billItem, ...redemption }) => ({
+        ...redemption,
+        billNumber: billItem.bill.billNumber,
+        billStatus: billItem.bill.status,
+      })),
+      plan: membershipTerms(details.membershipPlan),
+      salon: details.membershipPlan.salon,
+      enrollmentType: record.qualifyingBillId
+        ? details.qualifyingBill?.enrollmentPlanId
+          ? 'Billing enrollment'
+          : 'Automatic (legacy)'
+        : 'Manual',
+      qualifyingBill: details.qualifyingBill
+        ? {
+            ...details.qualifyingBill,
+            total: details.qualifyingBill.total.toString(),
+          }
+        : null,
+    };
   }
 
   async create(
@@ -155,17 +256,12 @@ export class MembershipsService {
     }
 
     const startDate = this.parseDateOnly(dto.startDate ?? this.todayDateOnly());
-    const endDate = this.addDays(startDate, plan.durationDays);
-
-    const created = await this.prisma.membership.create({
-      data: {
-        customerId,
-        membershipPlanId: plan.id,
-        startDate,
-        endDate,
-        status: MembershipStatus.ACTIVE,
-      },
-      select: MEMBERSHIP_SELECT,
+    const created = await this.prisma.$transaction(async (tx) => {
+      const issued = await issueMembership(tx, plan, customerId, startDate);
+      return tx.membership.findUniqueOrThrow({
+        where: { id: issued.id },
+        select: MEMBERSHIP_SELECT,
+      });
     });
 
     await this.audit.record({
@@ -201,13 +297,21 @@ export class MembershipsService {
       throw new BadRequestException('Customers cannot update memberships');
     }
 
-    let plan = existing.membershipPlan;
+    let plan = await this.requirePlan(existing.membershipPlanId);
     if (dto.membershipPlanId !== undefined) {
       plan = await this.requirePlan(dto.membershipPlanId);
       if (!plan.isActive) {
         throw new BadRequestException('Membership plan is inactive');
       }
       await this.scope.assertSalonAccess(actor, plan.salonId);
+      if (
+        existing.qualifyingBillId &&
+        plan.salonId !== existing.membershipPlan.salonId
+      ) {
+        throw new BadRequestException(
+          'A bill-qualified membership must remain in the bill salon',
+        );
+      }
     }
 
     const startDate =
@@ -217,14 +321,19 @@ export class MembershipsService {
     const shouldRecalcEnd =
       dto.membershipPlanId !== undefined || dto.startDate !== undefined;
     const endDate = shouldRecalcEnd
-      ? this.addDays(startDate, plan.durationDays)
+      ? membershipEndDate(
+          startDate,
+          dto.membershipPlanId !== undefined
+            ? plan.durationDays
+            : this.snapshotDuration(existing, plan.durationDays),
+        )
       : existing.endDate;
 
     const updated = await this.prisma.membership.update({
       where: { id: existing.id },
       data: {
         ...(dto.membershipPlanId !== undefined
-          ? { membershipPlanId: plan.id }
+          ? { membershipPlanId: plan.id, planSnapshot: membershipTerms(plan) }
           : {}),
         ...(shouldRecalcEnd ? { startDate, endDate } : {}),
       },
@@ -356,29 +465,18 @@ export class MembershipsService {
     }
   }
 
-  private async requirePlan(id: string): Promise<{
-    id: string;
-    salonId: string;
-    durationDays: number;
-    isActive: boolean;
-    name: string;
-  }> {
+  private async requirePlan(id: string) {
     const plan = await this.prisma.membershipPlan.findUnique({
       where: { id },
-      select: {
-        id: true,
-        salonId: true,
-        durationDays: true,
-        isActive: true,
-        name: true,
-      },
+      select: ENROLLMENT_PLAN_SELECT,
     });
-
-    if (!plan) {
-      throw new NotFoundException('Membership plan not found');
-    }
-
+    if (!plan) throw new NotFoundException('Membership plan not found');
     return plan;
+  }
+
+  private snapshotDuration(row: MembershipRow, fallback: number): number {
+    const snapshot = row.planSnapshot as { durationDays?: number } | null;
+    return snapshot?.durationDays ?? fallback;
   }
 
   private parseDateOnly(value: string): Date {
@@ -400,12 +498,6 @@ export class MembershipsService {
     return date;
   }
 
-  private addDays(date: Date, days: number): Date {
-    const result = new Date(date);
-    result.setUTCDate(result.getUTCDate() + days);
-    return result;
-  }
-
   private todayDateOnly(): string {
     return this.formatDateOnly(new Date());
   }
@@ -420,6 +512,13 @@ export class MembershipsService {
   private toResponse(row: MembershipRow): MembershipRecord {
     return {
       id: row.id,
+      couponCode: row.couponCode ?? null,
+      qualifyingBillId: row.qualifyingBillId ?? null,
+      qualifyingBill: row.qualifyingBill ?? null,
+      planSnapshot: row.planSnapshot ?? null,
+      membershipName:
+        (row.planSnapshot as { name?: string } | null)?.name ??
+        row.membershipPlan.name,
       customerId: row.customerId,
       membershipPlanId: row.membershipPlanId,
       startDate: this.formatDateOnly(row.startDate),

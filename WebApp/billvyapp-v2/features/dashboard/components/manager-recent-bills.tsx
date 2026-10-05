@@ -49,7 +49,7 @@ export function ManagerRecentBills({
       ) : rows.length === 0 ? (
         <SectionEmptyState message="No recent bills to show." />
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
           <table className="w-full min-w-[32rem] text-left text-sm">
             <thead>
               <tr className="border-b border-border/70 text-xs tracking-wide text-text-secondary uppercase">

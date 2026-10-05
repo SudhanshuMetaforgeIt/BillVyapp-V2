@@ -64,9 +64,10 @@ export function UserMenu({ user }: UserMenuProps) {
       <button
         type="button"
         className={cn(
-          'flex cursor-pointer items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 shadow-xs transition-colors hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700',
+          'app-user-trigger flex cursor-pointer items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-1.5 shadow-xs transition-colors hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-stone-700',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500',
         )}
+        aria-label={`${displayName}, account menu`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
@@ -77,7 +78,7 @@ export function UserMenu({ user }: UserMenuProps) {
             <Image src={user.profilePhoto} width={24} height={24} alt="" className="size-6 rounded-full object-cover" unoptimized onError={() => setFailedPhoto(user.profilePhoto ?? null)} />
           ) : <UserRound className="size-3.5" />}
         </span>
-        <span className="truncate text-xs font-bold text-stone-800 dark:text-stone-200">
+        <span className="app-user-name truncate text-xs font-bold text-stone-800 dark:text-stone-200">
           {displayName}
         </span>
         <ChevronDown
@@ -93,14 +94,14 @@ export function UserMenu({ user }: UserMenuProps) {
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-stone-200 bg-white p-1 shadow-xl dark:border-stone-800 dark:bg-stone-900"
+          className="app-user-popup absolute right-0 z-40 mt-2 rounded-2xl border border-stone-200 bg-white p-1 shadow-xl dark:border-stone-800 dark:bg-stone-900"
         >
           {/* User Info Header */}
           <div className="border-b border-stone-100 px-3.5 py-2.5 dark:border-stone-800">
-            <p className="truncate text-xs font-bold text-stone-900 dark:text-white">
+            <p className="break-words text-xs font-bold text-stone-900 dark:text-white">
               {displayName}
             </p>
-            <p className="truncate text-[11px] text-stone-400 dark:text-stone-500">
+            <p className="break-all text-[11px] text-stone-400 dark:text-stone-500">
               {user?.email || '—'}
             </p>
             <span className="mt-1 inline-block rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">

@@ -10,7 +10,9 @@ type RevenueByBranchBarChartProps = {
   items: RevenueByBranchItem[];
 };
 
-export function RevenueByBranchBarChart({ items }: RevenueByBranchBarChartProps) {
+export function RevenueByBranchBarChart({
+  items,
+}: RevenueByBranchBarChartProps) {
   const [period, setPeriod] = useState('This Month');
 
   const formatINR = (val: number) => {
@@ -31,15 +33,16 @@ export function RevenueByBranchBarChart({ items }: RevenueByBranchBarChartProps)
         <h3 className="text-sm font-bold text-stone-900 dark:text-white">
           Revenue by Branch
         </h3>
-        <SelectInput className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-          >
-            <option value="This Month">This Month</option>
-            <option value="Today">Today</option>
-            <option value="This Week">This Week</option>
-            <option value="This Year">This Year</option>
-          </SelectInput>
+        <SelectInput
+          className="app-select-sm h-7 w-auto min-w-0 text-[11px] font-medium"
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+        >
+          <option value="This Month">This Month</option>
+          <option value="Today">Today</option>
+          <option value="This Week">This Week</option>
+          <option value="This Year">This Year</option>
+        </SelectInput>
       </div>
 
       {/* Chart */}
@@ -76,7 +79,7 @@ export function RevenueByBranchBarChart({ items }: RevenueByBranchBarChartProps)
                     : 4;
                 return (
                   <div
-                    key={b.branchName}
+                    key={b.id}
                     className="flex flex-col items-center flex-1 max-w-[64px]"
                   >
                     {/* Amount label above bar */}

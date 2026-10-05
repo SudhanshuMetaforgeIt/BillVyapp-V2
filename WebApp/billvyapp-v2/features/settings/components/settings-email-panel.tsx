@@ -72,7 +72,7 @@ export function SettingsEmailPanel() {
         {query.data.smtpPasswordSet ? (
           <p className="text-xs text-text-secondary">A password is already stored. Leave blank to keep it.</p>
         ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 panel-md:grid-cols-2">
           <SettingsTextField id="smtp-host" label="Host" value={smtpHost} onChange={setSmtpHost} />
           <SettingsTextField id="smtp-port" label="Port" type="number" value={smtpPort} onChange={setSmtpPort} />
           <SettingsTextField id="smtp-user" label="Username" value={smtpUser} onChange={setSmtpUser} />

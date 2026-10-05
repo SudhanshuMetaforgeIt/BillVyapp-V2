@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { Calendar, Mail, MapPin, Phone, Receipt, User, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import type { CustomerItem } from '../types/admin-customers.types';
-import { useRouter } from 'next/navigation';
-import { ROUTES } from '@/constants/routes';
+import { CustomerMemberships } from "@/features/memberships/components/customer-memberships";
+import { Mail, MapPin, Phone, Receipt, User, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { CustomerItem } from "../types/admin-customers.types";
+import { useRouter } from "next/navigation";
+import { ROUTES } from "@/constants/routes";
 
 type CustomerDetailsDialogProps = {
   customer: CustomerItem | null;
@@ -22,16 +23,16 @@ export function CustomerDetailsDialog({
   if (!isOpen || !customer) return null;
 
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
       maximumFractionDigits: 0,
     }).format(val);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs">
-      <div className="relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
+      <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-stone-800">
           <div className="flex items-center gap-3">
@@ -72,38 +73,54 @@ export function CustomerDetailsDialog({
 
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <MapPin className="h-4 w-4 text-stone-400" />
-            <span>Preferred Branch: <strong className="font-semibold">{customer.branchName}</strong></span>
+            <span>
+              Preferred Branch:{" "}
+              <strong className="font-semibold">{customer.branchName}</strong>
+            </span>
           </div>
 
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <User className="h-4 w-4 text-stone-400" />
-            <span>Gender: <strong className="capitalize">{customer.gender?.toLowerCase() || 'Unspecified'}</strong></span>
+            <span>
+              Gender:{" "}
+              <strong className="capitalize">
+                {customer.gender?.toLowerCase() || "Unspecified"}
+              </strong>
+            </span>
           </div>
         </div>
 
         {/* Billing metrics */}
         <div className="mt-4 grid grid-cols-3 gap-3 text-center">
           <div className="rounded-xl border border-stone-100 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-800/40">
-            <div className="text-[11px] text-stone-400 font-medium">Total Bills</div>
+            <div className="text-[11px] text-stone-400 font-medium">
+              Total Bills
+            </div>
             <div className="mt-1 text-base font-bold text-stone-900 dark:text-white">
               {customer.totalBills}
             </div>
           </div>
 
           <div className="rounded-xl border border-stone-100 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-800/40">
-            <div className="text-[11px] text-stone-400 font-medium">Total Spent</div>
+            <div className="text-[11px] text-stone-400 font-medium">
+              Total Spent
+            </div>
             <div className="mt-1 text-base font-bold text-emerald-600 dark:text-emerald-400">
               {formatINR(customer.totalSpent)}
             </div>
           </div>
 
           <div className="rounded-xl border border-stone-100 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-800/40">
-            <div className="text-[11px] text-stone-400 font-medium">Last Visit</div>
+            <div className="text-[11px] text-stone-400 font-medium">
+              Last Visit
+            </div>
             <div className="mt-1 text-xs font-semibold text-stone-800 dark:text-stone-200">
               {customer.lastVisit}
             </div>
           </div>
         </div>
+
+        <CustomerMemberships key={customer.id} customerId={customer.id} />
 
         {/* Footer actions */}
         <div className="mt-5 flex items-center justify-between border-t border-stone-100 pt-3 dark:border-stone-800">

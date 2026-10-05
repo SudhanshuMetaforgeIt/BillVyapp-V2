@@ -19,7 +19,7 @@ type BusinessesFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 w-auto min-w-[9rem] text-sm font-medium';
+  'h-11 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium';
 
 export function BusinessesFilters({
   search,
@@ -32,7 +32,7 @@ export function BusinessesFilters({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between',
+        'app-toolbar lg:justify-between',
         className,
       )}
     >

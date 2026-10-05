@@ -29,7 +29,7 @@ type SupportFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 w-auto min-w-[9rem] text-sm font-medium';
+  'h-11 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium';
 
 export function SupportFilters({
   search,

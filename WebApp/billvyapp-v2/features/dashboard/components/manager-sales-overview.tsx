@@ -50,12 +50,12 @@ export function ManagerSalesOverview({
       ) : !hasData ? (
         <SectionEmptyState message="No sales data for this period." />
       ) : (
-        <div className="w-full overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Scrollable sales chart" className="app-chart-scroll">
           <svg
             viewBox="0 0 640 240"
             role="img"
             aria-label="Sales this week versus last week"
-            className="h-56 w-full min-w-[320px]"
+            className="h-56 w-full"
           >
             <title>Sales overview</title>
             {[0, 0.25, 0.5, 0.75, 1].map((t) => {

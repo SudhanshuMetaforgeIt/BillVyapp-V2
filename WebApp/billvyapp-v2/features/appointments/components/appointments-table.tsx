@@ -121,7 +121,7 @@ export function AppointmentsTable({
         />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
             <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
                 <tr>

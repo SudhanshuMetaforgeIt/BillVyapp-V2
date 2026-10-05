@@ -158,7 +158,7 @@ function SidebarNav({
         </ul>
       </nav>
 
-      {!collapsed ? (
+      {!collapsed && role !== 'MANAGER' && role !== 'ADMIN' ? (
         <div className="relative z-10 shrink-0 border-t border-white/10 p-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 backdrop-blur-sm">
             <p className="text-sm font-semibold text-white">Need Help?</p>
@@ -200,6 +200,7 @@ export function AppSidebar({
       </aside>
 
       <div
+        inert={!mobileOpen}
         className={cn(
           'fixed inset-0 z-50 lg:hidden',
           mobileOpen ? 'pointer-events-auto' : 'pointer-events-none',

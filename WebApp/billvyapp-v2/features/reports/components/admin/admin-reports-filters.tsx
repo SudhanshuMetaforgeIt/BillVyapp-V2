@@ -1,101 +1,103 @@
 'use client';
-
 import { SelectInput } from '@/components/data/form-fields';
-
-import { Calendar, ChevronDown, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { SlidersHorizontal } from 'lucide-react';
+import { AdminReportExportMenu } from './admin-report-export-menu';
 import type { AdminReportsFilterState } from '../../types/admin-reports.types';
-
-type AdminReportsFiltersProps = {
+type Props = {
   filters: AdminReportsFilterState;
   onChange: (updated: Partial<AdminReportsFilterState>) => void;
   branches: { id: string; name: string }[];
   onDownloadReport: () => void;
+  downloadDisabled: boolean;
+  downloadPhase: string;
+  downloadError: string | null;
 };
-
 export function AdminReportsFilters({
   filters,
   onChange,
   branches,
   onDownloadReport,
-}: AdminReportsFiltersProps) {
+  downloadDisabled,
+  downloadPhase,
+  downloadError,
+}: Props) {
+  const input =
+    'h-11 w-full min-w-0 rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none focus:border-champagne focus:ring-2 focus:ring-champagne/20';
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      {/* Left filter inputs */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Date Range */}
-        <div>
-          <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
-            Date Range
-          </label>
-          <div className="flex items-center gap-2 rounded-lg border border-stone-200/80 bg-white px-3 py-1.5 text-xs text-stone-700 shadow-2xs dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300">
-            <Calendar className="h-3.5 w-3.5 text-stone-400" />
+    <section
+      aria-label="Report filters"
+      className="rounded-2xl border border-border bg-surface p-4 sm:p-5"
+    >
+      <div className="mb-4 flex items-center gap-2 text-xs font-semibold text-text-secondary">
+        <SlidersHorizontal className="size-3.5" aria-hidden />
+        REPORT FILTERS
+      </div>
+      <div className="grid grid-cols-1 items-end gap-4 content-md:grid-cols-2 content-lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,.7fr)_auto]">
+        <fieldset className="min-w-0">
+          <legend className="mb-2 text-xs font-medium text-text-secondary">
+            Date range
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
             <input
+              aria-label="Date from"
+              title="Date from"
               type="date"
               value={filters.dateFrom || ''}
-              onChange={(e) => onChange({ dateFrom: e.target.value || undefined })}
-              className="border-none bg-transparent p-0 text-xs focus:outline-hidden"
-              title="Date from"
+              onChange={(e) =>
+                onChange({ dateFrom: e.target.value || undefined })
+              }
+              className={input}
             />
-            <span className="text-stone-400">—</span>
             <input
+              aria-label="Date to"
+              title="Date to"
               type="date"
               value={filters.dateTo || ''}
-              onChange={(e) => onChange({ dateTo: e.target.value || undefined })}
-              className="border-none bg-transparent p-0 text-xs focus:outline-hidden"
-              title="Date to"
+              onChange={(e) =>
+                onChange({ dateTo: e.target.value || undefined })
+              }
+              className={input}
             />
           </div>
-        </div>
-
-        {/* Branch */}
-        <div>
-          <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
+        </fieldset>
+        <label className="block min-w-0">
+          <span className="mb-2 block text-xs font-medium text-text-secondary">
             Branch
-          </label>
-          <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
-              value={filters.branchId}
-              onChange={(e) => onChange({ branchId: e.target.value })}
-            >
-              <option value="all">All Branches</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </SelectInput>
-        </div>
-
-        {/* Report Type */}
-        <div>
-          <label className="block text-[11px] font-semibold text-stone-500 dark:text-stone-400 mb-1">
-            Report Type
-          </label>
-          <SelectInput className="app-select-sm h-9 w-auto min-w-[140px] text-xs font-medium"
-              value={filters.reportType}
-              onChange={(e) => onChange({ reportType: e.target.value })}
-            >
-              <option value="overview">Overview</option>
-              <option value="sales">Sales Report</option>
-              <option value="staff">Staff Report</option>
-              <option value="customers">Customers Report</option>
-              <option value="services">Services Report</option>
-            </SelectInput>
-        </div>
+          </span>
+          <SelectInput
+            aria-label="Report branch"
+            className="h-11 w-full min-w-0 text-sm"
+            value={filters.branchId}
+            onChange={(e) => onChange({ branchId: e.target.value })}
+          >
+            <option value="all">All Branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </SelectInput>
+        </label>
+        <label className="block min-w-0">
+          <span className="mb-2 block text-xs font-medium text-text-secondary">
+            Report type
+          </span>
+          <SelectInput
+            aria-label="Report type"
+            className="h-11 w-full min-w-0 text-sm"
+            value={filters.reportType}
+            onChange={(e) => onChange({ reportType: e.target.value })}
+          >
+            <option value="overview">Overview</option>
+          </SelectInput>
+        </label>
+        <AdminReportExportMenu
+          onExport={onDownloadReport}
+          disabled={downloadDisabled}
+          phase={downloadPhase}
+          error={downloadError}
+        />
       </div>
-
-      {/* Right Download Button */}
-      <div>
-        <Button
-          type="button"
-          onClick={onDownloadReport}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-xs text-xs font-semibold h-9 px-4 rounded-lg"
-        >
-          <Download className="h-3.5 w-3.5" />
-          <span>Download Report</span>
-          <ChevronDown className="h-3.5 w-3.5 opacity-80" />
-        </Button>
-      </div>
-    </div>
+    </section>
   );
 }
