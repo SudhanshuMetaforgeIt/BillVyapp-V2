@@ -5,12 +5,18 @@ import toast from 'react-hot-toast';
 
 import type { ApiError } from '@/types/api.types';
 import { invalidateAfter, invalidatePaths } from '@/lib/query-invalidation';
-import { adjustStock, createProduct } from '../services/inventory.service';
+import {
+  adjustStock,
+  createProduct,
+  createProductCategory,
+} from '../services/inventory.service';
 import type {
   AdjustStockPayload,
+  CreateProductCategoryPayload,
   CreateProductPayload,
   InventoryApiItem,
   ProductApiItem,
+  ProductCategoryApiItem,
 } from '../types/inventory.types';
 
 export function useAdjustStock(onSuccess?: (row: InventoryApiItem) => void) {
@@ -44,3 +50,31 @@ export function useCreateProduct(onSuccess?: (product: ProductApiItem) => void) 
     },
   });
 }
+
+export function useCreateProductCategory(
+  onSuccess?: (category: ProductCategoryApiItem) => void,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    ProductCategoryApiItem,
+    ApiError,
+    CreateProductCategoryPayload
+  >({
+    mutationFn: createProductCategory,
+    onSuccess: (category) => {
+      toast.success(`Category "${category.name}" created`);
+      void invalidatePaths(queryClient, [
+        ['inventory'],
+        ['product-categories'],
+        ['products'],
+        ['dashboard'],
+      ]);
+      onSuccess?.(category);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+

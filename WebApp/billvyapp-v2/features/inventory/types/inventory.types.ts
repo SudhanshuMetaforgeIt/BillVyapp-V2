@@ -117,3 +117,10 @@ export type CreateProductPayload = {
   taxRate?: number;
   reorderLevel?: number;
 };
+
+export type CreateProductCategoryPayload = {
+  salonId: string;
+  name: string;
+  description?: string | null;
+};
+
