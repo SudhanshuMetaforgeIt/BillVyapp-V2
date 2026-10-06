@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import {
   useDeferredValue,
@@ -17,8 +18,14 @@ import type {
   InventoryListRow,
   StockStatusFilter,
 } from '../types/inventory.types';
-import { AddProductDialog } from './add-product-dialog';
-import { AdjustStockDialog } from './adjust-stock-dialog';
+const LazyAddProductDialog = dynamic(() => import('./add-product-dialog').then((module) => module.AddProductDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AddProductDialog(props: import('react').ComponentProps<typeof import('./add-product-dialog').AddProductDialog>) {
+  return props.open ? <LazyAddProductDialog {...props} /> : null;
+}
+const LazyAdjustStockDialog = dynamic(() => import('./adjust-stock-dialog').then((module) => module.AdjustStockDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AdjustStockDialog(props: import('react').ComponentProps<typeof import('./adjust-stock-dialog').AdjustStockDialog>) {
+  return props.open ? <LazyAdjustStockDialog {...props} /> : null;
+}
 import { InventoryFilters } from './inventory-filters';
 import { InventoryTable } from './inventory-table';
 

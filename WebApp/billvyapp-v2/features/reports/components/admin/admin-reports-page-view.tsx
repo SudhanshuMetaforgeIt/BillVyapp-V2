@@ -1,4 +1,6 @@
 'use client';
+import { DeferredContent } from '@/components/ui/deferred-content';
+import dynamic from 'next/dynamic';
 
 import { useRef, useState } from 'react';
 import { CalendarDays, ArrowUpRight } from 'lucide-react';
@@ -17,8 +19,8 @@ import { AdminReportHistory } from './admin-report-history';
 import { useAdminReports } from '../../hooks/use-admin-reports';
 import { AdminReportsStats } from './admin-reports-stats';
 import { AdminReportsFilters } from './admin-reports-filters';
-import { RevenueOverviewChart } from './revenue-overview-chart';
-import { BillsOverviewDonut } from './bills-overview-donut';
+
+
 import { BranchComparisonCard } from './branch-comparison-card';
 import type { AdminReportsFilterState } from '../../types/admin-reports.types';
 
@@ -31,10 +33,11 @@ export function AdminReportsPageView() {
     interval: 'day',
   });
 
-  const { data, isLoading, isError, refetch } = useAdminReports(filters);
+  const { data, isLoading, isFetching, isError, refetch } = useAdminReports(filters);
   const history = useQuery({
     queryKey: ['admin-report-history'],
     queryFn: fetchAdminReportHistory,
+    staleTime: 2 * 60_000,
   });
   const queryClient = useQueryClient();
   const downloading = useRef(false);
@@ -140,11 +143,13 @@ export function AdminReportsPageView() {
         onChange={handleFiltersChange}
         branches={branches}
         onDownloadReport={() => void handleDownloadReport()}
-        downloadDisabled={!!downloadPhase || isLoading || isError}
+        downloadDisabled={!!downloadPhase || isLoading || isFetching || isError}
         downloadPhase={downloadPhase}
         downloadError={downloadError}
       />
-      {isError ? (
+      {isFetching && data ? <p role="status" className="text-xs text-text-secondary">Updating report; showing previous figures…</p> : null}
+      {isError && data ? <p role="alert" className="text-xs text-danger">Could not refresh the report. Previous figures are still shown.</p> : null}
+      {isError && !data ? (
         <div
           role="alert"
           className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700"
@@ -160,8 +165,8 @@ export function AdminReportsPageView() {
         </div>
       ) : (
         <>
-          <AdminReportsStats stats={stats} loading={isLoading} />
-          {isLoading ? (
+          <AdminReportsStats stats={stats} loading={isLoading && !data} />
+          {isLoading && !data ? (
             <div
               className="grid gap-6 content-lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]"
               aria-label="Loading report charts"
@@ -240,4 +245,14 @@ export function AdminReportsPageView() {
       </nav>
     </div>
   );
+}
+
+const LazyRevenueOverviewChart = dynamic(() => import('./revenue-overview-chart').then((module) => module.RevenueOverviewChart), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function RevenueOverviewChart(props: import('react').ComponentProps<typeof import('./revenue-overview-chart').RevenueOverviewChart>) {
+  return <DeferredContent><LazyRevenueOverviewChart {...props} /></DeferredContent>;
+}
+
+const LazyBillsOverviewDonut = dynamic(() => import('./bills-overview-donut').then((module) => module.BillsOverviewDonut), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function BillsOverviewDonut(props: import('react').ComponentProps<typeof import('./bills-overview-donut').BillsOverviewDonut>) {
+  return <DeferredContent><LazyBillsOverviewDonut {...props} /></DeferredContent>;
 }

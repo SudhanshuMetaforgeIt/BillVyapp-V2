@@ -8,7 +8,7 @@ import type { AuthUser } from '@/types/user.types';
  * directly so the source of identity stays swappable.
  */
 export function useCurrentUser(): AuthUser | null {
-  return useAuthStore((state) => state.user);
+  return useAuthStore((state) => state.status === 'authenticated' ? state.user : null);
 }
 
 export function useAuthStatus() {

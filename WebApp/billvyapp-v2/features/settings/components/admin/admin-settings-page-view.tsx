@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -10,7 +10,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { ROUTES } from '@/constants/routes';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { api } from '@/services/api-client';
-import { invalidateAfter } from '@/lib/query-invalidation';
 import {
   SettingsSelectField,
   SettingsTextField,
@@ -233,7 +232,6 @@ function SettingRow({
 
 export function AdminSettingsPageView() {
   const user = useCurrentUser();
-  const queryClient = useQueryClient();
   const franchiseId = user?.franchiseId ?? '';
   const [section, setSection] = useState<SettingSection>('list');
   const [saving, setSaving] = useState(false);
@@ -289,7 +287,6 @@ export function AdminSettingsPageView() {
         email: businessEmail.trim() || null,
         phone: businessPhone.trim() || null,
       });
-      await invalidateAfter(queryClient, 'settings');
       await franchiseQuery.refetch();
       toast.success('Business profile saved');
     } catch (err: unknown) {
@@ -313,7 +310,6 @@ export function AdminSettingsPageView() {
       await api.patch(`/franchises/${franchiseId}`, {
         preferences: { ...prefs, ...nextPrefs },
       });
-      await invalidateAfter(queryClient, 'settings');
       await franchiseQuery.refetch();
       toast.success('Settings saved');
     } catch (err: unknown) {

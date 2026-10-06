@@ -1,20 +1,17 @@
-'use client';
-
 import type { ReactNode } from 'react';
 
 import { AuthAuroraBackground } from '@/features/auth/components/auth-aurora-background';
+import { AuthEntranceWrapper } from '@/features/auth/components/auth-entrance-wrapper';
 import { LoginBrandingPanel } from '@/features/auth/components/login-branding-panel';
-import { useAuthPageEntrance } from '@/features/auth/hooks/use-auth-page-entrance';
 
-/** Shared Login / Signup shell: stacked on small screens, split on desktop. */
+/**
+ * Shared Login / Signup shell rendered on the server.
+ * The branding panel, illustration cards, and decorative backgrounds are rendered
+ * to static HTML on the server and do NOT send JavaScript to the client.
+ */
 export function AuthPageShell({ children }: { children: ReactNode }) {
-  const rootRef = useAuthPageEntrance();
-
   return (
-    <div
-      ref={rootRef}
-      className="auth-page-shell relative flex min-h-dvh flex-1 flex-col bg-[#0A0A0A] lg:flex-row lg:items-stretch"
-    >
+    <AuthEntranceWrapper>
       <AuthAuroraBackground tone="dark" className="lg:hidden" />
 
       <LoginBrandingPanel compact />
@@ -34,6 +31,6 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
           © 2026 BillVyApp. All rights reserved by Metaforgeit Solutions
         </p>
       </section>
-    </div>
+    </AuthEntranceWrapper>
   );
 }

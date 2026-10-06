@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { CustomerMemberships } from "@/features/memberships/components/customer-memberships";
 import { Eye, MoreVertical } from "lucide-react";
 
@@ -30,7 +30,90 @@ function membershipClass(tone: CustomerListRow["membershipTone"]): string {
   return "text-text-secondary";
 }
 
-export function CustomersTable({
+type CustomerTableRowProps = {
+  row: CustomerListRow;
+  onView: (row: CustomerListRow) => void;
+};
+
+const CustomerTableRow = memo(function CustomerTableRow({
+  row,
+  onView,
+}: CustomerTableRowProps) {
+  return (
+    <tr className="border-b border-border/60 last:border-0 hover:bg-ivory/50">
+      <td className="px-4 py-3.5 font-medium text-text">{row.customerCode}</td>
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-champagne-light text-[11px] font-bold text-charcoal">
+            {row.initials}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-text">{row.fullName}</p>
+            <p className="truncate text-xs text-text-secondary">
+              {row.genderLabel}
+              {row.ageLabel !== "—" ? `, ${row.ageLabel}` : ""}
+            </p>
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3.5">
+        <p className="font-medium text-text">{row.phoneMasked}</p>
+        <p className="truncate text-xs text-text-secondary">{row.email}</p>
+      </td>
+      <td className="px-4 py-3.5">
+        <p className={cn("font-semibold", membershipClass(row.membershipTone))}>
+          {row.membershipLabel}
+        </p>
+        {row.membershipExpiry ? (
+          <p
+            className={cn(
+              "text-xs",
+              row.membershipTone === "expired" ? "text-danger" : "text-text-secondary",
+            )}
+          >
+            {row.membershipExpiry}
+          </p>
+        ) : null}
+      </td>
+      <td className="px-4 py-3.5 text-text-secondary">{row.totalVisitsLabel}</td>
+      <td className="px-4 py-3.5 text-text-secondary">{row.totalSpendLabel}</td>
+      <td className="px-4 py-3.5 text-text-secondary">{row.lastVisitLabel}</td>
+      <td className="px-4 py-3.5">
+        <span
+          className={cn(
+            "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
+            row.isActive ? "bg-emerald-light text-emerald" : "bg-muted text-charcoal-soft",
+          )}
+        >
+          {row.statusLabel}
+        </span>
+      </td>
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
+            aria-label={`View ${row.fullName}`}
+            onClick={() => onView(row)}
+          >
+            <Eye className="size-4" />
+          </button>
+          <button
+            type="button"
+            className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
+            aria-label={`More actions for ${row.fullName}`}
+            disabled
+            title="Actions coming soon"
+          >
+            <MoreVertical className="size-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+export const CustomersTable = memo(function CustomersTable({
   rows,
   meta,
   isLoading,
@@ -103,100 +186,11 @@ export function CustomersTable({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr
+                  <CustomerTableRow
                     key={row.id}
-                    className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
-                  >
-                    <td className="px-4 py-3.5 font-medium text-text">
-                      {row.customerCode}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-champagne-light text-[11px] font-bold text-charcoal">
-                          {row.initials}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-text">
-                            {row.fullName}
-                          </p>
-                          <p className="truncate text-xs text-text-secondary">
-                            {row.genderLabel}
-                            {row.ageLabel !== "—" ? `, ${row.ageLabel}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="font-medium text-text">{row.phoneMasked}</p>
-                      <p className="truncate text-xs text-text-secondary">
-                        {row.email}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p
-                        className={cn(
-                          "font-semibold",
-                          membershipClass(row.membershipTone),
-                        )}
-                      >
-                        {row.membershipLabel}
-                      </p>
-                      {row.membershipExpiry ? (
-                        <p
-                          className={cn(
-                            "text-xs",
-                            row.membershipTone === "expired"
-                              ? "text-danger"
-                              : "text-text-secondary",
-                          )}
-                        >
-                          {row.membershipExpiry}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
-                      {row.totalVisitsLabel}
-                    </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
-                      {row.totalSpendLabel}
-                    </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
-                      {row.lastVisitLabel}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                          row.isActive
-                            ? "bg-emerald-light text-emerald"
-                            : "bg-muted text-charcoal-soft",
-                        )}
-                      >
-                        {row.statusLabel}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                          aria-label={`View ${row.fullName}`}
-                          onClick={() => setSelectedCustomer(row)}
-                        >
-                          <Eye className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                          aria-label={`More actions for ${row.fullName}`}
-                          disabled
-                          title="Actions coming soon"
-                        >
-                          <MoreVertical className="size-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                    row={row}
+                    onView={setSelectedCustomer}
+                  />
                 ))}
               </tbody>
             </table>
@@ -207,4 +201,4 @@ export function CustomersTable({
       )}
     </div>
   );
-}
+});

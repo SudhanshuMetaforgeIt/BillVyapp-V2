@@ -1,5 +1,3 @@
-'use client';
-
 import { AuthPageShell } from '@/features/auth/components/auth-page-shell';
 import { LoginFormCard } from '@/features/auth/components/login-form-card';
 

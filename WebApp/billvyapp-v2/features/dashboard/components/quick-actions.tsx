@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { ChevronRight } from 'lucide-react';
 
 import {
@@ -36,8 +36,9 @@ export function QuickActions({ actions, isLoading }: QuickActionsProps) {
             const Icon = action.icon;
             return (
               <li key={action.id}>
-                <Link
+                <PrefetchLink
                   href={action.href}
+                  prefetchStrategy="intent"
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-text transition-all hover:bg-champagne-light/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 >
                   <span className="inline-flex size-9 items-center justify-center rounded-full bg-champagne-light text-champagne shadow-sm ring-1 ring-champagne/15 transition group-hover:ring-champagne/30">
@@ -48,7 +49,7 @@ export function QuickActions({ actions, isLoading }: QuickActionsProps) {
                     className="size-4 text-text-secondary transition group-hover:text-charcoal"
                     aria-hidden
                   />
-                </Link>
+                </PrefetchLink>
               </li>
             );
           })}

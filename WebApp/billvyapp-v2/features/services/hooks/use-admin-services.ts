@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 
 import {
   createService,
@@ -23,6 +24,7 @@ export function useAdminServices(filters: Partial<ServicesFilterState>) {
   return useQuery<AdminServicesResult>({
     queryKey: [...SERVICES_QUERY_KEY, filters],
     queryFn: () => fetchAdminServices(filters),
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }
 
@@ -30,6 +32,7 @@ export function useServiceCategories() {
   return useQuery({
     queryKey: CATEGORIES_QUERY_KEY,
     queryFn: fetchServiceCategories,
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }
 

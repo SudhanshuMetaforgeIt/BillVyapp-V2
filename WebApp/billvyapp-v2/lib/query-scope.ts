@@ -15,3 +15,8 @@ export function scopeKey(user: AuthUser | null): readonly unknown[] {
     user.salonId ?? '-',
   ];
 }
+
+/** Placeholder rows may be reused across pages, but never across identities or tenant scopes. */
+export function sameQueryScope(previousKey: readonly unknown[] | undefined, currentScope: readonly unknown[]): boolean {
+  return Boolean(previousKey && currentScope.length === 5 && currentScope.every((part, index) => previousKey[index] === part));
+}

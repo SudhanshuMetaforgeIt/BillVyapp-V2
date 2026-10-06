@@ -1,5 +1,3 @@
-'use client';
-
 import { AuthAuroraBackground } from './auth-aurora-background';
 import {
   DashboardPreview,

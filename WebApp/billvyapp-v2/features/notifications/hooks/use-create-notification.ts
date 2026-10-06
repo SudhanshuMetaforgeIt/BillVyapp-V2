@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import type { ApiError } from '@/types/api.types';
-import { invalidateAfter } from '@/lib/query-invalidation';
+import { invalidatePaths } from '@/lib/query-invalidation';
 import { createNotification } from '../services/notifications.service';
 import type {
   CreateNotificationPayload,
@@ -18,7 +18,7 @@ export function useCreateNotification(onSuccess?: () => void) {
     mutationFn: createNotification,
     onSuccess: () => {
       toast.success('Notification queued');
-      void invalidateAfter(queryClient, 'notifications');
+      void invalidatePaths(queryClient, [['notifications'], ['dashboard']]);
       onSuccess?.();
     },
     onError: (error) => {

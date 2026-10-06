@@ -30,7 +30,6 @@ import {
 import { AuthService, RequestContext } from './auth.service';
 import {
   AuthResponseDto,
-  AuthTokensDto,
   AuthUserDto,
   MessageResponseDto,
   SendOtpResponseDto,
@@ -148,14 +147,14 @@ export class AuthController {
     description:
       'Reads the HttpOnly refresh cookie (body refreshToken is a fallback). The presented refresh token is revoked and a new session is issued (refresh-token rotation).',
   })
-  @ApiResponse({ status: 200, type: AuthTokensDto })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   @ApiResponse({ status: 429, description: 'Too many refresh attempts' })
   async refresh(
     @Body() dto: RefreshTokenDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<AuthTokensDto> {
+  ): Promise<AuthResponseDto> {
     const refreshToken = this.readRefreshToken(req, dto.refreshToken);
     if (!refreshToken) {
       throw new UnauthorizedException('Invalid refresh token');

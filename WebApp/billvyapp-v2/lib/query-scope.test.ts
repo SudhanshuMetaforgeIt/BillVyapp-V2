@@ -1,7 +1,8 @@
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 
-import { scopeKey } from './query-scope';
-import { keyTouchesDomain, INVALIDATION_MAP } from './query-invalidation';
+import { sameQueryScope, scopeKey } from './query-scope';
+import { invalidateAfter, invalidatePaths, keyHasPath, keyTouchesDomain, INVALIDATION_MAP } from './query-invalidation';
 import { scopeChanged, toSessionUser } from '@/services/session';
 import type { AuthMeUser } from '@/services/auth.service';
 import type { AuthUser } from '@/types/user.types';
@@ -29,6 +30,14 @@ describe('query scope', () => {
 
   it('uses a dedicated anonymous prefix when signed out', () => {
     expect(scopeKey(null)).toEqual(['anonymous']);
+  });
+
+  it('keeps paginated placeholders only within the verified scope', () => {
+    const previous = [...scopeKey(admin), 'appointments', { page: 1 }];
+    expect(sameQueryScope(previous, scopeKey(admin))).toBe(true);
+    expect(sameQueryScope(previous, scopeKey(otherAdmin))).toBe(false);
+    expect(sameQueryScope(previous, scopeKey({ ...admin, salonId: 'salon-2' }))).toBe(false);
+    expect(sameQueryScope(previous, scopeKey(null))).toBe(false);
   });
 });
 
@@ -59,7 +68,51 @@ describe('invalidation map', () => {
     expect(INVALIDATION_MAP.payments).toEqual(
       expect.arrayContaining(['payments', 'bills', 'dashboard']),
     );
-    expect(keyTouchesDomain(['scope', 'u1', 'bills', 'mine'], 'bills')).toBe(true);
-    expect(keyTouchesDomain(['scope', 'u1', 'customers'], 'bills')).toBe(false);
+    expect(keyTouchesDomain([...scopeKey(admin), 'bills', 'mine'], 'bills')).toBe(true);
+    expect(keyTouchesDomain([...scopeKey(admin), 'customers'], 'bills')).toBe(false);
+  });
+
+  it('matches feature roots without crossing into another feature section', () => {
+    const scoped = [...scopeKey(admin), 'settings', 'notifications'];
+    expect(keyTouchesDomain(scoped, 'settings')).toBe(true);
+    expect(keyTouchesDomain(scoped, 'notifications')).toBe(false);
+    expect(keyTouchesDomain([...scopeKey(admin), 'bill-documents', 'list'], 'bills')).toBe(false);
+    expect(keyTouchesDomain([...scopeKey(admin), 'admin', 'my-business', 'salons', 'bills', 'payments'], 'bills')).toBe(true);
+    expect(keyHasPath(scoped, ['settings', 'notifications'])).toBe(true);
+    expect(keyHasPath(scoped, ['notifications'])).toBe(false);
+  });
+
+  it('invalidates dependent bill data but leaves documents, memberships and settings alone', async () => {
+    const client = new QueryClient();
+    const keys = {
+      bills: [...scopeKey(admin), 'bills', 'list'],
+      payments: [...scopeKey(admin), 'payments', 'list'],
+      customers: [...scopeKey(admin), 'customers', 'manager'],
+      dashboard: [...scopeKey(admin), 'dashboard', 'admin'],
+      documents: [...scopeKey(admin), 'bill-documents', 'list'],
+      memberships: [...scopeKey(admin), 'memberships', 'plans'],
+      settings: [...scopeKey(admin), 'settings', 'notifications'],
+    };
+    Object.values(keys).forEach((key) => client.setQueryData(key, {}));
+    await invalidateAfter(client, 'bills');
+    for (const name of ['bills', 'payments', 'customers', 'dashboard'] as const) {
+      expect(client.getQueryState(keys[name])?.isInvalidated).toBe(true);
+    }
+    for (const name of ['documents', 'memberships', 'settings'] as const) {
+      expect(client.getQueryState(keys[name])?.isInvalidated).toBe(false);
+    }
+    client.clear();
+  });
+
+  it('invalidates only the changed settings section', async () => {
+    const client = new QueryClient();
+    const email = [...scopeKey(admin), 'settings', 'email'];
+    const security = [...scopeKey(admin), 'settings', 'security'];
+    client.setQueryData(email, {});
+    client.setQueryData(security, {});
+    await invalidatePaths(client, [['settings', 'email']]);
+    expect(client.getQueryState(email)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(security)?.isInvalidated).toBe(false);
+    client.clear();
   });
 });

@@ -1,4 +1,6 @@
 'use client';
+import { DeferredContent } from '@/components/ui/deferred-content';
+import dynamic from 'next/dynamic';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -11,7 +13,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useAdminDashboard } from '../hooks/use-admin-dashboard';
 
 import { AdminStatGrid } from './admin-stat-card';
-import { AdminRevenueOverview } from './admin-revenue-overview';
+
 import { AdminBranchPerformance } from './admin-branch-performance';
 import { AdminBusinessSummary } from './admin-business-summary';
 import { AdminRecentBills } from './admin-recent-bills';
@@ -140,4 +142,9 @@ export function AdminDashboardView() {
       <AdminAtAGlance metrics={data?.glanceMetrics ?? []} />
     </div>
   );
+}
+
+const LazyAdminRevenueOverview = dynamic(() => import('./admin-revenue-overview').then((module) => module.AdminRevenueOverview), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function AdminRevenueOverview(props: import('react').ComponentProps<typeof import('./admin-revenue-overview').AdminRevenueOverview>) {
+  return <DeferredContent><LazyAdminRevenueOverview {...props} /></DeferredContent>;
 }

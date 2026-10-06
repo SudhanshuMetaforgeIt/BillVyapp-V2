@@ -17,13 +17,7 @@ import type {
   ReportListRow,
   ReportType,
 } from '../types/reports.types';
-export const REPORT_TYPES: { value: ReportType; label: string }[] = [
-  { value: 'financial', label: 'Revenue & Payments' },
-  { value: 'business', label: 'Business' },
-  { value: 'user', label: 'Customers & Users' },
-  { value: 'transaction', label: 'Transactions' },
-  { value: 'subscription', label: 'Subscription' },
-];
+import { REPORT_TYPES } from '../types/report-options';
 export function ReportDialog({
   title,
   close,

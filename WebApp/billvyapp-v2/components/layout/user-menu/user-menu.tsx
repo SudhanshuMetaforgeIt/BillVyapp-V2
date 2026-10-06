@@ -9,6 +9,7 @@ import { ROLE_LABELS, ROLE_SEGMENTS } from '@/constants/roles';
 import { useLogout } from '@/features/auth/hooks/use-logout';
 import { formatFullName } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { cloudinaryImageLoader, isCloudinaryImage } from '@/lib/cloudinary-image';
 import type { AuthUser } from '@/types/user.types';
 
 type UserMenuProps = {
@@ -75,7 +76,7 @@ export function UserMenu({ user }: UserMenuProps) {
       >
         <span className="flex size-6 items-center justify-center rounded-full bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
           {user?.profilePhoto && user.profilePhoto !== failedPhoto ? (
-            <Image src={user.profilePhoto} width={24} height={24} alt="" className="size-6 rounded-full object-cover" unoptimized onError={() => setFailedPhoto(user.profilePhoto ?? null)} />
+            <Image src={user.profilePhoto} width={24} height={24} sizes="24px" alt="" className="size-6 rounded-full object-cover" loader={isCloudinaryImage(user.profilePhoto) ? cloudinaryImageLoader : undefined} unoptimized={!isCloudinaryImage(user.profilePhoto)} onError={() => setFailedPhoto(user.profilePhoto ?? null)} />
           ) : <UserRound className="size-3.5" />}
         </span>
         <span className="app-user-name truncate text-xs font-bold text-stone-800 dark:text-stone-200">

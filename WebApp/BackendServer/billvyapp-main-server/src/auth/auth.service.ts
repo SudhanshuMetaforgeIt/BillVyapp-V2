@@ -447,7 +447,7 @@ export class AuthService {
   async refresh(
     refreshToken: string,
     ctx: RequestContext,
-  ): Promise<IssuedAuthTokens> {
+  ): Promise<IssuedAuthSession> {
     let payload: JwtRefreshPayload;
 
     try {
@@ -473,7 +473,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: session.userId },
-      select: AUTH_USER_SELECT,
+      select: AUTH_ME_SELECT,
     });
 
     if (!user || !user.isActive || !user.role.isActive) {
@@ -481,6 +481,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    // Build the response before rotating. If identity enrichment fails, the
+    // existing refresh cookie must remain usable for a later retry.
+    const publicUser = await this.toPublicMeUser(user);
     await this.sessions.revoke(session.id);
 
     const tokens = await this.issueSession(user, ctx, {
@@ -496,7 +499,7 @@ export class AuthService {
       userAgent: ctx.userAgent,
     });
 
-    return tokens;
+    return { ...tokens, user: publicUser };
   }
 
   // ------------------------------------------------------------------ logout

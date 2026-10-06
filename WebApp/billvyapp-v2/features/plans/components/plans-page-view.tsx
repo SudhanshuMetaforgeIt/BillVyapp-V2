@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from 'react';
 
@@ -7,7 +8,10 @@ import { MetricGrid } from '@/features/dashboard/components/metric-card';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { usePlans } from '../hooks/use-plans';
 import type { PlanStatusFilter, PlatformPlan } from '../types/plans.types';
-import { CreatePlanDialog } from './create-plan-dialog';
+const LazyCreatePlanDialog = dynamic(() => import('./create-plan-dialog').then((module) => module.CreatePlanDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreatePlanDialog(props: import('react').ComponentProps<typeof import('./create-plan-dialog').CreatePlanDialog>) {
+  return props.open ? <LazyCreatePlanDialog {...props} /> : null;
+}
 import { PlansFilters } from './plans-filters';
 import { PlansSidebar } from './plans-sidebar';
 import { PlansTable } from './plans-table';

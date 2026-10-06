@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from 'react';
 
@@ -10,7 +11,10 @@ import type {
   NotificationChannelFilter,
   NotificationStatusFilter,
 } from '../types/notifications.types';
-import { CreateNotificationDialog } from './create-notification-dialog';
+const LazyCreateNotificationDialog = dynamic(() => import('./create-notification-dialog').then((module) => module.CreateNotificationDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateNotificationDialog(props: import('react').ComponentProps<typeof import('./create-notification-dialog').CreateNotificationDialog>) {
+  return props.open ? <LazyCreateNotificationDialog {...props} /> : null;
+}
 import { NotificationsFilters } from './notifications-filters';
 import { NotificationsSidebar } from './notifications-sidebar';
 import { NotificationsTable } from './notifications-table';

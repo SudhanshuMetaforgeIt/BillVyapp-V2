@@ -1,19 +1,24 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { DataTable, type Column } from '@/components/data/data-table';
 import { PageHeading, SelectInput } from '@/components/data/form-fields';
 import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { BillRecordDialog } from '@/features/bills/components/bill-record-dialog';
+const LazyBillRecordDialog = dynamic(() => import('@/features/bills/components/bill-record-dialog').then((module) => module.BillRecordDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function BillRecordDialog(props: import('react').ComponentProps<typeof import('@/features/bills/components/bill-record-dialog').BillRecordDialog>) {
+  return props.billId ? <LazyBillRecordDialog {...props} /> : null;
+}
 import { listSalons } from '@/features/salons/services/salons.service';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { describeApiError } from '@/lib/api-errors';
 import { can } from '@/lib/capabilities';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 import { formatCurrency, formatDateTime, formatNumber } from '@/lib/format';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
@@ -43,6 +48,8 @@ type CountFilter = Omit<PaymentQuery, 'page' | 'limit'>;
 function CountCard({ label, filter }: { label: string; filter: CountFilter }) {
   const count = useScopedQuery(['payments', 'count', filter], () => countPayments(filter), {
     capability: 'payments.read',
+    staleTime: QUERY_FRESHNESS.billing,
+    refetchOnWindowFocus: true,
   });
   return (
     <div className="app-surface-card p-4">
@@ -65,7 +72,11 @@ export function PaymentsListView() {
   const [billId, setBillId] = useState<string | null>(null);
   const canChangeStatus = can(user, 'payments.status');
 
-  const range: CountFilter = { dateFrom: dateFrom || undefined, dateTo: dateTo || undefined };
+  const range: CountFilter = useMemo(
+    () => ({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
+    [dateFrom, dateTo],
+  );
+
   const query: PaymentQuery = {
     ...range,
     page,
@@ -76,6 +87,8 @@ export function PaymentsListView() {
 
   const payments = useScopedQuery(['payments', 'list', query], () => listPayments(query), {
     capability: 'payments.read',
+    staleTime: QUERY_FRESHNESS.billing,
+    refetchOnWindowFocus: true,
   });
   const salons = useScopedQuery(
     ['salons', 'name-map'],
@@ -98,57 +111,62 @@ export function PaymentsListView() {
     setPage(1);
   };
 
-  const columns: Column<Payment>[] = [
-    {
-      id: 'ref',
-      header: 'Payment',
-      cell: (p) => (
-        <div>
-          <p className="font-semibold">{p.transactionReference ?? 'No reference'}</p>
-          <p className="text-xs text-text-secondary">{formatDateTime(p.paymentDate)}</p>
-        </div>
-      ),
-    },
-    { id: 'salon', header: 'Salon', cell: (p) => salonName(p.salonId) },
-    { id: 'method', header: 'Method', cell: (p) => PAYMENT_METHOD_LABELS[p.paymentMethod] },
-    { id: 'amount', header: 'Amount', cell: (p) => formatCurrency(p.amount) },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: (p) => <StatusBadge tone={TONE[p.status]} label={PAYMENT_STATUS_LABELS[p.status]} />,
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: (p) => {
-        const next = canChangeStatus ? PAYMENT_NEXT_STATUSES[p.status] : [];
-        if (next.length === 0) return null;
-        return (
-          <div onClick={(e) => e.stopPropagation()}>
-            <SelectInput
-              aria-label="Change payment status"
-              value=""
-              className="w-36"
-              disabled={transition.isPending && transition.variables?.id === p.id}
-              onChange={(e) => {
-                const s = e.target.value as PaymentStatus;
-                if (!s) return;
-                if (!window.confirm(`Mark this payment ${PAYMENT_STATUS_LABELS[s].toLowerCase()}?`)) return;
-                transition.mutate({ id: p.id, status: s });
-              }}
-            >
-              <option value="">Update…</option>
-              {next.map((s) => (
-                <option key={s} value={s}>
-                  {PAYMENT_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </SelectInput>
+  const handleRowClick = useCallback((p: Payment) => setBillId(p.billId), []);
+
+  const columns: Column<Payment>[] = useMemo(
+    () => [
+      {
+        id: 'ref',
+        header: 'Payment',
+        cell: (p) => (
+          <div>
+            <p className="font-semibold">{p.transactionReference ?? 'No reference'}</p>
+            <p className="text-xs text-text-secondary">{formatDateTime(p.paymentDate)}</p>
           </div>
-        );
+        ),
       },
-    },
-  ];
+      { id: 'salon', header: 'Salon', cell: (p) => salonName(p.salonId) },
+      { id: 'method', header: 'Method', cell: (p) => PAYMENT_METHOD_LABELS[p.paymentMethod] },
+      { id: 'amount', header: 'Amount', cell: (p) => formatCurrency(p.amount) },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: (p) => <StatusBadge tone={TONE[p.status]} label={PAYMENT_STATUS_LABELS[p.status]} />,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: (p) => {
+          const next = canChangeStatus ? PAYMENT_NEXT_STATUSES[p.status] : [];
+          if (next.length === 0) return null;
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <SelectInput
+                aria-label="Change payment status"
+                value=""
+                className="w-36"
+                disabled={transition.isPending && transition.variables?.id === p.id}
+                onChange={(e) => {
+                  const s = e.target.value as PaymentStatus;
+                  if (!s) return;
+                  if (!window.confirm(`Mark this payment ${PAYMENT_STATUS_LABELS[s].toLowerCase()}?`)) return;
+                  transition.mutate({ id: p.id, status: s });
+                }}
+              >
+                <option value="">Update…</option>
+                {next.map((s) => (
+                  <option key={s} value={s}>
+                    {PAYMENT_STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </SelectInput>
+            </div>
+          );
+        },
+      },
+    ],
+    [salons.data, canChangeStatus, transition],
+  );
 
   return (
     <div className="space-y-5">
@@ -170,7 +188,7 @@ export function PaymentsListView() {
         query={payments}
         rowKey={(p) => p.id}
         onPageChange={setPage}
-        onRowClick={(p) => setBillId(p.billId)}
+        onRowClick={handleRowClick}
         noun="payments"
         emptyTitle="No payments"
         emptyMessage="No payments match these filters."

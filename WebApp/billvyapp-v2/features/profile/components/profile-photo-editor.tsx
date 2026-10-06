@@ -2,14 +2,19 @@
 
 import { useRef, useState } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { Camera, LoaderCircle, UserRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { cloudinaryImageLoader, isCloudinaryImage } from '@/lib/cloudinary-image';
 import { describeApiError } from '@/lib/api-errors';
 import { useProfilePhoto } from '../hooks/use-profile-photo';
 import { PROFILE_PHOTO_MIME_TYPES, validateProfilePhoto } from '../services/profile-photo.service';
-import { ProfilePhotoCropDialog } from './profile-photo-crop-dialog';
+const ProfilePhotoCropDialog = dynamic(
+  () => import('./profile-photo-crop-dialog').then((module) => module.ProfilePhotoCropDialog),
+  { loading: () => <p role="status">Opening photo editor…</p> },
+);
 
 export function ProfilePhotoEditor({ name = 'Your profile', initials }: { name?: string; initials?: string }) {
   const input = useRef<HTMLInputElement>(null);
@@ -30,7 +35,7 @@ export function ProfilePhotoEditor({ name = 'Your profile', initials }: { name?:
         {loading ? <div aria-hidden className="pointer-events-none absolute inset-0 rounded-full border-2 border-transparent border-t-champagne border-r-champagne/40 motion-safe:animate-spin motion-safe:[animation-duration:1.4s]" /> : null}
         <div className="relative flex size-28 items-center justify-center overflow-hidden rounded-full bg-ivory-soft text-2xl font-semibold text-champagne ring-1 ring-border">
           {url && url !== failedUrl ? (
-            <Image key={url} src={url} alt={`${name} profile photo`} width={112} height={112} className={cn('size-full object-cover transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none', url === loadedUrl ? 'scale-100 opacity-100' : 'scale-105 opacity-0')} unoptimized onLoad={() => setLoadedUrl(url)} onError={() => setFailedUrl(url)} />
+            <Image key={url} src={url} alt={`${name} profile photo`} width={112} height={112} sizes="112px" loader={isCloudinaryImage(url) ? cloudinaryImageLoader : undefined} unoptimized={!isCloudinaryImage(url)} className={cn('size-full object-cover transition-[opacity,transform] duration-500 ease-out motion-reduce:transition-none', url === loadedUrl ? 'scale-100 opacity-100' : 'scale-105 opacity-0')} onLoad={() => setLoadedUrl(url)} onError={() => setFailedUrl(url)} />
           ) : initials ? <span aria-hidden>{initials}</span> : <UserRound className="size-10" aria-label="Default avatar" />}
           {loading ? <div aria-hidden className="absolute inset-0 flex items-center justify-center bg-ivory/65 backdrop-blur-sm"><LoaderCircle className="size-6 text-champagne motion-safe:animate-spin" /></div> : null}
         </div>

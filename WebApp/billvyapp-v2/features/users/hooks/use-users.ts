@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 
 import { fetchUsersPage } from '../services/users.service';
 import type { UsersListParams, UsersPageData } from '../types/users.types';
@@ -12,5 +13,6 @@ export function useUsers(params: UsersListParams) {
     queryKey: [...USERS_QUERY_KEY, params],
     queryFn: () => fetchUsersPage(params),
     placeholderData: (previous) => previous,
+    staleTime: QUERY_FRESHNESS.activity,
   });
 }

@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useRef, useState } from 'react';
 import { Plus, UploadCloud } from 'lucide-react';
@@ -17,9 +18,18 @@ import { ServicesBulkBanner } from '../services-bulk-banner';
 import { AdminServicesFilters } from './admin-services-filters';
 import { AdminServicesTable } from './admin-services-table';
 import { CategoriesTabView } from '../categories-tab-view';
-import { CreateServiceDialog } from '../create-service-dialog';
-import { AdminAddCategoryDialog } from './admin-add-category-dialog';
-import { BulkUploadDialog } from './bulk-upload-dialog';
+const LazyCreateServiceDialog = dynamic(() => import('../create-service-dialog').then((module) => module.CreateServiceDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateServiceDialog(props: import('react').ComponentProps<typeof import('../create-service-dialog').CreateServiceDialog>) {
+  return props.isOpen ? <LazyCreateServiceDialog {...props} /> : null;
+}
+const LazyAdminAddCategoryDialog = dynamic(() => import('./admin-add-category-dialog').then((module) => module.AdminAddCategoryDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AdminAddCategoryDialog(props: import('react').ComponentProps<typeof import('./admin-add-category-dialog').AdminAddCategoryDialog>) {
+  return props.open ? <LazyAdminAddCategoryDialog {...props} /> : null;
+}
+const LazyBulkUploadDialog = dynamic(() => import('./bulk-upload-dialog').then((module) => module.BulkUploadDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function BulkUploadDialog(props: import('react').ComponentProps<typeof import('./bulk-upload-dialog').BulkUploadDialog>) {
+  return props.open ? <LazyBulkUploadDialog {...props} /> : null;
+}
 import type {
   ServiceItem,
   ServicesFilterState,

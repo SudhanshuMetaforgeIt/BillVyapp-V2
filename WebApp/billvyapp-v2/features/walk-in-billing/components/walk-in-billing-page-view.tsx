@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { CouponCodeCard } from './coupon-code-card';
 
@@ -23,7 +24,10 @@ import type {
 } from '../types/walk-in-billing.types';
 import { AddServicesSection } from './add-services-section';
 import { BillSummaryCard } from './bill-summary-card';
-import { CreateCustomerDialog } from './create-customer-dialog';
+const LazyCreateCustomerDialog = dynamic(() => import('./create-customer-dialog').then((module) => module.CreateCustomerDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateCustomerDialog(props: import('react').ComponentProps<typeof import('./create-customer-dialog').CreateCustomerDialog>) {
+  return props.open ? <LazyCreateCustomerDialog {...props} /> : null;
+}
 import { CustomerDetailsSection } from './customer-details-section';
 import { PaymentMethodsCard } from './payment-methods-card';
 import { RecentBillsSection } from './recent-bills-section';
@@ -68,17 +72,30 @@ export function WalkInBillingPageView() {
     [cart, discountValue, coupon],
   );
 
-  const offerKey = `${salonId}:${customer?.id}:${JSON.stringify(cart)}:${preview.total}:${coupon?.couponCode ?? ''}`;
-  const [enrollment, setEnrollment] = useState<(EnrollmentChoice & { key: string }) | null>(null);
-  const onEnrollmentChange = useCallback((choice: EnrollmentChoice) => setEnrollment({ ...choice, key: offerKey }), [offerKey]);
-  const choice = enrollment?.key === offerKey ? enrollment : null;
-  const membershipFee = Number(choice?.plan?.price ?? 0);
-  const payablePreview = { ...preview, membershipFee, total: Math.round((preview.total + membershipFee) * 100) / 100 };
-  const settle = useSettleWalkInBill(() => {
-    resetForm();
-  });
+  const cartFingerprint = useMemo(
+    () => cart.map((line) => `${line.serviceId}:${line.quantity}:${line.unitPrice}`).join('|'),
+    [cart],
+  );
 
-  function resetForm() {
+  const offerKey = useMemo(
+    () => `${salonId}:${customer?.id}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`,
+    [salonId, customer?.id, cartFingerprint, preview.total, coupon?.couponCode],
+  );
+
+  const [enrollment, setEnrollment] = useState<(EnrollmentChoice & { key: string }) | null>(null);
+  const onEnrollmentChange = useCallback((c: EnrollmentChoice) => setEnrollment({ ...c, key: offerKey }), [offerKey]);
+  const choice = enrollment?.key === offerKey ? enrollment : null;
+
+  const payablePreview = useMemo(() => {
+    const membershipFee = Number(choice?.plan?.price ?? 0);
+    return {
+      ...preview,
+      membershipFee,
+      total: Math.round((preview.total + membershipFee) * 100) / 100,
+    };
+  }, [preview, choice?.plan?.price]);
+
+  const resetForm = useCallback(() => {
     setEnrollment(null);
     setPhoneQuery('');
     setCustomer(null);
@@ -91,9 +108,13 @@ export function WalkInBillingPageView() {
     setPaymentMethod('UPI');
     setCoupon(null);
     setCouponValidating(false);
-  }
+  }, []);
 
-  function addService(service: SalonService) {
+  const settle = useSettleWalkInBill(() => {
+    resetForm();
+  });
+
+  const addService = useCallback((service: SalonService) => {
     setCart((prev) => {
       const existing = prev.find((line) => line.serviceId === service.id);
       if (existing) {
@@ -105,9 +126,9 @@ export function WalkInBillingPageView() {
       }
       return [...prev, toCartLine(service)];
     });
-  }
+  }, []);
 
-  function changeQty(serviceId: string, quantity: number) {
+  const changeQty = useCallback((serviceId: string, quantity: number) => {
     setCart((prev) => {
       if (quantity <= 0) {
         return prev.filter((line) => line.serviceId !== serviceId);
@@ -116,11 +137,11 @@ export function WalkInBillingPageView() {
         line.serviceId === serviceId ? { ...line, quantity } : line,
       );
     });
-  }
+  }, []);
 
-  function removeLine(serviceId: string) {
+  const removeLine = useCallback((serviceId: string) => {
     setCart((prev) => prev.filter((line) => line.serviceId !== serviceId));
-  }
+  }, []);
 
   const canPay =
     Boolean(salonId) &&

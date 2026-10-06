@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 
 import {
   fetchBusinessesPage,
@@ -17,5 +18,6 @@ export function useBusinesses(params: BusinessesListParams) {
     queryKey: [...BUSINESSES_QUERY_KEY, params],
     queryFn: () => fetchBusinessesPage(params),
     placeholderData: (previous) => previous,
+    staleTime: QUERY_FRESHNESS.reports,
   });
 }

@@ -168,6 +168,18 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   GOOGLE_MAPS_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  GOOGLE_API_KEY?: string;
+
+  @IsOptional()
+  @IsIn(['opencage', 'google'])
+  GEOCODING_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  OPENCAGE_API_KEY?: string;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

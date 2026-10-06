@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { CustomerShell } from '@/features/customer-dashboard';
+import { CustomerFooter } from '@/features/customer-dashboard/components/customer-footer';
+import { CustomerShell } from '@/features/customer-dashboard/components/customer-shell';
 
 export const metadata: Metadata = {
   title: 'Customer Dashboard | BillVy App',
@@ -8,5 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default function CustomerLayout({ children }: { children: ReactNode }) {
-  return <CustomerShell>{children}</CustomerShell>;
+  return (
+    <div className="flex min-h-screen flex-col bg-[#FFFDF9] text-[#1C1C1E] antialiased">
+      <CustomerShell>{children}</CustomerShell>
+      <CustomerFooter />
+    </div>
+  );
 }

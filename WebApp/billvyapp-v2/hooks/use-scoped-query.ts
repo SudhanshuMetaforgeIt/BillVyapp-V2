@@ -1,14 +1,13 @@
 'use client';
 
 import {
-  keepPreviousData,
   useQuery,
   type QueryKey,
   type UseQueryOptions,
 } from '@tanstack/react-query';
 
 import { can, type Capability } from '@/lib/capabilities';
-import { scopeKey } from '@/lib/query-scope';
+import { sameQueryScope, scopeKey } from '@/lib/query-scope';
 import type { ApiError } from '@/types/api.types';
 import { useCurrentUser } from './use-current-user';
 
@@ -32,11 +31,13 @@ export function useScopedQuery<T>(
 ) {
   const user = useCurrentUser();
   const allowed = user !== null && (!capability || can(user, capability));
+  const currentScope = scopeKey(user);
 
   return useQuery<T, ApiError, T, QueryKey>({
-    queryKey: [...scopeKey(user), ...key],
+    queryKey: [...currentScope, ...key],
     queryFn,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) =>
+      sameQueryScope(previousQuery?.queryKey, currentScope) ? previousData : undefined,
     ...options,
     enabled: allowed && enabled,
   });

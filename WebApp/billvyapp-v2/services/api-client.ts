@@ -8,7 +8,7 @@ import axios, {
 import { appConfig } from '@/config/app.config';
 import { useAuthStore } from '@/stores/auth.store';
 import type { ApiError, ApiErrorBody } from '@/types/api.types';
-import type { AuthTokens } from '@/types/user.types';
+import type { AuthSession } from '@/types/user.types';
 
 /**
  * The single Axios instance for the whole application.
@@ -40,6 +40,7 @@ export const apiClient: AxiosInstance = axios.create({
 type SessionExpiredHandler = () => void;
 
 let onSessionExpired: SessionExpiredHandler | null = null;
+let onSessionRefreshed: ((session: AuthSession) => boolean) | null = null;
 
 /**
  * Registered once at app startup so the client can announce a dead session
@@ -47,6 +48,10 @@ let onSessionExpired: SessionExpiredHandler | null = null;
  */
 export function setSessionExpiredHandler(handler: SessionExpiredHandler): void {
   onSessionExpired = handler;
+}
+
+export function setSessionRefreshedHandler(handler: (session: AuthSession) => boolean): void {
+  onSessionRefreshed = handler;
 }
 
 function endSession(): void {
@@ -108,21 +113,20 @@ export function isApiError(value: unknown): value is ApiError {
  * Shared across concurrent 401s so a burst of failed requests triggers exactly
  * one refresh call rather than one per request.
  */
-let refreshInFlight: Promise<AuthTokens> | null = null;
+let refreshInFlight: Promise<AuthSession> | null = null;
 
-async function refreshTokens(): Promise<AuthTokens> {
-  // Cookie is sent automatically via withCredentials; body is empty.
-  const { data } = await axios.post<AuthTokens>(
-    `${appConfig.api.baseUrl}/auth/refresh`,
-    {},
-    {
-      timeout: appConfig.api.timeoutMs,
-      withCredentials: true,
-    },
-  );
-
-  useAuthStore.getState().setAccessToken(data.accessToken);
-  return data;
+export function refreshSession(): Promise<AuthSession> {
+  if (!refreshInFlight) {
+    // A rotated refresh cookie may be used only once. Bootstrap and 401 retries
+    // must share the same request, including across Strict Mode effect reruns.
+    refreshInFlight = axios.post<AuthSession>(
+      `${appConfig.api.baseUrl}/auth/refresh`, {},
+      { timeout: appConfig.api.timeoutMs, withCredentials: true },
+    ).then((response) => response.data).finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }
 
 // -------------------------------------------------------------- interceptors
@@ -157,24 +161,43 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
 
     const skipRefresh = isCredentialAuthRequest(request?.url);
+    const currentToken = useAuthStore.getState().accessToken;
+    if (status === 401 && request && !request._retried && !skipRefresh && currentToken && request.headers.Authorization !== `Bearer ${currentToken}`) {
+      request._retried = true;
+      request.headers.Authorization = `Bearer ${currentToken}`;
+      return apiClient(request);
+    }
     const shouldAttemptRefresh =
       status === 401 && request && !request._retried && !skipRefresh;
 
     if (shouldAttemptRefresh) {
       request._retried = true;
-
+      const tokenBeforeRefresh = useAuthStore.getState().accessToken;
+      let session: AuthSession;
       try {
-        refreshInFlight ??= refreshTokens();
-        const tokens = await refreshInFlight;
-
-        request.headers.Authorization = `Bearer ${tokens.accessToken}`;
-        return apiClient(request);
+        session = await refreshSession();
       } catch {
+        const replacementToken = useAuthStore.getState().accessToken;
+        if (replacementToken && replacementToken !== tokenBeforeRefresh) {
+          request.headers.Authorization = `Bearer ${replacementToken}`;
+          return apiClient(request);
+        }
         endSession();
         return Promise.reject(toApiError(error));
-      } finally {
-        refreshInFlight = null;
       }
+      const currentTokenAfterRefresh = useAuthStore.getState().accessToken;
+      if (currentTokenAfterRefresh === tokenBeforeRefresh) {
+        if (!onSessionRefreshed?.(session)) {
+          endSession();
+          return Promise.reject(toApiError(error));
+        }
+        request.headers.Authorization = `Bearer ${session.accessToken}`;
+      } else if (currentTokenAfterRefresh) {
+        request.headers.Authorization = `Bearer ${currentTokenAfterRefresh}`;
+      } else {
+        return Promise.reject(toApiError(error));
+      }
+      return apiClient(request);
     }
 
     // A 401 after a failed retry (or with no refresh cookie) means the session is gone.

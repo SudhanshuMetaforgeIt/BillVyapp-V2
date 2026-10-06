@@ -16,7 +16,7 @@ export class GeocodeSalonDto {
   @ApiPropertyOptional({
     example: 'ChIJLfyY2E4UrjsRVq4k1aqjQZg',
     description:
-      'Google Place ID. Preferred when both address and placeId are sent.',
+      'Google Place ID; supported when GEOCODING_PROVIDER=google. Use an address for OpenCage.',
   })
   @IsOptional()
   @IsString()

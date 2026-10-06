@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../generated/prisma/client';
+import { profiledAdapter } from '../common/performance/profiled-adapter';
 
 /**
  * The single database entry point for the whole application.
@@ -25,8 +26,10 @@ export class PrismaService
 
   constructor(config: ConfigService) {
     super({
-      adapter: new PrismaMariaDb(
-        buildMariaPoolConfig(config.getOrThrow<string>('database.url')),
+      adapter: profiledAdapter(
+        new PrismaMariaDb(
+          buildMariaPoolConfig(config.getOrThrow<string>('database.url')),
+        ),
       ),
     });
   }

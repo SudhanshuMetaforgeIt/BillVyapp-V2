@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -25,7 +26,10 @@ import type {
   PaginationMeta,
 } from '../types/notifications.types';
 import { NotificationsPagination } from './notifications-pagination';
-import { ViewNotificationDialog } from './view-notification-dialog';
+const LazyViewNotificationDialog = dynamic(() => import('./view-notification-dialog').then((module) => module.ViewNotificationDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function ViewNotificationDialog(props: import('react').ComponentProps<typeof import('./view-notification-dialog').ViewNotificationDialog>) {
+  return props.notification ? <LazyViewNotificationDialog {...props} /> : null;
+}
 
 type NotificationsTableProps = {
   rows: NotificationListRow[];

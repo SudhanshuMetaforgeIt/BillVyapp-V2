@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { DataTable, type Column } from '@/components/data/data-table';
@@ -155,59 +155,62 @@ export function VendorsView() {
     onError: (error) => toast.error(describeApiError(error).message),
   });
 
-  const columns: Column<Vendor>[] = [
-    {
-      id: 'name',
-      header: 'Vendor',
-      cell: (v) => (
-        <div>
-          <p className="font-semibold">{v.name}</p>
-          <p className="text-xs text-text-secondary">{v.code}</p>
-        </div>
-      ),
-    },
-    {
-      id: 'contact',
-      header: 'Contact',
-      cell: (v) => (
-        <div>
-          <p>{v.contactPerson ?? '—'}</p>
-          <p className="text-xs text-text-secondary">{v.phone ?? v.email ?? ''}</p>
-        </div>
-      ),
-    },
-    { id: 'gst', header: 'GST', cell: (v) => v.gstNumber ?? '—' },
-    { id: 'city', header: 'City', cell: (v) => v.city ?? '—' },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: (v) => (
-        <StatusBadge tone={v.isActive ? 'success' : 'neutral'} label={v.isActive ? 'Active' : 'Inactive'} />
-      ),
-    },
-  ];
-  if (canWrite) {
-    columns.push({
-      id: 'actions',
-      header: 'Actions',
-      cell: (v) => (
-        <div className="flex gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => setEditing(v)}>
-            Edit
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={v.isActive ? 'destructive' : 'secondary'}
-            disabled={toggle.isPending && toggle.variables?.id === v.id}
-            onClick={() => toggle.mutate(v)}
-          >
-            {v.isActive ? 'Deactivate' : 'Activate'}
-          </Button>
-        </div>
-      ),
-    });
-  }
+  const columns: Column<Vendor>[] = useMemo(() => {
+    const cols: Column<Vendor>[] = [
+      {
+        id: 'name',
+        header: 'Vendor',
+        cell: (v) => (
+          <div>
+            <p className="font-semibold">{v.name}</p>
+            <p className="text-xs text-text-secondary">{v.code}</p>
+          </div>
+        ),
+      },
+      {
+        id: 'contact',
+        header: 'Contact',
+        cell: (v) => (
+          <div>
+            <p>{v.contactPerson ?? '—'}</p>
+            <p className="text-xs text-text-secondary">{v.phone ?? v.email ?? ''}</p>
+          </div>
+        ),
+      },
+      { id: 'gst', header: 'GST', cell: (v) => v.gstNumber ?? '—' },
+      { id: 'city', header: 'City', cell: (v) => v.city ?? '—' },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: (v) => (
+          <StatusBadge tone={v.isActive ? 'success' : 'neutral'} label={v.isActive ? 'Active' : 'Inactive'} />
+        ),
+      },
+    ];
+    if (canWrite) {
+      cols.push({
+        id: 'actions',
+        header: 'Actions',
+        cell: (v) => (
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setEditing(v)}>
+              Edit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={v.isActive ? 'destructive' : 'secondary'}
+              disabled={toggle.isPending && toggle.variables?.id === v.id}
+              onClick={() => toggle.mutate(v)}
+            >
+              {v.isActive ? 'Deactivate' : 'Activate'}
+            </Button>
+          </div>
+        ),
+      });
+    }
+    return cols;
+  }, [canWrite, toggle]);
 
   return (
     <div className="space-y-5">

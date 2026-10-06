@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useState } from 'react';
 import { useAdminStaff } from '../hooks/use-staff';
@@ -6,8 +7,14 @@ import { StaffStats } from './staff-stats';
 import { StaffFilters } from './staff-filters';
 import { StaffTable } from './staff-table';
 import { StaffSidebar } from './staff-sidebar';
-import { CreateStaffDialog } from './create-staff-dialog';
-import { StaffDetailsDialog } from './staff-details-dialog';
+const LazyCreateStaffDialog = dynamic(() => import('./create-staff-dialog').then((module) => module.CreateStaffDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateStaffDialog(props: import('react').ComponentProps<typeof import('./create-staff-dialog').CreateStaffDialog>) {
+  return props.isOpen ? <LazyCreateStaffDialog {...props} /> : null;
+}
+const LazyStaffDetailsDialog = dynamic(() => import('./staff-details-dialog').then((module) => module.StaffDetailsDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function StaffDetailsDialog(props: import('react').ComponentProps<typeof import('./staff-details-dialog').StaffDetailsDialog>) {
+  return props.isOpen ? <LazyStaffDetailsDialog {...props} /> : null;
+}
 import type { StaffFilterState, StaffItem } from '../types/staff.types';
 
 export function StaffPageView() {

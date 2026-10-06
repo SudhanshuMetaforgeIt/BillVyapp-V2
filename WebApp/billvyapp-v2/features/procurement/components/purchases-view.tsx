@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { DataTable, type Column } from '@/components/data/data-table';
@@ -352,58 +352,63 @@ export function PurchasesView() {
     onError: (error) => toast.error(describeApiError(error).message),
   });
 
-  const columns: Column<Purchase>[] = [
-    {
-      id: 'number',
-      header: 'Purchase',
-      cell: (p) => (
-        <div>
-          <p className="font-semibold">{p.purchaseNumber}</p>
-          <p className="text-xs text-text-secondary">{p.vendorInvoiceNumber ?? 'No invoice no.'}</p>
-        </div>
-      ),
-    },
-    { id: 'date', header: 'Date', cell: (p) => formatDate(p.purchaseDate) },
-    { id: 'items', header: 'Lines', cell: (p) => p.items.length },
-    { id: 'total', header: 'Total', cell: (p) => formatCurrency(Number(p.total)) },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: (p) => <StatusBadge tone={STATUS_TONE[p.status]} label={STATUS_LABEL[p.status]} />,
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: (p) => {
-        const next = canManage ? PURCHASE_NEXT_STATUSES[p.status] : [];
-        return (
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            {next.length > 0 ? (
-              <SelectInput
-                aria-label={`Change status of ${p.purchaseNumber}`}
-                value=""
-                className="w-40"
-                disabled={transition.isPending && transition.variables?.id === p.id}
-                onChange={(e) => {
-                  const s = e.target.value as PurchaseStatus;
-                  if (!s) return;
-                  if (s === 'RECEIVED' && !window.confirm('Mark as received and add stock?')) return;
-                  transition.mutate({ id: p.id, status: s });
-                }}
-              >
-                <option value="">Update…</option>
-                {next.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </SelectInput>
-            ) : null}
+  const handleRowClick = useCallback((p: Purchase) => setViewing(p), []);
+
+  const columns: Column<Purchase>[] = useMemo(
+    () => [
+      {
+        id: 'number',
+        header: 'Purchase',
+        cell: (p) => (
+          <div>
+            <p className="font-semibold">{p.purchaseNumber}</p>
+            <p className="text-xs text-text-secondary">{p.vendorInvoiceNumber ?? 'No invoice no.'}</p>
           </div>
-        );
+        ),
       },
-    },
-  ];
+      { id: 'date', header: 'Date', cell: (p) => formatDate(p.purchaseDate) },
+      { id: 'items', header: 'Lines', cell: (p) => p.items.length },
+      { id: 'total', header: 'Total', cell: (p) => formatCurrency(Number(p.total)) },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: (p) => <StatusBadge tone={STATUS_TONE[p.status]} label={STATUS_LABEL[p.status]} />,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: (p) => {
+          const next = canManage ? PURCHASE_NEXT_STATUSES[p.status] : [];
+          return (
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {next.length > 0 ? (
+                <SelectInput
+                  aria-label={`Change status of ${p.purchaseNumber}`}
+                  value=""
+                  className="w-40"
+                  disabled={transition.isPending && transition.variables?.id === p.id}
+                  onChange={(e) => {
+                    const s = e.target.value as PurchaseStatus;
+                    if (!s) return;
+                    if (s === 'RECEIVED' && !window.confirm('Mark as received and add stock?')) return;
+                    transition.mutate({ id: p.id, status: s });
+                  }}
+                >
+                  <option value="">Update…</option>
+                  {next.map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_LABEL[s]}
+                    </option>
+                  ))}
+                </SelectInput>
+              ) : null}
+            </div>
+          );
+        },
+      },
+    ],
+    [canManage, transition],
+  );
 
   return (
     <div className="space-y-5">
@@ -423,7 +428,7 @@ export function PurchasesView() {
         query={purchases}
         rowKey={(p) => p.id}
         onPageChange={setPage}
-        onRowClick={setViewing}
+        onRowClick={handleRowClick}
         noun="purchases"
         emptyTitle="No purchases"
         emptyMessage="No purchase orders match these filters."

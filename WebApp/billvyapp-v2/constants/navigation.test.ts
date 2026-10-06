@@ -37,12 +37,14 @@ describe('role navigation', () => {
     expect(links).toContain(ROUTES.dashboard.manager.walkInBilling);
     expect(links).toContain(ROUTES.dashboard.manager.vendors);
     expect(links).toContain(ROUTES.dashboard.manager.salonPhotos);
+    expect(links).toContain(ROUTES.dashboard.manager.salonLocation);
     expect(links.some((href) => href.includes('/audit'))).toBe(false);
   });
 
   it('adds the Salon Photos sidebar entry only for managers', () => {
     for (const role of ['SUPER_ADMIN', 'ADMIN', 'STAFF', 'CUSTOMER'] as const) {
       expect(hrefs(role)).not.toContain(ROUTES.dashboard.manager.salonPhotos);
+      expect(hrefs(role)).not.toContain(ROUTES.dashboard.manager.salonLocation);
     }
     expect(navigationForRole('MANAGER').flatMap((section) => section.items).find((item) => item.href === ROUTES.dashboard.manager.salonPhotos)?.label).toBe('Salon Photos');
   });

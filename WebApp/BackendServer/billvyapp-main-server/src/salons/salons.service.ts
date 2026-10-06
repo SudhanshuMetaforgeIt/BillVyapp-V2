@@ -24,7 +24,9 @@ import { CreateSalonDto } from './dto/create-salon.dto';
 import { GeocodeSalonDto } from './dto/geocode-salon.dto';
 import { ListSalonsQueryDto } from './dto/list-salons-query.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
+import { UpdateSalonLocationDto } from './dto/update-salon-location.dto';
 import { SalonImageStorageService } from '../salon-photos/salon-image-storage.service';
+import { baselineFetch } from '../common/performance/baseline';
 
 const SALON_SELECT = {
   id: true,
@@ -89,10 +91,47 @@ export class SalonsService {
 
   async list(user: AuthenticatedUser, query: ListSalonsQueryDto) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
+    const where = this.listWhere(user, query);
+
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.salon.findMany({
+        where,
+        select: SALON_SELECT,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.salon.count({ where }),
+    ]);
+    return paginated(
+      rows.map((row) => this.toResponse(row)),
+      total,
+      page,
+      limit,
+    );
+  }
+
+  async listPicker(user: AuthenticatedUser, query: ListSalonsQueryDto) {
+    const { page, limit, skip } = normalizePagination(query.page, query.limit);
+    const where = this.listWhere(user, query);
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.salon.findMany({
+        where,
+        select: { id: true, name: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.salon.count({ where }),
+    ]);
+    return paginated(rows, total, page, limit);
+  }
+
+  private listWhere(user: AuthenticatedUser, query: ListSalonsQueryDto) {
     const search = query.search?.trim();
     const city = query.city?.trim();
 
-    const where = {
+    return {
       ...this.scope.salonTableScope(user),
       ...(query.franchiseId ? { franchiseId: query.franchiseId } : {}),
       ...(city ? { city: { contains: city } } : {}),
@@ -108,24 +147,6 @@ export class SalonsService {
           }
         : {}),
     };
-
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.salon.findMany({
-        where,
-        select: SALON_SELECT,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.salon.count({ where }),
-    ]);
-
-    return paginated(
-      rows.map((row) => this.toResponse(row)),
-      total,
-      page,
-      limit,
-    );
   }
 
   async findOne(user: AuthenticatedUser, id: string) {
@@ -271,16 +292,67 @@ export class SalonsService {
     return this.toResponse(updated);
   }
 
+  async updateLocation(
+    user: AuthenticatedUser,
+    id: string,
+    dto: UpdateSalonLocationDto,
+    ctx: RequestContext,
+  ) {
+    await this.scope.assertSalonAccess(user, id);
+    const existing = await this.prisma.salon.findFirst({
+      where: { id, ...this.scope.salonTableScope(user) },
+      select: SALON_SELECT,
+    });
+    if (!existing) throw new NotFoundException('Salon not found');
+
+    const updated = await this.prisma.salon.update({
+      where: { id: existing.id },
+      data: {
+        latitude: dto.latitude.toFixed(7),
+        longitude: dto.longitude.toFixed(7),
+        googlePlaceId: null,
+        mapAddress: null,
+      },
+      select: SALON_SELECT,
+    });
+    await this.audit.record({
+      userId: user.userId,
+      salonId: updated.id,
+      action: 'SALON_LOCATION_UPDATED',
+      entityType: 'Salon',
+      entityId: updated.id,
+      oldData: {
+        latitude: existing.latitude?.toString() ?? null,
+        longitude: existing.longitude?.toString() ?? null,
+      },
+      newData: {
+        latitude: updated.latitude?.toString() ?? null,
+        longitude: updated.longitude?.toString() ?? null,
+        source: 'MANUAL_PIN',
+      },
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+    return this.toResponse(updated);
+  }
+
   async geocode(
     user: AuthenticatedUser,
     id: string,
     dto: GeocodeSalonDto,
     ctx: RequestContext,
   ) {
-    const apiKey = this.config.get<string>('google.mapsApiKey')?.trim();
+    const provider = this.config.get<string>('geocoding.provider') || 'google';
+    const apiKey = this.config
+      .get<string>(
+        provider === 'google'
+          ? 'google.mapsApiKey'
+          : 'geocoding.openCageApiKey',
+      )
+      ?.trim();
     if (!apiKey) {
       throw new ServiceUnavailableException(
-        'Google Maps geocoding is not configured',
+        `${provider === 'google' ? 'Google Maps' : 'OpenCage'} geocoding is not configured`,
       );
     }
 
@@ -305,7 +377,14 @@ export class SalonsService {
           existing.postalCode,
           existing.country,
         ]
-          .filter(Boolean)
+          .filter((part): part is string => Boolean(part?.trim()))
+          .reduce<string[]>((parts, part) => {
+            const value = part.trim();
+            if (!parts.join(', ').toLowerCase().includes(value.toLowerCase())) {
+              parts.push(value);
+            }
+            return parts;
+          }, [])
           .join(', '),
     };
 
@@ -315,7 +394,15 @@ export class SalonsService {
       );
     }
 
-    const result = await this.callGoogleGeocode(apiKey, resolvedDto);
+    if (provider !== 'google' && dto.placeId?.trim()) {
+      throw new BadRequestException(
+        'Google Place IDs are not supported by OpenCage. Use an address instead.',
+      );
+    }
+    const result =
+      provider === 'google'
+        ? await this.callGoogleGeocode(apiKey, resolvedDto)
+        : await this.callOpenCageGeocode(apiKey, resolvedDto);
     const data: Record<string, unknown> = {
       googlePlaceId: result.placeId,
       mapAddress: result.formattedAddress,
@@ -356,6 +443,84 @@ export class SalonsService {
     return this.toResponse(updated);
   }
 
+  private async callOpenCageGeocode(apiKey: string, dto: GeocodeSalonDto) {
+    const params = new URLSearchParams({
+      key: apiKey,
+      q: dto.address!,
+      limit: '1',
+      no_annotations: '1',
+      no_record: '1',
+      language: 'en',
+    });
+    let response: Response;
+    let payload: {
+      status?: { code?: number };
+      results?: Array<{
+        formatted?: string;
+        components?: { _type?: string };
+        geometry?: { lat?: number; lng?: number };
+      }>;
+    };
+    try {
+      response = await baselineFetch(
+        'opencage',
+        `https://api.opencagedata.com/geocode/v1/json?${params}`,
+        {
+          signal: AbortSignal.timeout(10_000),
+        },
+      );
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      throw new ServiceUnavailableException(
+        'Could not reach OpenCage. Please try again.',
+      );
+    }
+    const code = payload.status?.code ?? response.status;
+    if (!response.ok || code !== 200) {
+      const message =
+        code === 401 || code === 403
+          ? 'OpenCage rejected the API key. Check the backend configuration.'
+          : code === 402 || code === 429
+            ? 'OpenCage request limit reached. Please try again later or check your plan.'
+            : 'OpenCage geocoding is temporarily unavailable. Please try again.';
+      throw new ServiceUnavailableException(message);
+    }
+    const top = payload.results?.[0];
+    if (!top) {
+      throw new BadRequestException(
+        'No location found. Try a more complete address.',
+      );
+    }
+    const lat = top.geometry?.lat;
+    const lng = top.geometry?.lng;
+    if (
+      typeof lat !== 'number' ||
+      typeof lng !== 'number' ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    ) {
+      throw new ServiceUnavailableException(
+        'OpenCage returned invalid coordinates. Please try again.',
+      );
+    }
+    if (
+      !top.components?._type ||
+      !['building', 'road'].includes(top.components._type)
+    ) {
+      throw new BadRequestException(
+        'The address matched only a broad area, not a shop or street. Coordinates were not changed. Use a more specific address or set the confirmed shop coordinates manually.',
+      );
+    }
+    return {
+      placeId: null,
+      formattedAddress: top.formatted ?? dto.address ?? null,
+      latitude: lat,
+      longitude: lng,
+    };
+  }
+
   private async callGoogleGeocode(
     apiKey: string,
     dto: GeocodeSalonDto,
@@ -381,37 +546,82 @@ export class SalonsService {
       results?: Array<{
         place_id?: string;
         formatted_address?: string;
+        partial_match?: boolean;
+        types?: string[];
         geometry?: {
           location?: { lat?: number; lng?: number };
+          location_type?: string;
         };
       }>;
     };
 
     try {
-      const response = await fetch(url);
+      const response = await baselineFetch('google-geocoding', url, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) {
+        throw new ServiceUnavailableException(
+          'Google Geocoding API is unavailable. Check the API key, billing and Geocoding API access.',
+        );
+      }
       payload = (await response.json()) as typeof payload;
-    } catch {
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
       throw new ServiceUnavailableException(
         'Failed to reach Google Geocoding API',
       );
     }
 
-    if (payload.status !== 'OK' || !payload.results?.length) {
+    if (
+      payload.status === 'ZERO_RESULTS' ||
+      (payload.status === 'OK' && !payload.results?.length)
+    ) {
       throw new BadRequestException(
-        payload.error_message ??
-          `Geocoding failed with status ${payload.status ?? 'UNKNOWN'}`,
+        'No location found. Try a more complete address.',
+      );
+    }
+    if (payload.status !== 'OK') {
+      throw new ServiceUnavailableException(
+        payload.status === 'REQUEST_DENIED' ||
+          payload.status === 'OVER_DAILY_LIMIT'
+          ? 'Google rejected the geocoding request. Check the API key, billing and Geocoding API access.'
+          : payload.status === 'OVER_QUERY_LIMIT'
+            ? 'Google Geocoding API request limit reached. Please try again later.'
+            : 'Google Geocoding API is temporarily unavailable. Please try again.',
       );
     }
 
-    const top = payload.results[0];
+    const top = payload.results![0];
     const lat = top.geometry?.location?.lat;
     const lng = top.geometry?.location?.lng;
+    if (
+      typeof lat !== 'number' ||
+      typeof lng !== 'number' ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    ) {
+      throw new ServiceUnavailableException(
+        'Google returned invalid coordinates. Please try again.',
+      );
+    }
+    if (
+      top.partial_match ||
+      !['ROOFTOP', 'RANGE_INTERPOLATED'].includes(
+        top.geometry?.location_type ?? '',
+      )
+    ) {
+      throw new BadRequestException(
+        'The address matched only a broad area, not a shop or street. Coordinates were not changed. Use a more specific address or set the confirmed shop coordinates manually.',
+      );
+    }
 
     return {
       placeId: top.place_id ?? dto.placeId?.trim() ?? null,
       formattedAddress: top.formatted_address ?? dto.address?.trim() ?? null,
-      latitude: typeof lat === 'number' ? lat : null,
-      longitude: typeof lng === 'number' ? lng : null,
+      latitude: lat,
+      longitude: lng,
     };
   }
 

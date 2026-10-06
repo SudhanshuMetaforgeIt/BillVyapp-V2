@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import {
   useDeferredValue,
@@ -22,7 +23,10 @@ import type {
 } from '../types/appointments.types';
 import { AppointmentsFilters } from './appointments-filters';
 import { AppointmentsTable } from './appointments-table';
-import { CreateAppointmentDialog } from './create-appointment-dialog';
+const LazyCreateAppointmentDialog = dynamic(() => import('./create-appointment-dialog').then((module) => module.CreateAppointmentDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateAppointmentDialog(props: import('react').ComponentProps<typeof import('./create-appointment-dialog').CreateAppointmentDialog>) {
+  return props.open ? <LazyCreateAppointmentDialog {...props} /> : null;
+}
 
 const PAGE_SIZE = 10;
 

@@ -31,6 +31,7 @@ import { ListSalonsQueryDto } from './dto/list-salons-query.dto';
 import { PaginatedSalonsDto } from './dto/paginated-salons.dto';
 import { SalonResponseDto } from './dto/salon-response.dto';
 import { UpdateSalonDto } from './dto/update-salon.dto';
+import { UpdateSalonLocationDto } from './dto/update-salon-location.dto';
 import { SalonsService } from './salons.service';
 
 const SALON_READ_ROLES = [
@@ -64,6 +65,16 @@ export class SalonsController {
     @Query() query: ListSalonsQueryDto,
   ) {
     return this.salonsService.list(user, query);
+  }
+
+  @Get('picker')
+  @Roles(...SALON_READ_ROLES)
+  @ApiOperation({ summary: 'List paginated salon IDs and names for dropdowns' })
+  listPicker(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListSalonsQueryDto,
+  ) {
+    return this.salonsService.listPicker(user, query);
   }
 
   @Post()
@@ -125,6 +136,29 @@ export class SalonsController {
     return this.salonsService.update(user, id, dto, requestContext(req));
   }
 
+  @Patch(':id/location')
+  @Roles(RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER)
+  @ApiOperation({
+    summary: 'Save a confirmed shop entrance pin',
+    description:
+      'A manager may update only their assigned salon. Only coordinates are changed; address and other salon fields remain unchanged.',
+  })
+  @ApiResponse({ status: 200, type: SalonResponseDto })
+  @ApiResponse({ status: 404, description: 'Salon not found' })
+  updateLocation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSalonLocationDto,
+    @Req() req: Request,
+  ) {
+    return this.salonsService.updateLocation(
+      user,
+      id,
+      dto,
+      requestContext(req),
+    );
+  }
+
   @Patch(':id/status')
   @Roles(...SALON_WRITE_ROLES)
   @ApiOperation({
@@ -147,15 +181,18 @@ export class SalonsController {
   @Roles(...SALON_WRITE_ROLES)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
-    summary: 'Geocode a salon via Google Maps',
+    summary: 'Geocode a salon with the configured provider',
     description:
-      'Requires GOOGLE_MAPS_API_KEY. Provide address and/or placeId (at least one). Updates googlePlaceId, mapAddress, and latitude/longitude when Google returns coordinates.',
+      'Uses Google Geocoding (GOOGLE_API_KEY or GOOGLE_MAPS_API_KEY) by default. Uses the saved salon address when address is omitted. Only precise matches update mapAddress and coordinates. Set GEOCODING_PROVIDER=opencage to use OpenCage.',
   })
   @ApiResponse({ status: 200, type: SalonResponseDto })
-  @ApiResponse({ status: 400, description: 'Geocoding failed or invalid input' })
+  @ApiResponse({
+    status: 400,
+    description: 'Geocoding failed or invalid input',
+  })
   @ApiResponse({
     status: 503,
-    description: 'Google Maps API key is not configured',
+    description: 'Geocoding provider unavailable or not configured',
   })
   geocode(
     @CurrentUser() user: AuthenticatedUser,

@@ -1,10 +1,6 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
-/**
- * Domain names used in query keys. Existing feature keys ('admin-bills',
- * ['dashboard', 'admin'], ...) and scoped keys (['scope', ..., 'bills'])
- * both contain these tokens, so one helper can refresh old and new screens.
- */
+/** Domain names used by scoped and legacy query keys. */
 export type QueryDomain =
   | 'customers'
   | 'addresses'
@@ -27,17 +23,32 @@ export type QueryDomain =
   | 'settings';
 
 export function keyTouchesDomain(queryKey: QueryKey, domain: QueryDomain): boolean {
-  return queryKey.some(
-    (segment) => typeof segment === 'string' && segment.includes(domain),
-  );
+  const key = featureKey(queryKey);
+  if (key[0] === domain) return true;
+  if (domain === 'customers') return key[0] === 'admin-customers' || (key[0] === 'walk-in-billing' && key[1] === 'customers');
+  if (domain === 'dashboard') return key[0] === 'admin-dashboard';
+  if (domain === 'bills' && (key[0] === 'admin-bills' || (key[0] === 'walk-in-billing' && key[1] === 'recent-bills'))) return true;
+  if (domain === 'services' && key[0] === 'admin' && (key[1] === 'services' || key[1] === 'service-categories')) return true;
+  if (key[0] === 'admin' && key[1] === 'my-business') return domain === 'salons' || domain === 'bills' || domain === 'payments';
+  return false;
+}
+
+function featureKey(queryKey: QueryKey): QueryKey {
+  return queryKey[0] === 'scope' ? queryKey.slice(5) : queryKey;
+}
+
+/** Match a feature-root path in either a scoped or legacy key. */
+export function keyHasPath(queryKey: QueryKey, path: readonly string[]): boolean {
+  const key = featureKey(queryKey);
+  return path.length > 0 && path.every((part, index) => key[index] === part);
 }
 
 /** Which caches become stale after a mutation in a given domain. */
 export const INVALIDATION_MAP: Record<QueryDomain, QueryDomain[]> = {
-  customers: ['customers', 'dashboard'],
+  customers: ['customers'],
   addresses: ['addresses'],
   appointments: ['appointments', 'dashboard'],
-  bills: ['bills', 'payments', 'customers', 'dashboard', 'memberships'],
+  bills: ['bills', 'payments', 'customers', 'dashboard'],
   'bill-documents': ['bill-documents'],
   payments: ['payments', 'bills', 'customers', 'dashboard'],
   inventory: ['inventory', 'stock-movements', 'dashboard'],
@@ -45,9 +56,9 @@ export const INVALIDATION_MAP: Record<QueryDomain, QueryDomain[]> = {
   products: ['products', 'inventory'],
   vendors: ['vendors'],
   purchases: ['purchases', 'inventory', 'stock-movements'],
-  memberships: ['memberships', 'customers', 'dashboard'],
-  loyalty: ['loyalty', 'customers'],
-  notifications: ['notifications', 'dashboard'],
+  memberships: ['memberships', 'dashboard'],
+  loyalty: ['loyalty'],
+  notifications: ['notifications'],
   salons: ['salons', 'dashboard'],
   services: ['services'],
   audit: ['audit'],
@@ -59,5 +70,11 @@ export function invalidateAfter(queryClient: QueryClient, domain: QueryDomain): 
   const targets = INVALIDATION_MAP[domain];
   return queryClient.invalidateQueries({
     predicate: (query) => targets.some((t) => keyTouchesDomain(query.queryKey, t)),
+  });
+}
+
+export function invalidatePaths(queryClient: QueryClient, paths: readonly (readonly string[])[]): Promise<void> {
+  return queryClient.invalidateQueries({
+    predicate: (query) => paths.some((path) => keyHasPath(query.queryKey, path)),
   });
 }

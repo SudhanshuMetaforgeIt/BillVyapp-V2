@@ -1,3 +1,4 @@
+import { measureBaseline } from '../common/performance/baseline';
 import {
   BadRequestException,
   Injectable,
@@ -230,35 +231,37 @@ export class PaymentsService {
       throw new BadRequestException('Payment amount exceeds bill due amount');
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.create({
-        data: {
-          billId: bill.id,
-          amount: this.decimalString(dto.amount),
-          paymentMethod: dto.paymentMethod,
-          transactionReference: trimOrNull(dto.transactionReference) ?? null,
-          paymentDate: dto.paymentDate
-            ? this.resolvePaymentDateInput(
-                dto.paymentDate,
-                await this.businessTimezone.resolveForUser(actor),
-              )
-            : new Date(),
-          status,
-          notes: trimOrNull(dto.notes) ?? null,
-        },
-        select: PAYMENT_SELECT,
-      });
-
-      if (status === PaymentStatus.SUCCESS) {
-        await this.recalculateBillPayments(tx, bill.id);
-        return tx.payment.findUniqueOrThrow({
-          where: { id: payment.id },
+    const created = await measureBaseline('transaction:payment-create:ms', () =>
+      this.prisma.$transaction(async (tx) => {
+        const payment = await tx.payment.create({
+          data: {
+            billId: bill.id,
+            amount: this.decimalString(dto.amount),
+            paymentMethod: dto.paymentMethod,
+            transactionReference: trimOrNull(dto.transactionReference) ?? null,
+            paymentDate: dto.paymentDate
+              ? this.resolvePaymentDateInput(
+                  dto.paymentDate,
+                  await this.businessTimezone.resolveForUser(actor),
+                )
+              : new Date(),
+            status,
+            notes: trimOrNull(dto.notes) ?? null,
+          },
           select: PAYMENT_SELECT,
         });
-      }
 
-      return payment;
-    });
+        if (status === PaymentStatus.SUCCESS) {
+          await this.recalculateBillPayments(tx, bill.id);
+          return tx.payment.findUniqueOrThrow({
+            where: { id: payment.id },
+            select: PAYMENT_SELECT,
+          });
+        }
+
+        return payment;
+      }),
+    );
 
     await this.audit.record({
       userId: actor.userId,
@@ -316,21 +319,26 @@ export class PaymentsService {
       }
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: existing.id },
-        data: { status: next },
-      });
+    const updated = await measureBaseline('transaction:payment-update:ms', () =>
+      this.prisma.$transaction(async (tx) => {
+        await tx.payment.update({
+          where: { id: existing.id },
+          data: { status: next },
+        });
 
-      if (current === PaymentStatus.SUCCESS || next === PaymentStatus.SUCCESS) {
-        await this.recalculateBillPayments(tx, existing.billId);
-      }
+        if (
+          current === PaymentStatus.SUCCESS ||
+          next === PaymentStatus.SUCCESS
+        ) {
+          await this.recalculateBillPayments(tx, existing.billId);
+        }
 
-      return tx.payment.findUniqueOrThrow({
-        where: { id: existing.id },
-        select: PAYMENT_SELECT,
-      });
-    });
+        return tx.payment.findUniqueOrThrow({
+          where: { id: existing.id },
+          select: PAYMENT_SELECT,
+        });
+      }),
+    );
 
     await this.audit.record({
       userId: actor.userId,

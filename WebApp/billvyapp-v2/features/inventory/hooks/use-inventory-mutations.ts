@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import type { ApiError } from '@/types/api.types';
+import { invalidateAfter, invalidatePaths } from '@/lib/query-invalidation';
 import { adjustStock, createProduct } from '../services/inventory.service';
 import type {
   AdjustStockPayload,
@@ -11,7 +12,6 @@ import type {
   InventoryApiItem,
   ProductApiItem,
 } from '../types/inventory.types';
-import { INVENTORY_QUERY_KEY } from './use-inventory';
 
 export function useAdjustStock(onSuccess?: (row: InventoryApiItem) => void) {
   const queryClient = useQueryClient();
@@ -20,7 +20,7 @@ export function useAdjustStock(onSuccess?: (row: InventoryApiItem) => void) {
     mutationFn: adjustStock,
     onSuccess: (row) => {
       toast.success(`Stock updated for ${row.productName}`);
-      void queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY });
+      void invalidateAfter(queryClient, 'inventory');
       onSuccess?.(row);
     },
     onError: (error) => {
@@ -36,7 +36,7 @@ export function useCreateProduct(onSuccess?: (product: ProductApiItem) => void) 
     mutationFn: createProduct,
     onSuccess: (product) => {
       toast.success(`${product.name} added to catalog`);
-      void queryClient.invalidateQueries({ queryKey: INVENTORY_QUERY_KEY });
+      void invalidatePaths(queryClient, [['inventory'], ['products'], ['dashboard']]);
       onSuccess?.(product);
     },
     onError: (error) => {

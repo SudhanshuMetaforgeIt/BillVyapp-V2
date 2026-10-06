@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { ROUTES } from '@/constants/routes';
@@ -33,9 +33,10 @@ export function ManagerQuickActionsRow({
         const Icon = action.icon;
         const primary = index === 0;
         return (
-          <Link
+          <PrefetchLink
             key={action.id}
             href={action.href}
+            prefetchStrategy={primary ? 'idle' : 'intent'}
             className={cn(
               'flex flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-5 text-center text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne',
               primary
@@ -45,7 +46,7 @@ export function ManagerQuickActionsRow({
           >
             <Icon className="size-5" aria-hidden />
             <span>{action.label}</span>
-          </Link>
+          </PrefetchLink>
         );
       })}
     </div>
@@ -64,12 +65,13 @@ export function ManagerMembershipsCta() {
           Encourage repeat visits with membership plans tailored to your salon.
         </p>
       </div>
-      <Link
+      <PrefetchLink
         href={ROUTES.dashboard.manager.memberships}
+        prefetchStrategy="intent"
         className="inline-flex items-center justify-center rounded-xl bg-champagne px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-champagne/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
       >
         Manage Memberships
-      </Link>
+      </PrefetchLink>
     </aside>
   );
 }

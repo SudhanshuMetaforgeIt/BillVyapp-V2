@@ -1,8 +1,9 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { Plus } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
+import { useCallback, useMemo, useState } from 'react';
 
 import { DataTable, type Column } from '@/components/data/data-table';
 import { PageHeading, SelectInput } from '@/components/data/form-fields';
@@ -14,10 +15,14 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { can } from '@/lib/capabilities';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 import { formatCurrency, formatDate, formatFullName, formatNumber } from '@/lib/format';
 import type { Bill, BillPaymentStatus, BillStatus } from '@/types/models';
 import { countBills, listBills, type BillQuery } from '../services/bill-records.service';
-import { BillRecordDialog } from './bill-record-dialog';
+const LazyBillRecordDialog = dynamic(() => import('./bill-record-dialog').then((module) => module.BillRecordDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function BillRecordDialog(props: import('react').ComponentProps<typeof import('./bill-record-dialog').BillRecordDialog>) {
+  return props.billId ? <LazyBillRecordDialog {...props} /> : null;
+}
 import { billStatusTone, paymentStatusTone } from './bill-tones';
 
 const PAGE_SIZE = 15;
@@ -29,6 +34,8 @@ type CountFilter = Omit<BillQuery, 'page' | 'limit'>;
 function CountCard({ label, filter, hint }: { label: string; filter: CountFilter; hint?: string }) {
   const count = useScopedQuery(['bills', 'count', filter], () => countBills(filter), {
     capability: 'bills.read',
+    staleTime: QUERY_FRESHNESS.billing,
+    refetchOnWindowFocus: true,
   });
   return (
     <div className="app-surface-card p-4">
@@ -53,11 +60,15 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
   const [viewing, setViewing] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search);
 
-  const scopeFilter: CountFilter = {
-    salonId: salonId || undefined,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-  };
+  const scopeFilter: CountFilter = useMemo(
+    () => ({
+      salonId: salonId || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    }),
+    [salonId, dateFrom, dateTo],
+  );
+
   const query: BillQuery = {
     ...scopeFilter,
     page,
@@ -69,6 +80,8 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
 
   const bills = useScopedQuery(['bills', 'list', query], () => listBills(query), {
     capability: 'bills.read',
+    staleTime: QUERY_FRESHNESS.billing,
+    refetchOnWindowFocus: true,
   });
 
   const resetPage = <T,>(setter: (v: T) => void) => (v: T) => {
@@ -76,41 +89,46 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
     setPage(1);
   };
 
-  const columns: Column<Bill>[] = [
-    {
-      id: 'number',
-      header: 'Bill',
-      cell: (b) => (
-        <div>
-          <p className="font-semibold">{b.billNumber}</p>
-          <p className="text-xs text-text-secondary">{formatDate(b.billDate)}</p>
-        </div>
-      ),
-    },
-    {
-      id: 'customer',
-      header: 'Customer',
-      cell: (b) => (
-        <div>
-          <p>{b.customer ? formatFullName(b.customer) : '-'}</p>
-          <p className="text-xs text-text-secondary">{b.customer?.phone ?? ''}</p>
-        </div>
-      ),
-    },
-    { id: 'salon', header: 'Salon', cell: (b) => b.salon?.name ?? '-' },
-    { id: 'total', header: 'Total', cell: (b) => formatCurrency(b.total) },
-    { id: 'due', header: 'Due', cell: (b) => formatCurrency(b.dueAmount) },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: (b) => (
-        <div className="flex flex-wrap gap-1">
-          <StatusBadge label={b.status} tone={billStatusTone(b.status)} />
-          <StatusBadge label={b.paymentStatus} tone={paymentStatusTone(b.paymentStatus)} />
-        </div>
-      ),
-    },
-  ];
+  const handleRowClick = useCallback((b: Bill) => setViewing(b.id), []);
+
+  const columns: Column<Bill>[] = useMemo(
+    () => [
+      {
+        id: 'number',
+        header: 'Bill',
+        cell: (b) => (
+          <div>
+            <p className="font-semibold">{b.billNumber}</p>
+            <p className="text-xs text-text-secondary">{formatDate(b.billDate)}</p>
+          </div>
+        ),
+      },
+      {
+        id: 'customer',
+        header: 'Customer',
+        cell: (b) => (
+          <div>
+            <p>{b.customer ? formatFullName(b.customer) : '-'}</p>
+            <p className="text-xs text-text-secondary">{b.customer?.phone ?? ''}</p>
+          </div>
+        ),
+      },
+      { id: 'salon', header: 'Salon', cell: (b) => b.salon?.name ?? '-' },
+      { id: 'total', header: 'Total', cell: (b) => formatCurrency(b.total) },
+      { id: 'due', header: 'Due', cell: (b) => formatCurrency(b.dueAmount) },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: (b) => (
+          <div className="flex flex-wrap gap-1">
+            <StatusBadge label={b.status} tone={billStatusTone(b.status)} />
+            <StatusBadge label={b.paymentStatus} tone={paymentStatusTone(b.paymentStatus)} />
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-5">
@@ -119,9 +137,9 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
         description="Bills in your scope. Totals and dues are calculated by the server."
         actions={
           newBillHref && can(user, 'bills.write') ? (
-            <Link href={newBillHref} className={buttonVariants()}>
+            <PrefetchLink href={newBillHref} prefetchStrategy="idle" className={buttonVariants()}>
               <Plus className="size-4" /> New bill
-            </Link>
+            </PrefetchLink>
           ) : null
         }
       />
@@ -146,7 +164,7 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
         query={bills}
         rowKey={(b) => b.id}
         onPageChange={setPage}
-        onRowClick={(b) => setViewing(b.id)}
+        onRowClick={handleRowClick}
         noun="bills"
         emptyTitle="No bills"
         emptyMessage="No bills match these filters."

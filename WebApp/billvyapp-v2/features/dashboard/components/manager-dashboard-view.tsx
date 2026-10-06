@@ -1,4 +1,6 @@
 'use client';
+import { DeferredContent } from '@/components/ui/deferred-content';
+import dynamic from 'next/dynamic';
 
 import { useRef } from 'react';
 
@@ -10,7 +12,7 @@ import { ManagerMembershipsCta, ManagerQuickActionsRow } from './manager-quick-a
 import { ManagerPaymentMethods } from './manager-payment-methods';
 import { ManagerPendingCollection } from './manager-pending-collection';
 import { ManagerRecentBills } from './manager-recent-bills';
-import { ManagerSalesOverview } from './manager-sales-overview';
+
 import { ManagerTodayAppointments } from './manager-today-appointments';
 import { ManagerTopServices } from './manager-top-services';
 
@@ -99,4 +101,9 @@ export function ManagerDashboardView({ variant = 'manager' }: { variant?: 'manag
       </div>
     </div>
   );
+}
+
+const LazyManagerSalesOverview = dynamic(() => import('./manager-sales-overview').then((module) => module.ManagerSalesOverview), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function ManagerSalesOverview(props: import('react').ComponentProps<typeof import('./manager-sales-overview').ManagerSalesOverview>) {
+  return <DeferredContent><LazyManagerSalesOverview {...props} /></DeferredContent>;
 }

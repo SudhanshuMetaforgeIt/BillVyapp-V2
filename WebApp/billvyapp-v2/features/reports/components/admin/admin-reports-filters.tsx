@@ -1,7 +1,7 @@
 'use client';
 import { SelectInput } from '@/components/data/form-fields';
 import { SlidersHorizontal } from 'lucide-react';
-import { AdminReportExportMenu } from './admin-report-export-menu';
+import { AdminReportExportMenu } from './deferred-report-export-menu';
 import type { AdminReportsFilterState } from '../../types/admin-reports.types';
 type Props = {
   filters: AdminReportsFilterState;

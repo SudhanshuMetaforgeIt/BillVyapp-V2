@@ -1,4 +1,5 @@
 "use client";
+import dynamic from 'next/dynamic';
 
 import { useDeferredValue, useRef, useState, useTransition } from "react";
 
@@ -13,8 +14,14 @@ import type {
   MembershipStatusFilter,
   MembershipsTab,
 } from "../types/memberships.types";
-import { AddMemberDialog } from "./add-member-dialog";
-import { AddPlanDialog } from "./add-plan-dialog";
+const LazyAddMemberDialog = dynamic(() => import('./add-member-dialog').then((module) => module.AddMemberDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AddMemberDialog(props: import('react').ComponentProps<typeof import('./add-member-dialog').AddMemberDialog>) {
+  return props.open ? <LazyAddMemberDialog {...props} /> : null;
+}
+const LazyAddPlanDialog = dynamic(() => import('./add-plan-dialog').then((module) => module.AddPlanDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AddPlanDialog(props: import('react').ComponentProps<typeof import('./add-plan-dialog').AddPlanDialog>) {
+  return props.open ? <LazyAddPlanDialog {...props} /> : null;
+}
 import { MembersTable } from "./members-table";
 import { MembershipsFilters } from "./memberships-filters";
 import { MembershipsSummaryCards } from "./memberships-summary-cards";

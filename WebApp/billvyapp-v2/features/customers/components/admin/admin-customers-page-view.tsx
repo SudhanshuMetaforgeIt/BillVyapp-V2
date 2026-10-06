@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useState } from 'react';
 import { useAdminCustomers } from '../../hooks/use-admin-customers';
@@ -6,8 +7,14 @@ import { CustomersStats } from '../customers-stats';
 import { AdminCustomersFilters } from './admin-customers-filters';
 import { AdminCustomersTable } from './admin-customers-table';
 import { CustomersSidebar } from '../customers-sidebar';
-import { AdminCreateCustomerDialog } from './admin-create-customer-dialog';
-import { CustomerDetailsDialog } from '../customer-details-dialog';
+const LazyAdminCreateCustomerDialog = dynamic(() => import('./admin-create-customer-dialog').then((module) => module.AdminCreateCustomerDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AdminCreateCustomerDialog(props: import('react').ComponentProps<typeof import('./admin-create-customer-dialog').AdminCreateCustomerDialog>) {
+  return props.isOpen ? <LazyAdminCreateCustomerDialog {...props} /> : null;
+}
+const LazyCustomerDetailsDialog = dynamic(() => import('../customer-details-dialog').then((module) => module.CustomerDetailsDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CustomerDetailsDialog(props: import('react').ComponentProps<typeof import('../customer-details-dialog').CustomerDetailsDialog>) {
+  return props.isOpen ? <LazyCustomerDetailsDialog {...props} /> : null;
+}
 import type {
   CustomerItem,
   CustomersFilterState,
@@ -28,7 +35,7 @@ export function AdminCustomersPageView() {
     limit: 10,
   });
 
-  const { data, isLoading, refetch } = useAdminCustomers(filters);
+  const { data, isLoading, isFetching, isPlaceholderData, refetch } = useAdminCustomers(filters);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [viewingCustomer, setViewingCustomer] = useState<CustomerItem | null>(null);
@@ -68,6 +75,12 @@ export function AdminCustomersPageView() {
         </p>
       </div>
 
+      {isFetching && data ? (
+        <p role="status" className="text-xs text-text-secondary">
+          {isPlaceholderData ? 'Loading matching customers; showing previous results…' : 'Refreshing customers…'}
+        </p>
+      ) : null}
+
       {/* Top 4 Metric Cards */}
       <CustomersStats stats={stats} loading={isLoading} />
 
@@ -91,8 +104,8 @@ export function AdminCustomersPageView() {
             totalPages={data?.totalPages || 1}
             limit={filters.limit}
             loading={isLoading}
-            onPageChange={(p: number) => handleFiltersChange({ page: p })}
-            onLimitChange={(l: number) => handleFiltersChange({ limit: l, page: 1 })}
+            onPageChange={(p: number) => { if (!isFetching) handleFiltersChange({ page: p }); }}
+            onLimitChange={(l: number) => { if (!isFetching) handleFiltersChange({ limit: l, page: 1 }); }}
             onAddCustomer={() => setIsCreateOpen(true)}
             onViewCustomer={(c: CustomerItem) => setViewingCustomer(c)}
             onViewCustomerBills={() => {

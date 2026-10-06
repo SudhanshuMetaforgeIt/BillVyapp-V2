@@ -5,6 +5,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import {
+  baselineMiddleware,
+  startBaseline,
+} from './common/performance/baseline';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -15,6 +19,8 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
+  startBaseline();
+  app.use(baselineMiddleware);
 
   // ---------------------------------------------------------------- security
 

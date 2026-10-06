@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react';
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -271,12 +271,13 @@ export function RegisterFormCard() {
           className="mt-6 text-center text-sm text-text-secondary"
         >
           Already have an account?{' '}
-          <Link
+          <PrefetchLink
             href={ROUTES.auth.login}
+            prefetchStrategy="intent"
             className="font-medium text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           >
             Sign In
-          </Link>
+          </PrefetchLink>
         </p>
       </div>
     </div>
