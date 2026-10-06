@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 import { SectionEmptyState } from '@/components/layout/section-states';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,32 @@ export type Column<T> = {
   cell: (row: T) => ReactNode;
   className?: string;
 };
+
+type DataTableRowProps<T> = {
+  row: T;
+  columns: Column<T>[];
+  onRowClick?: (row: T) => void;
+};
+
+function DataTableRowInner<T>({ row, columns, onRowClick }: DataTableRowProps<T>) {
+  return (
+    <tr
+      className={cn(
+        'border-b border-border last:border-0 hover:bg-ivory/60',
+        onRowClick && 'cursor-pointer',
+      )}
+      onClick={onRowClick ? () => onRowClick(row) : undefined}
+    >
+      {columns.map((col) => (
+        <td key={col.id} className={cn('px-5 py-3 text-text', col.className)}>
+          {col.cell(row)}
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+export const DataTableRow = memo(DataTableRowInner) as typeof DataTableRowInner;
 
 type DataTableProps<T> = {
   columns: Column<T>[];
@@ -85,20 +111,12 @@ export function DataTable<T>({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr
+                  <DataTableRow
                     key={rowKey(row)}
-                    className={cn(
-                      'border-b border-border last:border-0 hover:bg-ivory/60',
-                      onRowClick && 'cursor-pointer',
-                    )}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  >
-                    {columns.map((col) => (
-                      <td key={col.id} className={cn('px-5 py-3 text-text', col.className)}>
-                        {col.cell(row)}
-                      </td>
-                    ))}
-                  </tr>
+                    row={row}
+                    columns={columns}
+                    onRowClick={onRowClick}
+                  />
                 ))}
               </tbody>
             </table>

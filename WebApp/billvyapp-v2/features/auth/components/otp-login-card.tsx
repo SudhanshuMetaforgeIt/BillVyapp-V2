@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { KeyRound, Phone } from 'lucide-react';
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -219,18 +219,20 @@ export function OtpLoginCard() {
         <div className="mt-6 h-px w-full bg-border" aria-hidden />
 
         <p className="mt-5 flex justify-center gap-4 text-center text-sm">
-          <Link
+          <PrefetchLink
             href={ROUTES.auth.login}
+            prefetchStrategy="intent"
             className="font-medium text-text-secondary transition-colors hover:text-text"
           >
             Sign in with password
-          </Link>
-          <Link
+          </PrefetchLink>
+          <PrefetchLink
             href={ROUTES.auth.register}
+            prefetchStrategy="intent"
             className="font-medium text-text-secondary transition-colors hover:text-text"
           >
             Create Account
-          </Link>
+          </PrefetchLink>
         </p>
       </div>
     </div>

@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import {
   useDeferredValue,
@@ -17,8 +18,14 @@ import type {
   ServiceStatusFilter,
   ServicesTab,
 } from '../types/services.types';
-import { AddCategoryDialog } from './add-category-dialog';
-import { AddServiceDialog } from './add-service-dialog';
+const LazyAddCategoryDialog = dynamic(() => import('./add-category-dialog').then((module) => module.AddCategoryDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AddCategoryDialog(props: import('react').ComponentProps<typeof import('./add-category-dialog').AddCategoryDialog>) {
+  return props.open ? <LazyAddCategoryDialog {...props} /> : null;
+}
+const LazyAddServiceDialog = dynamic(() => import('./add-service-dialog').then((module) => module.AddServiceDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AddServiceDialog(props: import('react').ComponentProps<typeof import('./add-service-dialog').AddServiceDialog>) {
+  return props.open ? <LazyAddServiceDialog {...props} /> : null;
+}
 import { CategoriesTable } from './categories-table';
 import { ServicesFilters } from './services-filters';
 import { ServicesTable } from './services-table';

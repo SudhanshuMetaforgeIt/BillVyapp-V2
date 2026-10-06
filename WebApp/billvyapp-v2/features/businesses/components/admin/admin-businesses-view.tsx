@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useRef, useState } from 'react';
 
@@ -9,9 +10,18 @@ import { AdminBusinessStatsCards } from './admin-business-stats';
 import { AdminBusinessOverviewCard } from './admin-business-overview-card';
 import { AdminBranchesTable } from './admin-branches-table';
 import { AdminBusinessesSidebar } from './admin-businesses-sidebar';
-import { AdminCreateBranchDialog } from './admin-create-branch-dialog';
-import { AdminEditBusinessDialog } from './admin-edit-business-dialog';
-import { AdminEditBranchDialog } from './admin-edit-branch-dialog';
+const LazyAdminCreateBranchDialog = dynamic(() => import('./admin-create-branch-dialog').then((module) => module.AdminCreateBranchDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AdminCreateBranchDialog(props: import('react').ComponentProps<typeof import('./admin-create-branch-dialog').AdminCreateBranchDialog>) {
+  return props.isOpen ? <LazyAdminCreateBranchDialog {...props} /> : null;
+}
+const LazyAdminEditBusinessDialog = dynamic(() => import('./admin-edit-business-dialog').then((module) => module.AdminEditBusinessDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AdminEditBusinessDialog(props: import('react').ComponentProps<typeof import('./admin-edit-business-dialog').AdminEditBusinessDialog>) {
+  return props.isOpen ? <LazyAdminEditBusinessDialog {...props} /> : null;
+}
+const LazyAdminEditBranchDialog = dynamic(() => import('./admin-edit-branch-dialog').then((module) => module.AdminEditBranchDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AdminEditBranchDialog(props: import('react').ComponentProps<typeof import('./admin-edit-branch-dialog').AdminEditBranchDialog>) {
+  return props.isOpen ? <LazyAdminEditBranchDialog {...props} /> : null;
+}
 import type { AdminBranchItem } from '../../types/admin-my-business.types';
 
 export function AdminBusinessesView() {

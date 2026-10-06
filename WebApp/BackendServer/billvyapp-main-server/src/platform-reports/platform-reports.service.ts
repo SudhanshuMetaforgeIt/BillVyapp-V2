@@ -178,7 +178,7 @@ export class PlatformReportsService {
     const timeZone = await this.businessTimezone.resolveForUser(user);
     const where = this.buildListWhere(query, timeZone);
 
-    const [rows, total, grouped] = await this.prisma.$transaction([
+    const [rows, grouped] = await this.prisma.$transaction([
       this.prisma.platformReport.findMany({
         where,
         select: REPORT_SELECT,
@@ -186,7 +186,6 @@ export class PlatformReportsService {
         skip,
         take: limit,
       }),
-      this.prisma.platformReport.count({ where }),
       this.prisma.platformReport.groupBy({
         by: ['type'],
         where,
@@ -196,6 +195,7 @@ export class PlatformReportsService {
     ]);
 
     const byTypeMap = new Map<PlatformReportTypeApi, number>();
+    let total = 0;
     for (const type of ALL_TYPES) byTypeMap.set(type, 0);
     for (const row of grouped) {
       const count =
@@ -203,6 +203,7 @@ export class PlatformReportsService {
           ? Number(row._count._all)
           : 0;
       byTypeMap.set(TYPE_TO_API[row.type], count);
+      total += count;
     }
 
     const pageResult = paginated(

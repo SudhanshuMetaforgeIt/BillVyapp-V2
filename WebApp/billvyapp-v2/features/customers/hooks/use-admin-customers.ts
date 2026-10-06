@@ -1,6 +1,8 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { invalidateAfter, invalidatePaths } from '@/lib/query-invalidation';
 import {
   createCustomer,
   fetchAdminCustomers,
@@ -11,9 +13,7 @@ import type {
 } from '../types/admin-customers.types';
 
 export function useAdminCustomers(filters: Partial<CustomersFilterState> = {}) {
-  return useQuery({
-    queryKey: ['admin-customers', filters],
-    queryFn: () => fetchAdminCustomers(filters),
+  return useScopedQuery(['admin-customers', filters], () => fetchAdminCustomers(filters), {
     staleTime: 1000 * 30, // 30 seconds
   });
 }
@@ -24,9 +24,8 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (payload: CreateCustomerPayload) => createCustomer(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-bills'] });
+      void invalidateAfter(queryClient, 'customers');
+      void invalidatePaths(queryClient, [['dashboard']]);
     },
   });
 }

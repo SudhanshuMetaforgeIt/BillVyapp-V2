@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 
 import { DashboardSectionCard, SectionEmptyState } from '@/components/layout/section-states';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -39,12 +39,13 @@ export function AdminRecentBills({ bills }: AdminRecentBillsProps) {
       title="Recent Bills"
       data-dash-animate="section"
       action={
-        <Link
+        <PrefetchLink
           href={ROUTES.dashboard.admin.bills}
+          prefetchStrategy="intent"
           className="text-sm font-semibold text-champagne hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           View all
-        </Link>
+        </PrefetchLink>
       }
       bodyClassName="p-0"
     >

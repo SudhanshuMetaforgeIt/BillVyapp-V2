@@ -1,13 +1,12 @@
 import { isRoleCode } from '@/constants/roles';
 import type { AuthUser } from '@/types/user.types';
-import type { AuthMeUser } from './auth.service';
 
 /**
- * Converts GET /auth/me into the session identity. Returns null when the
+ * Converts an auth response into the session identity. Returns null when the
  * backend reports a role this client does not know, which is treated as a
  * dead session rather than guessed at.
  */
-export function toSessionUser(me: AuthMeUser): AuthUser | null {
+export function toSessionUser(me: AuthUser): AuthUser | null {
   if (!isRoleCode(me.role)) return null;
   return {
     id: me.id,

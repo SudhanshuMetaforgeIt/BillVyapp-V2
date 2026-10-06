@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
+import {
+  baselineEnabled,
+  recordDependency,
+} from '../common/performance/baseline';
 
 /**
  * Owns the single Redis connection for the application.
@@ -31,6 +35,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.client.on('error', (error: Error) => {
       this.logger.error(`Redis error: ${error.message}`);
     });
+    if (baselineEnabled()) {
+      const send = this.client.sendCommand.bind(this.client);
+      this.client.sendCommand = (...args: Parameters<typeof send>) => {
+        const start = performance.now();
+        const command = args[0] as { name?: string };
+        return send(...args).finally(() =>
+          recordDependency(
+            'redis',
+            command.name ?? 'command',
+            performance.now() - start,
+          ),
+        );
+      };
+    }
   }
 
   async onModuleInit(): Promise<void> {

@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from 'react';
 
@@ -14,9 +15,18 @@ import type {
 import { BusinessesFilters } from './businesses-filters';
 import { BusinessesSidebar } from './businesses-sidebar';
 import { BusinessesTable } from './businesses-table';
-import { CreateBusinessDialog } from './create-business-dialog';
-import { EditBusinessDialog } from './edit-business-dialog';
-import { EnrollBusinessPlanDialog } from './enroll-business-plan-dialog';
+const LazyCreateBusinessDialog = dynamic(() => import('./create-business-dialog').then((module) => module.CreateBusinessDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateBusinessDialog(props: import('react').ComponentProps<typeof import('./create-business-dialog').CreateBusinessDialog>) {
+  return props.open ? <LazyCreateBusinessDialog {...props} /> : null;
+}
+const LazyEditBusinessDialog = dynamic(() => import('./edit-business-dialog').then((module) => module.EditBusinessDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function EditBusinessDialog(props: import('react').ComponentProps<typeof import('./edit-business-dialog').EditBusinessDialog>) {
+  return props.open ? <LazyEditBusinessDialog {...props} /> : null;
+}
+const LazyEnrollBusinessPlanDialog = dynamic(() => import('./enroll-business-plan-dialog').then((module) => module.EnrollBusinessPlanDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function EnrollBusinessPlanDialog(props: import('react').ComponentProps<typeof import('./enroll-business-plan-dialog').EnrollBusinessPlanDialog>) {
+  return props.open ? <LazyEnrollBusinessPlanDialog {...props} /> : null;
+}
 
 const PAGE_SIZE = 7;
 

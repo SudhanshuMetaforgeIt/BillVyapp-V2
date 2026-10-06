@@ -1,7 +1,8 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { SelectInput } from '@/components/data/form-fields';
-import { ProfilePhotoEditor } from '@/features/profile';
+const ProfilePhotoEditor = dynamic(() => import('@/features/profile/components/profile-photo-editor').then((module) => module.ProfilePhotoEditor), { loading: () => <div role="status" aria-label="Loading profile photo" className="h-52 w-32 animate-pulse rounded-xl bg-surface" /> });
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';

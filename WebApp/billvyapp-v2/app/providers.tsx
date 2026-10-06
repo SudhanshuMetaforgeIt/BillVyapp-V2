@@ -6,14 +6,17 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 
-import { isApiError, setSessionExpiredHandler } from '@/services/api-client';
+import { isApiError, setSessionExpiredHandler, setSessionRefreshedHandler } from '@/services/api-client';
 import { authService } from '@/services/auth.service';
 import { scopeChanged, toSessionUser } from '@/services/session';
 import { useAuthStore } from '@/stores/auth.store';
 import { useUiStore } from '@/stores/ui.store';
 import { setBusinessTimezone } from '@/lib/business-timezone';
+import type { AuthSession } from '@/types/user.types';
+import { PerformanceBaseline } from '@/components/dev/performance-baseline';
 
 /**
  * Application-wide providers.
@@ -47,12 +50,12 @@ function createQueryClient(): QueryClient {
 /**
  * Reconciles the persisted user with the live session.
  *
- * Access tokens are memory-only, so a full reload starts without one. We try
- * cookie-based refresh first; then confirm identity with GET /auth/me.
+ * Access tokens are memory-only, so a protected full reload uses the refresh
+ * cookie. The refresh response includes the verified user and scope.
  */
 function useSessionBootstrap(): void {
+  const pathname = usePathname();
   const queryClient = useQueryClient();
-  const setStatus = useAuthStore((state) => state.setStatus);
   const setUser = useAuthStore((state) => state.setUser);
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -64,7 +67,20 @@ function useSessionBootstrap(): void {
       resetScope();
       clearSession();
     };
+    const installSession = (session: AuthSession): boolean => {
+      const verified = toSessionUser(session.user);
+      if (!verified) return false;
+      if (scopeChanged(useAuthStore.getState().user, verified)) {
+        queryClient.clear();
+        resetScope();
+      }
+      setAccessToken(session.accessToken);
+      setUser(verified);
+      setBusinessTimezone(verified.timezone);
+      return true;
+    };
     setSessionExpiredHandler(endSession);
+    setSessionRefreshedHandler(installSession);
 
     // Drop tokens left over from the previous localStorage-based auth.
     try {
@@ -77,43 +93,22 @@ function useSessionBootstrap(): void {
     let cancelled = false;
 
     const bootstrap = async () => {
-      const storedUser = useAuthStore.getState().user;
-      let accessToken = useAuthStore.getState().accessToken;
-
-      if (!accessToken) {
-        try {
-          const tokens = await authService.refresh();
-          if (cancelled) return;
-          accessToken = tokens.accessToken;
-          setAccessToken(accessToken);
-        } catch {
-          if (cancelled) return;
-          endSession();
-          return;
-        }
+      const initial = useAuthStore.getState();
+      if (pathname === '/' || pathname.startsWith('/auth/')) {
+        return;
       }
 
-      if (storedUser) setStatus('authenticated');
+      if (initial.accessToken && initial.status === 'authenticated') return;
 
       try {
-        const me = await authService.me();
-        if (cancelled) return;
-        const verified = toSessionUser(me);
-        if (!verified) {
+        const session = await authService.refresh();
+        if (cancelled || useAuthStore.getState().accessToken !== initial.accessToken) return;
+        if (!installSession(session)) {
           endSession();
-          return;
         }
-        if (scopeChanged(useAuthStore.getState().user, verified)) {
-          queryClient.clear();
-          resetScope();
-        }
-        setUser(verified);
-        setBusinessTimezone(verified.timezone);
-      } catch (error: unknown) {
+      } catch {
         if (cancelled) return;
-        // 401s are already handled by the client (refresh, then endSession).
-        if (isApiError(error) && error.status === 401) return;
-        if (!useAuthStore.getState().user) setStatus('unauthenticated');
+        if (useAuthStore.getState().accessToken === initial.accessToken) endSession();
       }
     };
 
@@ -124,11 +119,11 @@ function useSessionBootstrap(): void {
     };
   }, [
     queryClient,
-    setStatus,
     setUser,
     setAccessToken,
     clearSession,
     resetScope,
+    pathname,
   ]);
 }
 
@@ -152,7 +147,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionBootstrap>{children}</SessionBootstrap>
+      <PerformanceBaseline><SessionBootstrap>{children}</SessionBootstrap></PerformanceBaseline>
       <Toaster
         position="top-right"
         toastOptions={{

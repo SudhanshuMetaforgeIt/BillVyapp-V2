@@ -1,6 +1,7 @@
 'use client';
 
 import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 import type { RevenuePoint } from '../data/placeholders';
 import {
   fetchRevenueSeries,
@@ -20,6 +21,7 @@ export function useRevenueSeries(
     () => fetchRevenueSeries(dateFrom, dateTo, bucket),
     {
       enabled: enabled && Boolean(dateFrom && dateTo && dateFrom <= dateTo),
+      staleTime: QUERY_FRESHNESS.dashboard,
     },
   );
 }

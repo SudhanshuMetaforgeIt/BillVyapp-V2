@@ -1,6 +1,7 @@
 'use client';
 
 import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 import {
   listServiceCategories,
   listServices,
@@ -12,7 +13,7 @@ export function useServiceCategories(enabled: boolean, salonId?: string | null) 
   return useScopedQuery(
     [...SERVICE_CATALOG_QUERY_KEY, 'categories', salonId ?? null],
     () => listServiceCategories(salonId ?? undefined),
-    { enabled },
+    { enabled, staleTime: QUERY_FRESHNESS.catalog },
   );
 }
 
@@ -28,6 +29,6 @@ export function useSalonServices(
         search: params.search || undefined,
         categoryId: params.categoryId || undefined,
       }),
-    { enabled },
+    { enabled, staleTime: QUERY_FRESHNESS.catalog },
   );
 }

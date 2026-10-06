@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 
 import { DashboardSectionCard, SectionEmptyState } from '@/components/layout/section-states';
 import { ROUTES } from '@/constants/routes';
@@ -16,12 +16,13 @@ export function AdminRecentCustomers({ customers }: AdminRecentCustomersProps) {
       title="Recent Customers"
       data-dash-animate="section"
       action={
-        <Link
+        <PrefetchLink
           href={ROUTES.dashboard.admin.customers}
+          prefetchStrategy="intent"
           className="text-sm font-semibold text-champagne hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
         >
           View all
-        </Link>
+        </PrefetchLink>
       }
       bodyClassName="p-0"
     >

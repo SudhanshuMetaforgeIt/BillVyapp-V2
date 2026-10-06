@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
 import { RoleCode } from '../common/enums/role.enum';
@@ -82,15 +86,319 @@ describe('SalonsService', () => {
   const scope = {
     salonTableScope: jest.fn().mockReturnValue({}),
     assertFranchiseAccess: jest.fn(),
+    assertSalonAccess: jest.fn(),
   };
   const audit = { record: jest.fn() };
   const config = { get: jest.fn().mockReturnValue('') };
   let service: SalonsService;
 
+  afterEach(() => jest.restoreAllMocks());
+
+  it('loads only scoped picker IDs and names without photo relations', async () => {
+    scope.salonTableScope.mockReturnValue({ franchiseId: 'fr-1' });
+    prisma.salon.findMany.mockResolvedValue([{ id: 'salon-1', name: 'CP' }]);
+    prisma.salon.count.mockResolvedValue(1);
+    const result = await service.listPicker(actor, {
+      page: 1,
+      limit: 100,
+      isActive: true,
+    });
+    expect(prisma.salon.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { franchiseId: 'fr-1', isActive: true },
+        select: { id: true, name: true },
+        take: 100,
+      }),
+    );
+    expect(result.data).toEqual([{ id: 'salon-1', name: 'CP' }]);
+  });
+
+  it('keeps inactive salons out of customer picker results', async () => {
+    prisma.salon.findMany.mockResolvedValue([]);
+    prisma.salon.count.mockResolvedValue(0);
+    await service.listPicker(
+      { ...actor, role: RoleCode.CUSTOMER },
+      { page: 1, limit: 20, isActive: false },
+    );
+    expect(prisma.salon.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { isActive: true } }),
+    );
+  });
+
+  describe('OpenCage geocoding', () => {
+    function configure() {
+      config.get.mockImplementation((key: string) =>
+        key === 'geocoding.provider' ? 'opencage' : 'test-key',
+      );
+      prisma.salon.findFirst.mockResolvedValue(salon());
+      prisma.salon.update.mockImplementation(({ data }) =>
+        Promise.resolve(salon(data)),
+      );
+    }
+
+    it('geocodes the saved address and saves coordinates without a Google Place ID', async () => {
+      configure();
+      const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: { code: 200 },
+            results: [
+              {
+                formatted: 'Delhi, India',
+                components: { _type: 'building' },
+                geometry: { lat: 28.6328, lng: 77.2197 },
+              },
+            ],
+          }),
+        ),
+      );
+      const result = await service.geocode(actor, 'salon-1', {}, ctx);
+      const url = new URL(fetchMock.mock.calls[0][0] as string);
+      expect(url.hostname).toBe('api.opencagedata.com');
+      expect(url.searchParams.get('q')).toBe(
+        '12 Inner Circle, Delhi, 110001, India',
+      );
+      expect(result.latitude).toBe('28.6328000');
+      expect(result.googlePlaceId).toBeNull();
+      expect(audit.record).toHaveBeenCalled();
+    });
+
+    it('does not repeat city, state and postcode already present in address line one', async () => {
+      configure();
+      prisma.salon.findFirst.mockResolvedValue(
+        salon({
+          addressLine1: 'Plot 46, Gachibowli, Hyderabad, Telangana 500032',
+          city: 'Hyderabad',
+          state: 'Telangana',
+          postalCode: '500032',
+        }),
+      );
+      const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: { code: 200 },
+            results: [
+              {
+                components: { _type: 'building' },
+                geometry: { lat: 17.44, lng: 78.35 },
+              },
+            ],
+          }),
+        ),
+      );
+      await service.geocode(actor, 'salon-1', {}, ctx);
+      const url = new URL(fetchMock.mock.calls[0][0] as string);
+      expect(url.searchParams.get('q')).toBe(
+        'Plot 46, Gachibowli, Hyderabad, Telangana 500032, India',
+      );
+    });
+
+    it('does not call the provider when its key is missing', async () => {
+      config.get.mockImplementation((key: string) =>
+        key === 'geocoding.provider' ? 'opencage' : '',
+      );
+      const fetchMock = jest.spyOn(global, 'fetch');
+      await expect(service.geocode(actor, 'salon-1', {}, ctx)).rejects.toThrow(
+        'OpenCage geocoding is not configured',
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [
+        200,
+        {
+          status: { code: 200 },
+          results: [
+            {
+              formatted: '500032, Telangana, India',
+              components: { _type: 'postcode' },
+              geometry: { lat: 17.4251, lng: 78.4248 },
+            },
+          ],
+        },
+        'matched only a broad area',
+      ],
+      [
+        200,
+        {
+          status: { code: 200 },
+          results: [
+            {
+              components: { _type: 'city' },
+              geometry: { lat: 17.4, lng: 78.4 },
+            },
+          ],
+        },
+        'matched only a broad area',
+      ],
+      [200, { status: { code: 200 }, results: [] }, 'No location found'],
+      [429, { status: { code: 429 } }, 'request limit reached'],
+      [
+        401,
+        { status: { code: 401, message: 'secret provider detail' } },
+        'rejected the API key',
+      ],
+      [
+        200,
+        {
+          status: { code: 200 },
+          results: [{ geometry: { lat: 91, lng: 77 } }],
+        },
+        'invalid coordinates',
+      ],
+    ])(
+      'does not update the salon on provider failure (%s)',
+      async (status, payload, message) => {
+        configure();
+        jest
+          .spyOn(global, 'fetch')
+          .mockResolvedValue(new Response(JSON.stringify(payload), { status }));
+        await expect(
+          service.geocode(actor, 'salon-1', {}, ctx),
+        ).rejects.toThrow(message);
+        expect(prisma.salon.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('handles network failures without leaking the request URL', async () => {
+      configure();
+      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('test-key'));
+      await expect(service.geocode(actor, 'salon-1', {}, ctx)).rejects.toThrow(
+        'Could not reach OpenCage',
+      );
+      expect(prisma.salon.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects Google Place IDs for OpenCage', async () => {
+      configure();
+      await expect(
+        service.geocode(actor, 'salon-1', { placeId: 'google-id' }, ctx),
+      ).rejects.toThrow('not supported by OpenCage');
+      expect(prisma.salon.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Google geocoding', () => {
+    function configure() {
+      config.get.mockImplementation((key: string) =>
+        key === 'geocoding.provider'
+          ? 'google'
+          : key === 'google.mapsApiKey'
+            ? 'test-key'
+            : '',
+      );
+      prisma.salon.findFirst.mockResolvedValue(salon());
+      prisma.salon.update.mockImplementation(({ data }) =>
+        Promise.resolve(salon(data)),
+      );
+    }
+
+    it('uses the saved address and stores a precise match', async () => {
+      configure();
+      const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'OK',
+            results: [
+              {
+                place_id: 'google-place-1',
+                formatted_address: '12 Inner Circle, Delhi, India',
+                geometry: {
+                  location: { lat: 28.6328, lng: 77.2197 },
+                  location_type: 'ROOFTOP',
+                },
+              },
+            ],
+          }),
+        ),
+      );
+      const result = await service.geocode(actor, 'salon-1', {}, ctx);
+      const url = new URL(fetchMock.mock.calls[0][0] as string);
+      expect(url.hostname).toBe('maps.googleapis.com');
+      expect(url.searchParams.get('address')).toContain('12 Inner Circle');
+      expect(result.latitude).toBe('28.6328000');
+      expect(result.googlePlaceId).toBe('google-place-1');
+    });
+
+    it.each(['APPROXIMATE', 'GEOMETRIC_CENTER'])(
+      'rejects a %s area match without saving',
+      async (locationType) => {
+        configure();
+        jest.spyOn(global, 'fetch').mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              status: 'OK',
+              results: [
+                {
+                  geometry: {
+                    location: { lat: 17.4, lng: 78.4 },
+                    location_type: locationType,
+                  },
+                },
+              ],
+            }),
+          ),
+        );
+        await expect(
+          service.geocode(actor, 'salon-1', {}, ctx),
+        ).rejects.toThrow('matched only a broad area');
+        expect(prisma.salon.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('rejects a partial match even with rooftop coordinates', async () => {
+      configure();
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'OK',
+            results: [
+              {
+                partial_match: true,
+                geometry: {
+                  location: { lat: 17.4, lng: 78.4 },
+                  location_type: 'ROOFTOP',
+                },
+              },
+            ],
+          }),
+        ),
+      );
+      await expect(service.geocode(actor, 'salon-1', {}, ctx)).rejects.toThrow(
+        'matched only a broad area',
+      );
+      expect(prisma.salon.update).not.toHaveBeenCalled();
+    });
+
+    it('does not leak provider details when the key is rejected', async () => {
+      configure();
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'REQUEST_DENIED',
+            error_message: 'test-key',
+          }),
+        ),
+      );
+      await expect(service.geocode(actor, 'salon-1', {}, ctx)).rejects.toThrow(
+        'Google rejected the geocoding request',
+      );
+      expect(prisma.salon.update).not.toHaveBeenCalled();
+    });
+  });
+
   beforeEach(() => {
     jest.resetAllMocks();
     scope.salonTableScope.mockReturnValue({});
     scope.assertFranchiseAccess.mockReturnValue(undefined);
+    scope.assertSalonAccess.mockImplementation(
+      (user: AuthenticatedUser, salonId: string) => {
+        if (user.role === RoleCode.MANAGER && user.salonId !== salonId) {
+          throw new ForbiddenException('Salon outside your scope');
+        }
+      },
+    );
     audit.record.mockResolvedValue(undefined);
     config.get.mockReturnValue('');
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
@@ -248,6 +556,58 @@ describe('SalonsService', () => {
     );
   });
 
+  it('lets a manager save only their salon pin and audits the old and new coordinates', async () => {
+    const manager = { ...actor, role: RoleCode.MANAGER, salonId: 'salon-1' };
+    scope.salonTableScope.mockReturnValue({ id: 'salon-1' });
+    prisma.salon.findFirst.mockResolvedValue(salon());
+    prisma.salon.update.mockImplementation(({ data }) =>
+      Promise.resolve(salon(data)),
+    );
+
+    const result = await service.updateLocation(
+      manager,
+      'salon-1',
+      { latitude: 17.4484658, longitude: 78.357772 },
+      ctx,
+    );
+
+    expect(scope.assertSalonAccess).toHaveBeenCalledWith(manager, 'salon-1');
+    expect(prisma.salon.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'salon-1' } }),
+    );
+    expect(prisma.salon.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          latitude: '17.4484658',
+          longitude: '78.3577720',
+          googlePlaceId: null,
+          mapAddress: null,
+        },
+      }),
+    );
+    expect(result.latitude).toBe('17.4484658');
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'SALON_LOCATION_UPDATED',
+        salonId: 'salon-1',
+        newData: expect.objectContaining({ source: 'MANUAL_PIN' }),
+      }),
+    );
+  });
+
+  it('rejects a manager trying to move another salon pin', async () => {
+    const manager = { ...actor, role: RoleCode.MANAGER, salonId: 'salon-1' };
+    await expect(
+      service.updateLocation(
+        manager,
+        'salon-2',
+        { latitude: 17.4, longitude: 78.3 },
+        ctx,
+      ),
+    ).rejects.toThrow('Salon outside your scope');
+    expect(prisma.salon.update).not.toHaveBeenCalled();
+  });
+
   const customer: AuthenticatedUser = {
     userId: 'cust-user-1',
     email: 'c@example.com',
@@ -317,6 +677,15 @@ describe('SalonsController authorization', () => {
     expect(rolesOf('update')).toEqual(write);
     expect(rolesOf('updateStatus')).toEqual(write);
     expect(rolesOf('geocode')).toEqual(write);
+  });
+
+  it('allows managers to update location without granting full salon edits', () => {
+    expect(rolesOf('updateLocation')).toEqual([
+      RoleCode.SUPER_ADMIN,
+      RoleCode.ADMIN,
+      RoleCode.MANAGER,
+    ]);
+    expect(rolesOf('update')).not.toContain(RoleCode.MANAGER);
   });
 
   it('has no class-level role override', () => {

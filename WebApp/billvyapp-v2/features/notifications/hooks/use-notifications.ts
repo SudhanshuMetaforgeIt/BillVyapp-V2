@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { invalidateAfter } from '@/lib/query-invalidation';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 import type { ApiError } from '@/types/api.types';
 import {
   fetchManagerNotificationsPage,
@@ -26,7 +27,7 @@ export function useNotifications(params: NotificationsListParams) {
   return useScopedQuery(
     [...NOTIFICATIONS_QUERY_KEY, params],
     () => fetchNotificationsPage(params),
-    { capability: 'notifications.read' },
+    { capability: 'notifications.read', staleTime: QUERY_FRESHNESS.live, refetchOnWindowFocus: true },
   );
 }
 
@@ -34,7 +35,7 @@ export function useManagerNotifications(params: ManagerNotificationsListParams) 
   return useScopedQuery(
     [...MANAGER_NOTIFICATIONS_QUERY_KEY, params],
     () => fetchManagerNotificationsPage(params),
-    { capability: 'notifications.read' },
+    { capability: 'notifications.read', staleTime: QUERY_FRESHNESS.live, refetchOnWindowFocus: true },
   );
 }
 

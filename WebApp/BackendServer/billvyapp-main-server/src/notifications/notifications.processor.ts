@@ -6,6 +6,7 @@ import {
   NotificationJobPayload,
 } from './notification.constants';
 import { NotificationsService } from './notifications.service';
+import { recordBaseline } from '../common/performance/baseline';
 
 @Processor(NOTIFICATION_QUEUE)
 export class NotificationsProcessor extends WorkerHost {
@@ -19,6 +20,18 @@ export class NotificationsProcessor extends WorkerHost {
     this.logger.debug(
       `Dispatching notification ${job.data.notificationId} (job ${job.id})`,
     );
-    await this.notificationsService.processDispatch(job.data.notificationId);
+    const start = performance.now();
+    recordBaseline(
+      `queue:${NOTIFICATION_QUEUE}:waitMs`,
+      Math.max(0, Date.now() - job.timestamp - (job.delay ?? 0)),
+    );
+    try {
+      await this.notificationsService.processDispatch(job.data.notificationId);
+    } finally {
+      recordBaseline(
+        `queue:${NOTIFICATION_QUEUE}:workerMs`,
+        performance.now() - start,
+      );
+    }
   }
 }

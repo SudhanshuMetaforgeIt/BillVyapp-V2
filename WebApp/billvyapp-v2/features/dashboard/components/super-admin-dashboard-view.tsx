@@ -1,4 +1,6 @@
 'use client';
+import { DeferredContent } from '@/components/ui/deferred-content';
+import dynamic from 'next/dynamic';
 
 import { useRef } from 'react';
 
@@ -11,7 +13,7 @@ import { MetricGrid } from './metric-card';
 import { QuickActions } from './quick-actions';
 import { RecentActivity } from './recent-activity';
 import { RecentBusinesses } from './recent-businesses';
-import { RevenueOverview } from './revenue-overview';
+
 
 export function SuperAdminDashboardView() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -69,4 +71,8 @@ export function SuperAdminDashboardView() {
       </div>
     </div>
   );
+}
+const LazyRevenueOverview = dynamic(() => import('./revenue-overview').then((module) => module.RevenueOverview), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function RevenueOverview(props: import('react').ComponentProps<typeof import('./revenue-overview').RevenueOverview>) {
+  return <DeferredContent><LazyRevenueOverview {...props} /></DeferredContent>;
 }

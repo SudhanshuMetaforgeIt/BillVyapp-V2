@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from 'react';
 
@@ -8,8 +9,14 @@ import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useUsers } from '../hooks/use-users';
 import { assignableRoles } from '../services/users.service';
 import type { UserStatusFilter } from '../types/users.types';
-import { CreateUserDialog } from './create-user-dialog';
-import { UserDetailsDialog } from './user-details-dialog';
+const LazyCreateUserDialog = dynamic(() => import('./create-user-dialog').then((module) => module.CreateUserDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateUserDialog(props: import('react').ComponentProps<typeof import('./create-user-dialog').CreateUserDialog>) {
+  return props.open ? <LazyCreateUserDialog {...props} /> : null;
+}
+const LazyUserDetailsDialog = dynamic(() => import('./user-details-dialog').then((module) => module.UserDetailsDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function UserDetailsDialog(props: import('react').ComponentProps<typeof import('./user-details-dialog').UserDetailsDialog>) {
+  return props.open ? <LazyUserDetailsDialog {...props} /> : null;
+}
 import { UsersFilters } from './users-filters';
 import { UsersSidebar } from './users-sidebar';
 import { UsersTable } from './users-table';

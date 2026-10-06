@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { AppHeader } from '@/components/layout/header/app-header';
@@ -12,6 +12,8 @@ import { useAuthStatus, useCurrentUser } from '@/hooks/use-current-user';
 import { useUiStore } from '@/stores/ui.store';
 import { cn } from '@/lib/utils';
 import { PageTransition } from '@/components/layout/page-transition';
+import { useLikelyNextPagesPrefetch } from '@/hooks/use-likely-next-pages-prefetch';
+import { AppShellSkeleton } from '@/components/skeletons/app-shell-skeleton';
 
 type AppShellProps = {
   children: ReactNode;
@@ -37,14 +39,23 @@ export function AppShell({
   const pathname = usePathname();
   const user = useCurrentUser();
   const status = useAuthStatus();
+  useLikelyNextPagesPrefetch();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen);
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
 
-  const handleToggleCollapsed = () => {
+  const handleToggleCollapsed = useCallback(() => {
     setSidebarCollapsed(!sidebarCollapsed);
-  };
+  }, [sidebarCollapsed, setSidebarCollapsed]);
+
+  const handleCloseMobile = useCallback(() => {
+    setSidebarOpen(false);
+  }, [setSidebarOpen]);
+
+  const handleOpenMobile = useCallback(() => {
+    setSidebarOpen(true);
+  }, [setSidebarOpen]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -65,23 +76,18 @@ export function AppShell({
     }
   }, [status, user, requiredRole, router, pathname]);
 
+  const sections = useMemo(
+    () => (user ? navigationForRole(user.role) : []),
+    [user?.role],
+  );
+
   if (status === 'loading' || !user) {
-    return (
-      <div className="flex h-svh items-center justify-center bg-ivory">
-        <div className="h-10 w-10 animate-pulse rounded-full bg-champagne/40" aria-label="Loading" />
-      </div>
-    );
+    return <AppShellSkeleton />;
   }
 
   if (requiredRole && user.role !== requiredRole) {
-    return (
-      <div className="flex h-svh items-center justify-center bg-ivory">
-        <div className="h-10 w-10 animate-pulse rounded-full bg-champagne/40" aria-label="Loading" />
-      </div>
-    );
+    return <AppShellSkeleton />;
   }
-
-  const sections = navigationForRole(user.role);
 
   return (
     <div className="app-dashboard flex h-svh overflow-hidden bg-ivory text-text">
@@ -89,7 +95,7 @@ export function AppShell({
         sections={sections}
         role={user.role}
         mobileOpen={sidebarOpen}
-        onCloseMobile={() => setSidebarOpen(false)}
+        onCloseMobile={handleCloseMobile}
         collapsed={sidebarCollapsed}
       />
 
@@ -100,7 +106,7 @@ export function AppShell({
             title={title}
             subtitle={subtitle}
             notificationCount={notificationCount}
-            onOpenSidebar={() => setSidebarOpen(true)}
+            onOpenSidebar={handleOpenMobile}
             onToggleCollapsed={handleToggleCollapsed}
             sidebarCollapsed={sidebarCollapsed}
           />
@@ -108,7 +114,7 @@ export function AppShell({
           <AppHeader
             user={user}
             notificationCount={notificationCount}
-            onOpenSidebar={() => setSidebarOpen(true)}
+            onOpenSidebar={handleOpenMobile}
             onToggleCollapsed={handleToggleCollapsed}
             sidebarCollapsed={sidebarCollapsed}
           />

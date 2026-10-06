@@ -241,9 +241,38 @@ describe('PlatformReportsService', () => {
     expect(result.data).toHaveLength(1);
     expect(result.meta.total).toBe(1);
     expect(result.summary.total).toBe(1);
+    expect(prisma.platformReport.count).not.toHaveBeenCalled();
     expect(
       result.summary.byType.find((t) => t.type === 'financial')?.count,
     ).toBe(1);
+  });
+
+  it('uses the same scope filters for report rows and grouped pagination totals', async () => {
+    prisma.platformReport.findMany.mockResolvedValue([]);
+    prisma.platformReport.groupBy.mockResolvedValue([
+      { type: 'FINANCIAL', _count: { _all: 3 } },
+      { type: 'BUSINESS', _count: { _all: 2 } },
+    ]);
+    const result = await service.list(actor, {
+      page: 2,
+      limit: 2,
+      franchiseId: 'fr-1',
+    });
+    const list = prisma.platformReport.findMany.mock.calls[0][0];
+    const grouped = prisma.platformReport.groupBy.mock.calls[0][0];
+    expect(list.where).toEqual(grouped.where);
+    expect(list.where).toMatchObject({ franchiseId: 'fr-1' });
+    expect(list).toMatchObject({ skip: 2, take: 2 });
+    expect(result.meta.total).toBe(5);
+    expect(prisma.platformReport.count).not.toHaveBeenCalled();
+  });
+
+  it('returns zero totals for an empty grouped report result', async () => {
+    prisma.platformReport.findMany.mockResolvedValue([]);
+    prisma.platformReport.groupBy.mockResolvedValue([]);
+    const result = await service.list(actor, { page: 1, limit: 10 });
+    expect(result.meta.total).toBe(0);
+    expect(result.summary.byType.every((item) => item.count === 0)).toBe(true);
   });
 
   it('downloads CSV of the snapshot', async () => {

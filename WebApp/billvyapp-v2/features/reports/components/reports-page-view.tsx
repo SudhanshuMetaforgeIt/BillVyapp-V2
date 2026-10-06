@@ -1,5 +1,7 @@
 'use client';
+import { DeferredContent } from '@/components/ui/deferred-content';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { SelectInput } from '@/components/data/form-fields';
 import { defaultReportsDateRange } from '../services/reports.service';
 import {
@@ -16,17 +18,18 @@ import {
   AnalyticsState,
   AnalyticsTable,
   ReportSection,
-  RevenueTrend,
-  RevenueBars,
   SummaryCards,
 } from './report-analytics-widgets';
 import { ReportsFilters } from './reports-filters';
 import { ReportsTable } from './reports-table';
-import {
-  GenerateReportDialog,
-  ReportPreview,
-  REPORT_TYPES,
-} from './report-dialogs';
+import { REPORT_TYPES } from '../types/report-options';
+
+const GenerateReportDialog = dynamic(() =>
+  import('./report-dialogs').then((module) => module.GenerateReportDialog),
+);
+const ReportPreview = dynamic(() =>
+  import('./report-dialogs').then((module) => module.ReportPreview),
+);
 const money = (key: string, label: string) => ({ key, label, money: true });
 export function ReportsPageView() {
   const [params, setParams] = useState<AnalyticsParams>(() => ({
@@ -394,4 +397,14 @@ export function ReportsPageView() {
       )}
     </div>
   );
+}
+
+const LazyRevenueTrend = dynamic(() => import('./report-charts').then((module) => module.RevenueTrend), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function RevenueTrend(props: import('react').ComponentProps<typeof import('./report-charts').RevenueTrend>) {
+  return <DeferredContent><LazyRevenueTrend {...props} /></DeferredContent>;
+}
+
+const LazyRevenueBars = dynamic(() => import('./report-charts').then((module) => module.RevenueBars), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
+function RevenueBars(props: import('react').ComponentProps<typeof import('./report-charts').RevenueBars>) {
+  return <DeferredContent><LazyRevenueBars {...props} /></DeferredContent>;
 }

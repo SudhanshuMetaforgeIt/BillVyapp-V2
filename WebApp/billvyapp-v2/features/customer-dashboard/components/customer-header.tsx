@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { usePathname } from 'next/navigation';
 import { Bell, ChevronDown, LogOut, Menu, Scissors, User, X } from 'lucide-react';
 
@@ -35,7 +35,7 @@ export function CustomerHeader() {
     <header className="sticky top-0 z-40 w-full border-b border-[#EFE9DF] bg-[#FFFAF3]/95 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
-          <Link
+          <PrefetchLink
             href={C.root}
             className="group flex items-center gap-2.5 transition-transform active:scale-95"
             aria-label="BillVy App Home"
@@ -46,13 +46,13 @@ export function CustomerHeader() {
             <span className="font-heading text-xl font-bold tracking-tight text-[#1C1C1E]">
               Bill<span className="text-[#FF7B00]">Vy</span> <span className="font-medium text-[#7D766C]">App</span>
             </span>
-          </Link>
+          </PrefetchLink>
 
           <nav className="hidden items-center gap-7 pl-4 md:flex" aria-label="Main Navigation">
             {NAV_LINKS.map((link) => {
               const active = isActive(pathname, link.href);
               return (
-                <Link
+                <PrefetchLink
                   key={link.href}
                   href={link.href}
                   className={cn(
@@ -62,14 +62,14 @@ export function CustomerHeader() {
                 >
                   {link.label}
                   {active && <span className="absolute inset-x-0 -bottom-1 h-0.75 rounded-full bg-[#FF7B00]" />}
-                </Link>
+                </PrefetchLink>
               );
             })}
           </nav>
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4">
-          <Link
+          <PrefetchLink
             href={C.notifications}
             className={cn(
               'flex h-9 w-9 items-center justify-center rounded-full border border-[#E9E2D5] bg-white text-[#4A453E] transition-colors hover:bg-[#FAF7F2] hover:text-[#1C1C1E]',
@@ -78,7 +78,7 @@ export function CustomerHeader() {
             aria-label="Notifications"
           >
             <Bell className="size-4.5" />
-          </Link>
+          </PrefetchLink>
 
           <div className="relative">
             <button
@@ -106,7 +106,7 @@ export function CustomerHeader() {
                   <p className="truncate text-[11px] text-[#7D766C]">{user?.email || ''}</p>
                 </div>
                 <div className="mt-1 space-y-0.5">
-                  <Link
+                  <PrefetchLink
                     href={C.profile}
                     onClick={() => setUserMenuOpen(false)}
                     className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-[#4A453E] hover:bg-[#FAF7F2] hover:text-[#1C1C1E]"
@@ -114,7 +114,7 @@ export function CustomerHeader() {
                   >
                     <User className="size-3.5 text-[#FF7B00]" />
                     Profile & addresses
-                  </Link>
+                  </PrefetchLink>
                   <button
                     type="button"
                     onClick={() => void logout()}
@@ -146,7 +146,7 @@ export function CustomerHeader() {
           <nav className="flex flex-col gap-2">
             {[...NAV_LINKS, { label: 'Notifications', href: C.notifications }, { label: 'Profile', href: C.profile }].map(
               (link) => (
-                <Link
+                <PrefetchLink
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
@@ -156,7 +156,7 @@ export function CustomerHeader() {
                   )}
                 >
                   {link.label}
-                </Link>
+                </PrefetchLink>
               ),
             )}
           </nav>

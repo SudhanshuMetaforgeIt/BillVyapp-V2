@@ -1,6 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'crypto';
+import { baselineFetch } from '../../common/performance/baseline';
 import type {
   SalonImageStorageProvider,
   SalonImageUpload,
@@ -67,7 +68,8 @@ export class CloudinaryImageProvider implements SalonImageStorageProvider {
 
     let response: Response;
     try {
-      response = await fetch(
+      response = await baselineFetch(
+        'cloudinary',
         `https://api.cloudinary.com/v1_1/${this.cloudName}/resources/image/upload/${encodeURIComponent(storageKey)}`,
         {
           // Cloudinary's Admin API verifies the asset server-to-server. The
@@ -137,7 +139,8 @@ export class CloudinaryImageProvider implements SalonImageStorageProvider {
       api_key: this.apiKey,
       signature,
     });
-    const response = await fetch(
+    const response = await baselineFetch(
+      'cloudinary',
       `https://api.cloudinary.com/v1_1/${this.cloudName}/image/destroy`,
       { method: 'POST', body: form },
     );
@@ -165,7 +168,8 @@ export class CloudinaryImageProvider implements SalonImageStorageProvider {
     );
     let response: Response;
     try {
-      response = await fetch(
+      response = await baselineFetch(
+        'cloudinary',
         `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`,
         {
           method: 'POST',

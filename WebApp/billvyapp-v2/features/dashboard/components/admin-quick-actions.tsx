@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { Plus } from 'lucide-react';
 
 import { DashboardSectionCard } from '@/components/layout/section-states';
@@ -22,9 +22,10 @@ export function AdminQuickActions({ actions }: AdminQuickActionsProps) {
         {actions.map((action) => {
           const Icon = action.icon;
           return (
-            <Link
+            <PrefetchLink
               key={action.id}
               href={action.href}
+              prefetchStrategy={action.primary ? 'idle' : 'intent'}
               className={cn(
                 'group flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne',
                 action.primary
@@ -46,7 +47,7 @@ export function AdminQuickActions({ actions }: AdminQuickActionsProps) {
                 />
               </span>
               <span className="flex-1">{action.label}</span>
-            </Link>
+            </PrefetchLink>
           );
         })}
       </div>

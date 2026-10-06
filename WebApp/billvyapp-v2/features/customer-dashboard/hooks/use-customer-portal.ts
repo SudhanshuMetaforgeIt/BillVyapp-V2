@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
 import type {
@@ -44,7 +45,7 @@ import {
  */
 
 export function useMyCustomer() {
-  return useScopedQuery(['customers', 'me'], getMyCustomer, { placeholderData: undefined });
+  return useScopedQuery(['customers', 'me'], getMyCustomer, { placeholderData: undefined, staleTime: QUERY_FRESHNESS.activity });
 }
 
 export function useUpdateMyCustomer(customerId: string | undefined) {
@@ -58,6 +59,7 @@ export function useUpdateMyCustomer(customerId: string | undefined) {
 export function useMyAddresses(customerId: string | undefined) {
   return useScopedQuery(['addresses', customerId], () => listMyAddresses(customerId as string), {
     enabled: Boolean(customerId),
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }
 
@@ -79,19 +81,21 @@ export function useDeleteAddress(customerId: string | undefined) {
 }
 
 export function useCustomerSalons(query: { page: number; limit: number; search?: string; city?: string }) {
-  return useScopedQuery(['salons', 'customer', query], () => listSalonsForCustomer(query));
+  return useScopedQuery(['salons', 'customer', query], () => listSalonsForCustomer(query), { staleTime: QUERY_FRESHNESS.catalog });
 }
 
 export function useCustomerSalon(id: string | undefined) {
   return useScopedQuery(['salons', 'customer', 'detail', id], () => getSalonForCustomer(id as string), {
     enabled: Boolean(id),
     placeholderData: undefined,
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }
 
 export function useSalonCategories(salonId: string | undefined) {
   return useScopedQuery(['services', 'categories', salonId], () => listSalonCategories(salonId), {
     enabled: Boolean(salonId),
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }
 
@@ -104,6 +108,7 @@ export function useSalonServiceList(query: {
 }) {
   return useScopedQuery(['services', 'customer', query], () => listSalonServices(query), {
     enabled: Boolean(query.salonId),
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }
 
@@ -114,7 +119,7 @@ export function useMyAppointments(query: {
   dateFrom?: string;
   dateTo?: string;
 }) {
-  return useScopedQuery(['appointments', 'mine', query], () => listMyAppointments(query));
+  return useScopedQuery(['appointments', 'mine', query], () => listMyAppointments(query), { staleTime: QUERY_FRESHNESS.live, refetchOnWindowFocus: true });
 }
 
 export function useBookAppointment() {
@@ -134,7 +139,7 @@ export function useCancelAppointment() {
 }
 
 export function useMyBills(query: { page: number; limit: number }) {
-  return useScopedQuery(['bills', 'mine', query], () => listMyBills(query));
+  return useScopedQuery(['bills', 'mine', query], () => listMyBills(query), { staleTime: QUERY_FRESHNESS.billing, refetchOnWindowFocus: true });
 }
 
 export function useMyBill(id: string | null) {
@@ -152,7 +157,7 @@ export function useMyBillDocuments(billId: string | null) {
 }
 
 export function useMyLoyaltyBalance() {
-  return useScopedQuery(['loyalty', 'balance'], getMyLoyaltyBalance, { placeholderData: undefined });
+  return useScopedQuery(['loyalty', 'balance'], getMyLoyaltyBalance, { placeholderData: undefined, staleTime: QUERY_FRESHNESS.activity });
 }
 
 export function useMyLoyalty(query: { page: number; limit: number }) {
@@ -160,13 +165,13 @@ export function useMyLoyalty(query: { page: number; limit: number }) {
 }
 
 export function useMyMemberships(query: { page: number; limit: number }) {
-  return useScopedQuery(['memberships', 'mine', query], () => listMyMemberships(query));
+  return useScopedQuery(['memberships', 'mine', query], () => listMyMemberships(query), { staleTime: QUERY_FRESHNESS.activity });
 }
 
 export function useMembershipPlans(query: { page: number; limit: number; salonId?: string }) {
-  return useScopedQuery(['memberships', 'plans', query], () => listMembershipPlans(query));
+  return useScopedQuery(['memberships', 'plans', query], () => listMembershipPlans(query), { staleTime: QUERY_FRESHNESS.catalog });
 }
 
 export function useMyNotifications(query: { page: number; limit: number }) {
-  return useScopedQuery(['notifications', 'mine', query], () => listMyNotifications(query));
+  return useScopedQuery(['notifications', 'mine', query], () => listMyNotifications(query), { staleTime: QUERY_FRESHNESS.live, refetchOnWindowFocus: true });
 }

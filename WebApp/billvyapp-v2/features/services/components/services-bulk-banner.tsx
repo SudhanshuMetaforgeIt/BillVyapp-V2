@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, Download, Info, UploadCloud } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { downloadServicesTemplate } from './admin/bulk-upload-dialog';
+
 
 type ServicesBulkBannerProps = {
   onUploadClick?: () => void;
@@ -39,7 +39,7 @@ export function ServicesBulkBanner({
             variant="outline"
             size="sm"
             className="gap-2 border-border bg-surface text-text hover:bg-champagne-light/30"
-            onClick={downloadServicesTemplate}
+            onClick={async () => { const { downloadServicesTemplate } = await import('./admin/services-template-export'); downloadServicesTemplate(); }}
           >
             <Download className="size-4 text-text-secondary" />
             Download Template

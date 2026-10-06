@@ -1,7 +1,7 @@
 import type { MessageResponse } from '@/types/api.types';
 import type { AuthSession, AuthTokens, AuthUser } from '@/types/user.types';
 import { useAuthStore } from '@/stores/auth.store';
-import { api } from './api-client';
+import { api, refreshSession } from './api-client';
 
 /**
  * Auth API surface. One function per backend endpoint, no UI concerns.
@@ -112,13 +112,11 @@ export const authService = {
   },
 
   /**
-   * Cookie-based refresh. Routine refreshing also happens in the Axios
-   * interceptor; this is used while bootstrapping after a full page reload.
+   * Cookie-based refresh returns the verified user. It shares an in-flight
+   * request with the Axios interceptor so the rotating cookie is used once.
    */
-  async refresh(): Promise<AuthTokens> {
-    const tokens = await api.post<AuthTokens>('/auth/refresh', {});
-    persistAccessToken(tokens);
-    return tokens;
+  refresh(): Promise<AuthSession> {
+    return refreshSession();
   },
 
   /**

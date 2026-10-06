@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import {
   useDeferredValue,
@@ -22,7 +23,10 @@ import { createCampaign } from '../services/campaigns.service';
 import { CampaignsFilters } from './campaigns-filters';
 import { CampaignsSidePanel } from './campaigns-side-panel';
 import { CampaignsTable } from './campaigns-table';
-import { CampaignDetailsDialog } from './campaign-details-dialog';
+const LazyCampaignDetailsDialog = dynamic(() => import('./campaign-details-dialog').then((module) => module.CampaignDetailsDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CampaignDetailsDialog(props: import('react').ComponentProps<typeof import('./campaign-details-dialog').CampaignDetailsDialog>) {
+  return props.id ? <LazyCampaignDetailsDialog {...props} /> : null;
+}
 
 const PAGE_SIZE = 10;
 

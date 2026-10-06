@@ -1,3 +1,4 @@
+import { measureBaseline } from '../common/performance/baseline';
 import {
   priceMembershipLines,
   requireBenefitConfiguration,
@@ -510,82 +511,87 @@ export class BillsService {
     let totals = this.computeBillTotals(lines, dto);
 
     try {
-      const created = await this.prisma.$transaction(
-        async (tx) => {
-          const priced = dto.couponCode
-            ? await this.priceCoupon(
-                tx,
-                dto.couponCode,
+      const created = await measureBaseline('transaction:bill-create:ms', () =>
+        this.prisma.$transaction(
+          async (tx) => {
+            const priced = dto.couponCode
+              ? await this.priceCoupon(
+                  tx,
+                  dto.couponCode,
+                  salonId,
+                  customerId,
+                  lines,
+                )
+              : null;
+            const coupon = priced?.coupon ?? null;
+            if (priced) {
+              lines = priced.lines;
+              totals = this.computeBillTotals(lines, {
+                ...dto,
+                tax: undefined,
+              });
+            }
+            const selected = dto.enrollmentPlanId
+              ? await requireEnrollmentPlan(
+                  tx,
+                  dto.enrollmentPlanId,
+                  salonId,
+                  totals.total,
+                )
+              : null;
+            const enrollmentDetails = selected
+              ? enrollmentConsent(dto.enrollmentDetails, selected)
+              : undefined;
+            const membershipFee = selected?.price.toString() ?? '0.00';
+            totals.total = (
+              Number(totals.total) + Number(membershipFee)
+            ).toFixed(2);
+            return tx.bill.create({
+              data: {
+                enrollmentPlanId: selected?.id ?? null,
+                enrollmentDetails,
+                membershipFee,
+                enrollmentPlanName: selected?.name ?? null,
                 salonId,
                 customerId,
-                lines,
-              )
-            : null;
-          const coupon = priced?.coupon ?? null;
-          if (priced) {
-            lines = priced.lines;
-            totals = this.computeBillTotals(lines, { ...dto, tax: undefined });
-          }
-          const selected = dto.enrollmentPlanId
-            ? await requireEnrollmentPlan(
-                tx,
-                dto.enrollmentPlanId,
-                salonId,
-                totals.total,
-              )
-            : null;
-          const enrollmentDetails = selected
-            ? enrollmentConsent(dto.enrollmentDetails, selected)
-            : undefined;
-          const membershipFee = selected?.price.toString() ?? '0.00';
-          totals.total = (Number(totals.total) + Number(membershipFee)).toFixed(
-            2,
-          );
-          return tx.bill.create({
-            data: {
-              enrollmentPlanId: selected?.id ?? null,
-              enrollmentDetails,
-              membershipFee,
-              enrollmentPlanName: selected?.name ?? null,
-              salonId,
-              customerId,
-              appliedMembershipId: coupon?.membershipId ?? null,
-              billNumber: dto.billNumber?.trim() || this.nextBillNumber(),
-              billDate,
-              subtotal: totals.subtotal,
-              discount: totals.discount,
-              tax: totals.tax,
-              roundOff: totals.roundOff,
-              total: totals.total,
-              paidAmount: '0.00',
-              dueAmount: totals.total,
-              status: BillStatus.DRAFT,
-              paymentStatus: BillPaymentStatus.UNPAID,
-              notes: trimOrNull(dto.notes) ?? null,
-              createdBy: actor.userId,
-              items: {
-                create: lines.map((line, linePosition) => ({
-                  linePosition,
-                  membershipDiscount: line.membershipDiscount ?? '0.00',
-                  membershipUnits: line.membershipUnits ?? 0,
-                  membershipBenefit: line.membershipBenefit ?? false,
-                  itemType: line.itemType,
-                  serviceId: line.serviceId,
-                  productId: line.productId,
-                  description: line.description,
-                  quantity: line.quantity,
-                  unitPrice: line.unitPrice,
-                  discount: line.discount,
-                  taxRate: line.taxRate,
-                  taxAmount: line.taxAmount,
-                  total: line.total,
-                })),
+                appliedMembershipId: coupon?.membershipId ?? null,
+                billNumber: dto.billNumber?.trim() || this.nextBillNumber(),
+                billDate,
+                subtotal: totals.subtotal,
+                discount: totals.discount,
+                tax: totals.tax,
+                roundOff: totals.roundOff,
+                total: totals.total,
+                paidAmount: '0.00',
+                dueAmount: totals.total,
+                status: BillStatus.DRAFT,
+                paymentStatus: BillPaymentStatus.UNPAID,
+                notes: trimOrNull(dto.notes) ?? null,
+                createdBy: actor.userId,
+                items: {
+                  create: lines.map((line, linePosition) => ({
+                    linePosition,
+                    membershipDiscount: line.membershipDiscount ?? '0.00',
+                    membershipUnits: line.membershipUnits ?? 0,
+                    membershipBenefit: line.membershipBenefit ?? false,
+                    itemType: line.itemType,
+                    serviceId: line.serviceId,
+                    productId: line.productId,
+                    description: line.description,
+                    quantity: line.quantity,
+                    unitPrice: line.unitPrice,
+                    discount: line.discount,
+                    taxRate: line.taxRate,
+                    taxAmount: line.taxAmount,
+                    total: line.total,
+                  })),
+                },
               },
-            },
-            select: BILL_SELECT,
-          });
-        },
-        { isolationLevel: 'ReadCommitted' },
+              select: BILL_SELECT,
+            });
+          },
+          { isolationLevel: 'ReadCommitted' },
+        ),
       );
 
       await this.audit.record({
@@ -667,119 +673,127 @@ export class BillsService {
     });
 
     try {
-      const updated = await this.prisma.$transaction(
-        async (tx) => {
-          await tx.$queryRaw`SELECT id FROM bills WHERE id = ${existing.id} FOR UPDATE`;
-          const locked = await tx.bill.findUniqueOrThrow({
-            where: { id: existing.id },
-            select: BILL_SELECT,
-          });
-          if ((locked.status as BillStatus) !== BillStatus.DRAFT)
-            throw new BadRequestException('Only DRAFT bills can be updated');
-          if (locked.updatedAt.getTime() !== existing.updatedAt.getTime())
-            throw new BadRequestException('Bill changed; reload and retry');
-          const couponCode =
-            dto.couponCode === undefined
-              ? existing.appliedMembership?.couponCode
-              : dto.couponCode;
-          const priced = couponCode
-            ? await this.priceCoupon(tx, couponCode, salonId, customerId, lines)
-            : null;
-          const coupon = priced?.coupon ?? null;
-          if (priced) lines = priced.lines;
-          totals = this.computeBillTotals(lines, {
-            discount: dto.discount ?? this.asNumber(existing.discount),
-            tax:
-              couponCode || existing.appliedMembershipId
-                ? undefined
-                : (dto.tax ?? this.asNumber(existing.tax)),
-            roundOff: dto.roundOff ?? this.asNumber(existing.roundOff),
-          });
-          const enrollmentPlanId =
-            dto.enrollmentPlanId !== undefined
-              ? dto.enrollmentPlanId
-              : existing.enrollmentPlanId;
-          const selected = enrollmentPlanId
-            ? await requireEnrollmentPlan(
-                tx,
-                enrollmentPlanId,
-                salonId,
-                totals.total,
-              )
-            : null;
-          const details = dto.enrollmentDetails ?? existing.enrollmentDetails;
-          const enrollmentDetails = selected
-            ? enrollmentConsent(
-                details as unknown as import('./dto/create-bill.dto').BillEnrollmentDetailsDto,
-                selected,
-              )
-            : {};
-          const membershipFee = selected?.price.toString() ?? '0.00';
-          totals.total = (Number(totals.total) + Number(membershipFee)).toFixed(
-            2,
-          );
-          if (dto.items || couponCode || existing.appliedMembershipId) {
-            await tx.billItem.deleteMany({ where: { billId: existing.id } });
-            await tx.billItem.createMany({
-              data: lines.map((line, linePosition) => ({
-                linePosition,
-                billId: existing.id,
-                membershipDiscount: line.membershipDiscount ?? '0.00',
-                membershipUnits: line.membershipUnits ?? 0,
-                membershipBenefit: line.membershipBenefit ?? false,
-                itemType: line.itemType,
-                serviceId: line.serviceId,
-                productId: line.productId,
-                description: line.description,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                discount: line.discount,
-                taxRate: line.taxRate,
-                taxAmount: line.taxAmount,
-                total: line.total,
-              })),
+      const updated = await measureBaseline('transaction:bill-update:ms', () =>
+        this.prisma.$transaction(
+          async (tx) => {
+            await tx.$queryRaw`SELECT id FROM bills WHERE id = ${existing.id} FOR UPDATE`;
+            const locked = await tx.bill.findUniqueOrThrow({
+              where: { id: existing.id },
+              select: BILL_SELECT,
             });
-          }
+            if ((locked.status as BillStatus) !== BillStatus.DRAFT)
+              throw new BadRequestException('Only DRAFT bills can be updated');
+            if (locked.updatedAt.getTime() !== existing.updatedAt.getTime())
+              throw new BadRequestException('Bill changed; reload and retry');
+            const couponCode =
+              dto.couponCode === undefined
+                ? existing.appliedMembership?.couponCode
+                : dto.couponCode;
+            const priced = couponCode
+              ? await this.priceCoupon(
+                  tx,
+                  couponCode,
+                  salonId,
+                  customerId,
+                  lines,
+                )
+              : null;
+            const coupon = priced?.coupon ?? null;
+            if (priced) lines = priced.lines;
+            totals = this.computeBillTotals(lines, {
+              discount: dto.discount ?? this.asNumber(existing.discount),
+              tax:
+                couponCode || existing.appliedMembershipId
+                  ? undefined
+                  : (dto.tax ?? this.asNumber(existing.tax)),
+              roundOff: dto.roundOff ?? this.asNumber(existing.roundOff),
+            });
+            const enrollmentPlanId =
+              dto.enrollmentPlanId !== undefined
+                ? dto.enrollmentPlanId
+                : existing.enrollmentPlanId;
+            const selected = enrollmentPlanId
+              ? await requireEnrollmentPlan(
+                  tx,
+                  enrollmentPlanId,
+                  salonId,
+                  totals.total,
+                )
+              : null;
+            const details = dto.enrollmentDetails ?? existing.enrollmentDetails;
+            const enrollmentDetails = selected
+              ? enrollmentConsent(
+                  details as unknown as import('./dto/create-bill.dto').BillEnrollmentDetailsDto,
+                  selected,
+                )
+              : {};
+            const membershipFee = selected?.price.toString() ?? '0.00';
+            totals.total = (
+              Number(totals.total) + Number(membershipFee)
+            ).toFixed(2);
+            if (dto.items || couponCode || existing.appliedMembershipId) {
+              await tx.billItem.deleteMany({ where: { billId: existing.id } });
+              await tx.billItem.createMany({
+                data: lines.map((line, linePosition) => ({
+                  linePosition,
+                  billId: existing.id,
+                  membershipDiscount: line.membershipDiscount ?? '0.00',
+                  membershipUnits: line.membershipUnits ?? 0,
+                  membershipBenefit: line.membershipBenefit ?? false,
+                  itemType: line.itemType,
+                  serviceId: line.serviceId,
+                  productId: line.productId,
+                  description: line.description,
+                  quantity: line.quantity,
+                  unitPrice: line.unitPrice,
+                  discount: line.discount,
+                  taxRate: line.taxRate,
+                  taxAmount: line.taxAmount,
+                  total: line.total,
+                })),
+              });
+            }
 
-          if (Number(totals.total) < this.asNumber(existing.paidAmount))
-            throw new BadRequestException(
-              'Updated total is below collected payments',
-            );
-          return tx.bill.update({
-            where: { id: existing.id },
-            data: {
-              enrollmentPlanId: selected?.id ?? null,
-              enrollmentDetails,
-              membershipFee,
-              enrollmentPlanName: selected?.name ?? null,
-              appliedMembershipId: coupon?.membershipId ?? null,
-              customerId,
-              billNumber:
-                dto.billNumber !== undefined
-                  ? dto.billNumber.trim()
-                  : existing.billNumber,
-              billDate:
-                dto.billDate !== undefined
-                  ? this.resolveBillDateInput(dto.billDate, timeZone)
-                  : existing.billDate,
-              subtotal: totals.subtotal,
-              discount: totals.discount,
-              tax: totals.tax,
-              roundOff: totals.roundOff,
-              total: totals.total,
-              dueAmount: this.roundMoney(
-                this.asNumber(totals.total) -
-                  this.asNumber(existing.paidAmount),
-              ),
-              notes:
-                dto.notes !== undefined
-                  ? (trimOrNull(dto.notes) ?? null)
-                  : existing.notes,
-            },
-            select: BILL_SELECT,
-          });
-        },
-        { isolationLevel: 'ReadCommitted' },
+            if (Number(totals.total) < this.asNumber(existing.paidAmount))
+              throw new BadRequestException(
+                'Updated total is below collected payments',
+              );
+            return tx.bill.update({
+              where: { id: existing.id },
+              data: {
+                enrollmentPlanId: selected?.id ?? null,
+                enrollmentDetails,
+                membershipFee,
+                enrollmentPlanName: selected?.name ?? null,
+                appliedMembershipId: coupon?.membershipId ?? null,
+                customerId,
+                billNumber:
+                  dto.billNumber !== undefined
+                    ? dto.billNumber.trim()
+                    : existing.billNumber,
+                billDate:
+                  dto.billDate !== undefined
+                    ? this.resolveBillDateInput(dto.billDate, timeZone)
+                    : existing.billDate,
+                subtotal: totals.subtotal,
+                discount: totals.discount,
+                tax: totals.tax,
+                roundOff: totals.roundOff,
+                total: totals.total,
+                dueAmount: this.roundMoney(
+                  this.asNumber(totals.total) -
+                    this.asNumber(existing.paidAmount),
+                ),
+                notes:
+                  dto.notes !== undefined
+                    ? (trimOrNull(dto.notes) ?? null)
+                    : existing.notes,
+              },
+              select: BILL_SELECT,
+            });
+          },
+          { isolationLevel: 'ReadCommitted' },
+        ),
       );
 
       await this.audit.record({

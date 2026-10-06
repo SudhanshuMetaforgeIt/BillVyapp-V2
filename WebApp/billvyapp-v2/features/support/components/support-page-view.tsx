@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import {
   useDeferredValue,
@@ -23,14 +24,20 @@ import type {
   TicketPriorityFilter,
   TicketStatusFilter,
 } from '../types/support.types';
-import { CreateSupportTicketDialog } from './create-support-ticket-dialog';
+const LazyCreateSupportTicketDialog = dynamic(() => import('./create-support-ticket-dialog').then((module) => module.CreateSupportTicketDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateSupportTicketDialog(props: import('react').ComponentProps<typeof import('./create-support-ticket-dialog').CreateSupportTicketDialog>) {
+  return props.open ? <LazyCreateSupportTicketDialog {...props} /> : null;
+}
 import { SupportFilters } from './support-filters';
 import {
   SupportCategoriesBar,
   SupportSidebar,
 } from './support-sidebar';
 import { SupportTable } from './support-table';
-import { SupportTicketDetailsDialog } from './support-ticket-details-dialog';
+const LazySupportTicketDetailsDialog = dynamic(() => import('./support-ticket-details-dialog').then((module) => module.SupportTicketDetailsDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function SupportTicketDetailsDialog(props: import('react').ComponentProps<typeof import('./support-ticket-details-dialog').SupportTicketDetailsDialog>) {
+  return props.open ? <LazySupportTicketDetailsDialog {...props} /> : null;
+}
 import type { SupportTicketRow } from '../types/support.types';
 
 const PAGE_SIZE = 7;

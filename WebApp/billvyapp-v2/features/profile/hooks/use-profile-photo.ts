@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { describeApiError } from '@/lib/api-errors';
+import { invalidatePaths } from '@/lib/query-invalidation';
 import { scopeKey } from '@/lib/query-scope';
 import { useAuthStore } from '@/stores/auth.store';
 import type { ApiError } from '@/types/api.types';
@@ -23,9 +24,7 @@ export function useProfilePhoto() {
       if (!current || current.id !== result.ownerId) return;
       useAuthStore.getState().setUser({ ...current, profilePhoto: result.profilePhoto });
       client.setQueryData([...scopeKey(current), 'profile-photo', 'me'], { profilePhoto: result.profilePhoto });
-      void client.invalidateQueries({ predicate: (q) =>
-        q.queryKey.some((key) => typeof key === 'string' && ['profile', 'profile-photo', 'auth', 'customers', 'customer-portal', 'users'].includes(key)),
-      });
+      void invalidatePaths(client, [['profile', 'me'], ['customers', 'me']]);
       toast.success(result.profilePhoto ? 'Profile photo updated' : 'Profile photo removed');
     },
     onError: (error) => toast.error(describeApiError(error).message),

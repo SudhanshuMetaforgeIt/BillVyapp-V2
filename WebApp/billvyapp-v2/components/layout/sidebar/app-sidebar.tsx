@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, X } from 'lucide-react';
 
@@ -50,7 +50,7 @@ function SidebarNav({
       <div className={cn('shrink-0 px-3 pt-4 pb-3', collapsed && 'px-2 pt-3')}>
         {collapsed ? (
           <div className="flex flex-col items-center">
-            <Link
+            <PrefetchLink
               href={homeHref}
               onClick={onNavigate}
               aria-label="Go to dashboard"
@@ -63,12 +63,12 @@ function SidebarNav({
                 className="h-9 w-9 shrink-0 [&_img]:object-center"
                 priority
               />
-            </Link>
+            </PrefetchLink>
           </div>
         ) : (
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <Link
+              <PrefetchLink
                 href={homeHref}
                 onClick={onNavigate}
                 aria-label="Go to dashboard"
@@ -81,7 +81,7 @@ function SidebarNav({
                   className="h-11 w-36 shrink-0 [&_img]:object-left"
                   priority
                 />
-              </Link>
+              </PrefetchLink>
               <p className="mt-1.5 px-0.5 text-[11px] font-medium tracking-[0.14em] text-[#FFB347]/90 uppercase">
                 {role ? ROLE_LABELS[role] : 'BillVyApp'}
               </p>
@@ -116,7 +116,7 @@ function SidebarNav({
 
               return (
                 <li key={item.id}>
-                  <Link
+                  <PrefetchLink
                     href={item.href}
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
@@ -150,7 +150,7 @@ function SidebarNav({
                         ) : null}
                       </>
                     ) : null}
-                  </Link>
+                  </PrefetchLink>
                 </li>
               );
             }),

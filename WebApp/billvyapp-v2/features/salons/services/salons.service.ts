@@ -34,8 +34,15 @@ export function updateSalonStatus(id: string, isActive: boolean) {
   return api.patch<Salon>(`/salons/${id}/status`, { isActive });
 }
 
+export function saveSalonCoordinates(id: string, latitude: number, longitude: number) {
+  return api.patch<Salon>(`/salons/${id}/location`, {
+    latitude,
+    longitude,
+  });
+}
+
 /**
- * Server-side geocoding (the Maps key never leaves the backend). With no
+ * Server-side geocoding (the provider key never leaves the backend). With no
  * body the backend geocodes the salon's stored address.
  */
 export function geocodeSalon(
@@ -50,15 +57,15 @@ export function geocodeSalon(
 
 export async function listSalonPickerOptions(
   activeOnly = true,
-): Promise<Salon[]> {
-  const options: Salon[] = [];
+): Promise<Pick<Salon, 'id' | 'name'>[]> {
+  const options: Pick<Salon, 'id' | 'name'>[] = [];
   let page = 1;
   while (true) {
-    const result = await listSalons({
+    const result = await api.get<Paginated<Pick<Salon, 'id' | 'name'>>>('/salons/picker', { params: {
       page,
       limit: 100,
-      isActive: activeOnly ? true : undefined,
-    });
+      isActive: activeOnly ? 'true' : undefined,
+    } });
     options.push(...result.data);
     if (page >= result.meta.totalPages) return options;
     page++;

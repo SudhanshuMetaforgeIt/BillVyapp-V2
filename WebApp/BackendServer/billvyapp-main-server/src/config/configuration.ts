@@ -87,8 +87,18 @@ export default () => {
       devEnabled: process.env.DEV_OTP_ENABLED === 'true',
     },
 
+    geocoding: {
+      provider: (process.env.GEOCODING_PROVIDER ?? 'google')
+        .trim()
+        .toLowerCase(),
+      openCageApiKey: process.env.OPENCAGE_API_KEY ?? '',
+    },
+
     google: {
-      mapsApiKey: process.env.GOOGLE_MAPS_API_KEY ?? '',
+      mapsApiKey:
+        process.env.GOOGLE_MAPS_API_KEY?.trim() ||
+        process.env.GOOGLE_API_KEY?.trim() ||
+        '',
     },
   };
 };

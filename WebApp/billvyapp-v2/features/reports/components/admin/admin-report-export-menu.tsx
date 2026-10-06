@@ -7,16 +7,19 @@ export function AdminReportExportMenu({
   disabled,
   phase,
   error,
+  initialOpen = false,
 }: {
   onExport: () => void;
   disabled: boolean;
   phase: string;
   error: string | null;
+  initialOpen?: boolean;
 }) {
   return (
     <div className="min-w-0 max-w-full">
-      <Menu.Root>
+      <Menu.Root defaultOpen={initialOpen}>
         <Menu.Trigger
+          autoFocus={initialOpen}
           disabled={disabled}
           className="flex min-h-11 w-full max-w-full items-center justify-center gap-2 rounded-lg bg-brand-orange px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 disabled:opacity-60"
         >

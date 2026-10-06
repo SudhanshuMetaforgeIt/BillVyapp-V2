@@ -1,7 +1,8 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { BaselineInterceptor } from './common/performance/baseline.interceptor';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AppController } from './app.controller';
@@ -130,6 +131,7 @@ import { VendorsModule } from './vendors/vendors.module';
     { provide: APP_GUARD, useClass: SubscriptionActiveGuard },
 
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_INTERCEPTOR, useClass: BaselineInterceptor },
   ],
 })
 export class AppModule {}

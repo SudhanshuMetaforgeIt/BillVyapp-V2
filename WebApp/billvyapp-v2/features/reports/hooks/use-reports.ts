@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { QUERY_FRESHNESS } from '@/lib/query-freshness';
 
 import {
   fetchReportsPage,
@@ -30,6 +31,7 @@ export function useReports(params: ReportsListParams) {
       },
     ],
     queryFn: () => fetchReportsPage(params),
+    staleTime: QUERY_FRESHNESS.reports,
   });
 }
 
@@ -46,6 +48,7 @@ export function useReportAnalytics(
   return useQuery({
     queryKey: [...REPORTS_QUERY_KEY, 'analytics', section, sectionParams],
     queryFn: () => fetchReportAnalytics(sectionParams, section),
+    staleTime: QUERY_FRESHNESS.reports,
     enabled: Boolean(
       params.dateFrom && params.dateTo && params.dateFrom <= params.dateTo,
     ),
@@ -55,5 +58,6 @@ export function useReportFilterOptions(franchiseId: string) {
   return useQuery({
     queryKey: [...REPORTS_QUERY_KEY, 'filter-options', franchiseId],
     queryFn: () => fetchReportFilterOptions(franchiseId),
+    staleTime: QUERY_FRESHNESS.catalog,
   });
 }

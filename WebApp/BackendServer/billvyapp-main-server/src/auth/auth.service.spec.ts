@@ -431,10 +431,29 @@ describe('AuthService', () => {
       const tokens = await auth.refresh('refresh.jwt', ctx);
 
       expect(tokens.accessToken).toBe(`signed-${JWT_TYPE_ACCESS}`);
+      expect(tokens.user).toEqual(expect.objectContaining({
+        id: 'admin-1',
+        role: RoleCode.ADMIN,
+        franchiseId: 'franchise-a',
+        timezone: 'Asia/Kolkata',
+      }));
       expect(sessions.revoke).toHaveBeenCalledWith('sess-1');
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'TOKEN_REFRESHED' }),
       );
+    });
+
+    it('keeps the presented session valid if user enrichment fails', async () => {
+      jwt.verifyAsync.mockResolvedValue({
+        sub: 'admin-1', type: JWT_TYPE_REFRESH, sessionId: 'sess-1',
+      });
+      sessions.findValid.mockResolvedValue({ id: 'sess-1', userId: 'admin-1' });
+      prisma.user.findUnique.mockResolvedValue(staffUser());
+      businessTimezone.getPlatformTimezone.mockRejectedValueOnce(new Error('Timezone unavailable'));
+
+      await expect(auth.refresh('refresh.jwt', ctx)).rejects.toThrow('Timezone unavailable');
+      expect(sessions.revoke).not.toHaveBeenCalled();
+      expect(sessions.create).not.toHaveBeenCalled();
     });
 
     it('rejects a revoked refresh session', async () => {

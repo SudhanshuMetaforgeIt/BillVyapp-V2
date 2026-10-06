@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Lock, Mail, Phone } from 'lucide-react';
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -160,12 +160,13 @@ export function LoginFormCard() {
           </Field>
 
           <div data-auth-animate="field" className="flex justify-end">
-            <Link
+            <PrefetchLink
               href={ROUTES.auth.forgotPassword}
+              prefetchStrategy="intent"
               className="text-sm font-medium text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
             >
               Forgot Password?
-            </Link>
+            </PrefetchLink>
           </div>
 
           {login.isError ? (
@@ -196,18 +197,20 @@ export function LoginFormCard() {
         />
 
         <p data-auth-animate="secondary" className="mt-5 flex justify-center gap-4 text-center">
-          <Link
+          <PrefetchLink
             href={ROUTES.auth.otp}
+            prefetchStrategy="intent"
             className="text-sm font-medium text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           >
             Customer? Sign in with OTP
-          </Link>
-          <Link
+          </PrefetchLink>
+          <PrefetchLink
             href={ROUTES.auth.register}
+            prefetchStrategy="intent"
             className="text-sm font-medium text-text-secondary transition-colors hover:text-text focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           >
             Create Account
-          </Link>
+          </PrefetchLink>
         </p>
       </div>
     </div>

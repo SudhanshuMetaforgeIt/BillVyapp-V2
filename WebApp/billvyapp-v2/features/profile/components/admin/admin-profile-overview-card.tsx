@@ -1,8 +1,9 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import React from 'react';
 import { Mail, Phone, Calendar, MapPin } from 'lucide-react';
-import { ProfilePhotoEditor } from '../profile-photo-editor';
+const ProfilePhotoEditor = dynamic(() => import('../profile-photo-editor').then((module) => module.ProfilePhotoEditor), { loading: () => <div role="status" aria-label="Loading profile photo" className="h-52 w-32 animate-pulse rounded-xl bg-surface" /> });
 import type { ProfileUser } from '../../types/profile.types';
 
 type Props = {

@@ -479,8 +479,9 @@ export function RevenueOverview({
   }, [series, tab, query.data]);
 
   const isLoading = useDynamic
-    ? query.isLoading || query.isFetching
+    ? query.isLoading && points.length === 0
     : Boolean(externalLoading);
+  const isUpdating = useDynamic && query.isFetching && points.length > 0;
 
   const applyTab = (next: RevenuePeriodTab) => {
     setTab(next);
@@ -544,11 +545,13 @@ export function RevenueOverview({
       }
       bodyClassName="pt-1 pb-3"
     >
+      {isUpdating ? <p role="status" className="mb-2 text-xs text-text-secondary">Updating revenue…</p> : null}
+      {query.isError && points.length > 0 && useDynamic ? <p role="alert" className="mb-2 text-xs text-danger">Could not refresh revenue. Previous figures are shown.</p> : null}
       {isLoading ? (
         <Skeleton className="h-64 w-full rounded-xl" />
       ) : rangeInvalid ? (
         <SectionEmptyState message="Choose a from date on or before the to date." />
-      ) : query.isError && useDynamic ? (
+      ) : query.isError && useDynamic && points.length === 0 ? (
         <SectionEmptyState message="Could not load revenue for this period." />
       ) : points.length === 0 ? (
         <SectionEmptyState message="No revenue data for this period." />

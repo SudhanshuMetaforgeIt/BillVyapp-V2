@@ -1,3 +1,4 @@
+import { measureBaseline } from '../common/performance/baseline';
 import {
   BadRequestException,
   ForbiddenException,
@@ -307,7 +308,9 @@ export class AdminReportsService {
 
   async generate(user: AuthenticatedUser, query: AdminReportQueryDto) {
     const franchiseId = this.franchise(user);
-    const snapshot = await this.snapshot(user, query);
+    const snapshot = await measureBaseline('report:snapshot:ms', () =>
+      this.snapshot(user, query),
+    );
     const row = await this.prisma.platformReport.create({
       data: {
         name: 'Franchise Overview Report',
@@ -324,7 +327,9 @@ export class AdminReportsService {
       },
     });
     try {
-      await buildAdminWorkbook(snapshot);
+      await measureBaseline('report:workbook:ms', () =>
+        buildAdminWorkbook(snapshot),
+      );
       const ready = await this.prisma.platformReport.update({
         where: { id: row.id },
         data: { snapshot: snapshot },

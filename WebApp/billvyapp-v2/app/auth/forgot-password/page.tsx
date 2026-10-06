@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { PrefetchLink } from '@/components/ui/prefetch-link';
 
 import { ROUTES } from '@/constants/routes';
 
@@ -18,12 +18,13 @@ export default function ForgotPasswordPage() {
           Password reset is not available yet. Please contact your administrator
           if you need help signing in.
         </p>
-        <Link
+        <PrefetchLink
           href={ROUTES.auth.login}
+          prefetchStrategy="intent"
           className="mt-6 inline-block text-sm font-medium text-[#FF6A00] hover:text-[#e65f00]"
         >
           Back to Sign In
-        </Link>
+        </PrefetchLink>
       </div>
     </main>
   );

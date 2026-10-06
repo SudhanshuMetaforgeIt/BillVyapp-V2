@@ -1,6 +1,8 @@
 'use client';
+import dynamic from 'next/dynamic';
 
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useRef,
@@ -14,13 +16,25 @@ import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useCustomers } from '../hooks/use-customers';
 import type {
   CustomerGender,
+  CustomerListRow,
   CustomerStatusFilter,
+  PaginationMeta,
 } from '../types/customers.types';
-import { CreateCustomerDialog } from './create-customer-dialog';
+const LazyCreateCustomerDialog = dynamic(() => import('./create-customer-dialog').then((module) => module.CreateCustomerDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function CreateCustomerDialog(props: import('react').ComponentProps<typeof import('./create-customer-dialog').CreateCustomerDialog>) {
+  return props.open ? <LazyCreateCustomerDialog {...props} /> : null;
+}
 import { CustomersFilters } from './customers-filters';
 import { CustomersTable } from './customers-table';
 
 const PAGE_SIZE = 10;
+const EMPTY_ROWS: CustomerListRow[] = [];
+const EMPTY_META: PaginationMeta = {
+  page: 1,
+  limit: PAGE_SIZE,
+  total: 0,
+  totalPages: 0,
+};
 
 export function CustomersPageView() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -68,12 +82,10 @@ export function CustomersPageView() {
   }
 
   const data = query.data;
-  const emptyMeta = {
-    page: 1,
-    limit: PAGE_SIZE,
-    total: 0,
-    totalPages: 0,
-  };
+
+  const handlePageChange = useCallback((next: number) => {
+    startTransition(() => setPage(next));
+  }, [startTransition]);
 
   return (
     <>
@@ -106,14 +118,12 @@ export function CustomersPageView() {
           />
 
           <CustomersTable
-            rows={data?.rows ?? []}
-            meta={data?.meta ?? emptyMeta}
+            rows={data?.rows ?? EMPTY_ROWS}
+            meta={data?.meta ?? EMPTY_META}
             isLoading={query.isLoading && !data}
             isError={query.isError}
             onRetry={() => void query.refetch()}
-            onPageChange={(next) => {
-              startTransition(() => setPage(next));
-            }}
+            onPageChange={handlePageChange}
           />
         </div>
       </div>
