@@ -3,18 +3,20 @@
 import { SelectInput } from '@/components/data/form-fields';
 
 import { useEffect, useId, useState } from 'react';
-import { X } from 'lucide-react';
+import { FolderPlus, Plus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateProduct } from '../hooks/use-inventory-mutations';
+import { AddProductCategoryDialog } from './add-product-category-dialog';
 
 type AddProductDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   salonId: string;
   categoryOptions: Array<{ id: string; name: string }>;
+  onAddCategory?: () => void;
 };
 
 export function AddProductDialog({
@@ -22,6 +24,7 @@ export function AddProductDialog({
   onOpenChange,
   salonId,
   categoryOptions,
+  onAddCategory,
 }: AddProductDialogProps) {
   const titleId = useId();
   const [name, setName] = useState('');
@@ -31,6 +34,7 @@ export function AddProductDialog({
   const [costPrice, setCostPrice] = useState('');
   const [reorderLevel, setReorderLevel] = useState('5');
   const [unit, setUnit] = useState('PCS');
+  const [createCatOpen, setCreateCatOpen] = useState(false);
 
   const create = useCreateProduct(() => {
     onOpenChange(false);
@@ -44,8 +48,10 @@ export function AddProductDialog({
 
   useEffect(() => {
     if (!open) return;
-    setCategoryId(categoryOptions[0]?.id ?? '');
-  }, [open, categoryOptions]);
+    if (categoryOptions.length > 0 && (!categoryId || !categoryOptions.some((c) => c.id === categoryId))) {
+      setCategoryId(categoryOptions[0]?.id ?? '');
+    }
+  }, [open, categoryOptions, categoryId]);
 
   useEffect(() => {
     if (!open) return;
@@ -111,9 +117,25 @@ export function AddProductDialog({
         </div>
 
         {categoryOptions.length === 0 ? (
-          <p className="text-sm text-text-secondary">
-            No product categories found. Create a category first before adding products.
-          </p>
+          <div className="space-y-4 rounded-xl border border-dashed border-border bg-ivory-soft/60 p-6 text-center">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-champagne-light text-champagne">
+              <FolderPlus className="size-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text">No product categories found</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                You must create at least one product category before adding products to your inventory.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={() => (onAddCategory ? onAddCategory() : setCreateCatOpen(true))}
+              className="bg-champagne text-white hover:bg-champagne/90"
+            >
+              <FolderPlus className="mr-1.5 size-4" />
+              Create Product Category
+            </Button>
+          </div>
         ) : (
           <form
             className="space-y-3"
@@ -159,7 +181,17 @@ export function AddProductDialog({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-product-category">Category</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="inv-product-category">Category</Label>
+                <button
+                  type="button"
+                  onClick={() => (onAddCategory ? onAddCategory() : setCreateCatOpen(true))}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-champagne hover:underline"
+                >
+                  <Plus className="size-3" />
+                  New Category
+                </button>
+              </div>
               <SelectInput className="h-10 w-full text-sm font-medium"
                 id="inv-product-category"
                 value={categoryId}
@@ -220,6 +252,15 @@ export function AddProductDialog({
           </form>
         )}
       </div>
+
+      <AddProductCategoryDialog
+        open={createCatOpen}
+        onOpenChange={setCreateCatOpen}
+        salonId={salonId}
+        onSuccess={(category) => {
+          setCategoryId(category.id);
+        }}
+      />
     </div>
   );
 }

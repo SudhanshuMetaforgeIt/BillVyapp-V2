@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/format';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
   AdjustStockPayload,
+  CreateProductCategoryPayload,
   CreateProductPayload,
   InventoryApiItem,
   InventoryListParams,
@@ -258,3 +259,8 @@ export async function adjustStock(payload: AdjustStockPayload) {
 export async function createProduct(payload: CreateProductPayload) {
   return api.post<ProductApiItem>('/products', payload);
 }
+
+export async function createProductCategory(payload: CreateProductCategoryPayload) {
+  return api.post<ProductCategoryApiItem>('/product-categories', payload);
+}
+

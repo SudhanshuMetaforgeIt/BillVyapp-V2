@@ -2,7 +2,7 @@
 
 import { SelectInput } from '@/components/data/form-fields';
 
-import { PackagePlus, Plus, Search } from 'lucide-react';
+import { FolderPlus, PackagePlus, Plus, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ type InventoryFiltersProps = {
   categoryId: string;
   onCategoryIdChange: (value: string) => void;
   categoryOptions: Array<{ id: string; name: string }>;
+  onAddCategory?: () => void;
   onAddProduct?: () => void;
   onAdjustStock?: () => void;
 };
@@ -28,6 +29,7 @@ export function InventoryFilters({
   categoryId,
   onCategoryIdChange,
   categoryOptions,
+  onAddCategory,
   onAddProduct,
   onAdjustStock,
 }: InventoryFiltersProps) {
@@ -73,6 +75,13 @@ export function InventoryFilters({
           <option value="low">Low Stock</option>
           <option value="out">Out of Stock</option>
         </SelectInput>
+
+        {onAddCategory ? (
+          <Button type="button" variant="outline" className="h-10" onClick={onAddCategory}>
+            <FolderPlus className="size-4" />
+            Add Category
+          </Button>
+        ) : null}
 
         {onAddProduct ? (
           <Button type="button" variant="outline" className="h-10" onClick={onAddProduct}>

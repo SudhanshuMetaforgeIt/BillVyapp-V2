@@ -18,6 +18,10 @@ import type {
   InventoryListRow,
   StockStatusFilter,
 } from '../types/inventory.types';
+const LazyAddProductCategoryDialog = dynamic(() => import('./add-product-category-dialog').then((module) => module.AddProductCategoryDialog), { loading: () => <p role="status">Opening dialog…</p> });
+function AddProductCategoryDialog(props: import('react').ComponentProps<typeof import('./add-product-category-dialog').AddProductCategoryDialog>) {
+  return props.open ? <LazyAddProductCategoryDialog {...props} /> : null;
+}
 const LazyAddProductDialog = dynamic(() => import('./add-product-dialog').then((module) => module.AddProductDialog), { loading: () => <p role="status">Opening dialog…</p> });
 function AddProductDialog(props: import('react').ComponentProps<typeof import('./add-product-dialog').AddProductDialog>) {
   return props.open ? <LazyAddProductDialog {...props} /> : null;
@@ -45,6 +49,7 @@ export function InventoryPageView() {
   const [stockStatus, setStockStatus] = useState<StockStatusFilter>('all');
   const [categoryId, setCategoryId] = useState('');
   const [page, setPage] = useState(1);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [presetRow, setPresetRow] = useState<InventoryListRow | null>(null);
@@ -123,6 +128,7 @@ export function InventoryPageView() {
               startTransition(() => setCategoryId(value));
             }}
             categoryOptions={data?.categoryOptions ?? []}
+            onAddCategory={canWrite ? () => setAddCategoryOpen(true) : undefined}
             onAddProduct={canWrite ? () => setAddOpen(true) : undefined}
             onAdjustStock={
               canWrite
@@ -155,11 +161,18 @@ export function InventoryPageView() {
         </div>
       </div>
 
+      <AddProductCategoryDialog
+        open={addCategoryOpen}
+        onOpenChange={setAddCategoryOpen}
+        salonId={salonId}
+      />
+
       <AddProductDialog
         open={addOpen}
         onOpenChange={setAddOpen}
         salonId={salonId}
         categoryOptions={data?.categoryOptions ?? []}
+        onAddCategory={canWrite ? () => setAddCategoryOpen(true) : undefined}
       />
 
       <AdjustStockDialog
