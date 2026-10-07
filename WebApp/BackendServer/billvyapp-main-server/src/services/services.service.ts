@@ -3,7 +3,9 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { CacheService } from '../redis/cache.service';
 import { AuditService } from '../audit/audit.service';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { RoleCode } from '../common/enums/role.enum';
@@ -71,6 +73,7 @@ export class ServicesService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    @Optional() private readonly cache?: CacheService,
   ) {}
 
   async list(
@@ -99,7 +102,35 @@ export class ServicesService {
         : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const targetSalonId = query.salonId ?? user.salonId ?? null;
+    const cacheKey =
+      targetSalonId && this.cache
+        ? `cache:catalogue:${targetSalonId}:services:${this.cache.hashQuery({
+            page,
+            limit,
+            search,
+            categoryId: query.categoryId,
+            isActive: query.isActive,
+            role: user.role,
+          })}`
+        : null;
+
+    if (cacheKey && this.cache) {
+      return this.cache.wrap(cacheKey, 1800, () =>
+        this.fetchList(where, page, limit, skip),
+      );
+    }
+
+    return this.fetchList(where, page, limit, skip);
+  }
+
+  private async fetchList(
+    where: Record<string, unknown>,
+    page: number,
+    limit: number,
+    skip: number,
+  ): Promise<PaginatedResult<ServiceRecord>> {
+    const [rows, total] = await Promise.all([
       this.prisma.service.findMany({
         where,
         select: SERVICE_SELECT,
@@ -172,6 +203,7 @@ export class ServicesService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateSalonCatalogue(created.salonId);
       return this.toResponse(created);
     } catch (error) {
       this.rethrowUnique(error);
@@ -245,6 +277,9 @@ export class ServicesService {
       }
     }
 
+    if (created > 0) {
+      await this.cache?.invalidateSalonCatalogue(dto.salonId);
+    }
     return { created, failed };
   }
 
@@ -309,6 +344,7 @@ export class ServicesService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateSalonCatalogue(updated.salonId);
       return this.toResponse(updated);
     } catch (error) {
       this.rethrowUnique(error);
@@ -341,6 +377,7 @@ export class ServicesService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidateSalonCatalogue(updated.salonId);
     return this.toResponse(updated);
   }
 

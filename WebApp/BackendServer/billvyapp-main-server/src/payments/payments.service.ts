@@ -159,7 +159,7 @@ export class PaymentsService {
 
     const where = { AND: filters };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.payment.findMany({
         where,
         select: PAYMENT_SELECT,

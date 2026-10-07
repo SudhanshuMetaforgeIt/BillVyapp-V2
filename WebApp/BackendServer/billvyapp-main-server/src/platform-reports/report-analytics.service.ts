@@ -122,11 +122,13 @@ export class ReportAnalyticsService {
       this.prisma.franchise.findMany({
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
+        take: 200,
       }),
       this.prisma.salon.findMany({
         where: franchiseId ? { franchiseId } : {},
         select: { id: true, name: true, franchiseId: true },
         orderBy: { name: 'asc' },
+        take: 500,
       }),
     ]);
     return { franchises, salons };

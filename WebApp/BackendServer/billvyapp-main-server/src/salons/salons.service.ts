@@ -3,8 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { CacheService } from '../redis/cache.service';
 import { ConfigService } from '@nestjs/config';
 import { AuditService } from '../audit/audit.service';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
@@ -87,13 +89,14 @@ export class SalonsService {
     private readonly audit: AuditService,
     private readonly config: ConfigService,
     private readonly images: SalonImageStorageService,
+    @Optional() private readonly cache?: CacheService,
   ) {}
 
   async list(user: AuthenticatedUser, query: ListSalonsQueryDto) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const where = this.listWhere(user, query);
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.salon.findMany({
         where,
         select: SALON_SELECT,
@@ -114,7 +117,7 @@ export class SalonsService {
   async listPicker(user: AuthenticatedUser, query: ListSalonsQueryDto) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const where = this.listWhere(user, query);
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.salon.findMany({
         where,
         select: { id: true, name: true },
@@ -150,6 +153,21 @@ export class SalonsService {
   }
 
   async findOne(user: AuthenticatedUser, id: string) {
+    const isCustomer = user.role === RoleCode.CUSTOMER;
+    const cacheKey = this.cache
+      ? `cache:salon:${id}:${isCustomer ? 'public' : `internal:${user.franchiseId ?? 'all'}`}`
+      : null;
+
+    if (cacheKey && this.cache) {
+      return this.cache.wrap(cacheKey, 1800, () =>
+        this.fetchFindOne(user, id),
+      );
+    }
+
+    return this.fetchFindOne(user, id);
+  }
+
+  private async fetchFindOne(user: AuthenticatedUser, id: string) {
     const salon = await this.prisma.salon.findFirst({
       where: {
         id,
@@ -245,6 +263,7 @@ export class SalonsService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateSalon(updated.id);
       return this.toResponse(updated);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
@@ -289,6 +308,7 @@ export class SalonsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidateSalon(updated.id);
     return this.toResponse(updated);
   }
 
@@ -333,6 +353,7 @@ export class SalonsService {
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
+    await this.cache?.invalidateSalon(updated.id);
     return this.toResponse(updated);
   }
 

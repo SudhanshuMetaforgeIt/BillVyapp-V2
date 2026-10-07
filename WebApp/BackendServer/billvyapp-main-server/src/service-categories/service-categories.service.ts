@@ -3,7 +3,9 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { CacheService } from '../redis/cache.service';
 import { AuditService } from '../audit/audit.service';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { RoleCode } from '../common/enums/role.enum';
@@ -48,6 +50,7 @@ export class ServiceCategoriesService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    @Optional() private readonly cache?: CacheService,
   ) {}
 
   async list(
@@ -75,7 +78,34 @@ export class ServiceCategoriesService {
         : {}),
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const targetSalonId = query.salonId ?? user.salonId ?? null;
+    const cacheKey =
+      targetSalonId && this.cache
+        ? `cache:catalogue:${targetSalonId}:categories:${this.cache.hashQuery({
+            page,
+            limit,
+            search,
+            isActive: query.isActive,
+            role: user.role,
+          })}`
+        : null;
+
+    if (cacheKey && this.cache) {
+      return this.cache.wrap(cacheKey, 1800, () =>
+        this.fetchList(where, page, limit),
+      );
+    }
+
+    return this.fetchList(where, page, limit);
+  }
+
+  private async fetchList(
+    where: Record<string, unknown>,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult<ServiceCategoryRecord>> {
+    const { skip } = normalizePagination(page, limit);
+    const [data, total] = await Promise.all([
       this.prisma.serviceCategory.findMany({
         where,
         select: CATEGORY_SELECT,
@@ -135,6 +165,7 @@ export class ServiceCategoriesService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateSalonCatalogue(created.salonId);
       return created;
     } catch (error) {
       this.rethrowUnique(error);
@@ -174,6 +205,7 @@ export class ServiceCategoriesService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateSalonCatalogue(updated.salonId);
       return updated;
     } catch (error) {
       this.rethrowUnique(error);
@@ -206,6 +238,7 @@ export class ServiceCategoriesService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidateSalonCatalogue(updated.salonId);
     return updated;
   }
 

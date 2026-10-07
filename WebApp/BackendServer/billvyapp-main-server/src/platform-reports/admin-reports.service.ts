@@ -1,9 +1,13 @@
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { measureBaseline } from '../common/performance/baseline';
 import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
@@ -28,12 +32,22 @@ import {
   adminReportFileName,
   XLSX_CONTENT_TYPE,
 } from './admin-report-workbook';
+import {
+  REPORT_QUEUE,
+  REPORT_JOB_ADMIN_EXPORT,
+  AdminReportJobPayload,
+} from './report.constants';
 
 @Injectable()
 export class AdminReportsService {
+  private readonly logger = new Logger(AdminReportsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly timezone: BusinessTimezoneService,
+    @Optional()
+    @InjectQueue(REPORT_QUEUE)
+    private readonly reportQueue?: Queue<AdminReportJobPayload>,
   ) {}
 
   private franchise(user: AuthenticatedUser) {
@@ -307,6 +321,9 @@ export class AdminReportsService {
   }
 
   async generate(user: AuthenticatedUser, query: AdminReportQueryDto) {
+    if (query.async) {
+      return this.generateAsync(user, query);
+    }
     const franchiseId = this.franchise(user);
     const snapshot = await measureBaseline('report:snapshot:ms', () =>
       this.snapshot(user, query),
@@ -349,12 +366,196 @@ export class AdminReportsService {
     }
   }
 
+  async generateAsync(user: AuthenticatedUser, query: AdminReportQueryDto) {
+    const franchiseId = this.franchise(user);
+    if (query.reportType && query.reportType !== 'overview')
+      throw new BadRequestException('Only Overview reports are supported');
+    const timeZone = await this.timezone.resolveForUser(user);
+    const today = calendarDateInTimeZone(timeZone);
+    const dateFrom = query.dateFrom ?? `${today.slice(0, 7)}-01`;
+    const dateTo = query.dateTo ?? today;
+    if (
+      !isDateOnlyString(dateFrom) ||
+      !isDateOnlyString(dateTo) ||
+      dateFrom > dateTo
+    )
+      throw new BadRequestException('Choose a valid date range');
+    if (
+      parseDateOnlyUtc(dateTo).getTime() -
+        parseDateOnlyUtc(dateFrom).getTime() >
+      3660 * 86400000
+    )
+      throw new BadRequestException('Choose a range of ten years or less');
+    const interval = query.interval ?? 'day';
+    if (!['day', 'week', 'month'].includes(interval))
+      throw new BadRequestException('Invalid reporting interval');
+
+    const branches = await this.prisma.salon.findMany({
+      where: { franchiseId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    const selected = query.branchId
+      ? branches.find((b) => b.id === query.branchId)
+      : null;
+    if (query.branchId && !selected)
+      throw new ForbiddenException('Branch is outside your franchise');
+
+    const initialSnapshot: AdminReportSnapshot = {
+      kind: 'FRANCHISE_OVERVIEW',
+      status: 'Generating',
+      dateFrom,
+      dateTo,
+      branchId: query.branchId ?? null,
+      branch: selected?.name ?? 'All Branches',
+      timeZone,
+      interval,
+      generatedOn: new Date().toISOString(),
+      generatedBy: user.email,
+      stats: {
+        totalRevenue: 0,
+        totalBills: 0,
+        totalCustomers: 0,
+        totalServices: 0,
+        totalStaff: 0,
+      },
+      bills: [],
+      revenueSeries: [],
+      branchComparison: [],
+      customers: [],
+      billsOverview: {
+        total: 0,
+        paid: 0,
+        paidPct: 0,
+        pending: 0,
+        pendingPct: 0,
+        overdue: 0,
+        overduePct: 0,
+        cancelled: 0,
+        cancelledPct: 0,
+      },
+      services: [],
+      branches,
+      payments: {
+        successful: 0,
+        failed: 0,
+        attempts: 0,
+        successRate: null,
+        methods: [],
+      },
+    };
+
+    const row = await this.prisma.platformReport.create({
+      data: {
+        name: 'Franchise Overview Report',
+        type: 'FINANCIAL',
+        format: 'EXCEL',
+        franchiseId,
+        generatedById: user.userId,
+        dateFrom: parseDateOnlyUtc(dateFrom),
+        dateTo: parseDateOnlyUtc(dateTo),
+        snapshot: initialSnapshot as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    if (this.reportQueue) {
+      await this.reportQueue.add(
+        REPORT_JOB_ADMIN_EXPORT,
+        {
+          reportId: row.id,
+          actorUserId: user.userId,
+          franchiseId,
+          query: {
+            dateFrom,
+            dateTo,
+            branchId: query.branchId,
+            interval,
+            reportType: query.reportType,
+          },
+        },
+        {
+          jobId: `admin-report-${row.id}`,
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
+    }
+
+    return this.record(row);
+  }
+
+  async processBackgroundAdminReport(
+    payload: AdminReportJobPayload,
+  ): Promise<void> {
+    const report = await this.prisma.platformReport.findUnique({
+      where: { id: payload.reportId },
+      select: { id: true, snapshot: true },
+    });
+    if (!report) {
+      this.logger.warn(
+        `Admin report ${payload.reportId} not found for background generation`,
+      );
+      return;
+    }
+
+    const actor = await this.prisma.user.findUnique({
+      where: { id: payload.actorUserId },
+      select: { id: true, email: true, franchiseId: true },
+    });
+
+    const authUser: AuthenticatedUser = {
+      userId: payload.actorUserId,
+      email: actor?.email ?? '',
+      role: RoleCode.ADMIN,
+      franchiseId: actor?.franchiseId ?? payload.franchiseId,
+      salonId: null,
+      sessionId: null,
+    };
+
+    try {
+      const snapshot = await measureBaseline('report:snapshot:ms', () =>
+        this.snapshot(authUser, payload.query),
+      );
+      await measureBaseline('report:workbook:ms', () =>
+        buildAdminWorkbook(snapshot),
+      );
+      await this.prisma.platformReport.update({
+        where: { id: payload.reportId },
+        data: {
+          snapshot: snapshot as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate background admin report ${payload.reportId}: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      const current = report.snapshot as Record<string, unknown> | null;
+      await this.prisma.platformReport.update({
+        where: { id: payload.reportId },
+        data: {
+          snapshot: {
+            ...(typeof current === 'object' && current !== null ? current : {}),
+            status: 'Failed',
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+      throw error;
+    }
+  }
+
   async history(user: AuthenticatedUser) {
     const franchiseId = this.franchise(user);
     const rows = await this.prisma.platformReport.findMany({
       where: {
         franchiseId,
         snapshot: { path: '$.kind', equals: 'FRANCHISE_OVERVIEW' },
+      },
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        snapshot: true,
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
@@ -369,6 +570,9 @@ export class AdminReportsService {
         id,
         franchiseId,
         snapshot: { path: '$.kind', equals: 'FRANCHISE_OVERVIEW' },
+      },
+      select: {
+        snapshot: true,
       },
     });
     if (!row) throw new NotFoundException('Report not found');

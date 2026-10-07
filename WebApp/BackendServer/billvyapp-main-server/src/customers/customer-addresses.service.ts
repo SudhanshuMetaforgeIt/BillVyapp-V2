@@ -83,7 +83,7 @@ export class CustomerAddressesService {
     const pagination = normalizePagination(page, limit);
 
     const where = { customerId };
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.customerAddress.findMany({
         where,
         select: ADDRESS_SELECT,

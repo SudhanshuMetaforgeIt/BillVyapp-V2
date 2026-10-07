@@ -6,6 +6,11 @@ jest.mock('../generated/prisma/client', () => {
     Prisma: { sql: runtime.sqltag, join: runtime.join, empty: runtime.empty },
   };
 });
+jest.mock('@nestjs/bullmq', () => ({
+  InjectQueue: () => () => undefined,
+  Processor: () => (cls: unknown) => cls,
+  WorkerHost: class WorkerHost {},
+}));
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { RoleCode } from '../common/enums/role.enum';
@@ -77,11 +82,12 @@ describe('PlatformReportsService', () => {
       groupBy: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     },
     franchise: { findUnique: jest.fn(), count: jest.fn() },
     payment: { aggregate: jest.fn(), count: jest.fn() },
-    user: { count: jest.fn() },
+    user: { count: jest.fn(), findUnique: jest.fn() },
     customer: { count: jest.fn() },
     salon: { count: jest.fn() },
     $transaction: jest.fn(),
@@ -308,6 +314,94 @@ describe('PlatformReportsService', () => {
     prisma.platformReport.findUnique.mockResolvedValue(null);
     await expect(service.download(actor, 'missing')).rejects.toBeInstanceOf(
       NotFoundException,
+    );
+  });
+
+  it('rejects downloading a report that is still generating or failed', async () => {
+    prisma.platformReport.findUnique.mockResolvedValueOnce(
+      reportRow({ snapshot: { status: 'Generating' } }),
+    );
+    await expect(service.download(actor, 'pr-1')).rejects.toThrow(
+      'Report is still generating. Please try again shortly',
+    );
+
+    prisma.platformReport.findUnique.mockResolvedValueOnce(
+      reportRow({ snapshot: { status: 'Failed' } }),
+    );
+    await expect(service.download(actor, 'pr-1')).rejects.toThrow(
+      'Report generation failed. Please regenerate',
+    );
+  });
+
+  it('enqueues platform report export to background queue when async is true', async () => {
+    const queue = { add: jest.fn().mockResolvedValue({ id: 'job-p1' }) };
+    const asyncService = new PlatformReportsService(
+      prisma as unknown as PrismaService,
+      audit as unknown as AuditService,
+      {
+        resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
+        getPlatformTimezone: jest.fn().mockResolvedValue('Asia/Kolkata'),
+      } as never,
+      analytics as never,
+      queue as never,
+    );
+    prisma.platformReport.create.mockResolvedValue(
+      reportRow({ snapshot: { status: 'Generating' } }),
+    );
+
+    const result = await asyncService.generate(
+      actor,
+      {
+        type: 'financial',
+        dateFrom: '2026-09-01',
+        dateTo: '2026-09-30',
+        async: true,
+      },
+      ctx,
+    );
+
+    expect(result.snapshot.status).toBe('Generating');
+    expect(queue.add).toHaveBeenCalledWith(
+      'generate-platform-export',
+      expect.objectContaining({
+        reportId: 'pr-1',
+        actorUserId: actor.userId,
+      }),
+      expect.objectContaining({
+        jobId: 'platform-report-pr-1',
+      }),
+    );
+  });
+
+  it('processes background platform report and updates snapshot to Ready', async () => {
+    stubAggregate();
+    prisma.platformReport.findUnique.mockResolvedValue(
+      reportRow({ snapshot: { status: 'Generating' } }),
+    );
+    prisma.user.findUnique.mockResolvedValue({
+      id: actor.userId,
+      email: actor.email,
+      role: { code: 'SUPER_ADMIN' },
+    });
+    prisma.platformReport.update.mockResolvedValue({});
+
+    await service.processBackgroundPlatformReport({
+      reportId: 'pr-1',
+      actorUserId: actor.userId,
+      dto: {
+        type: 'financial',
+        dateFrom: '2026-09-01',
+        dateTo: '2026-09-30',
+      },
+    });
+
+    expect(prisma.platformReport.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pr-1' },
+        data: expect.objectContaining({
+          snapshot: expect.objectContaining({ status: 'Ready' }),
+        }),
+      }),
     );
   });
 });

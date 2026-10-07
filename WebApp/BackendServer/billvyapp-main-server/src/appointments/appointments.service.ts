@@ -171,7 +171,7 @@ export class AppointmentsService {
 
     const where = { AND: filters };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.appointment.findMany({
         where,
         select: APPOINTMENT_SELECT,

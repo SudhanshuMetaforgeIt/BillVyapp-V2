@@ -35,7 +35,7 @@ export class CampaignsService {
       ...(query.status ? { status: query.status } : {}),
       ...(search ? { OR: [{ name: { contains: search } }, { description: { contains: search } }, { offerDescription: { contains: search } }] } : {}),
     };
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.campaign.findMany({ where, select: SELECT, orderBy: { createdAt: 'desc' }, skip, take: limit }),
       this.prisma.campaign.count({ where }),
     ]);

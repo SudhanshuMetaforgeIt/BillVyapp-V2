@@ -49,6 +49,7 @@ describe('FranchisesService', () => {
     },
     franchiseSubscription: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(),
   };
@@ -61,6 +62,7 @@ describe('FranchisesService', () => {
     scope.franchiseTableScope.mockReturnValue({});
     audit.record.mockResolvedValue(undefined);
     prisma.franchiseSubscription.findFirst.mockResolvedValue(null);
+    prisma.franchiseSubscription.findMany.mockResolvedValue([]);
     prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
       Promise.all(ops),
     );
@@ -95,19 +97,36 @@ describe('FranchisesService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('lists franchises with pagination metadata', async () => {
-    prisma.franchise.findMany.mockResolvedValue([franchise()]);
-    prisma.franchise.count.mockResolvedValue(1);
+  it('lists franchises with pagination metadata and batches subscription queries', async () => {
+    prisma.franchise.findMany.mockResolvedValue([
+      franchise({ id: 'fr-1' }),
+      franchise({ id: 'fr-2' }),
+    ]);
+    prisma.franchise.count.mockResolvedValue(2);
+    prisma.franchiseSubscription.findMany.mockResolvedValue([
+      {
+        franchiseId: 'fr-1',
+        status: 'ACTIVE',
+        startsAt: new Date(Date.now() - 86400000),
+        endsAt: new Date(Date.now() + 86400000),
+        createdAt: new Date(),
+        platformPlan: { name: 'Gold' },
+      },
+    ]);
 
     const result = await service.list(actor, { page: 1, limit: 20 });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.meta).toEqual({
-      page: 1,
-      limit: 20,
-      total: 1,
-      totalPages: 1,
-    });
+    expect(result.data).toHaveLength(2);
+    expect(result.data[0].currentPlanName).toBe('Gold');
+    expect(result.data[0].subscriptionActive).toBe(true);
+    expect(result.data[1].currentPlanName).toBeNull();
+    expect(result.data[1].subscriptionActive).toBe(false);
+    expect(prisma.franchiseSubscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { franchiseId: { in: ['fr-1', 'fr-2'] } },
+      }),
+    );
+    expect(prisma.franchiseSubscription.findFirst).not.toHaveBeenCalled();
   });
 
   it('returns franchise detail', async () => {

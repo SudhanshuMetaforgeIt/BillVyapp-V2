@@ -72,4 +72,11 @@ export class GeneratePlatformReportDto {
   @IsOptional()
   @IsIn(['revenue', 'quantity', 'transactions'])
   serviceSort?: 'revenue' | 'quantity' | 'transactions';
+
+  @ApiPropertyOptional({
+    description: 'Whether to enqueue report generation to background queue',
+    example: true,
+  })
+  @IsOptional()
+  async?: boolean;
 }

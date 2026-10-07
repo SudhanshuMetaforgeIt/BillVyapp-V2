@@ -95,7 +95,16 @@ export async function completeChosenEnrollment(
   await tx.$queryRaw`SELECT id FROM customers WHERE id = ${bill.customerId} FOR UPDATE`;
   const customer = await tx.customer.findUniqueOrThrow({
     where: { id: bill.customerId },
-    include: { user: true },
+    select: {
+      id: true,
+      userId: true,
+      user: {
+        select: {
+          isActive: true,
+          phone: true,
+        },
+      },
+    },
   });
   if (!customer.user.isActive)
     throw new BadRequestException('Customer is inactive');
@@ -122,6 +131,7 @@ export async function completeChosenEnrollment(
   if (details.address?.trim()) {
     const address = await tx.customerAddress.findFirst({
       where: { customerId: customer.id, isDefault: true },
+      select: { id: true },
     });
     if (address)
       await tx.customerAddress.update({

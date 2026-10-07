@@ -119,7 +119,7 @@ export class VendorsService {
         : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.vendor.findMany({
         where,
         select: VENDOR_SELECT,
