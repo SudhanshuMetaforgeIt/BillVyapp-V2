@@ -3,7 +3,9 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { CacheService } from '../redis/cache.service';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import { join } from 'path';
@@ -146,6 +148,17 @@ const SETTINGS_SELECT = {
   updatedAt: true,
 } as const;
 
+const INTEGRATION_SELECT = {
+  id: true,
+  name: true,
+  provider: true,
+  status: true,
+  config: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 @Injectable()
 export class SettingsService {
   constructor(
@@ -153,6 +166,7 @@ export class SettingsService {
     private readonly audit: AuditService,
     private readonly media: MediaService,
     private readonly redis: RedisService,
+    @Optional() private readonly cache?: CacheService,
   ) {}
 
   // ---------------------------------------------------------------- general
@@ -204,6 +218,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toGeneral(updated);
   }
 
@@ -263,6 +278,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toGeneral(updated);
   }
 
@@ -301,6 +317,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return upload;
   }
 
@@ -339,6 +356,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return upload;
   }
 
@@ -367,6 +385,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toGeneral(updated);
   }
 
@@ -416,6 +435,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toSecurity(updated);
   }
 
@@ -452,6 +472,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toSecurity(updated);
   }
 
@@ -493,6 +514,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return {
       retentionDays: updated.logRetentionDays,
       purged: purge.deleted,
@@ -576,6 +598,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toEmail(updated);
   }
 
@@ -653,6 +676,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return {
       notificationDefaults: this.asObject(updated.notificationDefaults),
     };
@@ -700,6 +724,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return { systemConfig: this.asObject(updated.systemConfig) };
   }
 
@@ -793,6 +818,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return this.toGeneral(updated);
   }
 
@@ -801,6 +827,7 @@ export class SettingsService {
   async createBackup(actor: AuthenticatedUser, ctx: RequestContext) {
     const settings = await this.ensureSettings();
     const integrations = await this.prisma.platformIntegration.findMany({
+      select: INTEGRATION_SELECT,
       orderBy: { createdAt: 'asc' },
     });
 
@@ -1022,6 +1049,7 @@ export class SettingsService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidatePlatformSettings();
     return {
       message: 'Platform settings restored from backup.',
       id: targetId,
@@ -1046,6 +1074,7 @@ export class SettingsService {
 
   async listIntegrations() {
     const rows = await this.prisma.platformIntegration.findMany({
+      select: INTEGRATION_SELECT,
       orderBy: { createdAt: 'desc' },
     });
     return rows.map((row) => this.toIntegration(row));
@@ -1179,7 +1208,7 @@ export class SettingsService {
       ],
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -1212,7 +1241,7 @@ export class SettingsService {
       ...(query.entityType ? { entityType: query.entityType } : {}),
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -1239,6 +1268,15 @@ export class SettingsService {
   // ---------------------------------------------------------------- helpers
 
   private async ensureSettings(): Promise<SettingsRow> {
+    if (this.cache) {
+      return this.cache.wrap('cache:settings:platform', 3600, () =>
+        this.fetchEnsureSettings(),
+      );
+    }
+    return this.fetchEnsureSettings();
+  }
+
+  private async fetchEnsureSettings(): Promise<SettingsRow> {
     const existing = await this.prisma.platformSettings.findUnique({
       where: { id: PLATFORM_SETTINGS_ID },
       select: SETTINGS_SELECT,
@@ -1288,6 +1326,7 @@ export class SettingsService {
   private async requireIntegration(id: string): Promise<IntegrationRow> {
     const row = await this.prisma.platformIntegration.findUnique({
       where: { id },
+      select: INTEGRATION_SELECT,
     });
     if (!row) {
       throw new NotFoundException('Integration not found');

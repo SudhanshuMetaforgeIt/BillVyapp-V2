@@ -303,6 +303,34 @@ describe('ServicesService', () => {
 
     expect(scope.salonScope).toHaveBeenCalledWith(staff);
   });
+
+  it('delegates to cache.wrap for catalogue listing and invalidates on service creation', async () => {
+    const mockCache = {
+      wrap: jest.fn().mockImplementation((key, ttl, fn) => fn()),
+      hashQuery: jest.fn().mockReturnValue('hash-123'),
+      invalidateSalonCatalogue: jest.fn().mockResolvedValue(undefined),
+    };
+    const cachedService = new ServicesService(
+      prisma as unknown as PrismaService,
+      scope as unknown as ScopeService,
+      audit as unknown as AuditService,
+      mockCache as unknown as import('../redis/cache.service').CacheService,
+    );
+
+    prisma.service.findMany.mockResolvedValue([serviceRow()]);
+    prisma.service.count.mockResolvedValue(1);
+
+    await cachedService.list(customer, { salonId: 'salon-a1', page: 1, limit: 20 });
+    expect(mockCache.wrap).toHaveBeenCalledWith(
+      expect.stringContaining('cache:catalogue:salon-a1:services:'),
+      1800,
+      expect.any(Function),
+    );
+
+    prisma.service.create.mockResolvedValue(serviceRow({ salonId: 'salon-a1' }));
+    await cachedService.create(manager, createDto, ctx);
+    expect(mockCache.invalidateSalonCatalogue).toHaveBeenCalledWith('salon-a1');
+  });
 });
 
 describe('CreateServiceDto validation', () => {

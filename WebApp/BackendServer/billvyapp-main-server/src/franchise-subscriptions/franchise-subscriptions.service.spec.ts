@@ -212,4 +212,30 @@ describe('FranchiseSubscriptionsService', () => {
       service.isFranchiseSubscriptionActive('fr-1'),
     ).resolves.toBe(true);
   });
+
+  it('lists franchise subscriptions with paginated metadata without N+1 timezone calls', async () => {
+    prisma.franchiseSubscription.findMany.mockResolvedValue([
+      {
+        id: 'sub-1',
+        franchiseId: 'fr-1',
+        platformPlanId: 'plan-1',
+        billingCycle: 'MONTHLY',
+        status: 'ACTIVE',
+        startsAt: new Date('2026-10-01T00:00:00.000Z'),
+        endsAt: new Date('2026-10-31T00:00:00.000Z'),
+        notes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        franchise: { id: 'fr-1', name: 'Demo' },
+        platformPlan: { id: 'plan-1', name: 'Basic' },
+      },
+    ]);
+    prisma.franchiseSubscription.count.mockResolvedValue(1);
+
+    const result = await service.list(actor, { page: 1, limit: 20 });
+
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].planName).toBe('Basic');
+    expect(result.meta.total).toBe(1);
+  });
 });

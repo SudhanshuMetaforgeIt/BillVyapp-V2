@@ -208,7 +208,7 @@ export class SupportTicketsService {
     const where = this.buildListWhere(user, query, timeZone);
 
     const [rows, total, byStatusGrouped, byCategoryGrouped] =
-      await this.prisma.$transaction([
+      await Promise.all([
         this.prisma.supportTicket.findMany({
           where,
           select: TICKET_SELECT,

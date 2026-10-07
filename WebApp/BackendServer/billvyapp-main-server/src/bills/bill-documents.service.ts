@@ -67,7 +67,7 @@ export class BillDocumentsService {
     const pagination = normalizePagination(page, limit);
     const where = { billId };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.billDocument.findMany({
         where,
         select: DOCUMENT_SELECT,

@@ -6,6 +6,11 @@ jest.mock('../generated/prisma/client', () => {
     Prisma: { sql: runtime.sqltag, join: runtime.join, empty: runtime.empty },
   };
 });
+jest.mock('@nestjs/bullmq', () => ({
+  InjectQueue: () => () => undefined,
+  Processor: () => (cls: unknown) => cls,
+  WorkerHost: class WorkerHost {},
+}));
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   ReportAnalyticsService,

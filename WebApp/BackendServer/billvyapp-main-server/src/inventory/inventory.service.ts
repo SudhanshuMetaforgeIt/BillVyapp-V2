@@ -163,6 +163,7 @@ export class InventoryService {
         where,
         select: INVENTORY_SELECT,
         orderBy: [{ updatedAt: 'desc' }],
+        take: 1000,
       });
       const low = candidates.filter(
         (row) => row.quantityOnHand <= row.product.reorderLevel,
@@ -177,7 +178,7 @@ export class InventoryService {
       );
     }
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.inventory.findMany({
         where,
         select: INVENTORY_SELECT,
@@ -224,7 +225,7 @@ export class InventoryService {
 
     const where = { AND: filters };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.stockMovement.findMany({
         where,
         select: MOVEMENT_SELECT,

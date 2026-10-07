@@ -15,8 +15,8 @@
 // =============================================================================
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
   // The backend compiles to CommonJS. Without this the generated client emits
   // `import.meta.url`, which Node reclassifies as ESM and then `exports` is
   // undefined at runtime. Codegen directive only - affects no table or column.
@@ -256,28 +256,28 @@ model Role {
 ///   STAFF       : franchiseId set,  salonId set
 ///   CUSTOMER    : franchiseId NULL, salonId NULL  (own records only)
 model User {
-  id           String    @id @default(uuid()) @db.VarChar(36)
-  roleId       String    @db.VarChar(36)
-  franchiseId  String?   @db.VarChar(36)
-  salonId      String?   @db.VarChar(36)
-  firstName    String    @db.VarChar(100)
-  lastName     String    @db.VarChar(100)
-  email        String    @unique @db.VarChar(191)
+  id                      String     @id @default(uuid()) @db.VarChar(36)
+  roleId                  String     @db.VarChar(36)
+  franchiseId             String?    @db.VarChar(36)
+  salonId                 String?    @db.VarChar(36)
+  firstName               String     @db.VarChar(100)
+  lastName                String     @db.VarChar(100)
+  email                   String     @unique @db.VarChar(191)
   /// Indian mobile number, 10 digits, stored WITHOUT the +91 country code.
   /// API layer must enforce ^[0-9]{10}$ before persisting.
-  phone        String?   @unique @db.VarChar(10)
+  phone                   String?    @unique @db.VarChar(10)
   /// Argon2/bcrypt digest only. A plain-text password must never reach this column.
-  passwordHash String    @db.VarChar(255)
-  profilePhoto String?   @db.VarChar(512)
+  passwordHash            String     @db.VarChar(255)
+  profilePhoto            String?    @db.VarChar(512)
   /// Current avatar; metadata and uploader ownership remain in MediaFile.
-  profilePhotoMediaFileId String? @unique @db.VarChar(36)
-  profilePhotoMediaFile MediaFile? @relation("UserProfilePhoto", fields: [profilePhotoMediaFileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  profilePhotoMediaFileId String?    @unique @db.VarChar(36)
+  profilePhotoMediaFile   MediaFile? @relation("UserProfilePhoto", fields: [profilePhotoMediaFileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   /// Monthly salary in INR. Optional for platform roles; set by Admin for MANAGER/STAFF.
-  salary       Decimal?  @db.Decimal(12, 2)
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  salary                  Decimal?   @db.Decimal(12, 2)
+  isActive                Boolean    @default(true)
+  lastLoginAt             DateTime?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
 
   role      Role       @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   franchise Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -299,6 +299,8 @@ model User {
   @@index([phone])
   @@index([franchiseId, salonId])
   @@index([roleId, isActive])
+  @@index([salonId, roleId, isActive])
+  @@index([franchiseId, roleId, isActive])
   @@map("users")
 }
 
@@ -325,16 +327,16 @@ model UserSession {
 // =============================================================================
 
 model Franchise {
-  id        String   @id @default(uuid()) @db.VarChar(36)
-  name      String   @db.VarChar(191)
-  code      String   @unique @db.VarChar(50)
-  phone     String?  @db.VarChar(20)
-  email     String?  @db.VarChar(191)
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  name        String   @db.VarChar(191)
+  code        String   @unique @db.VarChar(50)
+  phone       String?  @db.VarChar(20)
+  email       String?  @db.VarChar(191)
   /// Franchise-level UI preferences (currency, locale, notification toggles, etc.).
   preferences Json?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   salons          Salon[]
   users           User[]
@@ -399,20 +401,20 @@ model Salon {
 /// Object-storage metadata for public salon imagery. Binary content lives in the
 /// configured public image provider (Cloudinary today), never MySQL.
 model SalonPhoto {
-  id           String         @id @default(uuid()) @db.VarChar(36)
-  salonId      String         @db.VarChar(36)
+  id              String         @id @default(uuid()) @db.VarChar(36)
+  salonId         String         @db.VarChar(36)
   /// Storage adapter that owns the object (CLOUDINARY today; S3 later).
-  storageProvider String       @default("S3") @db.VarChar(50)
-  storageKey   String         @db.VarChar(512)
-  fileName     String         @db.VarChar(255)
-  fileUrl      String?        @db.Text
-  mimeType     String         @db.VarChar(100)
-  fileSize     Int
-  photoType    SalonPhotoType @default(OTHER)
-  isPrimary    Boolean        @default(false)
-  displayOrder Int            @default(0)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  storageProvider String         @default("S3") @db.VarChar(50)
+  storageKey      String         @db.VarChar(512)
+  fileName        String         @db.VarChar(255)
+  fileUrl         String?        @db.Text
+  mimeType        String         @db.VarChar(100)
+  fileSize        Int
+  photoType       SalonPhotoType @default(OTHER)
+  isPrimary       Boolean        @default(false)
+  displayOrder    Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -429,14 +431,14 @@ model SalonPhoto {
 /// password) are NOT duplicated here — they live on User.
 /// A customer is global: no mandatory salonId, can book at any salon.
 model Customer {
-  id           String    @id @default(uuid()) @db.VarChar(36)
-  userId       String    @unique @db.VarChar(36)
-  customerCode String    @unique @db.VarChar(50)
-  whatsappNumber String? @db.VarChar(20)
-  dateOfBirth  DateTime? @db.Date
-  gender       Gender?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(uuid()) @db.VarChar(36)
+  userId         String    @unique @db.VarChar(36)
+  customerCode   String    @unique @db.VarChar(50)
+  whatsappNumber String?   @db.VarChar(20)
+  dateOfBirth    DateTime? @db.Date
+  gender         Gender?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -447,6 +449,7 @@ model Customer {
   loyaltyTransactions LoyaltyTransaction[]
   notifications       Notification[]
 
+  @@index([createdAt])
   @@map("customers")
 }
 
@@ -515,6 +518,7 @@ model Service {
 
   @@unique([salonId, name])
   @@index([salonId, isActive])
+  @@index([salonId, categoryId, isActive])
   @@index([categoryId])
   @@map("services")
 }
@@ -551,7 +555,9 @@ model Appointment {
   @@index([appointmentDate])
   @@index([salonId, appointmentDate])
   @@index([salonId, status])
-  @@index([staffId, appointmentDate])
+  @@index([salonId, status, appointmentDate])
+  @@index([customerId, appointmentDate])
+  @@index([staffId, appointmentDate, startTime])
   @@map("appointments")
 }
 
@@ -628,6 +634,7 @@ model Product {
   @@unique([salonId, sku])
   @@unique([salonId, barcode])
   @@index([salonId, isActive])
+  @@index([salonId, categoryId, isActive])
   @@index([categoryId])
   @@index([name])
   @@map("products")
@@ -719,6 +726,7 @@ model Purchase {
   @@index([purchaseDate])
   @@index([salonId, purchaseDate])
   @@index([salonId, status])
+  @@index([salonId, status, purchaseDate])
   @@map("purchases")
 }
 
@@ -766,6 +774,7 @@ model Inventory {
 
   @@unique([salonId, productId])
   @@index([productId])
+  @@index([salonId, availableQuantity])
   @@map("inventory")
 }
 
@@ -793,6 +802,7 @@ model StockMovement {
   @@index([createdBy])
   @@index([movementType])
   @@index([salonId, productId, createdAt])
+  @@index([salonId, createdAt])
   @@index([referenceType, referenceId])
   @@map("stock_movements")
 }
@@ -803,40 +813,40 @@ model StockMovement {
 
 /// Invoice document. The table is deliberately named "bills" (not invoices).
 model Bill {
-  enrollmentPlanId String? @db.VarChar(36)
-  enrollmentPlan MembershipPlan? @relation("BillEnrollmentPlan", fields: [enrollmentPlanId], references: [id], onDelete: Restrict)
-  enrollmentDetails Json?
-  membershipFee Decimal @default(0) @db.Decimal(12, 2)
-  enrollmentPlanName String? @db.VarChar(191)
-  id            String            @id @default(uuid()) @db.VarChar(36)
-  salonId       String            @db.VarChar(36)
-  customerId    String            @db.VarChar(36)
-  billNumber    String            @db.VarChar(50)
-  billDate      DateTime
-  subtotal      Decimal           @default(0) @db.Decimal(12, 2)
-  discount      Decimal           @default(0) @db.Decimal(12, 2)
-  tax           Decimal           @default(0) @db.Decimal(12, 2)
-  roundOff      Decimal           @default(0) @db.Decimal(10, 2)
-  total         Decimal           @default(0) @db.Decimal(12, 2)
-  paidAmount    Decimal           @default(0) @db.Decimal(12, 2)
-  dueAmount     Decimal           @default(0) @db.Decimal(12, 2)
-  status        BillStatus        @default(DRAFT)
-  paymentStatus BillPaymentStatus @default(UNPAID)
-  notes         String?           @db.Text
-  createdBy     String?           @db.VarChar(36)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  enrollmentPlanId   String?           @db.VarChar(36)
+  enrollmentPlan     MembershipPlan?   @relation("BillEnrollmentPlan", fields: [enrollmentPlanId], references: [id], onDelete: Restrict)
+  enrollmentDetails  Json?
+  membershipFee      Decimal           @default(0) @db.Decimal(12, 2)
+  enrollmentPlanName String?           @db.VarChar(191)
+  id                 String            @id @default(uuid()) @db.VarChar(36)
+  salonId            String            @db.VarChar(36)
+  customerId         String            @db.VarChar(36)
+  billNumber         String            @db.VarChar(50)
+  billDate           DateTime
+  subtotal           Decimal           @default(0) @db.Decimal(12, 2)
+  discount           Decimal           @default(0) @db.Decimal(12, 2)
+  tax                Decimal           @default(0) @db.Decimal(12, 2)
+  roundOff           Decimal           @default(0) @db.Decimal(10, 2)
+  total              Decimal           @default(0) @db.Decimal(12, 2)
+  paidAmount         Decimal           @default(0) @db.Decimal(12, 2)
+  dueAmount          Decimal           @default(0) @db.Decimal(12, 2)
+  status             BillStatus        @default(DRAFT)
+  paymentStatus      BillPaymentStatus @default(UNPAID)
+  notes              String?           @db.Text
+  createdBy          String?           @db.VarChar(36)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   salon         Salon    @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   customer      Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   createdByUser User?    @relation("BillCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  items     BillItem[]
-  payments  Payment[]
-  documents BillDocument[]
+  items                BillItem[]
+  payments             Payment[]
+  documents            BillDocument[]
   qualifyingMembership Membership?
-  appliedMembershipId String? @db.VarChar(36)
-  appliedMembership Membership? @relation("BillAppliedMembership", fields: [appliedMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  appliedMembershipId  String?        @db.VarChar(36)
+  appliedMembership    Membership?    @relation("BillAppliedMembership", fields: [appliedMembershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   /// Bill number is unique per salon.
   @@unique([salonId, billNumber])
@@ -844,8 +854,11 @@ model Bill {
   @@index([createdBy])
   @@index([billDate])
   @@index([salonId, billDate])
+  @@index([salonId, billDate, createdAt])
   @@index([salonId, status])
+  @@index([salonId, status, billDate])
   @@index([salonId, paymentStatus])
+  @@index([salonId, paymentStatus, billDate])
   @@index([customerId, billDate])
   @@index([appliedMembershipId])
   @@map("bills")
@@ -854,31 +867,32 @@ model Bill {
 /// A bill line is either a SERVICE or a PRODUCT — exactly one of
 /// serviceId / productId is populated, so both columns are nullable.
 model BillItem {
-  linePosition Int @default(0)
-  membershipBenefit Boolean @default(false)
-  membershipDiscount Decimal @default(0) @db.Decimal(12, 2)
-  membershipUnits Int @default(0)
+  linePosition         Int                   @default(0)
+  membershipBenefit    Boolean               @default(false)
+  membershipDiscount   Decimal               @default(0) @db.Decimal(12, 2)
+  membershipUnits      Int                   @default(0)
   membershipRedemption MembershipRedemption?
-  id          String       @id @default(uuid()) @db.VarChar(36)
-  billId      String       @db.VarChar(36)
-  itemType    BillItemType
-  serviceId   String?      @db.VarChar(36)
-  productId   String?      @db.VarChar(36)
-  description String?      @db.Text
-  quantity    Int          @default(1)
-  unitPrice   Decimal      @db.Decimal(12, 2)
-  discount    Decimal      @default(0) @db.Decimal(12, 2)
-  taxRate     Decimal      @default(0) @db.Decimal(5, 2)
-  taxAmount   Decimal      @default(0) @db.Decimal(12, 2)
-  total       Decimal      @default(0) @db.Decimal(12, 2)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                   String                @id @default(uuid()) @db.VarChar(36)
+  billId               String                @db.VarChar(36)
+  itemType             BillItemType
+  serviceId            String?               @db.VarChar(36)
+  productId            String?               @db.VarChar(36)
+  description          String?               @db.Text
+  quantity             Int                   @default(1)
+  unitPrice            Decimal               @db.Decimal(12, 2)
+  discount             Decimal               @default(0) @db.Decimal(12, 2)
+  taxRate              Decimal               @default(0) @db.Decimal(5, 2)
+  taxAmount            Decimal               @default(0) @db.Decimal(12, 2)
+  total                Decimal               @default(0) @db.Decimal(12, 2)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   bill    Bill     @relation(fields: [billId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   service Service? @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   product Product? @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([billId])
+  @@index([billId, linePosition])
   @@index([serviceId])
   @@index([productId])
   @@index([itemType])
@@ -902,8 +916,10 @@ model Payment {
   bill Bill @relation(fields: [billId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([billId])
+  @@index([billId, paymentDate])
   @@index([paymentDate])
-  @@index([status])
+  @@index([paymentDate, createdAt])
+  @@index([status, paymentDate])
   @@index([paymentMethod])
   @@map("payments")
 }
@@ -937,29 +953,29 @@ enum MembershipBenefitType {
 }
 
 model MembershipPlan {
-  enrollmentBills Bill[] @relation("BillEnrollmentPlan")
-  couponUsageLimit Int?
-  termsAndConditions String? @db.Text
-  benefitType MembershipBenefitType @default(NONE)
-  discountPercentage Decimal? @db.Decimal(5, 2)
-  freeServiceLimit Int?
-  freeServicesPerVisit Boolean @default(false)
-  id           String   @id @default(uuid()) @db.VarChar(36)
-  salonId      String   @db.VarChar(36)
-  name         String   @db.VarChar(191)
-  description  String?  @db.Text
-  price        Decimal  @db.Decimal(12, 2)
-  durationDays Int
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  enrollmentBills      Bill[]                @relation("BillEnrollmentPlan")
+  couponUsageLimit     Int?
+  termsAndConditions   String?               @db.Text
+  benefitType          MembershipBenefitType @default(NONE)
+  discountPercentage   Decimal?              @db.Decimal(5, 2)
+  freeServiceLimit     Int?
+  freeServicesPerVisit Boolean               @default(false)
+  id                   String                @id @default(uuid()) @db.VarChar(36)
+  salonId              String                @db.VarChar(36)
+  name                 String                @db.VarChar(191)
+  description          String?               @db.Text
+  price                Decimal               @db.Decimal(12, 2)
+  durationDays         Int
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
-  salon       Salon        @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  memberships Membership[]
-  eligibleServices Service[]
-  benefits String? @db.Text
-  enrollmentThreshold Decimal? @db.Decimal(12, 2)
-  couponPrefix String? @db.VarChar(32)
+  salon               Salon        @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  memberships         Membership[]
+  eligibleServices    Service[]
+  benefits            String?      @db.Text
+  enrollmentThreshold Decimal?     @db.Decimal(12, 2)
+  couponPrefix        String?      @db.VarChar(32)
 
   @@unique([salonId, name])
   @@index([salonId, isActive])
@@ -976,17 +992,19 @@ model Membership {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  couponCode String @unique @db.VarChar(80)
-  qualifyingBillId String? @unique @db.VarChar(36)
-  planSnapshot Json?
-  appliedBills Bill[] @relation("BillAppliedMembership")
-  redemptions MembershipRedemption[]
-  qualifyingBill Bill? @relation(fields: [qualifyingBillId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  couponCode       String                 @unique @db.VarChar(80)
+  qualifyingBillId String?                @unique @db.VarChar(36)
+  planSnapshot     Json?
+  appliedBills     Bill[]                 @relation("BillAppliedMembership")
+  redemptions      MembershipRedemption[]
+  qualifyingBill   Bill?                  @relation(fields: [qualifyingBillId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   membershipPlan MembershipPlan @relation(fields: [membershipPlanId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([customerId])
+  @@index([customerId, status])
+  @@index([customerId, endDate])
   @@index([membershipPlanId])
   @@index([status, endDate])
   @@map("memberships")
@@ -1033,9 +1051,9 @@ model MediaFile {
   entityId         String?  @db.VarChar(36)
   createdAt        DateTime @default(now())
 
-  salon          Salon? @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  uploadedByUser User?  @relation("MediaFileUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  profilePhotoUser User? @relation("UserProfilePhoto")
+  salon                  Salon?    @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  uploadedByUser         User?     @relation("MediaFileUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  profilePhotoUser       User?     @relation("UserProfilePhoto")
   campaignPromotionalFor Campaign? @relation("CampaignPromotionalMedia")
 
   @@index([salonId])
@@ -1047,26 +1065,26 @@ model MediaFile {
 /// A salon-scoped marketing activity. Delivery is intentionally not modelled in
 /// V1; the record only defines content and audience for future consumers.
 model Campaign {
-  id                       String                    @id @default(uuid()) @db.VarChar(36)
-  salonId                  String                    @db.VarChar(36)
-  createdById              String                    @db.VarChar(36)
-  name                     String                    @db.VarChar(191)
-  description              String?                   @db.Text
-  type                     CampaignType
-  targetAudience           CampaignTargetAudience
-  startDate                DateTime?
-  endDate                  DateTime?
-  status                   CampaignStatus            @default(DRAFT)
-  offerDescription         String?                   @db.Text
-  promotionalMediaFileId   String?                   @unique @db.VarChar(36)
-  message                  String?                   @db.Text
-  deliveryChannels         Json
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  id                     String                 @id @default(uuid()) @db.VarChar(36)
+  salonId                String                 @db.VarChar(36)
+  createdById            String                 @db.VarChar(36)
+  name                   String                 @db.VarChar(191)
+  description            String?                @db.Text
+  type                   CampaignType
+  targetAudience         CampaignTargetAudience
+  startDate              DateTime?
+  endDate                DateTime?
+  status                 CampaignStatus         @default(DRAFT)
+  offerDescription       String?                @db.Text
+  promotionalMediaFileId String?                @unique @db.VarChar(36)
+  message                String?                @db.Text
+  deliveryChannels       Json
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
 
-  salon             Salon     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  createdBy         User      @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  promotionalMedia  MediaFile? @relation("CampaignPromotionalMedia", fields: [promotionalMediaFileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  salon            Salon      @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy        User       @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  promotionalMedia MediaFile? @relation("CampaignPromotionalMedia", fields: [promotionalMediaFileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([salonId, status])
   @@index([status, startDate, endDate])
@@ -1109,9 +1127,13 @@ model Notification {
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([salonId])
+  @@index([salonId, createdAt])
   @@index([userId])
+  @@index([userId, createdAt])
   @@index([customerId])
+  @@index([customerId, createdAt])
   @@index([status, channel])
+  @@index([status, channel, createdAt])
   @@index([recipient])
   @@index([createdAt])
   @@map("notifications")
@@ -1159,13 +1181,13 @@ model PlatformSettings {
   logRetentionDays Int @default(90)
 
   /// Email / SMTP — smtpPassword is write-only via API
-  smtpHost      String?  @db.VarChar(191)
+  smtpHost      String? @db.VarChar(191)
   smtpPort      Int?
-  smtpUser      String?  @db.VarChar(191)
-  smtpPassword  String?  @db.VarChar(512)
-  smtpFromEmail String?  @db.VarChar(191)
-  smtpFromName  String?  @db.VarChar(100)
-  smtpSecure    Boolean  @default(true)
+  smtpUser      String? @db.VarChar(191)
+  smtpPassword  String? @db.VarChar(512)
+  smtpFromEmail String? @db.VarChar(191)
+  smtpFromName  String? @db.VarChar(100)
+  smtpSecure    Boolean @default(true)
 
   /// Channel / preference defaults (no secrets)
   notificationDefaults Json?
@@ -1181,13 +1203,13 @@ model PlatformSettings {
 
 /// Third-party integrations configured by Super Admin.
 model PlatformIntegration {
-  id       String  @id @default(uuid()) @db.VarChar(36)
-  name     String  @db.VarChar(100)
-  provider String  @db.VarChar(100)
-  status   String  @default("INACTIVE") @db.VarChar(32)
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(100)
+  provider  String   @db.VarChar(100)
+  status    String   @default("INACTIVE") @db.VarChar(32)
   /// May contain credentials. API responses redact known secret keys.
-  config   Json?
-  isActive Boolean @default(true)
+  config    Json?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1229,21 +1251,22 @@ model PlatformPlan {
 
 /// Links a franchise to a platform plan for a billing period.
 model FranchiseSubscription {
-  id             String                       @id @default(uuid()) @db.VarChar(36)
-  franchiseId    String                       @db.VarChar(36)
-  platformPlanId String                       @db.VarChar(36)
+  id             String                      @id @default(uuid()) @db.VarChar(36)
+  franchiseId    String                      @db.VarChar(36)
+  platformPlanId String                      @db.VarChar(36)
   billingCycle   PlatformPlanBillingCycle
-  status         FranchiseSubscriptionStatus  @default(ACTIVE)
-  startsAt       DateTime                     @db.Date
-  endsAt         DateTime                     @db.Date
-  notes          String?                      @db.Text
-  createdAt      DateTime                     @default(now())
-  updatedAt      DateTime                     @updatedAt
+  status         FranchiseSubscriptionStatus @default(ACTIVE)
+  startsAt       DateTime                    @db.Date
+  endsAt         DateTime                    @db.Date
+  notes          String?                     @db.Text
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
 
   franchise    Franchise    @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   platformPlan PlatformPlan @relation(fields: [platformPlanId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([franchiseId, status])
+  @@index([status, endsAt])
   @@index([platformPlanId])
   @@index([startsAt, endsAt])
   @@map("franchise_subscriptions")
@@ -1268,27 +1291,29 @@ model PlatformReport {
   franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([type])
+  @@index([type, createdAt])
   @@index([createdAt])
   @@index([franchiseId])
+  @@index([franchiseId, createdAt])
   @@index([generatedById])
   @@map("platform_reports")
 }
 
 /// Support tickets raised by Admin / Manager; visible to Super Admin platform-wide.
 model SupportTicket {
-  id           String                 @id @default(uuid()) @db.VarChar(36)
+  id           String                @id @default(uuid()) @db.VarChar(36)
   /// Human-facing sequential id (TKT-00001). Unique across the platform.
-  ticketNumber Int                    @unique @default(autoincrement())
-  subject      String                 @db.VarChar(191)
-  description  String                 @db.Text
+  ticketNumber Int                   @unique @default(autoincrement())
+  subject      String                @db.VarChar(191)
+  description  String                @db.Text
   category     SupportTicketCategory
-  priority     SupportTicketPriority  @default(MEDIUM)
-  status       SupportTicketStatus    @default(OPEN)
-  createdById  String                 @db.VarChar(36)
-  franchiseId  String?                @db.VarChar(36)
-  salonId      String?                @db.VarChar(36)
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
+  priority     SupportTicketPriority @default(MEDIUM)
+  status       SupportTicketStatus   @default(OPEN)
+  createdById  String                @db.VarChar(36)
+  franchiseId  String?               @db.VarChar(36)
+  salonId      String?               @db.VarChar(36)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
 
   createdBy User       @relation("SupportTicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
   franchise Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -1299,6 +1324,8 @@ model SupportTicket {
   @@index([category])
   @@index([createdAt])
   @@index([franchiseId])
+  @@index([franchiseId, status, createdAt])
+  @@index([salonId, status, createdAt])
   @@index([createdById])
   @@map("support_tickets")
 }
@@ -1322,33 +1349,37 @@ model AuditLog {
   salon Salon? @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt])
   @@index([salonId])
+  @@index([salonId, createdAt])
   @@index([action])
   @@index([createdAt])
   @@index([entityType, entityId])
+  @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
 }
 
 /// One completed bill service line per redemption; memberships remain reusable.
 model MembershipRedemption {
-  membershipPlanId String @db.VarChar(36)
-  benefitType MembershipBenefitType @default(NONE)
-  originalAmount Decimal @default(0) @db.Decimal(12, 2)
-  discountAmount Decimal @default(0) @db.Decimal(12, 2)
-  finalAmount Decimal @default(0) @db.Decimal(12, 2)
-  id String @id @default(uuid()) @db.VarChar(36)
-  membershipId String @db.VarChar(36)
-  billItemId String @unique @db.VarChar(36)
-  couponCode String @db.VarChar(80)
-  billId String @db.VarChar(36)
-  salonId String @db.VarChar(36)
-  serviceId String @db.VarChar(36)
-  serviceName String @db.VarChar(191)
-  quantity Int
-  redeemedBy String @db.VarChar(36)
-  redeemedAt DateTime @default(now())
-  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  billItem BillItem @relation(fields: [billItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  membershipPlanId String                @db.VarChar(36)
+  benefitType      MembershipBenefitType @default(NONE)
+  originalAmount   Decimal               @default(0) @db.Decimal(12, 2)
+  discountAmount   Decimal               @default(0) @db.Decimal(12, 2)
+  finalAmount      Decimal               @default(0) @db.Decimal(12, 2)
+  id               String                @id @default(uuid()) @db.VarChar(36)
+  membershipId     String                @db.VarChar(36)
+  billItemId       String                @unique @db.VarChar(36)
+  couponCode       String                @db.VarChar(80)
+  billId           String                @db.VarChar(36)
+  salonId          String                @db.VarChar(36)
+  serviceId        String                @db.VarChar(36)
+  serviceName      String                @db.VarChar(191)
+  quantity         Int
+  redeemedBy       String                @db.VarChar(36)
+  redeemedAt       DateTime              @default(now())
+  membership       Membership            @relation(fields: [membershipId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  billItem         BillItem              @relation(fields: [billItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
   @@index([membershipId, redeemedAt])
   @@index([billId])
   @@map("membership_redemptions")

@@ -10,6 +10,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
+import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto';
 import {
   PLATFORM_PLAN_BILLING_CYCLES,
   type PlatformPlanBillingCycleApi,
@@ -53,21 +54,11 @@ export class EnrollFranchiseSubscriptionDto {
   notes?: string | null;
 }
 
-export class ListFranchiseSubscriptionsQueryDto {
+export class ListFranchiseSubscriptionsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsUUID()
   franchiseId?: string;
-
-  @ApiPropertyOptional({ example: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  page?: number;
-
-  @ApiPropertyOptional({ example: 20 })
-  @IsOptional()
-  @Type(() => Number)
-  limit?: number;
 }
 
 export class FranchiseSubscriptionResponseDto {

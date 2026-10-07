@@ -1,4 +1,9 @@
 jest.mock('../prisma/prisma.service', () => ({ PrismaService: class {} }));
+jest.mock('@nestjs/bullmq', () => ({
+  InjectQueue: () => () => undefined,
+  Processor: () => (cls: unknown) => cls,
+  WorkerHost: class WorkerHost {},
+}));
 import {
   BadRequestException,
   ForbiddenException,
@@ -494,5 +499,76 @@ describe('Franchise report authorization and snapshots', () => {
     } finally {
       build.mockRestore();
     }
+  });
+  it('enqueues a background job when async is true', async () => {
+    const queue = { add: jest.fn().mockResolvedValue({ id: 'job-1' }) };
+    const asyncService = new AdminReportsService(
+      prisma as unknown as PrismaService,
+      {
+        resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
+      } as unknown as BusinessTimezoneService,
+      queue as never,
+    );
+    (prisma as unknown as { salon: { findMany: jest.Mock } }).salon = {
+      findMany: jest.fn().mockResolvedValue(branches),
+    };
+    prisma.platformReport.create.mockResolvedValue({
+      id: 'report-bg',
+      name: 'Franchise Overview Report',
+      createdAt: new Date(),
+      snapshot: {
+        status: 'Generating',
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-04',
+        branch: 'Branch One',
+        generatedBy: actor.email,
+      },
+    });
+
+    const res = await asyncService.generate(actor, { ...query, async: true });
+    expect(res.status).toBe('Generating');
+    expect(queue.add).toHaveBeenCalledWith(
+      'generate-admin-export',
+      expect.objectContaining({
+        reportId: 'report-bg',
+        actorUserId: actor.userId,
+        franchiseId: actor.franchiseId,
+      }),
+      expect.objectContaining({
+        jobId: 'admin-report-report-bg',
+      }),
+    );
+  });
+  it('processes background admin report and updates status to Ready', async () => {
+    (
+      prisma.platformReport as unknown as { findUnique: jest.Mock }
+    ).findUnique = jest.fn().mockResolvedValue({
+      id: 'report-bg',
+      snapshot: { status: 'Generating' },
+    });
+    (prisma as unknown as { user: { findUnique: jest.Mock } }).user = {
+      findUnique: jest.fn().mockResolvedValue({
+        id: actor.userId,
+        email: actor.email,
+        franchiseId: actor.franchiseId,
+      }),
+    };
+    prisma.platformReport.update.mockResolvedValue({});
+
+    await service.processBackgroundAdminReport({
+      reportId: 'report-bg',
+      actorUserId: actor.userId,
+      franchiseId: actor.franchiseId!,
+      query,
+    });
+
+    expect(prisma.platformReport.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'report-bg' },
+        data: {
+          snapshot: expect.objectContaining({ status: 'Ready' }),
+        },
+      }),
+    );
   });
 });

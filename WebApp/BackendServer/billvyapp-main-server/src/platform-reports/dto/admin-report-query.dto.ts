@@ -20,4 +20,7 @@ export class AdminReportQueryDto {
   @IsOptional()
   @IsIn(['day', 'week', 'month'])
   interval?: 'day' | 'week' | 'month';
+
+  @IsOptional()
+  async?: boolean;
 }

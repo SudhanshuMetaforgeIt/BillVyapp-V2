@@ -96,7 +96,7 @@ export class MediaService {
       ...(query.entityId ? { entityId: query.entityId } : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.mediaFile.findMany({
         where,
         select: MEDIA_SELECT,

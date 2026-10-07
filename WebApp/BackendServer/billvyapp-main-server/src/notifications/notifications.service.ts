@@ -132,7 +132,7 @@ export class NotificationsService {
         : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.notification.findMany({
         where,
         select: NOTIFICATION_SELECT,

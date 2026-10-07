@@ -3,7 +3,9 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { CacheService } from '../redis/cache.service';
 import { AuditService } from '../audit/audit.service';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { RoleCode } from '../common/enums/role.enum';
@@ -99,6 +101,7 @@ export class MembershipPlansService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    @Optional() private readonly cache?: CacheService,
   ) {}
 
   async list(
@@ -126,7 +129,34 @@ export class MembershipPlansService {
         : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const targetSalonId = query.salonId ?? user.salonId ?? null;
+    const cacheKey =
+      targetSalonId && this.cache
+        ? `cache:memberships:${targetSalonId}:plans:${this.cache.hashQuery({
+            page,
+            limit,
+            search,
+            isActive: query.isActive,
+            role: user.role,
+          })}`
+        : null;
+
+    if (cacheKey && this.cache) {
+      return this.cache.wrap(cacheKey, 1800, () =>
+        this.fetchList(where, page, limit, skip),
+      );
+    }
+
+    return this.fetchList(where, page, limit, skip);
+  }
+
+  private async fetchList(
+    where: Record<string, unknown>,
+    page: number,
+    limit: number,
+    skip: number,
+  ): Promise<PaginatedResult<MembershipPlanRecord>> {
+    const [rows, total] = await Promise.all([
       this.prisma.membershipPlan.findMany({
         where,
         select: PLAN_SELECT,
@@ -221,6 +251,7 @@ export class MembershipPlansService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateMembershipPlans(created.salonId);
       return this.toResponse(created);
     } catch (error) {
       this.rethrowUnique(error);
@@ -320,6 +351,7 @@ export class MembershipPlansService {
         userAgent: ctx.userAgent,
       });
 
+      await this.cache?.invalidateMembershipPlans(updated.salonId);
       return this.toResponse(updated);
     } catch (error) {
       this.rethrowUnique(error);
@@ -352,6 +384,7 @@ export class MembershipPlansService {
       userAgent: ctx.userAgent,
     });
 
+    await this.cache?.invalidateMembershipPlans(updated.salonId);
     return this.toResponse(updated);
   }
 

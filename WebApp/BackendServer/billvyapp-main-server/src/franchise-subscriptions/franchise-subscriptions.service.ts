@@ -213,7 +213,7 @@ export class FranchiseSubscriptionsService {
       ...(query.franchiseId ? { franchiseId: query.franchiseId } : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.franchiseSubscription.findMany({
         where,
         select: SUB_SELECT,
@@ -224,7 +224,10 @@ export class FranchiseSubscriptionsService {
       this.prisma.franchiseSubscription.count({ where }),
     ]);
 
-    const data = await Promise.all(rows.map((row) => this.toResponse(row)));
+    const today = await this.businessTodayUtc();
+    const data = await Promise.all(
+      rows.map((row) => this.toResponse(row, today)),
+    );
     return paginated(data, total, page, limit);
   }
 
@@ -475,8 +478,11 @@ export class FranchiseSubscriptionsService {
     return { startsAt, endsAt };
   }
 
-  private async toResponse(row: SubRow): Promise<FranchiseSubscriptionRecord> {
-    const today = await this.businessTodayUtc();
+  private async toResponse(
+    row: SubRow,
+    todayDate?: Date,
+  ): Promise<FranchiseSubscriptionRecord> {
+    const today = todayDate ?? (await this.businessTodayUtc());
     const coversToday =
       row.startsAt.getTime() <= today.getTime() &&
       row.endsAt.getTime() >= today.getTime();

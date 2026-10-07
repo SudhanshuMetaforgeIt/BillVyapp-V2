@@ -260,6 +260,17 @@ export class ProfilePhotosService {
   private async requireOwnedUpload(user: AuthenticatedUser, mediaId: string) {
     const media = await this.prisma.mediaFile.findUnique({
       where: { id: mediaId },
+      select: {
+        id: true,
+        uploadedBy: true,
+        entityId: true,
+        storageKey: true,
+        mimeType: true,
+        entityType: true,
+        createdAt: true,
+        storageProvider: true,
+        fileSize: true,
+      },
     });
     if (
       !media ||
@@ -296,6 +307,7 @@ export class ProfilePhotosService {
     try {
       const media = await this.prisma.mediaFile.findFirst({
         where: { id, entityType: 'ProfilePhotoRetired' },
+        select: { id: true, storageProvider: true, storageKey: true },
       });
       if (!media) return;
       await this.storage.deleteImage(media.storageProvider, media.storageKey);

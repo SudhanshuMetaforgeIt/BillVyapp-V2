@@ -97,7 +97,10 @@
     "testEnvironment": "node",
     "setupFiles": [
       "reflect-metadata"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^(\\..*)\\.js$": "$1"
+    }
   },
   "prisma": {
     "seed": "node --env-file=.env prisma/seed.cjs"

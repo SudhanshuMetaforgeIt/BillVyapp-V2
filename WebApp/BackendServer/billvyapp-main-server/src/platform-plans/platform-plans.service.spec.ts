@@ -153,19 +153,32 @@ describe('PlatformPlansService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('lists plans with pagination metadata', async () => {
-    prisma.platformPlan.findMany.mockResolvedValue([plan()]);
-    prisma.platformPlan.count.mockResolvedValue(1);
+  it('lists plans with pagination metadata and batches subscriber groupBy queries', async () => {
+    prisma.platformPlan.findMany.mockResolvedValue([
+      plan({ id: 'pp-1' }),
+      plan({ id: 'pp-2' }),
+    ]);
+    prisma.platformPlan.count.mockResolvedValue(2);
+    prisma.franchiseSubscription.groupBy.mockResolvedValue([
+      { platformPlanId: 'pp-1', franchiseId: 'fr-1' },
+      { platformPlanId: 'pp-1', franchiseId: 'fr-2' },
+      { platformPlanId: 'pp-2', franchiseId: 'fr-3' },
+    ]);
 
     const result = await service.list(actor, { page: 1, limit: 20 });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.meta).toEqual({
-      page: 1,
-      limit: 20,
-      total: 1,
-      totalPages: 1,
-    });
+    expect(result.data).toHaveLength(2);
+    expect(result.data[0].businessCount).toBe(2);
+    expect(result.data[1].businessCount).toBe(1);
+    expect(prisma.franchiseSubscription.groupBy).toHaveBeenCalledTimes(1);
+    expect(prisma.franchiseSubscription.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ['platformPlanId', 'franchiseId'],
+        where: expect.objectContaining({
+          platformPlanId: { in: ['pp-1', 'pp-2'] },
+        }),
+      }),
+    );
   });
 
   it('returns plan detail', async () => {

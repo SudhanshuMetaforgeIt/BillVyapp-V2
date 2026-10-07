@@ -112,7 +112,7 @@ export class ProductsService {
         : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
         select: PRODUCT_SELECT,

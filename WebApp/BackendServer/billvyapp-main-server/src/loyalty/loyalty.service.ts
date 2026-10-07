@@ -99,7 +99,7 @@ export class LoyaltyService {
 
     const where = { AND: filters };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.loyaltyTransaction.findMany({
         where,
         select: LOYALTY_SELECT,

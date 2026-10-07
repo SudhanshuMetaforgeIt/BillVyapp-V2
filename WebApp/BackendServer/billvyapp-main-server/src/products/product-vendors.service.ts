@@ -70,7 +70,7 @@ export class ProductVendorsService {
     const pagination = normalizePagination(page, limit);
     const where = { productId: product.id };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.productVendor.findMany({
         where,
         select: LINK_SELECT,

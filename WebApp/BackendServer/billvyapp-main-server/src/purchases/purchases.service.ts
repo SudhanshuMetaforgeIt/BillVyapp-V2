@@ -167,7 +167,7 @@ export class PurchasesService {
 
     const where = { AND: filters };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.purchase.findMany({
         where,
         select: PURCHASE_SELECT,
@@ -472,6 +472,12 @@ export class PurchasesService {
             salonId: purchase.salonId,
             productId: item.productId,
           },
+        },
+        select: {
+          id: true,
+          quantityOnHand: true,
+          reservedQuantity: true,
+          averageCost: true,
         },
       });
 

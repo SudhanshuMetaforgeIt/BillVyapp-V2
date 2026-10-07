@@ -75,7 +75,7 @@ export class ProductCategoriesService {
         : {}),
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [data, total] = await Promise.all([
       this.prisma.productCategory.findMany({
         where,
         select: CATEGORY_SELECT,

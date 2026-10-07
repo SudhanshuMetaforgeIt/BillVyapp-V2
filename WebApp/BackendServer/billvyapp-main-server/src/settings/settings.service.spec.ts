@@ -229,6 +229,37 @@ describe('SettingsService', () => {
     const [row] = await service.listIntegrations();
     expect(row.config).toEqual({ keyId: 'pub', apiKey: '[REDACTED]' });
   });
+
+  it('delegates to cache.wrap for cached settings and invalidates on update', async () => {
+    const mockCache = {
+      wrap: jest.fn().mockImplementation((key, ttl, fn) => fn()),
+      invalidatePlatformSettings: jest.fn().mockResolvedValue(undefined),
+    };
+    const cachedService = new SettingsService(
+      prisma as unknown as PrismaService,
+      audit as unknown as AuditService,
+      media as unknown as MediaService,
+      redis as unknown as RedisService,
+      mockCache as unknown as CacheService,
+    );
+
+    prisma.platformSettings.findUnique.mockResolvedValue(settingsRow());
+    await cachedService.getGeneral();
+
+    expect(mockCache.wrap).toHaveBeenCalledWith(
+      'cache:settings:platform',
+      3600,
+      expect.any(Function),
+    );
+
+    prisma.platformSettings.update.mockResolvedValue(settingsRow());
+    await cachedService.updateGeneral(
+      actor,
+      { platformName: 'Updated' },
+      ctx,
+    );
+    expect(mockCache.invalidatePlatformSettings).toHaveBeenCalled();
+  });
 });
 
 describe('SettingsController authorization', () => {

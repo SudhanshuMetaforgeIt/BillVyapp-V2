@@ -80,7 +80,7 @@ export class FranchisesService {
         : {}),
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [data, total] = await Promise.all([
       this.prisma.franchise.findMany({
         where,
         select: FRANCHISE_SELECT,
@@ -91,9 +91,7 @@ export class FranchisesService {
       this.prisma.franchise.count({ where }),
     ]);
 
-    const enriched = await Promise.all(
-      data.map((row) => this.enrichWithSubscription(row)),
-    );
+    const enriched = await this.enrichManyWithSubscriptions(data);
 
     return paginated(enriched, total, page, limit);
   }
@@ -245,6 +243,88 @@ export class FranchisesService {
     return this.enrichWithSubscription(updated);
   }
 
+  private async enrichManyWithSubscriptions(
+    rows: Array<{
+      id: string;
+      name: string;
+      code: string;
+      phone: string | null;
+      email: string | null;
+      preferences: unknown;
+      isActive: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>,
+  ): Promise<FranchiseRecord[]> {
+    if (rows.length === 0) return [];
+
+    const today = new Date();
+    const utcToday = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+    const franchiseIds = rows.map((r) => r.id);
+
+    const subscriptions = await this.prisma.franchiseSubscription.findMany({
+      where: { franchiseId: { in: franchiseIds } },
+      select: {
+        franchiseId: true,
+        status: true,
+        startsAt: true,
+        endsAt: true,
+        createdAt: true,
+        platformPlan: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const byFranchise = new Map<
+      string,
+      Array<(typeof subscriptions)[number]>
+    >();
+    for (const sub of subscriptions) {
+      const list = byFranchise.get(sub.franchiseId);
+      if (list) {
+        list.push(sub);
+      } else {
+        byFranchise.set(sub.franchiseId, [sub]);
+      }
+    }
+
+    const statusMap = {
+      ACTIVE: 'active',
+      EXPIRED: 'expired',
+      CANCELLED: 'cancelled',
+    } as const;
+
+    return rows.map((row) => {
+      const subs = byFranchise.get(row.id) ?? [];
+      const activeSubs = subs.filter(
+        (s) =>
+          s.status === 'ACTIVE' &&
+          s.startsAt <= utcToday &&
+          s.endsAt >= utcToday,
+      );
+      const active =
+        activeSubs.length > 0
+          ? activeSubs.sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())[0]
+          : null;
+      const latest = active ?? subs[0] ?? null;
+
+      return {
+        ...row,
+        currentPlanName: latest?.platformPlan.name ?? null,
+        subscriptionStatus: latest ? statusMap[latest.status] : null,
+        subscriptionStartsAt: latest
+          ? formatDateOnlyUtc(latest.startsAt)
+          : null,
+        subscriptionEndsAt: latest
+          ? formatDateOnlyUtc(latest.endsAt)
+          : null,
+        subscriptionActive: Boolean(active),
+      };
+    });
+  }
+
   private async enrichWithSubscription(row: {
     id: string;
     name: string;
@@ -256,58 +336,7 @@ export class FranchisesService {
     createdAt: Date;
     updatedAt: Date;
   }): Promise<FranchiseRecord> {
-    const today = new Date();
-    const utcToday = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
-    );
-
-    const active = await this.prisma.franchiseSubscription.findFirst({
-      where: {
-        franchiseId: row.id,
-        status: 'ACTIVE',
-        startsAt: { lte: utcToday },
-        endsAt: { gte: utcToday },
-      },
-      select: {
-        status: true,
-        startsAt: true,
-        endsAt: true,
-        platformPlan: { select: { name: true } },
-      },
-      orderBy: { endsAt: 'desc' },
-    });
-
-    const latest =
-      active ??
-      (await this.prisma.franchiseSubscription.findFirst({
-        where: { franchiseId: row.id },
-        select: {
-          status: true,
-          startsAt: true,
-          endsAt: true,
-          platformPlan: { select: { name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      }));
-
-    const statusMap = {
-      ACTIVE: 'active',
-      EXPIRED: 'expired',
-      CANCELLED: 'cancelled',
-    } as const;
-
-    return {
-      ...row,
-      currentPlanName: latest?.platformPlan.name ?? null,
-      subscriptionStatus: latest ? statusMap[latest.status] : null,
-      subscriptionStartsAt: latest
-        ? // DATE_ONLY sentinel stored at UTC midnight
-          formatDateOnlyUtc(latest.startsAt)
-        : null,
-      subscriptionEndsAt: latest
-        ? formatDateOnlyUtc(latest.endsAt)
-        : null,
-      subscriptionActive: Boolean(active),
-    };
+    const [enriched] = await this.enrichManyWithSubscriptions([row]);
+    return enriched;
   }
 }

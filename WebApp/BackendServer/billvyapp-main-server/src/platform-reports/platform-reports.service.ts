@@ -1,8 +1,18 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { RoleCode } from '../common/enums/role.enum';
+import {
+  REPORT_QUEUE,
+  REPORT_JOB_PLATFORM_EXPORT,
+  PlatformReportJobPayload,
+} from './report.constants';
 import { AuditService } from '../audit/audit.service';
 import { ReportAnalyticsService } from './report-analytics.service';
 import type { RequestContext } from '../common/http/request-context';
@@ -163,11 +173,16 @@ type SnapshotMetrics = {
 
 @Injectable()
 export class PlatformReportsService {
+  private readonly logger = new Logger(PlatformReportsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly businessTimezone: BusinessTimezoneService,
     private readonly analytics: ReportAnalyticsService,
+    @Optional()
+    @InjectQueue(REPORT_QUEUE)
+    private readonly reportQueue?: Queue<PlatformReportJobPayload>,
   ) {}
 
   async list(
@@ -178,7 +193,7 @@ export class PlatformReportsService {
     const timeZone = await this.businessTimezone.resolveForUser(user);
     const where = this.buildListWhere(query, timeZone);
 
-    const [rows, grouped] = await this.prisma.$transaction([
+    const [rows, grouped] = await Promise.all([
       this.prisma.platformReport.findMany({
         where,
         select: REPORT_SELECT,
@@ -242,6 +257,9 @@ export class PlatformReportsService {
     dto: GeneratePlatformReportDto,
     ctx: RequestContext,
   ): Promise<PlatformReportRecord> {
+    if (dto.async) {
+      return this.generateAsync(user, dto, ctx);
+    }
     if (!isDateOnlyString(dto.dateFrom) || !isDateOnlyString(dto.dateTo)) {
       throw new BadRequestException('dateFrom/dateTo must be YYYY-MM-DD');
     }
@@ -269,6 +287,7 @@ export class PlatformReportsService {
       : `${TYPE_LABELS[type]} platform snapshot (${dateRangeLabel})`;
 
     const snapshot: Record<string, unknown> = {
+      status: 'Ready',
       dateFrom: dto.dateFrom,
       dateTo: dto.dateTo,
       timeZone: analytics.scope.timeZone,
@@ -319,6 +338,194 @@ export class PlatformReportsService {
     return this.toRecord(created);
   }
 
+  async generateAsync(
+    user: AuthenticatedUser,
+    dto: GeneratePlatformReportDto,
+    ctx: RequestContext,
+  ): Promise<PlatformReportRecord> {
+    if (!isDateOnlyString(dto.dateFrom) || !isDateOnlyString(dto.dateTo)) {
+      throw new BadRequestException('dateFrom/dateTo must be YYYY-MM-DD');
+    }
+    if (dto.dateFrom > dto.dateTo) {
+      throw new BadRequestException('dateFrom must be on or before dateTo');
+    }
+
+    const dateFrom = parseDateOnlyUtc(dto.dateFrom);
+    const dateTo = parseDateOnlyUtc(dto.dateTo);
+
+    if (dto.format === 'pdf')
+      throw new BadRequestException(
+        'PDF generation is not implemented. Use Excel-compatible CSV.',
+      );
+
+    const type = dto.type;
+    const format = dto.format ?? 'excel';
+    const dateRangeLabel = this.formatDateRangeLabel(dateFrom, dateTo);
+    const name = `${TYPE_LABELS[type]} Report — ${dto.dateFrom} to ${dto.dateTo}`;
+    const description = `${TYPE_LABELS[type]} platform snapshot (${dateRangeLabel})`;
+
+    const initialSnapshot: Record<string, unknown> = {
+      status: 'Generating',
+      dateFrom: dto.dateFrom,
+      dateTo: dto.dateTo,
+      franchiseId: dto.franchiseId ?? null,
+      salonId: dto.salonId ?? null,
+      interval: dto.interval ?? 'month',
+      salonSort: dto.salonSort ?? 'revenue',
+      serviceSort: dto.serviceSort ?? 'revenue',
+    };
+
+    const created = await this.prisma.platformReport.create({
+      data: {
+        name,
+        description,
+        type: TYPE_TO_DB[type],
+        format: FORMAT_TO_DB[format],
+        dateFrom,
+        dateTo,
+        franchiseId: dto.franchiseId,
+        generatedById: user.userId,
+        snapshot: initialSnapshot as Prisma.InputJsonValue,
+      },
+      select: REPORT_SELECT,
+    });
+
+    if (this.reportQueue) {
+      await this.reportQueue.add(
+        REPORT_JOB_PLATFORM_EXPORT,
+        {
+          reportId: created.id,
+          actorUserId: user.userId,
+          dto: {
+            type: dto.type,
+            format: dto.format,
+            dateFrom: dto.dateFrom,
+            dateTo: dto.dateTo,
+            franchiseId: dto.franchiseId,
+            salonId: dto.salonId,
+            interval: dto.interval,
+            salonSort: dto.salonSort,
+            serviceSort: dto.serviceSort,
+          },
+        },
+        {
+          jobId: `platform-report-${created.id}`,
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
+    }
+
+    await this.audit.record({
+      userId: user.userId,
+      action: 'PLATFORM_REPORT_GENERATED',
+      entityType: 'PlatformReport',
+      entityId: created.id,
+      newData: {
+        type,
+        format,
+        dateFrom: dto.dateFrom,
+        dateTo: dto.dateTo,
+        franchiseId: dto.franchiseId,
+        salonId: dto.salonId,
+        interval: dto.interval ?? 'month',
+        async: true,
+      },
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+
+    return this.toRecord(created);
+  }
+
+  async processBackgroundPlatformReport(
+    payload: PlatformReportJobPayload,
+  ): Promise<void> {
+    const report = await this.prisma.platformReport.findUnique({
+      where: { id: payload.reportId },
+      select: { id: true, snapshot: true },
+    });
+    if (!report) {
+      this.logger.warn(
+        `Platform report ${payload.reportId} not found in background processing`,
+      );
+      return;
+    }
+
+    const actor = await this.prisma.user.findUnique({
+      where: { id: payload.actorUserId },
+      select: {
+        email: true,
+        franchiseId: true,
+        salonId: true,
+        role: { select: { code: true } },
+      },
+    });
+
+    const authUser: AuthenticatedUser = {
+      userId: payload.actorUserId,
+      email: actor?.email ?? '',
+      role: (actor?.role?.code as RoleCode) ?? RoleCode.SUPER_ADMIN,
+      franchiseId: actor?.franchiseId ?? null,
+      salonId: actor?.salonId ?? null,
+      sessionId: null,
+    };
+
+    try {
+      const dto = payload.dto as GeneratePlatformReportDto;
+      const analytics = await this.analytics.query(authUser, dto, true);
+      const metrics = analytics.summary!;
+      const franchiseName = analytics.scope.franchiseName;
+      const dateRangeLabel = this.formatDateRangeLabel(
+        parseDateOnlyUtc(dto.dateFrom),
+        parseDateOnlyUtc(dto.dateTo),
+      );
+      const description = franchiseName
+        ? `${TYPE_LABELS[dto.type]} snapshot for ${franchiseName} (${dateRangeLabel})`
+        : `${TYPE_LABELS[dto.type]} platform snapshot (${dateRangeLabel})`;
+
+      const snapshot: Record<string, unknown> = {
+        status: 'Ready',
+        dateFrom: dto.dateFrom,
+        dateTo: dto.dateTo,
+        timeZone: analytics.scope.timeZone,
+        franchiseId: analytics.scope.franchiseId,
+        franchiseName,
+        salonId: analytics.scope.salonId,
+        salonName: analytics.scope.salonName,
+        interval: dto.interval ?? 'month',
+        salonSort: dto.salonSort ?? 'revenue',
+        serviceSort: dto.serviceSort ?? 'revenue',
+        metrics,
+        analytics,
+      };
+
+      await this.prisma.platformReport.update({
+        where: { id: payload.reportId },
+        data: {
+          description,
+          snapshot: snapshot as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate background platform report ${payload.reportId}: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
+      const current = (report.snapshot as Record<string, unknown>) ?? {};
+      await this.prisma.platformReport.update({
+        where: { id: payload.reportId },
+        data: {
+          snapshot: {
+            ...current,
+            status: 'Failed',
+          } as Prisma.InputJsonValue,
+        },
+      });
+      throw error;
+    }
+  }
+
   async download(
     _user: AuthenticatedUser,
     id: string,
@@ -330,6 +537,22 @@ export class PlatformReportsService {
     if (!row) throw new NotFoundException('Platform report not found');
 
     const record = this.toRecord(row);
+    if (
+      record.snapshot &&
+      (record.snapshot as Record<string, unknown>).status === 'Generating'
+    ) {
+      throw new BadRequestException(
+        'Report is still generating. Please try again shortly',
+      );
+    }
+    if (
+      record.snapshot &&
+      (record.snapshot as Record<string, unknown>).status === 'Failed'
+    ) {
+      throw new BadRequestException(
+        'Report generation failed. Please regenerate',
+      );
+    }
     const body = this.snapshotToCsv(record);
     const safeName = record.name.replace(/[^\w.\- ]+/g, '_').trim() || 'report';
     return {

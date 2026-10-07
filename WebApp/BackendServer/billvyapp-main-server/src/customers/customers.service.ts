@@ -162,7 +162,7 @@ export class CustomersService {
 
     const where = { AND: filters };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.customer.findMany({
         where,
         select: CUSTOMER_SELECT,

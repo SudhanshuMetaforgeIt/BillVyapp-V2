@@ -55,6 +55,7 @@ export class SalonPhotosService {
         { displayOrder: 'asc' },
         { createdAt: 'asc' },
       ],
+      take: 100,
     });
     return photos.map((photo) => this.toResponse(photo));
   }

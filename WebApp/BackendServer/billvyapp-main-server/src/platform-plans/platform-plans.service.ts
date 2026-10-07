@@ -111,7 +111,7 @@ export class PlatformPlansService {
         : {}),
     };
 
-    const [rows, total] = await this.prisma.$transaction([
+    const [rows, total] = await Promise.all([
       this.prisma.platformPlan.findMany({
         where,
         select: PLAN_SELECT,
@@ -122,8 +122,33 @@ export class PlatformPlansService {
       this.prisma.platformPlan.count({ where }),
     ]);
 
-    const withCounts = await Promise.all(
-      rows.map(async (row) => this.toResponse(row)),
+    const planIds = rows.map((r) => r.id);
+    const today = new Date();
+    const utcToday = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+
+    const countsMap = new Map<string, number>();
+    if (planIds.length > 0) {
+      const groups = await this.prisma.franchiseSubscription.groupBy({
+        by: ['platformPlanId', 'franchiseId'],
+        where: {
+          platformPlanId: { in: planIds },
+          status: 'ACTIVE',
+          startsAt: { lte: utcToday },
+          endsAt: { gte: utcToday },
+        },
+      });
+      for (const g of groups) {
+        countsMap.set(
+          g.platformPlanId,
+          (countsMap.get(g.platformPlanId) ?? 0) + 1,
+        );
+      }
+    }
+
+    const withCounts = rows.map((row) =>
+      this.toRecord(row, countsMap.get(row.id) ?? 0),
     );
 
     return paginated(withCounts, total, page, limit);
@@ -356,6 +381,10 @@ export class PlatformPlansService {
       },
     });
 
+    return this.toRecord(row, groups.length);
+  }
+
+  private toRecord(row: PlanRow, businessCount: number): PlatformPlanRecord {
     return {
       id: row.id,
       name: row.name,
@@ -369,7 +398,7 @@ export class PlatformPlansService {
       iconKey: row.iconKey,
       features: this.featuresFromJson(row.features),
       isActive: row.isActive,
-      businessCount: groups.length,
+      businessCount,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
