@@ -143,6 +143,52 @@ describe('PlatformReportsService', () => {
     });
   }
 
+  it('persists currency groups without a combined monetary metric', async () => {
+    const currencyGroups = ['INR', 'USD'].map((currency) => ({
+      scope: { currency, timeZone: 'UTC' },
+      summary: {
+        totalRevenue: currency === 'INR' ? '1500.00' : '25.00',
+        successfulPayments: 1,
+        totalPayments: 1,
+      },
+    }));
+    analytics.query.mockResolvedValue({
+      scope: {
+        franchiseId: null,
+        franchiseName: null,
+        salonId: null,
+        salonName: null,
+        timeZone: 'UTC',
+      },
+      currencyGroups,
+    });
+    prisma.platformReport.create.mockResolvedValue(reportRow());
+    await service.generate(
+      actor,
+      {
+        type: 'financial',
+        format: 'excel',
+        dateFrom: '2026-10-01',
+        dateTo: '2026-10-05',
+      },
+      ctx,
+    );
+    const [saved] = prisma.platformReport.create.mock.calls[0] as [
+      {
+        data: {
+          snapshot: {
+            metrics?: unknown;
+            analytics: { currencyGroups: unknown };
+          };
+        };
+      },
+    ];
+    expect(saved.data.snapshot.metrics).toBeUndefined();
+    expect(saved.data.snapshot.analytics.currencyGroups).toEqual(
+      currencyGroups,
+    );
+  });
+
   it('generates a report with snapshot metrics', async () => {
     stubAggregate();
     prisma.platformReport.create.mockResolvedValue(reportRow());

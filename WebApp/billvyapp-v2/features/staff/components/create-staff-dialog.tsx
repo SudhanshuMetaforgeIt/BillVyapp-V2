@@ -1,5 +1,7 @@
 'use client';
 
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { SelectInput } from '@/components/data/form-fields';
 
 import { useState } from 'react';
@@ -57,7 +59,7 @@ export function CreateStaffDialog({
 
     const salaryAmount = Number(salary);
     if (!salary.trim() || !Number.isFinite(salaryAmount) || salaryAmount < 0) {
-      setError('Please enter a valid monthly salary (₹).');
+      setError('Please enter a valid monthly salary.');
       return;
     }
 
@@ -89,8 +91,8 @@ export function CreateStaffDialog({
         err instanceof Error
           ? err.message
           : typeof err === 'object' && err && 'message' in err
-          ? String((err as { message: unknown }).message)
-          : 'Failed to add staff member. Email or phone may already exist.';
+            ? String((err as { message: unknown }).message)
+            : 'Failed to add staff member. Email or phone may already exist.';
       setError(message);
     } finally {
       setLoading(false);
@@ -192,7 +194,8 @@ export function CreateStaffDialog({
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Staff Role <span className="text-rose-500">*</span>
               </label>
-              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="mt-1 h-10 w-full text-sm font-medium"
                 value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
                 required
@@ -209,9 +212,11 @@ export function CreateStaffDialog({
 
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
-                Assigned Branch Location <span className="text-rose-500">*</span>
+                Assigned Branch Location{' '}
+                <span className="text-rose-500">*</span>
               </label>
-              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="mt-1 h-10 w-full text-sm font-medium"
                 value={salonId}
                 onChange={(e) => setSalonId(e.target.value)}
                 required
@@ -230,7 +235,8 @@ export function CreateStaffDialog({
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
-                Monthly Salary (₹) <span className="text-rose-500">*</span>
+                Monthly Salary ({getCurrencySymbol()}){' '}
+                <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
@@ -257,7 +263,8 @@ export function CreateStaffDialog({
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
               />
               <p className="mt-1 text-[11px] text-stone-400">
-                Default password for initial login. Staff can change it afterwards.
+                Default password for initial login. Staff can change it
+                afterwards.
               </p>
             </div>
           </div>
@@ -278,7 +285,9 @@ export function CreateStaffDialog({
               disabled={loading}
               className="h-9 px-5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
             >
-              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {loading && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
               Save Staff
             </Button>
           </div>

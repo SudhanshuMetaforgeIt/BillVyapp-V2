@@ -1,5 +1,7 @@
 'use client';
 
+import { formatCurrency } from '@/lib/format';
+
 import { Eye, Pencil, Plus, Store } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -8,7 +10,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import type { AdminBranchItem } from '../../types/admin-my-business.types';
 
 const formatRevenue = (value: number | null) =>
-  value === null ? '—' : `₹${value.toLocaleString('en-IN')}`;
+  value === null ? '—' : formatCurrency(value);
 
 type AdminBranchesTableProps = {
   branches: AdminBranchItem[];
@@ -69,7 +71,12 @@ export function AdminBranchesTable({
         ) : (
           <>
             {/* Desktop Table — table-fixed so columns fit; no horizontal scroll */}
-            <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll hidden min-w-0 lg:block">
+            <div
+              tabIndex={0}
+              role="region"
+              aria-label="Scrollable table"
+              className="app-table-scroll hidden min-w-0 lg:block"
+            >
               <table className="w-full table-fixed text-left text-sm">
                 <thead className="border-b border-border bg-ivory/70 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                   <tr>
@@ -87,13 +94,19 @@ export function AdminBranchesTable({
                 </thead>
                 <tbody className="divide-y divide-border">
                   {branches.map((b) => (
-                    <tr key={b.id} className="transition-colors hover:bg-ivory/50">
+                    <tr
+                      key={b.id}
+                      className="transition-colors hover:bg-ivory/50"
+                    >
                       <td className="px-3 py-3.5 xl:px-4">
                         <div className="flex min-w-0 items-center gap-2.5">
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-champagne">
                             <Store className="size-4 text-champagne" />
                           </div>
-                          <p className="truncate font-bold text-text" title={b.name}>
+                          <p
+                            className="truncate font-bold text-text"
+                            title={b.name}
+                          >
                             {b.name}
                           </p>
                         </div>
@@ -143,7 +156,10 @@ export function AdminBranchesTable({
                       </td>
 
                       <td className="px-3 py-3.5 font-bold tabular-nums text-text xl:px-4">
-                        <span className="block truncate" title={formatRevenue(b.revenueMonth)}>
+                        <span
+                          className="block truncate"
+                          title={formatRevenue(b.revenueMonth)}
+                        >
                           {formatRevenue(b.revenueMonth)}
                         </span>
                       </td>
@@ -185,7 +201,9 @@ export function AdminBranchesTable({
                       </div>
                       <div>
                         <p className="font-bold text-text">{b.name}</p>
-                        <p className="text-xs text-text-secondary">{b.location}</p>
+                        <p className="text-xs text-text-secondary">
+                          {b.location}
+                        </p>
                       </div>
                     </div>
                     <StatusBadge
@@ -201,11 +219,15 @@ export function AdminBranchesTable({
                     </div>
                     <div>
                       <p className="text-text-muted">Staff</p>
-                      <p className="font-bold text-text">{b.staffCount ?? '—'}</p>
+                      <p className="font-bold text-text">
+                        {b.staffCount ?? '—'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-text-muted">Revenue</p>
-                      <p className="font-bold text-text">{formatRevenue(b.revenueMonth)}</p>
+                      <p className="font-bold text-text">
+                        {formatRevenue(b.revenueMonth)}
+                      </p>
                     </div>
                   </div>
 

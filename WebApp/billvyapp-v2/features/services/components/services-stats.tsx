@@ -1,5 +1,7 @@
 'use client';
 
+import { formatCurrency } from '@/lib/format';
+
 import { Ban, CheckCircle2, IndianRupee, Scissors } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,7 +51,8 @@ export function ServicesStats({ stats, isLoading }: ServicesStatsProps) {
       id: 'active-services',
       label: 'Active Services',
       value: stats.activeServices.toLocaleString('en-IN'),
-      subtext: stats.totalServices > 0 ? `${activePercent}% of total` : '0% of total',
+      subtext:
+        stats.totalServices > 0 ? `${activePercent}% of total` : '0% of total',
       subtextClass: 'text-emerald font-medium',
       icon: CheckCircle2,
       iconClass: 'bg-emerald-100/80 text-emerald-700',
@@ -58,15 +61,21 @@ export function ServicesStats({ stats, isLoading }: ServicesStatsProps) {
       id: 'inactive-services',
       label: 'Inactive Services',
       value: stats.inactiveServices.toLocaleString('en-IN'),
-      subtext: stats.totalServices > 0 ? `${inactivePercent}% of total` : '0% of total',
-      subtextClass: stats.inactiveServices > 0 ? 'text-danger font-medium' : 'text-text-secondary',
+      subtext:
+        stats.totalServices > 0
+          ? `${inactivePercent}% of total`
+          : '0% of total',
+      subtextClass:
+        stats.inactiveServices > 0
+          ? 'text-danger font-medium'
+          : 'text-text-secondary',
       icon: Ban,
       iconClass: 'bg-rose-100/80 text-rose-700',
     },
     {
       id: 'average-price',
       label: 'Average Price',
-      value: `₹${stats.averagePrice.toLocaleString('en-IN')}`,
+      value: formatCurrency(stats.averagePrice),
       subtext: 'Across all services',
       subtextClass: 'text-text-secondary',
       icon: IndianRupee,
@@ -98,7 +107,9 @@ export function ServicesStats({ stats, isLoading }: ServicesStatsProps) {
               <p className="mt-1 text-xl font-bold tracking-tight text-text sm:text-2xl">
                 {c.value}
               </p>
-              <p className={cn('mt-0.5 truncate text-xs', c.subtextClass)}>{c.subtext}</p>
+              <p className={cn('mt-0.5 truncate text-xs', c.subtextClass)}>
+                {c.subtext}
+              </p>
             </div>
           </div>
         );

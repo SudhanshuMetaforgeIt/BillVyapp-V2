@@ -1,3 +1,4 @@
+import { normalizeFranchisePhone } from '../common/phone';
 import {
   BadRequestException,
   ForbiddenException,
@@ -183,7 +184,15 @@ export class NotificationsService {
         customerId,
         channel: dto.channel,
         notificationType: trimRequired(dto.notificationType),
-        recipient: trimRequired(dto.recipient),
+        recipient:
+          dto.channel === NotificationChannel.EMAIL
+            ? trimRequired(dto.recipient)
+            : (await normalizeFranchisePhone(
+                this.prisma,
+                dto.recipient,
+                salonId ? null : actor.franchiseId,
+                salonId,
+              ))!,
         subject: trimOrNull(dto.subject) ?? null,
         message: trimRequired(dto.message),
         status: NotificationStatus.PENDING,
@@ -229,7 +238,9 @@ export class NotificationsService {
     }
   }
 
-  async emitSystem(input: SystemNotificationInput): Promise<NotificationRecord> {
+  async emitSystem(
+    input: SystemNotificationInput,
+  ): Promise<NotificationRecord> {
     const created = await this.prisma.notification.create({
       data: {
         salonId: input.salonId ?? null,
@@ -360,9 +371,7 @@ export class NotificationsService {
 
     const salonId =
       params.salonId ??
-      (params.franchiseId
-        ? await this.firstSalonId(params.franchiseId)
-        : null);
+      (params.franchiseId ? await this.firstSalonId(params.franchiseId) : null);
 
     const recipients = await this.resolveEventRecipients({
       includeSuperAdmins: true,
@@ -410,9 +419,7 @@ export class NotificationsService {
     const displayId = `TKT-${String(params.ticketNumber).padStart(5, '0')}`;
     const salonId =
       params.salonId ??
-      (params.franchiseId
-        ? await this.firstSalonId(params.franchiseId)
-        : null);
+      (params.franchiseId ? await this.firstSalonId(params.franchiseId) : null);
 
     if (params.createdByEmail) {
       await this.notifyQuietly({

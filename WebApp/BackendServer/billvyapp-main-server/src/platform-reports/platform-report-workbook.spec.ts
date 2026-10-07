@@ -29,6 +29,62 @@ function record() {
   } as unknown as PlatformReportRecord;
 }
 describe('Reference business workbook', () => {
+  it('exports separate currency summaries and complete sheet sets with unique tables', async () => {
+    const source = record();
+    const base = source.snapshot.analytics as Record<string, unknown>;
+    source.snapshot.analytics = {
+      scope: { timeZone: 'UTC' },
+      currencyGroups: [
+        {
+          ...base,
+          scope: { currency: 'INR', timeZone: 'UTC' },
+          summary: {
+            totalRevenue: '1500.00',
+            successfulPayments: 1,
+            totalPayments: 1,
+            averageTransactionValue: 1500,
+          },
+        },
+        {
+          ...base,
+          scope: { currency: 'USD', timeZone: 'UTC' },
+          summary: {
+            totalRevenue: '25.00',
+            successfulPayments: 1,
+            totalPayments: 1,
+            averageTransactionValue: 25,
+          },
+        },
+      ],
+    };
+    const buffer = await buildPlatformWorkbook(source);
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    expect(book.worksheets).toHaveLength(15);
+    expect(book.getWorksheet('Currency Totals')?.getCell('B2').value).toBe(
+      1500,
+    );
+    expect(book.getWorksheet('Currency Totals')?.getCell('B3').value).toBe(25);
+    expect(
+      book.getWorksheet('INR_01_Overall Summary')?.getCell('B5').numFmt,
+    ).toContain('₹');
+    expect(
+      book.getWorksheet('USD_01_Overall Summary')?.getCell('B5').numFmt,
+    ).toContain('$');
+    expect(
+      book.getWorksheet('USD_01_Overall Summary')?.getCell('B5').value,
+    ).toBe(25);
+    const zip = await JSZip.loadAsync(buffer);
+    const tables = await Promise.all(
+      Object.values(zip.files)
+        .filter((e) => /^xl\/tables\/table\d+\.xml$/.test(e.name))
+        .map((e) => e.async('string')),
+    );
+    const names = tables.map((xml) => xml.match(/ name="([^"]+)"/)?.[1]);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toContain('INR_FranchiseSalon');
+    expect(names).toContain('USD_FranchiseSalon');
+  });
   it('preserves the seven-sheet structure and empty-period message without fake detail rows', async () => {
     const buffer = await buildPlatformWorkbook(record());
     const book = new ExcelJS.Workbook();

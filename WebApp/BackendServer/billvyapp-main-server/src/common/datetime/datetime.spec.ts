@@ -40,13 +40,27 @@ describe('datetime utilities', () => {
   it('maps IST midnight to the correct UTC instant', () => {
     const range = businessDayUtcRange('2026-10-01', ist);
     expect(range.startUtc.toISOString()).toBe('2026-09-30T18:30:00.000Z');
-    expect(range.endUtcExclusive.toISOString()).toBe('2026-10-01T18:30:00.000Z');
+    expect(range.endUtcExclusive.toISOString()).toBe(
+      '2026-10-01T18:30:00.000Z',
+    );
+  });
+
+  it.each([
+    ['2026-03-08', 23],
+    ['2026-11-01', 25],
+  ])('uses the complete New York business day on %s', (day, hours) => {
+    const range = businessDayUtcRange(String(day), 'America/New_York');
+    expect(
+      (range.endUtcExclusive.getTime() - range.startUtc.getTime()) / 3600000,
+    ).toBe(hours);
   });
 
   it('covers IST 23:59:59.999 inside the half-open day range', () => {
     const range = businessDayUtcRange('2026-10-01', ist);
     const almostEnd = zonedLocalTimeToUtc(ist, 2026, 10, 1, 23, 59, 59, 999);
-    expect(almostEnd.getTime()).toBeGreaterThanOrEqual(range.startUtc.getTime());
+    expect(almostEnd.getTime()).toBeGreaterThanOrEqual(
+      range.startUtc.getTime(),
+    );
     expect(almostEnd.getTime()).toBeLessThan(range.endUtcExclusive.getTime());
     expect(almostEnd.toISOString()).toBe('2026-10-01T18:29:59.999Z');
   });
@@ -60,7 +74,9 @@ describe('datetime utilities', () => {
   it('handles year boundary from IST 2025 into 2026', () => {
     const end = businessDayUtcRange('2025-12-31', ist);
     const start = businessDayUtcRange('2026-01-01', ist);
-    expect(end.endUtcExclusive.toISOString()).toBe(start.startUtc.toISOString());
+    expect(end.endUtcExclusive.toISOString()).toBe(
+      start.startUtc.toISOString(),
+    );
     expect(start.startUtc.toISOString()).toBe('2025-12-31T18:30:00.000Z');
   });
 

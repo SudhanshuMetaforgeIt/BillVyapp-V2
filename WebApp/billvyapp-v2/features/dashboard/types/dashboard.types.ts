@@ -11,6 +11,7 @@ export type PaginatedResponse<T> = {
 };
 
 export type FranchiseListItem = {
+  preferences?: { phoneCountry?: 'IN' | 'US' } | null;
   id: string;
   name: string;
   code: string;

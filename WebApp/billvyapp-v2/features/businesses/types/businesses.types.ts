@@ -5,13 +5,20 @@ import type {
 } from '@/features/dashboard/types/dashboard.types';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 
-export type { FranchiseListItem, PaginatedResponse, PaginationMeta, DashboardMetric };
+export type {
+  FranchiseListItem,
+  PaginatedResponse,
+  PaginationMeta,
+  DashboardMetric,
+};
 
 export type BusinessStatus = 'active' | 'pending' | 'suspended';
 
-export type BusinessPlanTone = 'basic' | 'professional' | 'enterprise' | 'unknown';
+export type BusinessPlanTone =
+  'basic' | 'professional' | 'enterprise' | 'unknown';
 
 export type BusinessListRow = {
+  phoneCountry?: 'IN' | 'US';
   id: string;
   name: string;
   code: string;
@@ -37,7 +44,8 @@ export type UpdateBusinessPayload = {
 
 export type BusinessStatusFilter = 'all' | BusinessStatus;
 
-export type BusinessPlanFilter = 'all' | 'basic' | 'professional' | 'enterprise';
+export type BusinessPlanFilter =
+  'all' | 'basic' | 'professional' | 'enterprise';
 
 export type BusinessesListParams = {
   page: number;
@@ -72,6 +80,7 @@ export type BusinessesPageData = {
 };
 
 export type CreateBusinessPayload = {
+  phoneCountry?: 'IN' | 'US';
   name: string;
   code: string;
   phone?: string;

@@ -1,5 +1,8 @@
 'use client';
 
+import { getBusinessRegion } from '@/lib/business-region';
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ROUTES } from '@/constants/routes';
@@ -13,9 +16,9 @@ export function TopServicesCard({ services }: TopServicesCardProps) {
   const router = useRouter();
 
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -27,12 +30,19 @@ export function TopServicesCard({ services }: TopServicesCardProps) {
           Top Services by Revenue
         </h3>
 
-        <div tabIndex={0} role="region" aria-label="Top services" className="app-table-scroll mt-4">
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label="Top services"
+          className="app-table-scroll mt-4"
+        >
           <table className="w-full min-w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-stone-100 dark:border-stone-800 text-stone-400 text-[11px] font-medium">
                 <th className="pb-2 font-medium">Service</th>
-                <th className="pb-2 text-right font-medium">Revenue (₹)</th>
+                <th className="pb-2 text-right font-medium">
+                  Revenue ({getCurrencySymbol()})
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50 dark:divide-stone-800/60">

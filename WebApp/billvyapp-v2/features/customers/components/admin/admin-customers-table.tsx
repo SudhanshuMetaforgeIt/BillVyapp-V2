@@ -1,5 +1,8 @@
 'use client';
 
+import { getBusinessRegion } from '@/lib/business-region';
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { SelectInput } from '@/components/data/form-fields';
 
 import {
@@ -51,9 +54,9 @@ export function AdminCustomersTable({
   onViewCustomerBills,
 }: CustomersTableProps) {
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -82,7 +85,12 @@ export function AdminCustomersTable({
         </div>
       ) : (
         <>
-          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable table"
+            className="app-table-scroll overflow-x-auto"
+          >
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-stone-200/80 bg-stone-50/70 text-[11px] font-semibold text-stone-600 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
@@ -91,7 +99,9 @@ export function AdminCustomersTable({
                   <th className="px-4 py-3.5">Email</th>
                   <th className="px-4 py-3.5">Branch</th>
                   <th className="px-4 py-3.5 text-center">Total Bills</th>
-                  <th className="px-4 py-3.5 text-right">Total Spent (₹)</th>
+                  <th className="px-4 py-3.5 text-right">
+                    Total Spent ({getCurrencySymbol()})
+                  </th>
                   <th className="px-4 py-3.5 text-center">Last Visit</th>
                   <th className="px-4 py-3.5 text-center">Status</th>
                   <th className="px-4 py-3.5 text-center">Actions</th>
@@ -99,8 +109,7 @@ export function AdminCustomersTable({
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800/80">
                 {customers.map((c, idx) => {
-                  const avatarColor =
-                    AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                  const avatarColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                   return (
                     <tr
                       key={c.id}
@@ -211,15 +220,26 @@ export function AdminCustomersTable({
           {/* Table Footer */}
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
             <div>
-              Showing <span className="font-semibold text-stone-900 dark:text-white">{startRecord}</span> to{' '}
-              <span className="font-semibold text-stone-900 dark:text-white">{endRecord}</span> of{' '}
-              <span className="font-semibold text-stone-900 dark:text-white">{total.toLocaleString('en-IN')}</span> customers
+              Showing{' '}
+              <span className="font-semibold text-stone-900 dark:text-white">
+                {startRecord}
+              </span>{' '}
+              to{' '}
+              <span className="font-semibold text-stone-900 dark:text-white">
+                {endRecord}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-stone-900 dark:text-white">
+                {total.toLocaleString('en-IN')}
+              </span>{' '}
+              customers
             </div>
 
             <div className="flex items-center gap-3">
               {/* Page size dropdown */}
               <div className="flex items-center gap-1.5">
-                <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
+                <SelectInput
+                  className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
                   value={limit}
                   onChange={(e) => onLimitChange(Number(e.target.value))}
                 >

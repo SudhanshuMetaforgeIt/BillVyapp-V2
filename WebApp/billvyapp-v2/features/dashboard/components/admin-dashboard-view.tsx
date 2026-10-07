@@ -1,4 +1,5 @@
 'use client';
+import { formatDate } from '@/lib/format';
 import { DeferredContent } from '@/components/ui/deferred-content';
 import dynamic from 'next/dynamic';
 
@@ -74,14 +75,11 @@ function DashboardGreeting({
           className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-medium text-text shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
           aria-label="Select date"
         >
-          <CalendarDays className="size-4 shrink-0 text-text-secondary" aria-hidden />
-          <span>
-            {new Date().toLocaleDateString('en-IN', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </span>
+          <CalendarDays
+            className="size-4 shrink-0 text-text-secondary"
+            aria-hidden
+          />
+          <span>{formatDate(new Date())}</span>
         </button>
       </div>
     </div>
@@ -101,7 +99,10 @@ export function AdminDashboardView() {
       if (!rootRef.current || query.isLoading) return;
       playDashboardEntrance({ root: rootRef.current });
     },
-    { dependencies: [query.isLoading, query.isSuccess, salonId], scope: rootRef },
+    {
+      dependencies: [query.isLoading, query.isSuccess, salonId],
+      scope: rootRef,
+    },
   );
 
   if (query.isError && !data) {
@@ -125,7 +126,10 @@ export function AdminDashboardView() {
         branchesLoading={query.isLoading && !data}
       />
 
-      <AdminStatGrid stats={data?.stats ?? []} isLoading={query.isLoading && !data} />
+      <AdminStatGrid
+        stats={data?.stats ?? []}
+        isLoading={query.isLoading && !data}
+      />
 
       <div className="grid gap-6 content-lg:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)_minmax(14rem,1fr)] lg:gap-7">
         <AdminRevenueOverview series={data?.revenueSeries ?? []} />
@@ -144,7 +148,29 @@ export function AdminDashboardView() {
   );
 }
 
-const LazyAdminRevenueOverview = dynamic(() => import('./admin-revenue-overview').then((module) => module.AdminRevenueOverview), { loading: () => <div role="status" aria-label="Loading chart" className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface" /> });
-function AdminRevenueOverview(props: import('react').ComponentProps<typeof import('./admin-revenue-overview').AdminRevenueOverview>) {
-  return <DeferredContent><LazyAdminRevenueOverview {...props} /></DeferredContent>;
+const LazyAdminRevenueOverview = dynamic(
+  () =>
+    import('./admin-revenue-overview').then(
+      (module) => module.AdminRevenueOverview,
+    ),
+  {
+    loading: () => (
+      <div
+        role="status"
+        aria-label="Loading chart"
+        className="h-[400px] animate-pulse rounded-2xl border border-border bg-surface"
+      />
+    ),
+  },
+);
+function AdminRevenueOverview(
+  props: import('react').ComponentProps<
+    typeof import('./admin-revenue-overview').AdminRevenueOverview
+  >,
+) {
+  return (
+    <DeferredContent>
+      <LazyAdminRevenueOverview {...props} />
+    </DeferredContent>
+  );
 }

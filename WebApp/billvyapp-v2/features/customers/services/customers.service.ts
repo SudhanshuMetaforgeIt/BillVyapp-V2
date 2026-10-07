@@ -1,3 +1,4 @@
+import { maskPhone as internationalMaskPhone } from '@/lib/phone';
 import { format, isValid, parseISO, differenceInYears } from 'date-fns';
 
 import { api } from '@/services/api-client';
@@ -37,8 +38,7 @@ function ageLabel(dateOfBirth: string | null): string {
 }
 
 function maskPhone(phone: string): string {
-  if (!/^[0-9]{10}$/.test(phone)) return phone || '—';
-  return `+91 ***** *${phone.slice(6)}`;
+  return phone ? internationalMaskPhone(phone) : '—';
 }
 
 function membershipTone(
@@ -134,8 +134,7 @@ function mapRow(
   if (membership) {
     membershipLabel = planName || 'Membership';
     const end = membership.endDate ? parseISO(membership.endDate) : null;
-    const endLabel =
-      end && isValid(end) ? format(end, 'd MMM, yyyy') : '';
+    const endLabel = end && isValid(end) ? format(end, 'd MMM, yyyy') : '';
 
     if (membership.status === 'EXPIRED') {
       membershipExpiry = endLabel ? `Expired · ${endLabel}` : 'Expired';

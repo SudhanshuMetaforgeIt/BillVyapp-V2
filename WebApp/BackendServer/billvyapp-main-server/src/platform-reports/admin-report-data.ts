@@ -29,6 +29,8 @@ export type AdminReportSnapshot = {
   branchId: string | null;
   branch: string;
   timeZone: string;
+  currency?: string;
+  dateFormat?: string;
   interval: 'day' | 'week' | 'month';
   generatedOn: string;
   generatedBy: string;

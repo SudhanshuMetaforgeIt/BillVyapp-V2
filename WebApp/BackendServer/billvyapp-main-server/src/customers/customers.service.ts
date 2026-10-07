@@ -25,6 +25,7 @@ import {
 import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { ScopeService } from '../common/scope/scope.service';
 import { trimRequired } from '../common/strings';
+import { normalizeFranchisePhone } from '../common/phone';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerQueryDto } from './dto/customer-query.dto';
@@ -165,7 +166,7 @@ export class CustomersService {
     const [rows, total] = await Promise.all([
       this.prisma.customer.findMany({
         where,
-        select: CUSTOMER_SELECT,
+        select: this.customerSelect(user, query.salonId),
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -184,7 +185,7 @@ export class CustomersService {
   async findOne(user: AuthenticatedUser, id: string): Promise<CustomerRecord> {
     const record = await this.prisma.customer.findUnique({
       where: { id },
-      select: CUSTOMER_SELECT,
+      select: this.customerSelect(user),
     });
 
     if (!record) {
@@ -200,7 +201,13 @@ export class CustomersService {
     dto: CreateCustomerDto,
     ctx: RequestContext,
   ): Promise<CustomerRecord> {
-    const phone = dto.phone.trim();
+    this.scope.customerTableScope(actor);
+    const phone = (await normalizeFranchisePhone(
+      this.prisma,
+      dto.phone,
+      actor.franchiseId,
+      actor.salonId,
+    ))!;
     const email = dto.email.trim().toLowerCase();
     const firstName = trimRequired(dto.firstName);
     const lastName = trimRequired(dto.lastName);
@@ -250,6 +257,8 @@ export class CustomersService {
     try {
       const created = existingByPhone
         ? await this.linkExistingUser({
+            franchiseId: actor.franchiseId,
+            salonId: actor.salonId,
             userId: existingByPhone.id,
             firstName,
             lastName,
@@ -260,6 +269,8 @@ export class CustomersService {
             gender,
           })
         : await this.createUserAndCustomer({
+            franchiseId: actor.franchiseId,
+            salonId: actor.salonId,
             roleId: customerRole.id,
             firstName,
             lastName,
@@ -297,7 +308,7 @@ export class CustomersService {
     dto: UpdateCustomerDto,
     ctx: RequestContext,
   ): Promise<CustomerRecord> {
-    const existing = await this.requireCustomer(id);
+    const existing = await this.requireCustomer(id, actor);
     await this.scope.assertCustomerAccess(actor, existing.id);
 
     const userData: {
@@ -322,7 +333,12 @@ export class CustomersService {
       userData.email = dto.email.trim().toLowerCase();
     }
     if (dto.phone !== undefined) {
-      userData.phone = dto.phone.trim();
+      userData.phone = (await normalizeFranchisePhone(
+        this.prisma,
+        dto.phone,
+        actor.franchiseId,
+        actor.salonId,
+      ))!;
     }
     if (dto.dateOfBirth !== undefined) {
       customerData.dateOfBirth = dto.dateOfBirth;
@@ -342,7 +358,7 @@ export class CustomersService {
         return tx.customer.update({
           where: { id: existing.id },
           data: customerData,
-          select: CUSTOMER_SELECT,
+          select: this.customerSelect(actor),
         });
       });
 
@@ -379,7 +395,7 @@ export class CustomersService {
     dto: UpdateStatusDto,
     ctx: RequestContext,
   ): Promise<CustomerRecord> {
-    const existing = await this.requireCustomer(id);
+    const existing = await this.requireCustomer(id, actor);
     await this.scope.assertCustomerAccess(actor, existing.id);
 
     await this.prisma.user.update({
@@ -387,7 +403,7 @@ export class CustomersService {
       data: { isActive: dto.isActive },
     });
 
-    const updated = await this.requireCustomer(id);
+    const updated = await this.requireCustomer(id, actor);
 
     await this.audit.record({
       userId: actor.userId,
@@ -403,10 +419,13 @@ export class CustomersService {
     return this.toResponse(updated);
   }
 
-  private async requireCustomer(id: string): Promise<CustomerRow> {
+  private async requireCustomer(
+    id: string,
+    user: AuthenticatedUser,
+  ): Promise<CustomerRow> {
     const record = await this.prisma.customer.findUnique({
       where: { id },
-      select: CUSTOMER_SELECT,
+      select: this.customerSelect(user),
     });
 
     if (!record) {
@@ -417,6 +436,8 @@ export class CustomersService {
   }
 
   private async createUserAndCustomer(input: {
+    franchiseId: string | null;
+    salonId: string | null;
     roleId: string;
     firstName: string;
     lastName: string;
@@ -435,6 +456,8 @@ export class CustomersService {
       const user = await tx.user.create({
         data: {
           roleId: input.roleId,
+          franchiseId: input.franchiseId,
+          salonId: input.salonId,
           firstName: input.firstName,
           lastName: input.lastName,
           email: input.email,
@@ -458,6 +481,8 @@ export class CustomersService {
   }
 
   private async linkExistingUser(input: {
+    franchiseId: string | null;
+    salonId: string | null;
     userId: string;
     firstName: string;
     lastName: string;
@@ -477,6 +502,8 @@ export class CustomersService {
           lastName: input.lastName,
           email: input.email,
           phone: input.phone,
+          franchiseId: input.franchiseId,
+          salonId: input.salonId,
         },
       });
 
@@ -494,6 +521,14 @@ export class CustomersService {
 
   private nextCustomerCode(): string {
     return `CUST-${randomBytes(4).toString('hex').toUpperCase()}`;
+  }
+
+  private customerSelect(user: AuthenticatedUser, salonId?: string) {
+    const where =
+      salonId && user.role !== RoleCode.CUSTOMER
+        ? { AND: [this.scope.salonScope(user), { salonId }] }
+        : this.scope.salonScope(user);
+    return { ...CUSTOMER_SELECT, bills: { ...CUSTOMER_SELECT.bills, where } };
   }
 
   private toResponse(row: CustomerRow): CustomerRecord {

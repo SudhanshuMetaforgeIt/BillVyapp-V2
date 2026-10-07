@@ -6,9 +6,7 @@ import type {
   FranchiseListItem,
   PaginatedResponse,
 } from '@/features/dashboard/types/dashboard.types';
-import {
-  ROLE_DONUT_COLORS,
-} from '../data/placeholders';
+import { ROLE_DONUT_COLORS } from '../data/placeholders';
 import type {
   CreateUserPayload,
   FranchiseOption,
@@ -73,7 +71,11 @@ async function fetchFranchises(): Promise<FranchiseOption[]> {
     '/franchises',
     { params: { page: 1, limit: 100 } },
   );
-  return page.data.map((row) => ({ id: row.id, name: row.name }));
+  return page.data.map((row) => ({
+    id: row.id,
+    name: row.name,
+    phoneCountry: row.preferences?.phoneCountry ?? 'IN',
+  }));
 }
 
 async function lookupFranchiseName(

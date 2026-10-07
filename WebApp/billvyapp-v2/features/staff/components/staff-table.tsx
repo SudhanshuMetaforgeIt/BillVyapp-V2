@@ -1,5 +1,6 @@
 'use client';
 
+import { getCurrencySymbol } from '@/lib/business-region';
 import { SelectInput } from '@/components/data/form-fields';
 
 import {
@@ -50,7 +51,11 @@ export function StaffTable({
 
   const getRoleBadge = (roleName: string) => {
     const lower = roleName.toLowerCase();
-    if (lower.includes('senior') || lower.includes('admin') || lower.includes('owner')) {
+    if (
+      lower.includes('senior') ||
+      lower.includes('admin') ||
+      lower.includes('owner')
+    ) {
       return (
         <span className="inline-flex items-center rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
           {roleName}
@@ -64,7 +69,11 @@ export function StaffTable({
         </span>
       );
     }
-    if (lower.includes('skin') || lower.includes('colour') || lower.includes('color')) {
+    if (
+      lower.includes('skin') ||
+      lower.includes('colour') ||
+      lower.includes('color')
+    ) {
       return (
         <span className="inline-flex items-center rounded-md bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
           {roleName}
@@ -133,7 +142,12 @@ export function StaffTable({
         </div>
       ) : (
         <>
-          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable table"
+            className="app-table-scroll overflow-x-auto"
+          >
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-stone-200/80 bg-stone-50/70 text-[11px] font-semibold text-stone-600 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
@@ -141,7 +155,9 @@ export function StaffTable({
                   <th className="px-4 py-3.5">Role</th>
                   <th className="px-4 py-3.5">Branch</th>
                   <th className="px-4 py-3.5">Mobile</th>
-                  <th className="px-4 py-3.5 text-right">Salary (₹)</th>
+                  <th className="px-4 py-3.5 text-right">
+                    Salary ({getCurrencySymbol()})
+                  </th>
                   <th className="px-4 py-3.5 text-center">Status</th>
                   <th className="px-4 py-3.5 text-center">Join Date</th>
                   <th className="px-4 py-3.5 text-center">Actions</th>
@@ -234,15 +250,26 @@ export function StaffTable({
           {/* Table Footer */}
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
             <div>
-              Showing <span className="font-semibold text-stone-900 dark:text-white">{startRecord}</span> to{' '}
-              <span className="font-semibold text-stone-900 dark:text-white">{endRecord}</span> of{' '}
-              <span className="font-semibold text-stone-900 dark:text-white">{total.toLocaleString('en-IN')}</span> staff members
+              Showing{' '}
+              <span className="font-semibold text-stone-900 dark:text-white">
+                {startRecord}
+              </span>{' '}
+              to{' '}
+              <span className="font-semibold text-stone-900 dark:text-white">
+                {endRecord}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-stone-900 dark:text-white">
+                {total.toLocaleString('en-IN')}
+              </span>{' '}
+              staff members
             </div>
 
             <div className="flex items-center gap-3">
               {/* Page size dropdown */}
               <div className="flex items-center gap-1.5">
-                <SelectInput className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
+                <SelectInput
+                  className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
                   value={limit}
                   onChange={(e) => onLimitChange(Number(e.target.value))}
                 >

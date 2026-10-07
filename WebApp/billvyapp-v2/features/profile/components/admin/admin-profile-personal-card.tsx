@@ -24,7 +24,7 @@ export function AdminProfilePersonalCard({ profile }: Props) {
   const [username, setUsername] = useState('rohit.sharma');
   const [email, setEmail] = useState('rohit@starrkuts.com');
   const [designation, setDesignation] = useState('Administrator');
-  const [phone, setPhone] = useState('+91 98765 43210');
+  const [phone, setPhone] = useState('');
   const [language, setLanguage] = useState('English');
 
   useEffect(() => {
@@ -35,7 +35,9 @@ export function AdminProfilePersonalCard({ profile }: Props) {
       if (profile.phone) setPhone(profile.phone);
       if (profile.roleLabel) setDesignation(profile.roleLabel);
       if (profile.email) {
-        const userPrefix = profile.email.split('@')[0].replace(/[^a-zA-Z0-9._-]/g, '');
+        const userPrefix = profile.email
+          .split('@')[0]
+          .replace(/[^a-zA-Z0-9._-]/g, '');
         setUsername(userPrefix || 'rohit.sharma');
       }
     }
@@ -62,15 +64,17 @@ export function AdminProfilePersonalCard({ profile }: Props) {
         onSuccess: () => {
           setIsEditing(false);
         },
-      }
+      },
     );
   };
 
   const handleCancel = () => {
     if (profile) {
-      setFullName(`${profile.firstName} ${profile.lastName}`.trim() || 'Rohit Sharma');
+      setFullName(
+        `${profile.firstName} ${profile.lastName}`.trim() || 'Rohit Sharma',
+      );
       setEmail(profile.email || 'rohit@starrkuts.com');
-      setPhone(profile.phone || '+91 98765 43210');
+      setPhone(profile.phone || '');
     }
     setIsEditing(false);
   };
@@ -187,7 +191,7 @@ export function AdminProfilePersonalCard({ profile }: Props) {
               Phone Number
             </Label>
             <Input
-              type="text"
+              type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={!isEditing}

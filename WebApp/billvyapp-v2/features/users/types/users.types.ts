@@ -39,6 +39,7 @@ export type RoleOption = {
 };
 
 export type FranchiseOption = {
+  phoneCountry?: 'IN' | 'US';
   id: string;
   name: string;
 };

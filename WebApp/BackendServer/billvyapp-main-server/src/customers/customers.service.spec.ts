@@ -117,6 +117,7 @@ function customerRow(overrides: Record<string, unknown> = {}) {
 
 describe('CustomersService', () => {
   const prisma = {
+    franchise: {findUnique:jest.fn()},
     customer: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -133,6 +134,7 @@ describe('CustomersService', () => {
     $transaction: jest.fn(),
   };
   const scope = {
+    salonScope: jest.fn().mockReturnValue({}),
     customerTableScope: jest.fn().mockReturnValue({}),
     customerSalonAssociation: jest.fn().mockReturnValue({
       OR: [{ appointments: { some: { salonId: 'salon-a1' } } }],
@@ -146,6 +148,8 @@ describe('CustomersService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.franchise.findUnique.mockResolvedValue({preferences:{phoneCountry:'IN'}});
+    scope.salonScope.mockReturnValue({});
     scope.customerTableScope.mockReturnValue({});
     scope.customerSalonAssociation.mockReturnValue({
       OR: [{ appointments: { some: { salonId: 'salon-a1' } } }],
@@ -191,6 +195,55 @@ describe('CustomersService', () => {
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'CUSTOMER_CREATED' }),
     );
+  });
+
+  it('records the creating franchise so new customers are visible before their first bill', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'user-a' });
+    prisma.customer.create.mockResolvedValue(customerRow());
+    await service.create(admin, createDto, ctx);
+    expect(
+      firstMockArg<{ data: { franchiseId: string; salonId: string | null } }>(
+        prisma.user.create,
+      ).data,
+    ).toMatchObject({ franchiseId: 'fr-a', salonId: null });
+  });
+
+  it('filters both the directory and its count by the authenticated franchise, and scopes bill summaries', async () => {
+    const actualScope = new ScopeService(prisma as never);
+    const scopedService = new CustomersService(
+      prisma as never,
+      actualScope,
+      audit as never,
+      passwords as never,
+    );
+    prisma.customer.findMany.mockResolvedValue([]);
+    prisma.customer.count.mockResolvedValue(0);
+    const result = await scopedService.list(admin, { page: 1, limit: 10 });
+    const list = firstMockArg<{
+      where: Record<string, unknown>;
+      select: { bills: { where: Record<string, unknown> } };
+    }>(prisma.customer.findMany);
+    expect(list.where).toEqual({
+      AND: [actualScope.customerTableScope(admin)],
+    });
+    expect(
+      firstMockArg<{ where: Record<string, unknown> }>(prisma.customer.count)
+        .where,
+    ).toEqual(list.where);
+    expect(list.select.bills.where).toEqual({ salon: { franchiseId: 'fr-a' } });
+    expect(result.data).toEqual([]);
+    expect(result.meta.total).toBe(0);
+  });
+
+  it('restricts direct profile bill summaries to the requesting franchise', async () => {
+    scope.salonScope.mockReturnValue({ salon: { franchiseId: 'fr-a' } });
+    prisma.customer.findUnique.mockResolvedValue(customerRow());
+    await service.findOne(admin, 'cust-a');
+    expect(
+      firstMockArg<{ select: { bills: { where: Record<string, unknown> } } }>(
+        prisma.customer.findUnique,
+      ).select.bills.where,
+    ).toEqual({ salon: { franchiseId: 'fr-a' } });
   });
 
   it('does not persist a plaintext password', async () => {
@@ -443,7 +496,7 @@ describe('CreateCustomerDto phone validation', () => {
       firstName: 'Riya',
       lastName: 'Kapoor',
       email: 'riya@example.com',
-      phone: '+919876543210',
+      phone: '98765',
     });
     expect(await validate(dto)).not.toHaveLength(0);
   });

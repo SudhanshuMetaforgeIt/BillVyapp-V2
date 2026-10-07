@@ -1,5 +1,6 @@
 'use client';
 
+import { getBusinessRegion } from '@/lib/business-region';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -49,7 +50,15 @@ const METHODS: PaymentMethod[] = [
   'OTHER',
 ];
 
-function escapeHtml(value: string) { return value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c); }
+function escapeHtml(value: string) {
+  return value.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
+        c
+      ] ?? c,
+  );
+}
 
 function downloadBillInvoice(bill: Bill) {
   const customerName = bill.customer
@@ -87,7 +96,7 @@ function downloadBillInvoice(bill: Bill) {
     ${bill.salon?.name ?? 'Salon'} · ${formatDate(bill.billDate)}<br/>
     ${customerName}${bill.customer?.phone ? ` · ${bill.customer.phone}` : ''}<br/>
     Status: ${bill.status} · Payment: ${bill.paymentStatus}
-    ${bill.enrolledCouponCode ? `<br/>New membership coupon: ${escapeHtml(bill.enrolledCouponCode)}` : ""}
+    ${bill.enrolledCouponCode ? `<br/>New membership coupon: ${escapeHtml(bill.enrolledCouponCode)}` : ''}
     ${bill.couponCode ? `<br/>Membership coupon: ${bill.couponCode}` : ''}
   </div>
   <table>
@@ -95,7 +104,7 @@ function downloadBillInvoice(bill: Bill) {
     <tbody>${rows}</tbody>
   </table>
   <div class="totals">
-    ${bill.enrollmentPlanId ? `<div><span>Membership enrollment: ${escapeHtml(bill.enrollmentPlanName ?? "Membership")}</span><span>${formatCurrency(bill.membershipFee ?? 0)}</span></div>` : ""}
+    ${bill.enrollmentPlanId ? `<div><span>Membership enrollment: ${escapeHtml(bill.enrollmentPlanName ?? 'Membership')}</span><span>${formatCurrency(bill.membershipFee ?? 0)}</span></div>` : ''}
     <div><span>Subtotal</span><span>${formatCurrency(bill.subtotal)}</span></div>
     <div><span>Discount</span><span>${formatCurrency(bill.discount)}</span></div>
     <div><span>Tax</span><span>${formatCurrency(bill.tax)}</span></div>
@@ -212,42 +221,54 @@ export function BillRecordDialog({
             </Button>
           </div>
 
-          <div tabIndex={0} role="region" aria-label="Scrollable items" className="app-table-scroll"><table className="w-full text-left text-xs">
-            <thead className="text-text-secondary">
-              <tr>
-                <th className="py-1 font-medium">Item</th>
-                <th className="py-1 text-right font-medium">Qty</th>
-                <th className="py-1 text-right font-medium">Rate</th>
-                <th className="py-1 text-right font-medium">Membership</th>
-                <th className="py-1 text-right font-medium">Tax</th>
-                <th className="py-1 text-right font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {b.items.map((item) => (
-                <tr key={item.id}>
-                  <td className="py-1.5">
-                    {item.description ?? item.itemType}
-                  </td>
-                  <td className="py-1.5 text-right">{item.quantity}</td>
-                  <td className="py-1.5 text-right">
-                    {formatCurrency(item.unitPrice)}
-                  </td>
-                  <td className="py-1.5 text-right">
-                    {formatCurrency(item.membershipDiscount ?? 0)}
-                  </td>
-                  <td className="py-1.5 text-right">
-                    {formatCurrency(item.taxAmount)}
-                  </td>
-                  <td className="py-1.5 text-right font-medium">
-                    {formatCurrency(item.total)}
-                  </td>
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable items"
+            className="app-table-scroll"
+          >
+            <table className="w-full text-left text-xs">
+              <thead className="text-text-secondary">
+                <tr>
+                  <th className="py-1 font-medium">Item</th>
+                  <th className="py-1 text-right font-medium">Qty</th>
+                  <th className="py-1 text-right font-medium">Rate</th>
+                  <th className="py-1 text-right font-medium">Membership</th>
+                  <th className="py-1 text-right font-medium">Tax</th>
+                  <th className="py-1 text-right font-medium">Total</th>
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {b.items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="py-1.5">
+                      {item.description ?? item.itemType}
+                    </td>
+                    <td className="py-1.5 text-right">{item.quantity}</td>
+                    <td className="py-1.5 text-right">
+                      {formatCurrency(item.unitPrice)}
+                    </td>
+                    <td className="py-1.5 text-right">
+                      {formatCurrency(item.membershipDiscount ?? 0)}
+                    </td>
+                    <td className="py-1.5 text-right">
+                      {formatCurrency(item.taxAmount)}
+                    </td>
+                    <td className="py-1.5 text-right font-medium">
+                      {formatCurrency(item.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          {b.enrolledCouponCode && <p className="text-sm">New membership coupon: <span className="font-mono">{b.enrolledCouponCode}</span></p>}
+          {b.enrolledCouponCode && (
+            <p className="text-sm">
+              New membership coupon:{' '}
+              <span className="font-mono">{b.enrolledCouponCode}</span>
+            </p>
+          )}
           {b.couponCode && (
             <p className="text-sm">
               <span className="font-semibold">Membership coupon: </span>
@@ -259,7 +280,16 @@ export function BillRecordDialog({
           )}
 
           <dl className="ml-auto grid w-full max-w-xs grid-cols-2 gap-y-1 text-xs">
-            {b.enrollmentPlanId && <><dt className="text-text-secondary">Membership fee ({b.enrollmentPlanName})</dt><dd className="text-right">{formatCurrency(b.membershipFee ?? 0)}</dd></>}
+            {b.enrollmentPlanId && (
+              <>
+                <dt className="text-text-secondary">
+                  Membership fee ({b.enrollmentPlanName})
+                </dt>
+                <dd className="text-right">
+                  {formatCurrency(b.membershipFee ?? 0)}
+                </dd>
+              </>
+            )}
             <dt className="text-text-secondary">Subtotal</dt>
             <dd className="text-right">{formatCurrency(b.subtotal)}</dd>
             <dt className="text-text-secondary">Discount</dt>
@@ -397,7 +427,10 @@ function CounterPaymentForm({ bill }: { bill: Bill }) {
           value={method}
           onChange={(e) => setMethod(e.target.value as PaymentMethod)}
         >
-          {METHODS.map((m) => (
+          {METHODS.filter(
+            (method) =>
+              method !== 'UPI' || getBusinessRegion().currency !== 'USD',
+          ).map((m) => (
             <option key={m} value={m}>
               {m.replace('_', ' ')}
             </option>

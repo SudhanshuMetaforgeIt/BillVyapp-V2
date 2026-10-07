@@ -131,6 +131,7 @@ export function CreateNotificationDialog({
             <Label htmlFor="notif-recipient">Recipient</Label>
             <Input
               id="notif-recipient"
+              type={channel === 'EMAIL' ? 'email' : 'tel'}
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
               placeholder={

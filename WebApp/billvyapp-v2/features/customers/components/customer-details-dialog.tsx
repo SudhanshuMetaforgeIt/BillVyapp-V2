@@ -1,11 +1,12 @@
-"use client";
+'use client';
+import { getBusinessRegion } from '@/lib/business-region';
 
-import { CustomerMemberships } from "@/features/memberships/components/customer-memberships";
-import { Mail, MapPin, Phone, Receipt, User, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import type { CustomerItem } from "../types/admin-customers.types";
-import { useRouter } from "next/navigation";
-import { ROUTES } from "@/constants/routes";
+import { CustomerMemberships } from '@/features/memberships/components/customer-memberships';
+import { Mail, MapPin, Phone, Receipt, User, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { CustomerItem } from '../types/admin-customers.types';
+import { useRouter } from 'next/navigation';
+import { ROUTES } from '@/constants/routes';
 
 type CustomerDetailsDialogProps = {
   customer: CustomerItem | null;
@@ -23,9 +24,9 @@ export function CustomerDetailsDialog({
   if (!isOpen || !customer) return null;
 
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
+      style: 'currency',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -74,7 +75,7 @@ export function CustomerDetailsDialog({
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <MapPin className="h-4 w-4 text-stone-400" />
             <span>
-              Preferred Branch:{" "}
+              Preferred Branch:{' '}
               <strong className="font-semibold">{customer.branchName}</strong>
             </span>
           </div>
@@ -82,9 +83,9 @@ export function CustomerDetailsDialog({
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <User className="h-4 w-4 text-stone-400" />
             <span>
-              Gender:{" "}
+              Gender:{' '}
               <strong className="capitalize">
-                {customer.gender?.toLowerCase() || "Unspecified"}
+                {customer.gender?.toLowerCase() || 'Unspecified'}
               </strong>
             </span>
           </div>

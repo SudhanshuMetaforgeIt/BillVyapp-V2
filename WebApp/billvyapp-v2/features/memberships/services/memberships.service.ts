@@ -1,12 +1,13 @@
-import { isValid, parseISO, addDays, isBefore, isAfter } from "date-fns";
+import { maskPhone as internationalMaskPhone } from '@/lib/phone';
+import { isValid, parseISO, addDays, isBefore, isAfter } from 'date-fns';
 
-import { api } from "@/services/api-client";
+import { api } from '@/services/api-client';
 import {
   businessCalendarDateOfInstant,
   businessMonthBounds,
-} from "@/lib/business-calendar";
-import { formatCurrency, formatDate, formatFullName } from "@/lib/format";
-import type { DashboardMetric } from "@/features/dashboard/services/dashboard.service";
+} from '@/lib/business-calendar';
+import { formatCurrency, formatDate, formatFullName } from '@/lib/format';
+import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
   CreateMembershipPayload,
   CreateMembershipPlanPayload,
@@ -21,18 +22,17 @@ import type {
   PaginatedResponse,
   PlanListRow,
   PopularPlanRow,
-} from "../types/memberships.types";
+} from '../types/memberships.types';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "—";
+  if (parts.length === 0) return '—';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
 function maskPhone(phone: string): string {
-  if (!/^[0-9]{10}$/.test(phone)) return phone || "—";
-  return `+91 ***** *${phone.slice(6)}`;
+  return phone ? internationalMaskPhone(phone) : '—';
 }
 
 function formatDateOnly(value: string): string {
@@ -47,15 +47,15 @@ function statusLabel(
   status: MembershipStatus,
   isExpiringSoon: boolean,
 ): string {
-  if (status === "ACTIVE" && isExpiringSoon) return "Expiring Soon";
-  if (status === "PENDING") return "Pending";
-  if (status === "ACTIVE") return "Active";
-  if (status === "EXPIRED") return "Expired";
-  return "Cancelled";
+  if (status === 'ACTIVE' && isExpiringSoon) return 'Expiring Soon';
+  if (status === 'PENDING') return 'Pending';
+  if (status === 'ACTIVE') return 'Active';
+  if (status === 'EXPIRED') return 'Expired';
+  return 'Cancelled';
 }
 
 function isExpiringSoon(status: MembershipStatus, endDate: string): boolean {
-  if (status !== "ACTIVE") return false;
+  if (status !== 'ACTIVE') return false;
   const end = parseISO(endDate);
   if (!isValid(end)) return false;
   const now = new Date();
@@ -64,7 +64,7 @@ function isExpiringSoon(status: MembershipStatus, endDate: string): boolean {
 }
 
 function isExpiringThisMonth(row: MembershipApiItem): boolean {
-  if (row.status !== "ACTIVE") return false;
+  if (row.status !== 'ACTIVE') return false;
   const end = row.endDate?.slice(0, 10);
   if (!end) return false;
   const { dateFrom, dateTo } = businessMonthBounds();
@@ -73,7 +73,7 @@ function isExpiringThisMonth(row: MembershipApiItem): boolean {
 
 async function countMemberships(status?: MembershipStatus, salonId?: string) {
   const page = await api.get<PaginatedResponse<MembershipApiItem>>(
-    "/memberships",
+    '/memberships',
     {
       params: { page: 1, limit: 1, status: status || undefined, salonId },
     },
@@ -90,45 +90,45 @@ function buildMetrics(input: {
 }): DashboardMetric[] {
   return [
     {
-      id: "mem-total",
-      label: "Total Members",
+      id: 'mem-total',
+      label: 'Total Members',
       value: String(input.total),
       rawValue: input.total,
-      comparisonLabel: "current total",
+      comparisonLabel: 'current total',
       changePercent: null,
-      tone: "accent",
+      tone: 'accent',
       comparisonIsPlaceholder: false,
     },
     {
-      id: "mem-active",
-      label: "Active Members",
+      id: 'mem-active',
+      label: 'Active Members',
       value: String(input.active),
       rawValue: input.active,
-      comparisonLabel: "current total",
+      comparisonLabel: 'current total',
       changePercent: null,
-      tone: "success",
+      tone: 'success',
       comparisonIsPlaceholder: false,
     },
     {
-      id: "mem-expiring",
-      label: "Expiring This Month",
+      id: 'mem-expiring',
+      label: 'Expiring This Month',
       value: String(input.expiringThisMonth),
       rawValue: input.expiringThisMonth,
       comparisonLabel: input.expiringIncomplete
-        ? "from recent members"
-        : "end date this month",
+        ? 'from recent members'
+        : 'end date this month',
       changePercent: null,
-      tone: "neutral",
+      tone: 'neutral',
       comparisonIsPlaceholder: input.expiringIncomplete,
     },
     {
-      id: "mem-plans",
-      label: "Active Plans",
+      id: 'mem-plans',
+      label: 'Active Plans',
       value: String(input.plans),
       rawValue: input.plans,
-      comparisonLabel: "current total",
+      comparisonLabel: 'current total',
       changePercent: null,
-      tone: "accent",
+      tone: 'accent',
       comparisonIsPlaceholder: false,
     },
   ];
@@ -144,27 +144,27 @@ function mapMemberRow(
 ): MemberListRow {
   const customer = customerById.get(row.customerId);
   const plan = planById.get(row.membershipPlanId);
-  const name = customer ? formatFullName(customer) : "Unknown customer";
+  const name = customer ? formatFullName(customer) : 'Unknown customer';
   const expiring = isExpiringSoon(row.status, row.endDate);
 
   return {
     id: row.id,
     serial: (page - 1) * limit + index + 1,
     customerId: row.customerId,
-    memberName: name === "-" ? "Unknown customer" : name,
-    initials: initials(name === "-" ? "" : name),
-    phoneMasked: maskPhone(customer?.phone ?? ""),
+    memberName: name === '-' ? 'Unknown customer' : name,
+    initials: initials(name === '-' ? '' : name),
+    phoneMasked: maskPhone(customer?.phone ?? ''),
     planId: row.membershipPlanId,
     couponCode: row.couponCode,
     includedServices:
-      row.planSnapshot?.eligibleServices.map((s) => s.name).join(", ") ??
-      plan?.eligibleServices?.map((s) => s.name).join(", "),
+      row.planSnapshot?.eligibleServices.map((s) => s.name).join(', ') ??
+      plan?.eligibleServices?.map((s) => s.name).join(', '),
     qualifyingBillNumber: row.qualifyingBill?.billNumber,
-    planName: row.membershipName ?? plan?.name ?? "—",
+    planName: row.membershipName ?? plan?.name ?? '—',
     startDateLabel: formatDateOnly(row.startDate),
     endDateLabel: formatDateOnly(row.endDate),
     dateRangeLabel: `${formatDateOnly(row.startDate)} to ${formatDateOnly(row.endDate)}`,
-    visitsLeftLabel: "—",
+    visitsLeftLabel: '—',
     status: row.status,
     statusLabel: statusLabel(row.status, expiring),
     isExpiringSoon: expiring,
@@ -172,7 +172,7 @@ function mapMemberRow(
       ? formatCurrency(row.planSnapshot.price)
       : plan
         ? formatCurrency(plan.price)
-        : "—",
+        : '—',
   };
 }
 
@@ -202,9 +202,9 @@ function buildMonthSummary(
 
   return {
     newMemberships: createdThisMonth.length,
-    renewedLabel: "—",
+    renewedLabel: '—',
     revenueLabel: formatCurrency(revenue),
-    visitsLabel: "—",
+    visitsLabel: '—',
     incomplete,
   };
 }
@@ -215,7 +215,7 @@ export async function fetchMembershipsPage(
   const needsClientMemberFilter =
     Boolean(params.search.trim()) ||
     Boolean(params.planId) ||
-    params.status === "expiring";
+    params.status === 'expiring';
 
   const [
     membersPage,
@@ -226,37 +226,37 @@ export async function fetchMembershipsPage(
     totalMembers,
     activeMembers,
   ] = await Promise.all([
-    needsClientMemberFilter || params.tab === "plans"
+    needsClientMemberFilter || params.tab === 'plans'
       ? Promise.resolve({
           data: [] as MembershipApiItem[],
           meta: { page: 1, limit: params.limit, total: 0, totalPages: 0 },
         })
-      : api.get<PaginatedResponse<MembershipApiItem>>("/memberships", {
+      : api.get<PaginatedResponse<MembershipApiItem>>('/memberships', {
           params: {
             salonId: params.salonId || undefined,
             page: params.page,
             limit: params.limit,
             status:
-              params.status !== "all" && params.status !== "expiring"
+              params.status !== 'all' && params.status !== 'expiring'
                 ? params.status
                 : undefined,
           },
         }),
-    api.get<PaginatedResponse<MembershipApiItem>>("/memberships", {
+    api.get<PaginatedResponse<MembershipApiItem>>('/memberships', {
       params: { page: 1, limit: 100, salonId: params.salonId || undefined },
     }),
-    api.get<PaginatedResponse<MembershipPlanApiItem>>("/membership-plans", {
+    api.get<PaginatedResponse<MembershipPlanApiItem>>('/membership-plans', {
       params: {
         salonId: params.salonId || undefined,
-        page: params.tab === "plans" ? params.page : 1,
-        limit: params.tab === "plans" ? params.limit : 100,
+        page: params.tab === 'plans' ? params.page : 1,
+        limit: params.tab === 'plans' ? params.limit : 100,
         search:
-          params.tab === "plans" && params.search.trim()
+          params.tab === 'plans' && params.search.trim()
             ? params.search.trim()
             : undefined,
       },
     }),
-    api.get<PaginatedResponse<MembershipPlanApiItem>>("/membership-plans", {
+    api.get<PaginatedResponse<MembershipPlanApiItem>>('/membership-plans', {
       params: {
         page: 1,
         limit: 1,
@@ -264,7 +264,7 @@ export async function fetchMembershipsPage(
         salonId: params.salonId || undefined,
       },
     }),
-    api.get<PaginatedResponse<CustomerLite>>("/customers", {
+    api.get<PaginatedResponse<CustomerLite>>('/customers', {
       params: {
         page: 1,
         limit: 100,
@@ -272,7 +272,7 @@ export async function fetchMembershipsPage(
       },
     }),
     countMemberships(undefined, params.salonId),
-    countMemberships("ACTIVE", params.salonId),
+    countMemberships('ACTIVE', params.salonId),
   ]);
 
   const candidates = candidatesPage.data;
@@ -281,9 +281,9 @@ export async function fetchMembershipsPage(
 
   const planById = new Map(plansPage.data.map((plan) => [plan.id, plan]));
   // Ensure plan map is complete for member joins when plans tab is paginated.
-  if (params.tab === "plans" || plansPage.data.length < 100) {
+  if (params.tab === 'plans' || plansPage.data.length < 100) {
     const allPlans = await api.get<PaginatedResponse<MembershipPlanApiItem>>(
-      "/membership-plans",
+      '/membership-plans',
       { params: { page: 1, limit: 100, salonId: params.salonId || undefined } },
     );
     for (const plan of allPlans.data) {
@@ -297,9 +297,9 @@ export async function fetchMembershipsPage(
 
   // When searching members, customersPage is search-scoped; still load a
   // broad customer map for display of non-matching pages.
-  if (params.search.trim() && params.tab === "members") {
+  if (params.search.trim() && params.tab === 'members') {
     const allCustomers = await api.get<PaginatedResponse<CustomerLite>>(
-      "/customers",
+      '/customers',
       { params: { page: 1, limit: 100, salonId: params.salonId || undefined } },
     );
     for (const customer of allCustomers.data) {
@@ -360,12 +360,12 @@ export async function fetchMembershipsPage(
   let memberRows: MemberListRow[] = [];
   let memberMeta = membersPage.meta;
 
-  if (params.tab === "members") {
+  if (params.tab === 'members') {
     if (needsClientMemberFilter) {
       const searchCustomerIds = params.search.trim()
         ? new Set(
             (
-              await api.get<PaginatedResponse<CustomerLite>>("/customers", {
+              await api.get<PaginatedResponse<CustomerLite>>('/customers', {
                 params: {
                   page: 1,
                   limit: 100,
@@ -380,10 +380,10 @@ export async function fetchMembershipsPage(
         if (params.planId && row.membershipPlanId !== params.planId) {
           return false;
         }
-        if (params.status === "expiring") {
+        if (params.status === 'expiring') {
           return isExpiringSoon(row.status, row.endDate);
         }
-        if (params.status !== "all" && row.status !== params.status) {
+        if (params.status !== 'all' && row.status !== params.status) {
           return false;
         }
         if (searchCustomerIds && !searchCustomerIds.has(row.customerId)) {
@@ -434,24 +434,24 @@ export async function fetchMembershipsPage(
     totalPages: 0,
   };
 
-  if (params.tab === "plans") {
+  if (params.tab === 'plans') {
     planRows = plansPage.data.map((plan) => ({
       plan,
       salonName: plan.salonName ?? plan.salonId,
       thresholdLabel:
         plan.enrollmentThreshold == null
-          ? "Disabled"
+          ? 'Disabled'
           : formatCurrency(plan.enrollmentThreshold),
       servicesLabel:
-        plan.eligibleServices?.map((s) => s.name).join(", ") || "None",
+        plan.eligibleServices?.map((s) => s.name).join(', ') || 'None',
       id: plan.id,
       name: plan.name,
-      description: plan.description?.trim() || "—",
+      description: plan.description?.trim() || '—',
       priceLabel: formatCurrency(plan.price),
       durationLabel: durationLabel(plan.durationDays),
       memberCount: memberCounts.get(plan.id) ?? 0,
       isActive: plan.isActive,
-      statusLabel: plan.isActive ? "Active" : "Inactive",
+      statusLabel: plan.isActive ? 'Active' : 'Inactive',
     }));
     planMeta = plansPage.meta;
   }
@@ -470,18 +470,18 @@ export async function fetchMembershipsPage(
 }
 
 export async function createMembership(payload: CreateMembershipPayload) {
-  return api.post<MembershipApiItem>("/memberships", payload);
+  return api.post<MembershipApiItem>('/memberships', payload);
 }
 
 export async function createMembershipPlan(
   payload: CreateMembershipPlanPayload,
 ) {
-  return api.post<MembershipPlanApiItem>("/membership-plans", payload);
+  return api.post<MembershipPlanApiItem>('/membership-plans', payload);
 }
 
 export async function updateMembershipPlan(
   id: string,
-  payload: Omit<CreateMembershipPlanPayload, "salonId" | "isActive">,
+  payload: Omit<CreateMembershipPlanPayload, 'salonId' | 'isActive'>,
 ) {
   return api.patch<MembershipPlanApiItem>(`/membership-plans/${id}`, payload);
 }
@@ -497,7 +497,7 @@ export async function fetchMembershipServices(salonId: string) {
   while (true) {
     const result = await api.get<
       PaginatedResponse<{ id: string; name: string }>
-    >("/services", { params: { salonId, page, limit: 100 } });
+    >('/services', { params: { salonId, page, limit: 100 } });
     services.push(...result.data);
     if (page >= result.meta.totalPages) return services;
     page++;

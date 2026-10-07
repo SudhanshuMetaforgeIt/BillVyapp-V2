@@ -1,3 +1,4 @@
+import { normalizeFranchisePhone } from '../common/phone';
 import {
   ConflictException,
   Injectable,
@@ -158,7 +159,15 @@ export class VendorsService {
   ): Promise<VendorRecord> {
     try {
       const created = await this.prisma.vendor.create({
-        data: this.toCreateData(dto),
+        data: {
+          ...this.toCreateData(dto),
+          phone: await normalizeFranchisePhone(
+            this.prisma,
+            dto.phone,
+            user.franchiseId,
+            user.salonId,
+          ),
+        },
         select: VENDOR_SELECT,
       });
 
@@ -192,7 +201,19 @@ export class VendorsService {
     try {
       const updated = await this.prisma.vendor.update({
         where: { id: existing.id },
-        data: this.toUpdateData(dto),
+        data: {
+          ...this.toUpdateData(dto),
+          ...(dto.phone !== undefined
+            ? {
+                phone: await normalizeFranchisePhone(
+                  this.prisma,
+                  dto.phone,
+                  user.franchiseId,
+                  user.salonId,
+                ),
+              }
+            : {}),
+        },
         select: VENDOR_SELECT,
       });
 

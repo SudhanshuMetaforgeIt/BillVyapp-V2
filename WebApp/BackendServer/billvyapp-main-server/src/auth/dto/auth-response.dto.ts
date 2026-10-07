@@ -1,6 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AuthUserDto {
+  @ApiPropertyOptional({ enum: ['IN', 'US'] }) phoneCountry?: string;
+  @ApiPropertyOptional({ example: 'USD' }) currency?: string;
+  @ApiPropertyOptional({ example: 'en-US' }) locale?: string;
+  @ApiPropertyOptional() dateFormat?: string;
+  @ApiPropertyOptional() timeFormat?: string;
   @ApiProperty() id: string;
   @ApiProperty() firstName: string;
   @ApiProperty() lastName: string;

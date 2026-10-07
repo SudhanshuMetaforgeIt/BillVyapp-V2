@@ -1,7 +1,17 @@
 'use client';
 
+import { getCurrencySymbol } from '@/lib/business-region';
+import { formatCurrency } from '@/lib/format';
+
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Scissors } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Scissors,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { SectionEmptyState } from '@/components/layout/section-states';
@@ -69,14 +79,19 @@ export function AdminServicesTable({
       ) : (
         <>
           {/* Desktop Table */}
-          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll hidden overflow-x-auto lg:block">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable table"
+            className="app-table-scroll hidden overflow-x-auto lg:block"
+          >
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-ivory/70 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                 <tr>
                   <th className="px-5 py-3.5">Service Name</th>
                   <th className="px-5 py-3.5">Category</th>
                   <th className="px-5 py-3.5">Branch</th>
-                  <th className="px-5 py-3.5">Price (₹)</th>
+                  <th className="px-5 py-3.5">Price ({getCurrencySymbol()})</th>
                   <th className="px-5 py-3.5">Duration</th>
                   <th className="px-5 py-3.5">Status</th>
                   <th className="px-5 py-3.5 text-right">Actions</th>
@@ -84,7 +99,10 @@ export function AdminServicesTable({
               </thead>
               <tbody className="divide-y divide-border">
                 {services.map((s) => (
-                  <tr key={s.id} className="hover:bg-ivory/50 transition-colors">
+                  <tr
+                    key={s.id}
+                    className="hover:bg-ivory/50 transition-colors"
+                  >
                     {/* Service Name */}
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
@@ -103,14 +121,18 @@ export function AdminServicesTable({
                     </td>
 
                     {/* Category */}
-                    <td className="px-5 py-3.5 text-text-secondary">{s.categoryName}</td>
+                    <td className="px-5 py-3.5 text-text-secondary">
+                      {s.categoryName}
+                    </td>
 
                     {/* Branch */}
-                    <td className="px-5 py-3.5 text-text-secondary">{s.branchName}</td>
+                    <td className="px-5 py-3.5 text-text-secondary">
+                      {s.branchName}
+                    </td>
 
                     {/* Price */}
                     <td className="px-5 py-3.5 font-bold text-text">
-                      {s.price.toLocaleString('en-IN')}
+                      {formatCurrency(s.price)}
                     </td>
 
                     {/* Duration */}
@@ -184,7 +206,9 @@ export function AdminServicesTable({
                     </div>
                     <div>
                       <p className="font-bold text-text">{s.name}</p>
-                      <p className="text-xs text-text-secondary">{s.categoryName}</p>
+                      <p className="text-xs text-text-secondary">
+                        {s.categoryName}
+                      </p>
                     </div>
                   </div>
                   <StatusBadge
@@ -196,20 +220,28 @@ export function AdminServicesTable({
                 <div className="grid grid-cols-3 gap-2 rounded-lg bg-ivory/60 p-2 text-center text-xs">
                   <div>
                     <p className="text-text-muted">Branch</p>
-                    <p className="truncate font-semibold text-text">{s.branchName}</p>
+                    <p className="truncate font-semibold text-text">
+                      {s.branchName}
+                    </p>
                   </div>
                   <div>
                     <p className="text-text-muted">Price</p>
-                    <p className="font-bold text-text">₹{s.price.toLocaleString('en-IN')}</p>
+                    <p className="font-bold text-text">
+                      {formatCurrency(s.price)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-text-muted">Duration</p>
-                    <p className="font-semibold text-text">{s.durationMinutes}m</p>
+                    <p className="font-semibold text-text">
+                      {s.durationMinutes}m
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs text-text-secondary">Toggle status</span>
+                  <span className="text-xs text-text-secondary">
+                    Toggle status
+                  </span>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"

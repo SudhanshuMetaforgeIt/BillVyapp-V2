@@ -497,14 +497,17 @@ export class BillsService {
     ctx: RequestContext,
   ): Promise<BillRecord> {
     const salonId = dto.salonId;
-    await this.requireActiveSalon(salonId);
+    const salonFranchiseId = await this.requireActiveSalon(salonId);
     await this.scope.assertSalonAccess(actor, salonId);
 
     const customerId = await this.resolveCustomerId(actor, dto.customerId);
     await this.requireActiveCustomer(customerId);
     await this.scope.assertCustomerAccess(actor, customerId);
 
-    const timeZone = await this.businessTimezone.resolveForUser(actor);
+    const timeZone = await this.businessTimezone.resolveForUser({
+      ...actor,
+      franchiseId: salonFranchiseId ?? actor.franchiseId,
+    });
     const billDate = this.resolveBillDateInput(dto.billDate, timeZone);
 
     let lines = await this.buildLines(dto.items, salonId);
@@ -1199,10 +1202,12 @@ export class BillsService {
     return requestedCustomerId;
   }
 
-  private async requireActiveSalon(salonId: string): Promise<void> {
+  private async requireActiveSalon(
+    salonId: string,
+  ): Promise<string | undefined> {
     const salon = await this.prisma.salon.findUnique({
       where: { id: salonId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, franchiseId: true },
     });
 
     if (!salon) {
@@ -1211,6 +1216,7 @@ export class BillsService {
     if (!salon.isActive) {
       throw new BadRequestException('Salon is inactive');
     }
+    return salon.franchiseId;
   }
 
   private async requireActiveCustomer(customerId: string): Promise<void> {

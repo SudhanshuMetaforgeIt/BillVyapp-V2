@@ -90,7 +90,9 @@ export type AnalyticsParams = {
   serviceSort: 'revenue' | 'quantity' | 'transactions';
 };
 export type ReportAnalytics = {
+  currencyGroups?: ReportAnalytics[];
   scope: {
+    currency?: string;
     dateFrom: string;
     dateTo: string;
     franchiseId: string | null;

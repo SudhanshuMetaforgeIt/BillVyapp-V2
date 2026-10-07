@@ -1,3 +1,4 @@
+import { formatPhone } from '@/lib/format';
 import { format, parseISO } from 'date-fns';
 import { api } from '@/services/api-client';
 import { useAuthStore } from '@/stores/auth.store';
@@ -101,8 +102,8 @@ export async function fetchAdminStaff(
     params.isActive = false;
   }
 
-  const [usersRes, allUsersRes, salonsRes, rolesRes] =
-    await Promise.allSettled([
+  const [usersRes, allUsersRes, salonsRes, rolesRes] = await Promise.allSettled(
+    [
       api.get<PaginatedResponse<RawUser>>('/users', { params }),
       api.get<PaginatedResponse<RawUser>>('/users', {
         params: { page: 1, limit: 100 },
@@ -111,11 +112,16 @@ export async function fetchAdminStaff(
         params: { page: 1, limit: 100 },
       }),
       api.get<RawRole[]>('/roles'),
-    ]);
+    ],
+  );
 
   const getArray = <T>(res: PromiseSettledResult<unknown>): T[] => {
     if (res.status === 'fulfilled' && res.value) {
-      if (typeof res.value === 'object' && 'data' in res.value && Array.isArray((res.value as { data: unknown }).data)) {
+      if (
+        typeof res.value === 'object' &&
+        'data' in res.value &&
+        Array.isArray((res.value as { data: unknown }).data)
+      ) {
         return (res.value as { data: T[] }).data;
       }
       if (Array.isArray(res.value)) {
@@ -153,10 +159,15 @@ export async function fetchAdminStaff(
 
   // Map to StaffItem
   const staffList: StaffItem[] = rawUsers.map((u, idx) => {
-    const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Staff Member';
+    const fullName =
+      `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Staff Member';
     const shortCode = `ST${String(idx + 1).padStart(3, '0')}`;
-    const branchName = u.salon?.name || (u.salonId ? salonMap.get(u.salonId) : null) || 'All Branches';
-    const roleName = ROLE_NAME_MAP[u.role?.code] || u.role?.name || 'Staff Member';
+    const branchName =
+      u.salon?.name ||
+      (u.salonId ? salonMap.get(u.salonId) : null) ||
+      'All Branches';
+    const roleName =
+      ROLE_NAME_MAP[u.role?.code] || u.role?.name || 'Staff Member';
     const salary = parseSalary(u.salary);
 
     let formattedJoin = '—';
@@ -181,7 +192,7 @@ export async function fetchAdminStaff(
       roleCode: u.role?.code || 'STAFF',
       branchName,
       salonId: u.salonId,
-      phone: u.phone ? (u.phone.startsWith('+91') ? u.phone : `+91 ${u.phone}`) : '—',
+      phone: u.phone ? formatPhone(u.phone) : '—',
       email: u.email,
       salary,
       status,
@@ -269,7 +280,7 @@ export async function createStaff(
     firstName: payload.firstName.trim(),
     lastName: payload.lastName.trim(),
     email: payload.email.trim().toLowerCase(),
-    phone: payload.phone.trim().replace(/^\+91/, '').replace(/\D/g, ''),
+    phone: payload.phone.trim(),
     password: payload.password || 'Staff@1234',
     roleId: payload.roleId,
   };

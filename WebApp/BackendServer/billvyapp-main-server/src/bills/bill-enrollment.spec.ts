@@ -16,6 +16,7 @@ const base = {
 };
 function setup() {
   const tx = {
+    salon:{findUnique:jest.fn().mockResolvedValue({franchise:{preferences:{phoneCountry:'IN'}}})},
     $queryRaw: jest.fn().mockResolvedValue([]),
     membershipPlan: {
       findFirst: jest.fn().mockResolvedValue({
@@ -131,7 +132,7 @@ describe('Customer consent for billing enrollment', () => {
     expect(firstArg(tx.customer.update)).toEqual({
       where: { id: 'customer' },
       data: {
-        whatsappNumber: '9123456789',
+        whatsappNumber: '+919123456789',
         dateOfBirth: new Date('2000-01-01'),
       },
     });

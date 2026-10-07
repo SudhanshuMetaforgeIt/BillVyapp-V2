@@ -1,3 +1,4 @@
+import { normalizeFranchisePhone } from '../common/phone';
 import {
   BadRequestException,
   ConflictException,
@@ -159,9 +160,7 @@ export class SalonsService {
       : null;
 
     if (cacheKey && this.cache) {
-      return this.cache.wrap(cacheKey, 1800, () =>
-        this.fetchFindOne(user, id),
-      );
+      return this.cache.wrap(cacheKey, 1800, () => this.fetchFindOne(user, id));
     }
 
     return this.fetchFindOne(user, id);
@@ -199,7 +198,14 @@ export class SalonsService {
 
     try {
       const created = await this.prisma.salon.create({
-        data: this.toCreateData(dto),
+        data: {
+          ...this.toCreateData(dto),
+          phone: await normalizeFranchisePhone(
+            this.prisma,
+            dto.phone,
+            dto.franchiseId,
+          ),
+        },
         select: SALON_SELECT,
       });
 
@@ -247,7 +253,18 @@ export class SalonsService {
     try {
       const updated = await this.prisma.salon.update({
         where: { id: existing.id },
-        data: this.toUpdateData(dto),
+        data: {
+          ...this.toUpdateData(dto),
+          ...(dto.phone !== undefined
+            ? {
+                phone: await normalizeFranchisePhone(
+                  this.prisma,
+                  dto.phone,
+                  existing.franchiseId,
+                ),
+              }
+            : {}),
+        },
         select: SALON_SELECT,
       });
 

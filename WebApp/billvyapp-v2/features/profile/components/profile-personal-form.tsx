@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { can } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
+import { isValidPhoneInput } from '@/lib/phone';
 import { normalizePhone, splitFullName } from '../services/profile.service';
 import type { ProfileUser } from '../types/profile.types';
 import { useUpdateProfile } from '../hooks/use-profile';
@@ -19,7 +20,10 @@ type ProfilePersonalFormProps = {
   isLoading?: boolean;
 };
 
-export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormProps) {
+export function ProfilePersonalForm({
+  profile,
+  isLoading,
+}: ProfilePersonalFormProps) {
   const update = useUpdateProfile();
 
   const [fullName, setFullName] = useState('');
@@ -35,7 +39,11 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
 
   if (isLoading || !profile) {
     return (
-      <DashboardSectionCard title="Personal Information" data-dash-animate="section" bodyClassName="space-y-4">
+      <DashboardSectionCard
+        title="Personal Information"
+        data-dash-animate="section"
+        bodyClassName="space-y-4"
+      >
         <Skeleton className="h-4 w-72" />
         <div className="grid gap-4 panel-md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -56,7 +64,7 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
     if (!firstName || !lastName) return;
 
     const trimmedPhone = phone.trim();
-    if (trimmedPhone && trimmedPhone.length !== 10) return;
+    if (trimmedPhone && !isValidPhoneInput(trimmedPhone)) return;
 
     update.mutate({
       userId: profile!.id,
@@ -68,7 +76,11 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
   }
 
   return (
-    <DashboardSectionCard title="Personal Information" data-dash-animate="section" bodyClassName="space-y-5">
+    <DashboardSectionCard
+      title="Personal Information"
+      data-dash-animate="section"
+      bodyClassName="space-y-5"
+    >
       <p className="text-sm text-text-secondary">
         {editable
           ? 'Update your personal information and contact details.'
@@ -76,7 +88,10 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <fieldset disabled={!editable} className="grid gap-4 panel-md:grid-cols-2">
+        <fieldset
+          disabled={!editable}
+          className="grid gap-4 panel-md:grid-cols-2"
+        >
           <Field id="full-name" label="Full Name">
             <Input
               id="full-name"
@@ -101,18 +116,24 @@ export function ProfilePersonalForm({ profile, isLoading }: ProfilePersonalFormP
           </Field>
 
           <Field id="designation" label="Role">
-            <Input id="designation" value={profile.roleLabel} readOnly className="bg-muted/40" />
+            <Input
+              id="designation"
+              value={profile.roleLabel}
+              readOnly
+              className="bg-muted/40"
+            />
           </Field>
 
           <Field id="phone" label="Phone Number">
             <Input
               id="phone"
+              type="tel"
               inputMode="numeric"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="10-digit mobile"
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="10 local digits"
               className="bg-background"
-              maxLength={10}
+              maxLength={16}
             />
           </Field>
         </fieldset>

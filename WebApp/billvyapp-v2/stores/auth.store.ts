@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { AuthSession, AuthUser } from '@/types/user.types';
+import { setBusinessTimezone } from '@/lib/business-timezone';
 
 /**
  * Client-side session state.
@@ -35,19 +36,26 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       status: 'loading',
 
-      setSession: (session) =>
+      setSession: (session) => {
+        setBusinessTimezone(session.user.timezone);
         set({
           user: session.user,
           accessToken: session.accessToken,
           status: 'authenticated',
-        }),
+        });
+      },
 
       setAccessToken: (accessToken) => set({ accessToken }),
 
-      setUser: (user) => set({ user, status: 'authenticated' }),
+      setUser: (user) => {
+        setBusinessTimezone(user.timezone);
+        set({ user, status: 'authenticated' });
+      },
 
-      clearSession: () =>
-        set({ user: null, accessToken: null, status: 'unauthenticated' }),
+      clearSession: () => {
+        setBusinessTimezone(null);
+        set({ user: null, accessToken: null, status: 'unauthenticated' });
+      },
 
       setStatus: (status) => set({ status }),
     }),

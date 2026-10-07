@@ -17,7 +17,10 @@ type AdminCreateBranchDialogProps = {
   onClose: () => void;
 };
 
-export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDialogProps) {
+export function AdminCreateBranchDialog({
+  isOpen,
+  onClose,
+}: AdminCreateBranchDialogProps) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
 
@@ -38,7 +41,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.franchiseId) {
-      setError('Franchise profile missing. Please log in with a valid franchise admin account.');
+      setError(
+        'Franchise profile missing. Please log in with a valid franchise admin account.',
+      );
       return;
     }
 
@@ -135,7 +140,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-text">Branch Name *</label>
+              <label className="block text-xs font-semibold text-text">
+                Branch Name *
+              </label>
               <input
                 type="text"
                 required
@@ -146,7 +153,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Branch Code *</label>
+              <label className="block text-xs font-semibold text-text">
+                Branch Code *
+              </label>
               <input
                 type="text"
                 required
@@ -160,17 +169,21 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
 
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-text">Phone</label>
+              <label className="block text-xs font-semibold text-text">
+                Phone
+              </label>
               <input
                 type="tel"
-                placeholder="+91 98765 43210"
+                placeholder="10 local digits"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-champagne"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Email</label>
+              <label className="block text-xs font-semibold text-text">
+                Email
+              </label>
               <input
                 type="email"
                 placeholder="branch@billvy.dev"
@@ -182,7 +195,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text">Street Address *</label>
+            <label className="block text-xs font-semibold text-text">
+              Street Address *
+            </label>
             <input
               type="text"
               required
@@ -195,7 +210,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-text">City *</label>
+              <label className="block text-xs font-semibold text-text">
+                City *
+              </label>
               <input
                 type="text"
                 required
@@ -205,7 +222,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">State *</label>
+              <label className="block text-xs font-semibold text-text">
+                State *
+              </label>
               <input
                 type="text"
                 required
@@ -215,7 +234,9 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Postal Code *</label>
+              <label className="block text-xs font-semibold text-text">
+                Postal Code *
+              </label>
               <input
                 type="text"
                 required
@@ -227,7 +248,12 @@ export function AdminCreateBranchDialog({ isOpen, onClose }: AdminCreateBranchDi
           </div>
 
           <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button

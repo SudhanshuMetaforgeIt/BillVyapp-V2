@@ -140,6 +140,7 @@ export function EditBusinessDialog({
             <Input
               id="edit-business-phone"
               type="tel"
+              phoneCountry={business.phoneCountry}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               maxLength={20}

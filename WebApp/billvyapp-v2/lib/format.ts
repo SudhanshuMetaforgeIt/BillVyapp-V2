@@ -1,9 +1,8 @@
+import { normalizePhone } from '@/lib/phone';
 import { formatDistanceToNow, isValid, parseISO } from 'date-fns';
+import { getBusinessRegion } from '@/lib/business-region';
 
-import {
-  getBusinessTimezone,
-  isDateOnlyString,
-} from '@/lib/business-timezone';
+import { getBusinessTimezone, isDateOnlyString } from '@/lib/business-timezone';
 
 /**
  * Display formatting helpers. Presentation only - never use these to prepare
@@ -14,12 +13,6 @@ import {
  * Date-only YYYY-MM-DD values are rendered without timezone conversion.
  */
 
-const INR = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  minimumFractionDigits: 2,
-});
-
 const INR_COMPACT = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
@@ -27,14 +20,24 @@ const INR_COMPACT = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
 });
 
-const NUMBER_IN = new Intl.NumberFormat('en-IN');
-
 /** Backend money fields are Prisma Decimals, serialised as strings. */
-export function formatCurrency(value: number | string | null | undefined): string {
+export function formatCurrency(
+  value: number | string | null | undefined,
+  currency?: string,
+): string {
   if (value === null || value === undefined || value === '') return '-';
 
   const amount = typeof value === 'string' ? Number(value) : value;
-  return Number.isNaN(amount) ? '-' : INR.format(amount);
+  const region = currency
+    ? { currency, locale: currency === 'USD' ? 'en-US' : 'en-IN' }
+    : getBusinessRegion();
+  return Number.isNaN(amount)
+    ? '-'
+    : new Intl.NumberFormat(region.locale, {
+        style: 'currency',
+        currency: region.currency,
+        minimumFractionDigits: 2,
+      }).format(amount);
 }
 
 /** Compact INR for charts and dense KPI contexts (e.g. ₹8.45L). */
@@ -45,6 +48,14 @@ export function formatCompactCurrency(
 
   const amount = typeof value === 'string' ? Number(value) : value;
   if (Number.isNaN(amount)) return '-';
+  const region = getBusinessRegion();
+  if (region.currency === 'USD')
+    return new Intl.NumberFormat(region.locale, {
+      style: 'currency',
+      currency: region.currency,
+      notation: 'compact',
+      maximumFractionDigits: 2,
+    }).format(amount);
 
   // Prefer lakhs-style labels for Indian SaaS dashboards when ≥ 1L.
   if (Math.abs(amount) >= 100_000) {
@@ -58,10 +69,14 @@ export function formatCompactCurrency(
   return INR_COMPACT.format(amount);
 }
 
-export function formatNumber(value: number | string | null | undefined): string {
+export function formatNumber(
+  value: number | string | null | undefined,
+): string {
   if (value === null || value === undefined || value === '') return '-';
   const amount = typeof value === 'string' ? Number(value) : value;
-  return Number.isNaN(amount) ? '-' : NUMBER_IN.format(amount);
+  return Number.isNaN(amount)
+    ? '-'
+    : new Intl.NumberFormat(getBusinessRegion().locale).format(amount);
 }
 
 export function formatPercentChange(value: number | null | undefined): string {
@@ -77,16 +92,29 @@ function toInstant(value: Date | string | null | undefined): Date | null {
   return isValid(date) ? date : null;
 }
 
+function dateOptions(): Intl.DateTimeFormatOptions {
+  const f = getBusinessRegion().dateFormat;
+  return {
+    day: '2-digit',
+    month: f === 'DD MMM YYYY' ? 'short' : '2-digit',
+    year: 'numeric',
+  };
+}
 function formatCalendarDateLabel(dateOnly: string): string {
   const [year, month, day] = dateOnly.split('-').map(Number);
   // Noon UTC avoids DST edge cases when labeling a pure calendar date.
   const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(probe);
+  return new Intl.DateTimeFormat(
+    getBusinessRegion().dateFormat === 'YYYY-MM-DD'
+      ? 'sv-SE'
+      : getBusinessRegion().dateFormat === 'MM/DD/YYYY'
+        ? 'en-US'
+        : 'en-GB',
+    {
+      ...dateOptions(),
+      timeZone: 'UTC',
+    },
+  ).format(probe);
 }
 
 /**
@@ -103,12 +131,17 @@ export function formatDate(
   }
   const instant = toInstant(value);
   if (!instant) return '-';
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone,
-  }).format(instant);
+  return new Intl.DateTimeFormat(
+    getBusinessRegion().dateFormat === 'YYYY-MM-DD'
+      ? 'sv-SE'
+      : getBusinessRegion().dateFormat === 'MM/DD/YYYY'
+        ? 'en-US'
+        : 'en-GB',
+    {
+      ...dateOptions(),
+      timeZone,
+    },
+  ).format(instant);
 }
 
 /**
@@ -125,16 +158,21 @@ export function formatDateTime(
   }
   const instant = toInstant(value);
   if (!instant) return '-';
-  const datePart = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone,
-  }).format(instant);
+  const datePart = new Intl.DateTimeFormat(
+    getBusinessRegion().dateFormat === 'YYYY-MM-DD'
+      ? 'sv-SE'
+      : getBusinessRegion().dateFormat === 'MM/DD/YYYY'
+        ? 'en-US'
+        : 'en-GB',
+    {
+      ...dateOptions(),
+      timeZone,
+    },
+  ).format(instant);
   const timePart = new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true,
+    hour12: getBusinessRegion().hour12,
     timeZone,
   }).format(instant);
   return `${datePart}, ${timePart}`;
@@ -155,7 +193,7 @@ export function formatTime(
     return new Intl.DateTimeFormat('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
+      hour12: getBusinessRegion().hour12,
       timeZone: 'UTC',
     }).format(probe);
   }
@@ -164,23 +202,23 @@ export function formatTime(
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true,
+    hour12: getBusinessRegion().hour12,
     timeZone,
   }).format(instant);
 }
 
-export function formatRelative(value: Date | string | null | undefined): string {
+export function formatRelative(
+  value: Date | string | null | undefined,
+): string {
   const instant = toInstant(value);
   return instant ? formatDistanceToNow(instant, { addSuffix: true }) : '-';
 }
 
 /**
- * Phone numbers are stored as bare 10 digits (no country code). Add the +91
- * only for display.
+ * Display the stored international number; apply the default to legacy local input.
  */
 export function formatPhone(phone: string | null | undefined): string {
-  if (!phone) return '-';
-  return /^[0-9]{10}$/.test(phone) ? `+91 ${phone.slice(0, 5)} ${phone.slice(5)}` : phone;
+  return phone ? normalizePhone(phone) : '-';
 }
 
 export function formatFullName(person: {

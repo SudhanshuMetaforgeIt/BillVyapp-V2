@@ -14,6 +14,7 @@ import {
 import { RoleCode } from '../common/enums/role.enum';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import { ReportAnalyticsQueryDto } from './dto/report-analytics-query.dto';
+import { franchiseRegion } from '../common/regional';
 
 type Row = Record<string, string | number | null>;
 type RawRow = Record<string, unknown>;
@@ -30,6 +31,7 @@ export type ReportSummary = {
   averageTransactionValue: number | null;
 };
 export type ReportAnalytics = {
+  currencyGroups?: ReportAnalytics[];
   scope: {
     dateFrom: string;
     dateTo: string;
@@ -38,6 +40,8 @@ export type ReportAnalytics = {
     salonId: string | null;
     salonName: string | null;
     timeZone: string;
+    currency?: string;
+    dateFormat?: string;
   };
   summary?: ReportSummary;
   revenue?: {
@@ -145,6 +149,7 @@ export class ReportAnalyticsService {
     user: AuthenticatedUser,
     q: ReportAnalyticsQueryDto,
     all = false,
+    currencyGroup?: { currency: string; franchiseIds: string[] },
   ): Promise<ReportAnalytics> {
     this.assertAccess(user);
     if (
@@ -177,21 +182,66 @@ export class ReportAnalyticsService {
     const franchise = franchiseId
       ? await this.prisma.franchise.findUnique({
           where: { id: franchiseId },
-          select: { name: true },
+          select: { name: true, preferences: true },
         })
       : null;
     if (franchiseId && !franchise)
       throw new BadRequestException('Franchise not found');
-    // All selected scopes use the same platform reporting timezone, including exports.
-    const timeZone = await this.timezone.resolveForUser(user);
+    const platformFranchises =
+      !franchiseId && !currencyGroup
+        ? await this.prisma.franchise.findMany({
+            select: { id: true, preferences: true },
+          })
+        : [];
+    const currencies = currencyGroup
+      ? [currencyGroup.currency]
+      : franchiseId
+        ? [franchiseRegion(franchise?.preferences).currency]
+        : [
+            ...new Set(
+              platformFranchises.map(
+                (f) => franchiseRegion(f.preferences).currency,
+              ),
+            ),
+          ];
+    if (currencies.length > 1) {
+      const currencyGroups: ReportAnalytics[] = [];
+      for (const currency of currencies.sort()) {
+        currencyGroups.push(
+          await this.query(user, q, all, {
+            currency,
+            franchiseIds: platformFranchises
+              .filter(
+                (f) => franchiseRegion(f.preferences).currency === currency,
+              )
+              .map((f) => f.id),
+          }),
+        );
+      }
+      const scope = { ...currencyGroups[0].scope };
+      delete scope.currency;
+      return { scope, currencyGroups };
+    }
+    const currency = currencies[0] ?? 'INR';
+    const timeZone = await this.timezone.resolveForUser({
+      ...user,
+      franchiseId,
+    });
     const range = businessCalendarRangeToUtc(q.dateFrom, q.dateTo, timeZone);
-    const scope = Prisma.sql` ${franchiseId ? Prisma.sql`AND s.franchiseId = ${franchiseId}` : Prisma.empty} ${q.salonId ? Prisma.sql`AND s.id = ${q.salonId}` : Prisma.empty}`;
+    const currencyScope = currencyGroup
+      ? Prisma.sql`AND s.franchiseId IN (${Prisma.join(currencyGroup.franchiseIds)})`
+      : Prisma.empty;
+    const scope = Prisma.sql` ${currencyScope} ${franchiseId ? Prisma.sql`AND s.franchiseId = ${franchiseId}` : Prisma.empty} ${q.salonId ? Prisma.sql`AND s.id = ${q.salonId}` : Prisma.empty}`;
     const paymentWhere = Prisma.sql`p.paymentDate >= ${range.gte!} AND p.paymentDate < ${range.lt!} ${scope}`;
     // billDate is a calendar-date sentinel, unlike paymentDate/createdAt instants.
     const billWhere = Prisma.sql`b.status = 'COMPLETED' AND b.billDate >= ${parseDateOnlyUtc(q.dateFrom)} AND b.billDate < ${new Date(parseDateOnlyUtc(q.dateTo).getTime() + 86400000)} ${scope}`;
     const asOf = { lt: range.lt! };
     const populationScope = {
-      ...(franchiseId ? { franchiseId } : {}),
+      ...(franchiseId
+        ? { franchiseId }
+        : currencyGroup
+          ? { franchiseId: { in: currencyGroup.franchiseIds } }
+          : {}),
       ...(q.salonId ? { salonId: q.salonId } : {}),
     };
     const wanted = (section: string) =>
@@ -200,6 +250,8 @@ export class ReportAnalyticsService {
     const rankingLimit = all ? Prisma.empty : Prisma.sql`LIMIT 50`;
     const result: ReportAnalytics = {
       scope: {
+        dateFormat: franchiseRegion(franchise?.preferences).dateFormat,
+        currency,
         dateFrom: q.dateFrom,
         dateTo: q.dateTo,
         franchiseId,
@@ -230,13 +282,21 @@ export class ReportAnalyticsService {
             }),
             tx.franchise.count({
               where: {
-                ...(franchiseId ? { id: franchiseId } : {}),
+                ...(franchiseId
+                  ? { id: franchiseId }
+                  : currencyGroup
+                    ? { id: { in: currencyGroup.franchiseIds } }
+                    : {}),
                 createdAt: asOf,
               },
             }),
             tx.salon.count({
               where: {
-                ...(franchiseId ? { franchiseId } : {}),
+                ...(franchiseId
+                  ? { franchiseId }
+                  : currencyGroup
+                    ? { franchiseId: { in: currencyGroup.franchiseIds } }
+                    : {}),
                 ...(q.salonId ? { id: q.salonId } : {}),
                 createdAt: asOf,
               },
@@ -347,11 +407,11 @@ export class ReportAnalyticsService {
           result.business = { franchises, salons };
         }
         if (wanted('insights')) {
-          const userScope = Prisma.sql`${franchiseId ? Prisma.sql`AND u.franchiseId=${franchiseId}` : Prisma.empty} ${q.salonId ? Prisma.sql`AND u.salonId=${q.salonId}` : Prisma.empty}`;
+          const userScope = Prisma.sql`${currencyGroup ? Prisma.sql`AND u.franchiseId IN (${Prisma.join(currencyGroup.franchiseIds)})` : Prisma.empty} ${franchiseId ? Prisma.sql`AND u.franchiseId=${franchiseId}` : Prisma.empty} ${q.salonId ? Prisma.sql`AND u.salonId=${q.salonId}` : Prisma.empty}`;
           const [customers, roles, userFranchises, userSalons] =
             await Promise.all([
               sqlRows(
-                Prisma.sql`SELECT COUNT(DISTINCT b.customerId) AS customersServed, COUNT(DISTINCT CASE WHEN EXISTS(SELECT 1 FROM bills old JOIN salons os ON os.id=old.salonId WHERE old.customerId=b.customerId AND old.status='COMPLETED' AND old.billDate < ${parseDateOnlyUtc(q.dateFrom)} ${franchiseId ? Prisma.sql`AND os.franchiseId=${franchiseId}` : Prisma.empty} ${q.salonId ? Prisma.sql`AND os.id=${q.salonId}` : Prisma.empty}) THEN b.customerId END) AS returningCustomers, SUM(b.total) AS billedRevenue, SUM(b.total)/NULLIF(COUNT(DISTINCT b.customerId),0) AS averageCustomerSpend FROM bills b JOIN salons s ON s.id=b.salonId WHERE ${billWhere}`,
+                Prisma.sql`SELECT COUNT(DISTINCT b.customerId) AS customersServed, COUNT(DISTINCT CASE WHEN EXISTS(SELECT 1 FROM bills old JOIN salons os ON os.id=old.salonId WHERE old.customerId=b.customerId AND old.status='COMPLETED' AND old.billDate < ${parseDateOnlyUtc(q.dateFrom)} ${currencyGroup ? Prisma.sql`AND os.franchiseId IN (${Prisma.join(currencyGroup.franchiseIds)})` : Prisma.empty} ${franchiseId ? Prisma.sql`AND os.franchiseId=${franchiseId}` : Prisma.empty} ${q.salonId ? Prisma.sql`AND os.id=${q.salonId}` : Prisma.empty}) THEN b.customerId END) AS returningCustomers, SUM(b.total) AS billedRevenue, SUM(b.total)/NULLIF(COUNT(DISTINCT b.customerId),0) AS averageCustomerSpend FROM bills b JOIN salons s ON s.id=b.salonId WHERE ${billWhere}`,
               ),
               sqlRows(
                 Prisma.sql`SELECT r.code AS role,COUNT(*) AS users FROM users u JOIN roles r ON r.id=u.roleId WHERE u.createdAt < ${range.lt!} ${userScope} GROUP BY r.code ORDER BY users DESC`,

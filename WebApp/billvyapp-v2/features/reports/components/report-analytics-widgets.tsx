@@ -6,8 +6,41 @@ import {
   SectionErrorState,
 } from '@/components/layout/section-states';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatNumber } from '@/lib/format';
+import { ReportCurrency, useReportMoney } from './report-region';
 import type { AnalyticsRow, ReportAnalytics } from '../types/reports.types';
+
+export function CurrencySections({
+  data,
+  children,
+}: {
+  data?: ReportAnalytics;
+  children: (group: ReportAnalytics) => ReactNode;
+}) {
+  if (!data) return null;
+  const groups = data.currencyGroups ?? [data];
+  return (
+    <div className="space-y-6">
+      {groups.map((group) => (
+        <ReportCurrency
+          key={group.scope.currency ?? 'default'}
+          value={group.scope.currency}
+        >
+          <div className="space-y-4">
+            {data.currencyGroups && (
+              <h3 className="text-lg font-semibold text-text">
+                {group.scope.currency === 'USD'
+                  ? 'USD — US dollars'
+                  : 'INR — Indian rupees'}
+              </h3>
+            )}
+            {children(group)}
+          </div>
+        </ReportCurrency>
+      ))}
+    </div>
+  );
+}
 
 export function AnalyticsState({
   loading,
@@ -64,6 +97,7 @@ export function SummaryCards({
   metrics: NonNullable<ReportAnalytics['summary']>;
   range: string;
 }) {
+  const formatCurrency = useReportMoney();
   const paymentData = metrics.totalPayments > 0;
   const cards = [
     [
@@ -153,6 +187,7 @@ export function AnalyticsTable({
   columns: AnalyticsColumn[];
   empty?: string;
 }) {
+  const formatCurrency = useReportMoney();
   const value = (row: AnalyticsRow, column: AnalyticsColumn) =>
     column.render
       ? column.render(row)

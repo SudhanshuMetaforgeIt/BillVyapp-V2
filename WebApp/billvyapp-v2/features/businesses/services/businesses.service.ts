@@ -13,10 +13,9 @@ import type {
   UpdateBusinessPayload,
 } from '../types/businesses.types';
 
-function mapStatus(isActive: boolean): Pick<
-  BusinessListRow,
-  'status' | 'statusLabel'
-> {
+function mapStatus(
+  isActive: boolean,
+): Pick<BusinessListRow, 'status' | 'statusLabel'> {
   // Franchise API only exposes isActive. Inactive is shown as Suspended;
   // Pending is reserved for a future onboarding workflow.
   if (isActive) {
@@ -28,7 +27,8 @@ function mapStatus(isActive: boolean): Pick<
 function planToneFromName(name: string | null | undefined): BusinessPlanTone {
   if (!name) return 'unknown';
   const lower = name.toLowerCase();
-  if (lower.includes('enterprise') || lower.includes('custom')) return 'enterprise';
+  if (lower.includes('enterprise') || lower.includes('custom'))
+    return 'enterprise';
   if (lower.includes('pro')) return 'professional';
   if (lower.includes('basic')) return 'basic';
   return 'professional';
@@ -44,6 +44,7 @@ function mapFranchiseRow(row: FranchiseListItem): BusinessListRow {
     code: row.code,
     email: row.email,
     phone: row.phone,
+    phoneCountry: row.preferences?.phoneCountry ?? 'IN',
     ownerLabel: row.email ?? row.phone ?? '—',
     planLabel: planName
       ? row.subscriptionActive
@@ -77,9 +78,7 @@ function buildPlanMix(rows: FranchiseListItem[]): PlanMixItem[] {
   }));
 }
 
-function statusToIsActive(
-  status: BusinessStatusFilter,
-): boolean | undefined {
+function statusToIsActive(status: BusinessStatusFilter): boolean | undefined {
   if (status === 'active') return true;
   if (status === 'suspended') return false;
   if (status === 'pending') return undefined;
@@ -269,7 +268,10 @@ export type FranchiseSubscriptionApi = {
 export async function enrollBusinessPlan(
   payload: EnrollBusinessPayload,
 ): Promise<FranchiseSubscriptionApi> {
-  return api.post<FranchiseSubscriptionApi>('/franchise-subscriptions', payload);
+  return api.post<FranchiseSubscriptionApi>(
+    '/franchise-subscriptions',
+    payload,
+  );
 }
 
 export async function fetchActivePlatformPlans(): Promise<
@@ -296,6 +298,7 @@ export async function createBusiness(
   payload: CreateBusinessPayload,
 ): Promise<FranchiseListItem> {
   return api.post<FranchiseListItem>('/franchises', {
+    phoneCountry: payload.phoneCountry ?? 'IN',
     name: payload.name.trim(),
     code: payload.code.trim().toUpperCase(),
     phone: payload.phone?.trim() || undefined,

@@ -3,7 +3,21 @@ import dynamic from 'next/dynamic';
 
 import React from 'react';
 import { Mail, Phone, Calendar, MapPin } from 'lucide-react';
-const ProfilePhotoEditor = dynamic(() => import('../profile-photo-editor').then((module) => module.ProfilePhotoEditor), { loading: () => <div role="status" aria-label="Loading profile photo" className="h-52 w-32 animate-pulse rounded-xl bg-surface" /> });
+const ProfilePhotoEditor = dynamic(
+  () =>
+    import('../profile-photo-editor').then(
+      (module) => module.ProfilePhotoEditor,
+    ),
+  {
+    loading: () => (
+      <div
+        role="status"
+        aria-label="Loading profile photo"
+        className="h-52 w-32 animate-pulse rounded-xl bg-surface"
+      />
+    ),
+  },
+);
 import type { ProfileUser } from '../../types/profile.types';
 
 type Props = {
@@ -11,10 +25,15 @@ type Props = {
 };
 
 export function AdminProfileOverviewCard({ profile }: Props) {
-  const fullName = profile ? `${profile.firstName} ${profile.lastName}`.trim() : 'Rohit Sharma';
-  const roleLabel = profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN' ? 'Admin' : profile?.roleLabel || 'Admin';
+  const fullName = profile
+    ? `${profile.firstName} ${profile.lastName}`.trim()
+    : 'Rohit Sharma';
+  const roleLabel =
+    profile?.role === 'ADMIN' || profile?.role === 'SUPER_ADMIN'
+      ? 'Admin'
+      : profile?.roleLabel || 'Admin';
   const email = profile?.email || 'rohit@starrkuts.com';
-  const phone = profile?.phone || '+91 98765 43210';
+  const phone = profile?.phone || '—';
 
   const formatJoinDate = (dateStr?: string | null) => {
     if (!dateStr) return 'Jan 12, 2024';
@@ -32,15 +51,15 @@ export function AdminProfileOverviewCard({ profile }: Props) {
 
   return (
     <div className="flex flex-col items-center rounded-2xl border border-stone-200/90 bg-white p-7 text-center shadow-xs dark:border-stone-800 dark:bg-stone-900">
-      <div className="mb-4 mt-2"><ProfilePhotoEditor name={fullName} /></div>
+      <div className="mb-4 mt-2">
+        <ProfilePhotoEditor name={fullName} />
+      </div>
 
       {/* User Name & Role */}
       <h2 className="text-xl font-bold tracking-tight text-stone-900 dark:text-white">
         {fullName}
       </h2>
-      <p className="mt-0.5 text-xs font-semibold text-amber-500">
-        {roleLabel}
-      </p>
+      <p className="mt-0.5 text-xs font-semibold text-amber-500">{roleLabel}</p>
 
       {/* Contact & Meta details list */}
       <div className="mt-7 w-full space-y-4 text-left text-xs">
@@ -64,7 +83,6 @@ export function AdminProfileOverviewCard({ profile }: Props) {
           <span>Bangalore, Karnataka, India</span>
         </div>
       </div>
-
     </div>
   );
 }

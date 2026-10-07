@@ -1,4 +1,5 @@
 'use client';
+import { Input } from '@/components/ui/input';
 
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,7 +7,10 @@ import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { Button } from '@/components/ui/button';
-import { getSalon, geocodeSalon } from '@/features/salons/services/salons.service';
+import {
+  getSalon,
+  geocodeSalon,
+} from '@/features/salons/services/salons.service';
 import { api } from '@/services/api-client';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { AdminBranchItem } from '../../types/admin-my-business.types';
@@ -54,7 +58,9 @@ export function AdminEditBranchDialog({
         if (cancelled) return;
         setName(branch.name);
         setCode(branch.code);
-        setError('Could not load full branch details. You can still edit basic fields.');
+        setError(
+          'Could not load full branch details. You can still edit basic fields.',
+        );
       }
     })();
     return () => {
@@ -90,7 +96,9 @@ export function AdminEditBranchDialog({
       ]
         .filter(Boolean)
         .join(', ');
-      await geocodeSalon(branch.id, { address: geocodeAddress }).catch(() => undefined);
+      await geocodeSalon(branch.id, { address: geocodeAddress }).catch(
+        () => undefined,
+      );
 
       await invalidateAfter(queryClient, 'salons');
       toast.success('Branch updated');
@@ -112,7 +120,9 @@ export function AdminEditBranchDialog({
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
             <h3 className="text-lg font-bold text-text">Edit Branch</h3>
-            <p className="text-xs text-text-secondary">Update branch details and address.</p>
+            <p className="text-xs text-text-secondary">
+              Update branch details and address.
+            </p>
           </div>
           <button
             type="button"
@@ -132,7 +142,9 @@ export function AdminEditBranchDialog({
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-text">Branch Name *</label>
+              <label className="block text-xs font-semibold text-text">
+                Branch Name *
+              </label>
               <input
                 required
                 value={name}
@@ -141,7 +153,9 @@ export function AdminEditBranchDialog({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Branch Code *</label>
+              <label className="block text-xs font-semibold text-text">
+                Branch Code *
+              </label>
               <input
                 required
                 value={code}
@@ -152,15 +166,20 @@ export function AdminEditBranchDialog({
           </div>
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-text">Phone</label>
-              <input
+              <label className="block text-xs font-semibold text-text">
+                Phone
+              </label>
+              <Input
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Email</label>
+              <label className="block text-xs font-semibold text-text">
+                Email
+              </label>
               <input
                 type="email"
                 value={email}
@@ -170,7 +189,9 @@ export function AdminEditBranchDialog({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-text">Street Address *</label>
+            <label className="block text-xs font-semibold text-text">
+              Street Address *
+            </label>
             <input
               required
               value={addressLine1}
@@ -180,7 +201,9 @@ export function AdminEditBranchDialog({
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-text">City *</label>
+              <label className="block text-xs font-semibold text-text">
+                City *
+              </label>
               <input
                 required
                 value={city}
@@ -189,7 +212,9 @@ export function AdminEditBranchDialog({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">State *</label>
+              <label className="block text-xs font-semibold text-text">
+                State *
+              </label>
               <input
                 required
                 value={state}
@@ -198,7 +223,9 @@ export function AdminEditBranchDialog({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Postal Code *</label>
+              <label className="block text-xs font-semibold text-text">
+                Postal Code *
+              </label>
               <input
                 required
                 value={postalCode}
@@ -208,7 +235,12 @@ export function AdminEditBranchDialog({
             </div>
           </div>
           <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button

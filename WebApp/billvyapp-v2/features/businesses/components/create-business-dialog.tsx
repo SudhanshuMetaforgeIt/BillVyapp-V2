@@ -22,6 +22,7 @@ export function CreateBusinessDialog({
   const [code, setCode] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneCountry, setPhoneCountry] = useState<'IN' | 'US'>('IN');
 
   const create = useCreateBusiness(() => {
     onOpenChange(false);
@@ -83,6 +84,7 @@ export function CreateBusinessDialog({
             event.preventDefault();
             if (!canSubmit || create.isPending) return;
             create.mutate({
+              phoneCountry,
               name,
               code,
               email: email || undefined,
@@ -133,9 +135,11 @@ export function CreateBusinessDialog({
             <Input
               id="business-phone"
               type="tel"
+              phoneCountry={phoneCountry}
+              onPhoneCountryChange={setPhoneCountry}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="10-digit mobile"
+              placeholder="10 local digits"
               maxLength={20}
             />
           </div>

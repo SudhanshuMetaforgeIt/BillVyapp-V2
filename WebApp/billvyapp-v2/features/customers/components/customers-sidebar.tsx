@@ -1,5 +1,8 @@
 'use client';
 
+import { formatCurrency } from '@/lib/format';
+import { getBusinessRegion } from '@/lib/business-region';
+
 import {
   ChevronRight,
   Crown,
@@ -32,9 +35,9 @@ export function CustomersSidebar({
   const router = useRouter();
 
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -112,16 +115,14 @@ export function CustomersSidebar({
                   Highest Spender
                 </div>
                 <div className="font-semibold text-stone-900 dark:text-white truncate max-w-[120px]">
-                  {insights.highestSpender
-                    ? insights.highestSpender.name
-                    : '—'}
+                  {insights.highestSpender ? insights.highestSpender.name : '—'}
                 </div>
               </div>
             </div>
             <span className="font-bold text-stone-900 dark:text-white">
               {insights.highestSpender
                 ? formatINR(insights.highestSpender.amount)
-                : '₹0'}
+                : formatCurrency(0)}
             </span>
           </div>
 

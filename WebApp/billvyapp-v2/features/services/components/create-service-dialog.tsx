@@ -1,5 +1,7 @@
 'use client';
 
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { SelectInput } from '@/components/data/form-fields';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -23,13 +25,16 @@ type CreateServiceDialogProps = {
   preferredSalonId?: string;
   /** When set, dialog edits an existing service instead of creating. */
   editingService?: ServiceItem | null;
-  onUpdate?: (id: string, payload: {
-    categoryId: string;
-    name: string;
-    price: number;
-    durationMinutes: number;
-    description?: string;
-  }) => Promise<void>;
+  onUpdate?: (
+    id: string,
+    payload: {
+      categoryId: string;
+      name: string;
+      price: number;
+      durationMinutes: number;
+      description?: string;
+    },
+  ) => Promise<void>;
 };
 
 export function CreateServiceDialog({
@@ -73,8 +78,7 @@ export function CreateServiceDialog({
       return;
     }
     const defaultSalon =
-      (preferredSalonId &&
-      branches.some((b) => b.id === preferredSalonId)
+      (preferredSalonId && branches.some((b) => b.id === preferredSalonId)
         ? preferredSalonId
         : branches[0]?.id) ?? '';
     setSalonId(defaultSalon);
@@ -111,7 +115,9 @@ export function CreateServiceDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!salonId && branches.length === 0) {
-      setError('Please add at least one branch location before creating services.');
+      setError(
+        'Please add at least one branch location before creating services.',
+      );
       return;
     }
 
@@ -208,9 +214,12 @@ export function CreateServiceDialog({
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-text">Branch / Location *</label>
+            <label className="block text-xs font-semibold text-text">
+              Branch / Location *
+            </label>
             {branches.length > 0 ? (
-              <SelectInput className="mt-1 h-10 w-full text-sm font-medium disabled:opacity-60"
+              <SelectInput
+                className="mt-1 h-10 w-full text-sm font-medium disabled:opacity-60"
                 required
                 value={salonId}
                 disabled={isEdit}
@@ -227,13 +236,16 @@ export function CreateServiceDialog({
               </SelectInput>
             ) : (
               <p className="mt-1 text-xs text-danger">
-                No branches found. Please create a branch in My Businesses first.
+                No branches found. Please create a branch in My Businesses
+                first.
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text">Service Name *</label>
+            <label className="block text-xs font-semibold text-text">
+              Service Name *
+            </label>
             <input
               type="text"
               required
@@ -246,14 +258,18 @@ export function CreateServiceDialog({
 
           <div>
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-text">Category *</label>
+              <label className="block text-xs font-semibold text-text">
+                Category *
+              </label>
               {!isEdit ? (
                 <button
                   type="button"
                   onClick={() => setNewCategoryMode(!newCategoryMode)}
                   className="text-xs font-semibold text-champagne hover:underline"
                 >
-                  {newCategoryMode ? 'Select existing' : '+ Create new category'}
+                  {newCategoryMode
+                    ? 'Select existing'
+                    : '+ Create new category'}
                 </button>
               ) : null}
             </div>
@@ -268,7 +284,8 @@ export function CreateServiceDialog({
                 className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-champagne"
               />
             ) : (
-              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="mt-1 h-10 w-full text-sm font-medium"
                 required
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
@@ -280,7 +297,9 @@ export function CreateServiceDialog({
                     </option>
                   ))
                 ) : (
-                  <option value="">No categories yet (click create new category above)</option>
+                  <option value="">
+                    No categories yet (click create new category above)
+                  </option>
                 )}
               </SelectInput>
             )}
@@ -288,7 +307,9 @@ export function CreateServiceDialog({
 
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-text">Price (₹) *</label>
+              <label className="block text-xs font-semibold text-text">
+                Price ({getCurrencySymbol()}) *
+              </label>
               <input
                 type="number"
                 required
@@ -301,7 +322,9 @@ export function CreateServiceDialog({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-text">Duration (Minutes) *</label>
+              <label className="block text-xs font-semibold text-text">
+                Duration (Minutes) *
+              </label>
               <input
                 type="number"
                 required
@@ -316,7 +339,9 @@ export function CreateServiceDialog({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-text">Description (Optional)</label>
+            <label className="block text-xs font-semibold text-text">
+              Description (Optional)
+            </label>
             <textarea
               rows={2}
               placeholder="Brief description of what is included in this service..."
@@ -327,7 +352,12 @@ export function CreateServiceDialog({
           </div>
 
           <div className="mt-6 flex justify-end gap-3 border-t border-border pt-4">
-            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button

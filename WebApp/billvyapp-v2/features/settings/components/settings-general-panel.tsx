@@ -132,7 +132,7 @@ export function SettingsGeneralPanel() {
             type="tel"
             value={contactNumber}
             onChange={setContactNumber}
-            placeholder="10-digit mobile"
+            placeholder="10 local digits"
           />
           <SettingsSelectField
             id="timezone"

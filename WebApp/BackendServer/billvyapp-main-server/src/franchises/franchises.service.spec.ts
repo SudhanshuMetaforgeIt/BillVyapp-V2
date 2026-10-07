@@ -40,6 +40,7 @@ function franchise(overrides: Record<string, unknown> = {}) {
 
 describe('FranchisesService', () => {
   const prisma = {
+    bill: { findFirst: jest.fn() },
     franchise: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -70,6 +71,27 @@ describe('FranchisesService', () => {
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
+    );
+  });
+
+  it('uses the new phone country when country and local phone change together', async () => {
+    prisma.franchise.findFirst.mockResolvedValue(
+      franchise({ preferences: { phoneCountry: 'IN' } }),
+    );
+    prisma.franchise.update.mockResolvedValue(franchise());
+    await service.update(
+      actor,
+      'fr-1',
+      { phone: '2125550123', preferences: { phoneCountry: 'US' } },
+      ctx,
+    );
+    expect(prisma.franchise.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phone: '+12125550123',
+          preferences: { phoneCountry: 'US' },
+        }),
+      }),
     );
   });
 
@@ -151,7 +173,9 @@ describe('FranchisesService', () => {
 
     expect(result.name).toBe('West');
     expect(result.code).toBe('NORTH');
-    expect(prisma.franchise.update.mock.calls[0][0].data).not.toHaveProperty('code');
+    expect(prisma.franchise.update.mock.calls[0][0].data).not.toHaveProperty(
+      'code',
+    );
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'FRANCHISE_UPDATED' }),
     );
@@ -172,6 +196,35 @@ describe('FranchisesService', () => {
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'FRANCHISE_STATUS_CHANGED' }),
     );
+  });
+
+  it('allows a franchise to select USD before billing starts', async () => {
+    prisma.franchise.findFirst.mockResolvedValue(franchise());
+    prisma.bill.findFirst.mockResolvedValue(null);
+    prisma.franchise.update.mockResolvedValue(
+      franchise({ preferences: { currency: 'USD' } }),
+    );
+    await service.update(
+      actor,
+      'fr-1',
+      { preferences: { currency: 'USD', timezone: 'America/New_York' } },
+      ctx,
+    );
+    const calls = prisma.franchise.update.mock.calls as unknown as Array<
+      [{ data: { preferences: Record<string, unknown> } }]
+    >;
+    expect(calls[0][0].data.preferences).toMatchObject({
+      currency: 'USD',
+      timezone: 'America/New_York',
+    });
+  });
+  it('protects existing bills from being relabelled in another currency', async () => {
+    prisma.franchise.findFirst.mockResolvedValue(franchise());
+    prisma.bill.findFirst.mockResolvedValue({ id: 'bill-1' });
+    await expect(
+      service.update(actor, 'fr-1', { preferences: { currency: 'USD' } }, ctx),
+    ).rejects.toThrow('currency');
+    expect(prisma.franchise.update).not.toHaveBeenCalled();
   });
 });
 

@@ -14,6 +14,19 @@
 //                          Only owned child documents / media cascade.
 // =============================================================================
 
+// Original values retained by the international phone backfill.
+model PhoneNormalizationBackup {
+  entityTable String   @db.VarChar(32)
+  entityId    String   @db.VarChar(36)
+  fieldName   String   @db.VarChar(32)
+  oldPhone    String   @db.VarChar(64)
+  newPhone    String   @db.VarChar(16)
+  migratedAt  DateTime @default(now()) @db.DateTime(3)
+
+  @@id([entityTable, entityId, fieldName])
+  @@map("phone_normalization_backup")
+}
+
 generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
@@ -263,9 +276,9 @@ model User {
   firstName               String     @db.VarChar(100)
   lastName                String     @db.VarChar(100)
   email                   String     @unique @db.VarChar(191)
-  /// Indian mobile number, 10 digits, stored WITHOUT the +91 country code.
+  /// Canonical international phone number including the calling code (E.164).
   /// API layer must enforce ^[0-9]{10}$ before persisting.
-  phone                   String?    @unique @db.VarChar(10)
+  phone                   String?    @unique @db.VarChar(16)
   /// Argon2/bcrypt digest only. A plain-text password must never reach this column.
   passwordHash            String     @db.VarChar(255)
   profilePhoto            String?    @db.VarChar(512)

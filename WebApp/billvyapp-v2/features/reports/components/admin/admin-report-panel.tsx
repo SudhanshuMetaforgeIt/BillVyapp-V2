@@ -1,17 +1,7 @@
+import { formatDate, formatCurrency } from '@/lib/format';
 import type { ReactNode } from 'react';
-export const reportMoney = (value: number) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(value);
-export const reportDate = (value: string) =>
-  new Date(`${value}T00:00:00Z`).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
+export const reportMoney = (value: number) => formatCurrency(value);
+export const reportDate = (value: string) => formatDate(value);
 export function AdminReportPanel({
   title,
   description,
