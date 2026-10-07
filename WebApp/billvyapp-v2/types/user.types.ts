@@ -8,6 +8,11 @@ import type { RoleCode } from '@/constants/roles';
  * the frontend uses them for UI decisions only, never as a security boundary.
  */
 export interface AuthUser {
+  phoneCountry?: 'IN' | 'US';
+  currency?: string;
+  locale?: string;
+  dateFormat?: string;
+  timeFormat?: string;
   id: string;
   email: string;
   firstName: string;

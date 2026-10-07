@@ -123,6 +123,67 @@ describe('Reporting aggregates', () => {
       },
     });
   });
+
+  it('identifies the selected franchise currency', async () => {
+    prisma.franchise.findUnique.mockResolvedValue({
+      name: 'US Franchise',
+      preferences: { currency: 'USD' },
+    });
+    expect((await service.query(actor, query)).scope.currency).toBe('USD');
+    expect(timezone.resolveForUser).toHaveBeenCalledWith(
+      expect.objectContaining({ franchiseId: 'f' }),
+    );
+  });
+  it('keeps all-franchise INR and USD totals separate and scopes every aggregate', async () => {
+    prisma.franchise.findMany.mockResolvedValue([
+      { id: 'india', preferences: { currency: 'INR' } },
+      { id: 'us', preferences: { currency: 'USD' } },
+    ]);
+    raw.mockImplementation((sql) =>
+      Promise.resolve([
+        {
+          totalRevenue: sql.values.includes('india') ? '1500' : '25',
+          totalPayments: 1,
+          successfulPayments: 1,
+          failedPayments: 0,
+        },
+      ]),
+    );
+    const result = await service.query(
+      actor,
+      { dateFrom: query.dateFrom, dateTo: query.dateTo },
+      true,
+    );
+    expect(result.summary).toBeUndefined();
+    expect(result.scope.currency).toBeUndefined();
+    expect(
+      result.currencyGroups?.map((g) => [
+        g.scope.currency,
+        g.summary?.totalRevenue,
+      ]),
+    ).toEqual([
+      ['INR', '1500.00'],
+      ['USD', '25.00'],
+    ]);
+    for (const [sql] of raw.mock.calls) {
+      expect(sql.values.includes('india') !== sql.values.includes('us')).toBe(
+        true,
+      );
+      expect(sql.sql).toMatch(/franchiseId IN/);
+    }
+    expect(tx.franchise.count).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['us'] },
+        createdAt: { lt: new Date('2026-10-04T18:30:00Z') },
+      },
+    });
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: {
+        franchiseId: { in: ['india'] },
+        createdAt: { lt: new Date('2026-10-04T18:30:00Z') },
+      },
+    });
+  });
   it('distinguishes missing payment data from real zero revenue', async () => {
     raw.mockResolvedValueOnce([
       {

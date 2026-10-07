@@ -213,6 +213,59 @@ describe('PaymentsService', () => {
     ).rejects.toThrow('Only COMPLETED bills accept payments');
   });
 
+  it('rejects UPI for a USD franchise', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      completedBill({
+        salon: {
+          franchiseId: 'us',
+          franchise: { preferences: { currency: 'USD' } },
+        },
+      }),
+    );
+    await expect(
+      service.create(
+        manager,
+        { billId: 'bill-1', amount: 10.25, paymentMethod: PaymentMethod.UPI },
+        ctx,
+      ),
+    ).rejects.toThrow('USD');
+    expect(prisma.payment.create).not.toHaveBeenCalled();
+  });
+  it('records USD cents without conversion and recalculates the remaining balance', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      completedBill({
+        total: '100.25',
+        dueAmount: '100.25',
+        salon: {
+          franchiseId: 'us',
+          franchise: { preferences: { currency: 'USD' } },
+        },
+      }),
+    );
+    const recorded = paymentRow({
+      amount: '40.15',
+      paymentMethod: PaymentMethod.CARD,
+    });
+    prisma.payment.create.mockResolvedValue(recorded);
+    prisma.payment.findUniqueOrThrow.mockResolvedValue(recorded);
+    prisma.payment.findMany.mockResolvedValue([{ amount: '40.15' }]);
+    await service.create(
+      manager,
+      { billId: 'bill-1', amount: 40.15, paymentMethod: PaymentMethod.CARD },
+      ctx,
+    );
+    expect(
+      firstMockArg<{ data: { amount: string } }>(prisma.payment.create).data
+        .amount,
+    ).toBe('40.15');
+    expect(
+      firstMockArg<{ data: Record<string, unknown> }>(prisma.bill.update).data,
+    ).toMatchObject({
+      paidAmount: '40.15',
+      dueAmount: '60.10',
+    });
+  });
+
   it('rejects overpayment beyond dueAmount', async () => {
     prisma.bill.findUnique.mockResolvedValue(
       completedBill({ dueAmount: '100.00' }),

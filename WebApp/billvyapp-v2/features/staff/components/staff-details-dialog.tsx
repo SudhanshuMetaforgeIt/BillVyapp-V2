@@ -1,5 +1,8 @@
 'use client';
 
+import { getBusinessRegion } from '@/lib/business-region';
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { useEffect, useState } from 'react';
 import {
   Briefcase,
@@ -42,9 +45,9 @@ export function StaffDetailsDialog({
 
   const formatSalary = (val: number) => {
     if (!val) return 'Not set';
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -134,21 +137,26 @@ export function StaffDetailsDialog({
           <div className="flex items-center gap-2.5 text-stone-700 dark:text-stone-300">
             <Calendar className="h-4 w-4 text-stone-400" />
             <span>
-              Joined: <strong className="font-semibold">{staff.joinDate}</strong>
+              Joined:{' '}
+              <strong className="font-semibold">{staff.joinDate}</strong>
             </span>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-center">
           <div className="rounded-xl border border-stone-100 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-800/40">
-            <div className="text-[11px] text-stone-400 font-medium">Current Salary</div>
+            <div className="text-[11px] text-stone-400 font-medium">
+              Current Salary
+            </div>
             <div className="mt-1 text-base font-bold text-stone-900 dark:text-white">
               {formatSalary(staff.salary)}
             </div>
           </div>
 
           <div className="rounded-xl border border-stone-100 bg-stone-50/70 p-3 dark:border-stone-800 dark:bg-stone-800/40">
-            <div className="text-[11px] text-stone-400 font-medium">Account Status</div>
+            <div className="text-[11px] text-stone-400 font-medium">
+              Account Status
+            </div>
             <div className="mt-1 text-base font-bold text-emerald-600 dark:text-emerald-400 capitalize">
               {staff.status.toLowerCase().replace('_', ' ')}
             </div>
@@ -157,7 +165,7 @@ export function StaffDetailsDialog({
 
         <div className="mt-4 space-y-2">
           <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
-            Update Monthly Salary (₹)
+            Update Monthly Salary ({getCurrencySymbol()})
           </label>
           <input
             type="number"

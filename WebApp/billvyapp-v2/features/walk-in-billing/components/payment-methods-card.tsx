@@ -1,12 +1,8 @@
 'use client';
 
-import {
-  Banknote,
-  CreditCard,
-  Smartphone,
-  Wallet,
-} from 'lucide-react';
+import { Banknote, CreditCard, Smartphone, Wallet } from 'lucide-react';
 
+import { getBusinessRegion } from '@/lib/business-region';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { WalkInPaymentMethod } from '../types/walk-in-billing.types';
@@ -98,10 +94,15 @@ export function PaymentMethodsCard({
 
   return (
     <section className="app-surface-card p-5">
-      <h2 className="mb-4 text-base font-semibold text-text">Payment Methods</h2>
+      <h2 className="mb-4 text-base font-semibold text-text">
+        Payment Methods
+      </h2>
 
       <ul className="space-y-2">
-        {METHODS.map((method) => {
+        {METHODS.filter(
+          (method) =>
+            method.id !== 'UPI' || getBusinessRegion().currency !== 'USD',
+        ).map((method) => {
           const Icon = method.icon;
           const selected = value === method.id;
           return (
@@ -138,7 +139,10 @@ export function PaymentMethodsCard({
                     {method.description}
                   </span>
                 </span>
-                <Icon className="size-4 shrink-0 text-text-secondary" aria-hidden />
+                <Icon
+                  className="size-4 shrink-0 text-text-secondary"
+                  aria-hidden
+                />
               </button>
             </li>
           );
@@ -151,10 +155,16 @@ export function PaymentMethodsCard({
         disabled={!canPay || isPaying}
         onClick={onPay}
       >
-        {isPaying ? 'Processing…' : zeroTotal ? 'Complete bill (no payment due)' : 'Record payment received'}
+        {isPaying
+          ? 'Processing…'
+          : zeroTotal
+            ? 'Complete bill (no payment due)'
+            : 'Record payment received'}
       </Button>
       <p className="mt-2 text-center text-xs text-text-secondary">
-        {zeroTotal ? "Complete the visit to record membership usage." : "Record only after the customer has paid at the counter."}
+        {zeroTotal
+          ? 'Complete the visit to record membership usage.'
+          : 'Record only after the customer has paid at the counter.'}
       </p>
 
       <button

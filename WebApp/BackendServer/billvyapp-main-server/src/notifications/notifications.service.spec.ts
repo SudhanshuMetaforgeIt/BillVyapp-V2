@@ -91,7 +91,7 @@ describe('NotificationsService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
-    salon: { findFirst: jest.fn() },
+    salon: { findFirst: jest.fn(), findUnique: jest.fn() },
     user: { findMany: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -106,6 +106,9 @@ describe('NotificationsService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.salon.findUnique.mockResolvedValue({
+      franchise: { preferences: { phoneCountry: 'IN' } },
+    });
     scope.assertSalonAccess.mockResolvedValue(undefined);
     scope.assertCustomerAccess.mockResolvedValue(undefined);
     scope.requireOwnCustomerId.mockResolvedValue('cust-1');

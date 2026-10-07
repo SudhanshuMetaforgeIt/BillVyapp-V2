@@ -139,9 +139,11 @@ export async function fetchAdminCustomers(
 
   // Map to CustomerItem
   const customers: CustomerItem[] = rawCustomers.map((c) => {
-    const fullName = `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Customer';
+    const fullName =
+      `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Customer';
     const initials =
-      `${(c.firstName || '')[0] || ''}${(c.lastName || '')[0] || ''}`.toUpperCase() || 'CU';
+      `${(c.firstName || '')[0] || ''}${(c.lastName || '')[0] || ''}`.toUpperCase() ||
+      'CU';
 
     let formattedJoined = '—';
     try {
@@ -217,7 +219,8 @@ export async function fetchAdminCustomers(
   for (const c of allCustomers) {
     const totalBills = c.totalBills || 0;
     const spent = Number(c.totalSpent) || 0;
-    const name = `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.customerCode;
+    const name =
+      `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.customerCode;
 
     if (!c.isActive) {
       inactiveCount++;
@@ -263,7 +266,9 @@ export async function fetchAdminCustomers(
 
   const returningPct =
     totalCustomersCount > 0
-      ? Number(((returningCustomersCount / totalCustomersCount) * 100).toFixed(1))
+      ? Number(
+          ((returningCustomersCount / totalCustomersCount) * 100).toFixed(1),
+        )
       : 0;
 
   const customersSampled = allCustomersMeta.total > allCustomers.length;
@@ -310,9 +315,7 @@ export async function createCustomer(
     firstName: payload.firstName.trim(),
     lastName: payload.lastName.trim(),
     email: payload.email.trim(),
-    phone: payload.phone.trim().startsWith('+91')
-      ? payload.phone.trim()
-      : `+91${payload.phone.trim().replace(/^0+/, '')}`,
+    phone: payload.phone.trim(),
   };
 
   if (payload.gender) body.gender = payload.gender;

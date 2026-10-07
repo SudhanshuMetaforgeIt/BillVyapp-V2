@@ -215,17 +215,22 @@ export function CreateUserDialog({
             <Label htmlFor="user-phone">Phone (optional)</Label>
             <Input
               id="user-phone"
+              phoneCountry={
+                franchises.find((f) => f.id === franchiseId)?.phoneCountry ??
+                'IN'
+              }
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="10-digit mobile"
+              placeholder="10 local digits"
               maxLength={20}
             />
           </div>
 
           <div>
             <Label htmlFor="user-role">Role</Label>
-            <SelectInput className="h-11 w-full text-sm font-medium"
+            <SelectInput
+              className="h-11 w-full text-sm font-medium"
               id="user-role"
               value={roleId}
               onChange={(e) => setRoleId(e.target.value)}
@@ -243,7 +248,8 @@ export function CreateUserDialog({
           {needsFranchise ? (
             <div>
               <Label htmlFor="user-franchise">Business</Label>
-              <SelectInput className="h-11 w-full text-sm font-medium"
+              <SelectInput
+                className="h-11 w-full text-sm font-medium"
                 id="user-franchise"
                 value={franchiseId}
                 onChange={(e) => {
@@ -265,7 +271,8 @@ export function CreateUserDialog({
           {needsSalon ? (
             <div>
               <Label htmlFor="user-salon">Salon</Label>
-              <SelectInput className="h-11 w-full text-sm font-medium disabled:opacity-50"
+              <SelectInput
+                className="h-11 w-full text-sm font-medium disabled:opacity-50"
                 id="user-salon"
                 value={salonId}
                 onChange={(e) => setSalonId(e.target.value)}

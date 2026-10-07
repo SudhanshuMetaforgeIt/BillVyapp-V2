@@ -267,11 +267,13 @@ describe('AuthService', () => {
           return fn(tx);
         },
       );
-      (prisma as any).user.findUniqueOrThrow.mockResolvedValue(customerUser({
-        id: 'new-cust-1',
-        email: 'new@example.com',
-        phone: '9988776655',
-      }));
+      (prisma as any).user.findUniqueOrThrow.mockResolvedValue(
+        customerUser({
+          id: 'new-cust-1',
+          email: 'new@example.com',
+          phone: '9988776655',
+        }),
+      );
 
       const result = await auth.register(
         {
@@ -329,7 +331,7 @@ describe('AuthService', () => {
 
       expect(result.message).toBe('OTP request processed successfully.');
       expect(result.devOtp).toBe('482913');
-      expect(otp.issue).toHaveBeenCalledWith('9876543210');
+      expect(otp.issue).toHaveBeenCalledWith('+919876543210');
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'OTP_REQUESTED' }),
       );
@@ -431,12 +433,14 @@ describe('AuthService', () => {
       const tokens = await auth.refresh('refresh.jwt', ctx);
 
       expect(tokens.accessToken).toBe(`signed-${JWT_TYPE_ACCESS}`);
-      expect(tokens.user).toEqual(expect.objectContaining({
-        id: 'admin-1',
-        role: RoleCode.ADMIN,
-        franchiseId: 'franchise-a',
-        timezone: 'Asia/Kolkata',
-      }));
+      expect(tokens.user).toEqual(
+        expect.objectContaining({
+          id: 'admin-1',
+          role: RoleCode.ADMIN,
+          franchiseId: 'franchise-a',
+          timezone: 'Asia/Kolkata',
+        }),
+      );
       expect(sessions.revoke).toHaveBeenCalledWith('sess-1');
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'TOKEN_REFRESHED' }),
@@ -445,13 +449,19 @@ describe('AuthService', () => {
 
     it('keeps the presented session valid if user enrichment fails', async () => {
       jwt.verifyAsync.mockResolvedValue({
-        sub: 'admin-1', type: JWT_TYPE_REFRESH, sessionId: 'sess-1',
+        sub: 'admin-1',
+        type: JWT_TYPE_REFRESH,
+        sessionId: 'sess-1',
       });
       sessions.findValid.mockResolvedValue({ id: 'sess-1', userId: 'admin-1' });
       prisma.user.findUnique.mockResolvedValue(staffUser());
-      businessTimezone.getPlatformTimezone.mockRejectedValueOnce(new Error('Timezone unavailable'));
+      businessTimezone.getPlatformTimezone.mockRejectedValueOnce(
+        new Error('Timezone unavailable'),
+      );
 
-      await expect(auth.refresh('refresh.jwt', ctx)).rejects.toThrow('Timezone unavailable');
+      await expect(auth.refresh('refresh.jwt', ctx)).rejects.toThrow(
+        'Timezone unavailable',
+      );
       expect(sessions.revoke).not.toHaveBeenCalled();
       expect(sessions.create).not.toHaveBeenCalled();
     });
@@ -519,6 +529,11 @@ describe('AuthService', () => {
       const me = await auth.me(identity);
 
       expect(me).toEqual({
+        phoneCountry:'IN',
+        currency: 'INR',
+        locale: 'en-IN',
+        dateFormat: 'DD MMM YYYY',
+        timeFormat: '12',
         id: 'admin-1',
         firstName: 'Ada',
         lastName: 'Admin',

@@ -1,7 +1,8 @@
 'use client';
+import { normalizePhone, type PhoneCountry } from '@/lib/phone';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Lock, Mail, Phone, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,7 +14,6 @@ import { ROUTES } from '@/constants/routes';
 import { AuthErrorBanner } from '@/features/auth/components/auth-error-banner';
 import { useRegister } from '@/features/auth/hooks/use-register';
 import {
-  normalizeIndianPhone,
   registerSchema,
   type RegisterValues,
 } from '@/features/auth/schemas/auth.schema';
@@ -25,6 +25,7 @@ const inputClassName =
   'auth-form-input h-11 border-border pl-10 text-text placeholder:text-text-secondary/70 focus-visible:border-brand-orange focus-visible:ring-brand-orange/25';
 
 export function RegisterFormCard() {
+  const [phoneCountry, setPhoneCountry] = useState<PhoneCountry>('IN');
   const registerMutation = useRegister();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -50,7 +51,7 @@ export function RegisterFormCard() {
       firstName: values.firstName.trim(),
       lastName: values.lastName.trim(),
       email: values.email.trim(),
-      phone: normalizeIndianPhone(values.phone),
+      phone: normalizePhone(values.phone, phoneCountry),
       password: values.password,
     });
   });
@@ -133,11 +134,7 @@ export function RegisterFormCard() {
             </Field>
           </div>
 
-          <Field
-            id="email"
-            label="Email Address"
-            error={errors.email?.message}
-          >
+          <Field id="email" label="Email Address" error={errors.email?.message}>
             <div className="relative">
               <Mail
                 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
@@ -158,22 +155,16 @@ export function RegisterFormCard() {
             </div>
           </Field>
 
-          <Field
-            id="phone"
-            label="Phone Number"
-            error={errors.phone?.message}
-          >
+          <Field id="phone" label="Phone Number" error={errors.phone?.message}>
             <div className="relative">
-              <Phone
-                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
-                aria-hidden
-              />
               <Input
                 id="phone"
                 type="tel"
+                phoneCountry={phoneCountry}
+                onPhoneCountryChange={setPhoneCountry}
                 autoComplete="tel"
                 inputMode="tel"
-                placeholder="+91 9966996688"
+                placeholder="10 local digits"
                 aria-invalid={Boolean(errors.phone)}
                 aria-describedby={errors.phone ? 'phone-error' : undefined}
                 disabled={isSubmitting}
@@ -324,12 +315,19 @@ function Field({
 }) {
   return (
     <div data-auth-animate="field" className="min-w-0">
-      <Label htmlFor={id} className="mb-2 text-[13px] font-medium text-charcoal">
+      <Label
+        htmlFor={id}
+        className="mb-2 text-[13px] font-medium text-charcoal"
+      >
         {label}
       </Label>
       {children}
       {error ? (
-        <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-danger">
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="mt-1.5 text-xs text-danger"
+        >
           {error}
         </p>
       ) : null}

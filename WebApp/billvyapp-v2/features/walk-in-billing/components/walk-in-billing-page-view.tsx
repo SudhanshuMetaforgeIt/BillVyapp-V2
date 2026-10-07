@@ -3,7 +3,10 @@ import dynamic from 'next/dynamic';
 
 import { CouponCodeCard } from './coupon-code-card';
 
-import { MembershipEnrollmentCard, type EnrollmentChoice } from './membership-enrollment-card';
+import {
+  MembershipEnrollmentCard,
+  type EnrollmentChoice,
+} from './membership-enrollment-card';
 import { useCallback, useMemo, useState } from 'react';
 
 import {
@@ -24,11 +27,22 @@ import type {
 } from '../types/walk-in-billing.types';
 import { AddServicesSection } from './add-services-section';
 import { BillSummaryCard } from './bill-summary-card';
-const LazyCreateCustomerDialog = dynamic(() => import('./create-customer-dialog').then((module) => module.CreateCustomerDialog), { loading: () => <p role="status">Opening dialog…</p> });
-function CreateCustomerDialog(props: import('react').ComponentProps<typeof import('./create-customer-dialog').CreateCustomerDialog>) {
+const LazyCreateCustomerDialog = dynamic(
+  () =>
+    import('./create-customer-dialog').then(
+      (module) => module.CreateCustomerDialog,
+    ),
+  { loading: () => <p role="status">Opening dialog…</p> },
+);
+function CreateCustomerDialog(
+  props: import('react').ComponentProps<
+    typeof import('./create-customer-dialog').CreateCustomerDialog
+  >,
+) {
   return props.open ? <LazyCreateCustomerDialog {...props} /> : null;
 }
 import { CustomerDetailsSection } from './customer-details-section';
+import { getBusinessRegion } from '@/lib/business-region';
 import { PaymentMethodsCard } from './payment-methods-card';
 import { RecentBillsSection } from './recent-bills-section';
 
@@ -60,8 +74,9 @@ export function WalkInBillingPageView() {
   const [coupon, setCoupon] = useState<ValidatedBillCoupon | null>(null);
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] =
-    useState<WalkInPaymentMethod>('UPI');
+  const [paymentMethod, setPaymentMethod] = useState<WalkInPaymentMethod>(
+    getBusinessRegion().currency === 'USD' ? 'CARD' : 'UPI',
+  );
 
   const discountValue = applyDiscount
     ? Math.max(0, Number(discountAmount) || 0)
@@ -73,17 +88,26 @@ export function WalkInBillingPageView() {
   );
 
   const cartFingerprint = useMemo(
-    () => cart.map((line) => `${line.serviceId}:${line.quantity}:${line.unitPrice}`).join('|'),
+    () =>
+      cart
+        .map((line) => `${line.serviceId}:${line.quantity}:${line.unitPrice}`)
+        .join('|'),
     [cart],
   );
 
   const offerKey = useMemo(
-    () => `${salonId}:${customer?.id}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`,
+    () =>
+      `${salonId}:${customer?.id}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`,
     [salonId, customer?.id, cartFingerprint, preview.total, coupon?.couponCode],
   );
 
-  const [enrollment, setEnrollment] = useState<(EnrollmentChoice & { key: string }) | null>(null);
-  const onEnrollmentChange = useCallback((c: EnrollmentChoice) => setEnrollment({ ...c, key: offerKey }), [offerKey]);
+  const [enrollment, setEnrollment] = useState<
+    (EnrollmentChoice & { key: string }) | null
+  >(null);
+  const onEnrollmentChange = useCallback(
+    (c: EnrollmentChoice) => setEnrollment({ ...c, key: offerKey }),
+    [offerKey],
+  );
   const choice = enrollment?.key === offerKey ? enrollment : null;
 
   const payablePreview = useMemo(() => {
@@ -105,7 +129,7 @@ export function WalkInBillingPageView() {
     setStylistName('');
     setApplyDiscount(false);
     setDiscountAmount('');
-    setPaymentMethod('UPI');
+    setPaymentMethod(getBusinessRegion().currency === 'USD' ? 'CARD' : 'UPI');
     setCoupon(null);
     setCouponValidating(false);
   }, []);
@@ -149,7 +173,9 @@ export function WalkInBillingPageView() {
     cart.length > 0 &&
     preview.total >= 0 &&
     !settle.isPending &&
-    !isCouponValidating && (!choice || choice.valid) && (!choice?.plan || !choice.pending);
+    !isCouponValidating &&
+    (!choice || choice.valid) &&
+    (!choice?.plan || !choice.pending);
 
   const canPickSalon = can(user, 'salons.write');
 
@@ -240,7 +266,25 @@ export function WalkInBillingPageView() {
 
       <div className="space-y-5 xl:sticky xl:top-4">
         <BillSummaryCard preview={payablePreview} />
-        {customer && salonId && cart.length > 0 && <MembershipEnrollmentCard key={offerKey} customer={customer} disabled={settle.isPending} onChange={onEnrollmentChange} payload={{ salonId, customerId: customer.id, couponCode: coupon?.couponCode, discount: preview.discount, items: cart.map(l => ({ itemType: 'SERVICE', serviceId: l.serviceId, quantity: l.quantity })) }} />}
+        {customer && salonId && cart.length > 0 && (
+          <MembershipEnrollmentCard
+            key={offerKey}
+            customer={customer}
+            disabled={settle.isPending}
+            onChange={onEnrollmentChange}
+            payload={{
+              salonId,
+              customerId: customer.id,
+              couponCode: coupon?.couponCode,
+              discount: preview.discount,
+              items: cart.map((l) => ({
+                itemType: 'SERVICE',
+                serviceId: l.serviceId,
+                quantity: l.quantity,
+              })),
+            }}
+          />
+        )}
         <CouponCodeCard
           key={`${salonId}:${customer?.id}`}
           salonId={salonId ?? ''}
@@ -263,7 +307,17 @@ export function WalkInBillingPageView() {
             settle.mutate({
               expectedTotal: payablePreview.total,
               enrollmentPlanId: choice?.plan?.id ?? null,
-              enrollmentDetails: choice?.plan ? { ...choice.details, whatsappNumber: choice.details.whatsappSameAsBilling ? undefined : choice.details.whatsappNumber, dateOfBirth: choice.details.dateOfBirth || undefined, email: choice.details.email?.trim() || undefined, address: choice.details.address?.trim() || undefined } : undefined,
+              enrollmentDetails: choice?.plan
+                ? {
+                    ...choice.details,
+                    whatsappNumber: choice.details.whatsappSameAsBilling
+                      ? undefined
+                      : choice.details.whatsappNumber,
+                    dateOfBirth: choice.details.dateOfBirth || undefined,
+                    email: choice.details.email?.trim() || undefined,
+                    address: choice.details.address?.trim() || undefined,
+                  }
+                : undefined,
               salonId,
               customerId: customer.id,
               couponCode: coupon?.couponCode,

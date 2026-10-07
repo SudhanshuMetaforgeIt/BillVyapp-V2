@@ -23,7 +23,7 @@ function identity(
 describe('ScopeService', () => {
   const prisma = {
     salon: { findUnique: jest.fn() },
-    customer: { findUnique: jest.fn() },
+    customer: { findUnique: jest.fn(), findFirst: jest.fn() },
   };
   let scope: ScopeService;
 
@@ -183,13 +183,45 @@ describe('ScopeService', () => {
       ).toEqual({ userId: 'user-a' });
     });
 
-    it('ADMIN is not limited to a franchise column on Customer', () => {
+    it('ADMIN only sees customers registered or associated with their franchise', () => {
       expect(
         scope.customerTableScope(
           identity({ role: RoleCode.ADMIN, franchiseId: 'franchise-a' }),
         ),
-      ).toEqual({});
+      ).toEqual({
+        OR: [
+          { user: { franchiseId: 'franchise-a' } },
+          { appointments: { some: { salon: { franchiseId: 'franchise-a' } } } },
+          { bills: { some: { salon: { franchiseId: 'franchise-a' } } } },
+          {
+            memberships: {
+              some: {
+                membershipPlan: { salon: { franchiseId: 'franchise-a' } },
+              },
+            },
+          },
+        ],
+      });
     });
+    it('rejects unassigned admins instead of exposing the global directory', () => {
+      expect(() =>
+        scope.customerTableScope(identity({ role: RoleCode.ADMIN })),
+      ).toThrow(ForbiddenException);
+    });
+    it.each([RoleCode.MANAGER, RoleCode.STAFF])(
+      '%s stays within the franchise directory',
+      (role) => {
+        expect(
+          scope.customerTableScope(
+            identity({ role, franchiseId: 'franchise-a', salonId: 'salon-a' }),
+          ),
+        ).toEqual(
+          scope.customerTableScope(
+            identity({ role: RoleCode.ADMIN, franchiseId: 'franchise-a' }),
+          ),
+        );
+      },
+    );
   });
 
   describe('assertCustomerAccess', () => {
@@ -216,12 +248,31 @@ describe('ScopeService', () => {
     });
 
     it('ADMIN may access a customer record', async () => {
+      prisma.customer.findFirst.mockResolvedValue({ id: 'customer-a' });
       await expect(
         scope.assertCustomerAccess(
           identity({ role: RoleCode.ADMIN, franchiseId: 'franchise-a' }),
           'customer-a',
         ),
       ).resolves.toBeUndefined();
+    });
+    it('rejects direct access to another franchise customer', async () => {
+      prisma.customer.findFirst.mockResolvedValue(null);
+      await expect(
+        scope.assertCustomerAccess(
+          identity({ role: RoleCode.ADMIN, franchiseId: 'franchise-a' }),
+          'customer-b',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.customer.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'customer-b',
+          ...scope.customerTableScope(
+            identity({ role: RoleCode.ADMIN, franchiseId: 'franchise-a' }),
+          ),
+        },
+        select: { id: true },
+      });
     });
   });
 

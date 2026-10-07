@@ -64,6 +64,7 @@ export function enrollmentConsent(
     }),
   ) as Prisma.InputJsonObject;
 }
+import { normalizeFranchisePhone } from '../common/phone';
 export async function completeChosenEnrollment(
   tx: Prisma.TransactionClient,
   bill: {
@@ -117,7 +118,12 @@ export async function completeChosenEnrollment(
     data: {
       whatsappNumber: details.whatsappSameAsBilling
         ? customer.user.phone
-        : details.whatsappNumber,
+        : await normalizeFranchisePhone(
+            tx,
+            details.whatsappNumber,
+            null,
+            bill.salonId,
+          ),
       ...(details.dateOfBirth
         ? { dateOfBirth: parseDateOnlyUtc(details.dateOfBirth) }
         : {}),

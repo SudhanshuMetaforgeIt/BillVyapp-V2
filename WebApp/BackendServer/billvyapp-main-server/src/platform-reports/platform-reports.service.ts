@@ -279,7 +279,7 @@ export class PlatformReportsService {
         'PDF generation is not implemented. Use Excel (.xlsx).',
       );
     const analytics = await this.analytics.query(user, dto, true);
-    const metrics = analytics.summary!;
+    const metrics = analytics.summary;
     const franchiseName = analytics.scope.franchiseName;
     const type = dto.type;
     const format = dto.format ?? 'excel';
@@ -301,7 +301,7 @@ export class PlatformReportsService {
       interval: dto.interval ?? 'month',
       salonSort: dto.salonSort ?? 'revenue',
       serviceSort: dto.serviceSort ?? 'revenue',
-      metrics,
+      ...(metrics ? { metrics } : {}),
       analytics,
     };
 
@@ -491,7 +491,7 @@ export class PlatformReportsService {
       this.assertAccess(authUser);
       const dto = payload.dto as GeneratePlatformReportDto;
       const analytics = await this.analytics.query(authUser, dto, true);
-      const metrics = analytics.summary!;
+      const metrics = analytics.summary;
       const franchiseName = analytics.scope.franchiseName;
       const dateRangeLabel = this.formatDateRangeLabel(
         parseDateOnlyUtc(dto.dateFrom),
@@ -513,7 +513,7 @@ export class PlatformReportsService {
         interval: dto.interval ?? 'month',
         salonSort: dto.salonSort ?? 'revenue',
         serviceSort: dto.serviceSort ?? 'revenue',
-        metrics,
+        ...(metrics ? { metrics } : {}),
         analytics,
       };
 

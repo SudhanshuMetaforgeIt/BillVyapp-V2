@@ -1,4 +1,5 @@
 'use client';
+import { formatCompactCurrency } from '@/lib/format';
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChartNoAxesCombined } from 'lucide-react';
 import { SelectInput } from '@/components/data/form-fields';
@@ -58,12 +59,7 @@ export function RevenueOverviewChart({
     1,
     Math.ceil(series.length / Math.max(2, Math.floor(width / 100))),
   );
-  const compact = (v: number) =>
-    v >= 100000
-      ? `₹${Number((v / 100000).toFixed(1))}L`
-      : v >= 1000
-        ? `₹${Number((v / 1000).toFixed(1))}k`
-        : `₹${Math.round(v)}`;
+  const compact = formatCompactCurrency;
   return (
     <AdminReportPanel
       title="Revenue overview"

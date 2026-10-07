@@ -1,4 +1,5 @@
 'use client';
+import { Input } from '@/components/ui/input';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -79,8 +80,8 @@ export function AdminCreateCustomerDialog({
         err instanceof Error
           ? err.message
           : typeof err === 'object' && err && 'message' in err
-          ? String((err as { message: unknown }).message)
-          : 'Failed to create customer. Phone or email might already exist.';
+            ? String((err as { message: unknown }).message)
+            : 'Failed to create customer. Phone or email might already exist.';
       setError(message);
     } finally {
       setLoading(false);
@@ -152,7 +153,7 @@ export function AdminCreateCustomerDialog({
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Phone Number <span className="text-rose-500">*</span>
               </label>
-              <input
+              <Input
                 type="tel"
                 required
                 value={phone}
@@ -181,7 +182,8 @@ export function AdminCreateCustomerDialog({
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Gender
               </label>
-              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="mt-1 h-10 w-full text-sm font-medium"
                 value={gender}
                 onChange={(e) => setGender(e.target.value as Gender)}
               >
@@ -209,7 +211,8 @@ export function AdminCreateCustomerDialog({
               <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300">
                 Preferred Branch Location
               </label>
-              <SelectInput className="mt-1 h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="mt-1 h-10 w-full text-sm font-medium"
                 value={salonId}
                 onChange={(e) => setSalonId(e.target.value)}
               >
@@ -238,7 +241,9 @@ export function AdminCreateCustomerDialog({
               disabled={loading}
               className="h-9 px-5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
             >
-              {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {loading && (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              )}
               Save Customer
             </Button>
           </div>

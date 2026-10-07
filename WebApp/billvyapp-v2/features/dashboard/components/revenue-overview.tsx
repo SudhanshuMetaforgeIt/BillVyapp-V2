@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCompactCurrency } from '@/lib/format';
 import { ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
 import {
   useCallback,
@@ -53,20 +54,7 @@ function niceCeiling(value: number): number {
 
 /** Axis labels in the reference style (8k / 1.2L). */
 function formatAxisAmount(value: number): string {
-  if (value === 0) return '0';
-  if (Math.abs(value) >= 100_000) {
-    const lakhs = value / 100_000;
-    return `${lakhs.toLocaleString('en-IN', {
-      maximumFractionDigits: lakhs >= 10 ? 0 : 1,
-    })}L`;
-  }
-  if (Math.abs(value) >= 1000) {
-    const thousands = value / 1000;
-    return `${thousands.toLocaleString('en-IN', {
-      maximumFractionDigits: thousands >= 10 ? 0 : 1,
-    })}k`;
-  }
-  return value.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  return formatCompactCurrency(value);
 }
 
 function buildSmoothPath(coords: ChartCoord[]): string {
@@ -260,8 +248,7 @@ function RevenueChart({ points }: { points: RevenuePoint[] }) {
 
   const activeIndex = chart.coords.findIndex((c) => c.monthKey === activeKey);
   const active = activeIndex >= 0 ? chart.coords[activeIndex] : null;
-  const previous =
-    activeIndex > 0 ? chart.coords[activeIndex - 1] : null;
+  const previous = activeIndex > 0 ? chart.coords[activeIndex - 1] : null;
   const isUp = active && previous ? active.amount >= previous.amount : true;
 
   return (
@@ -536,17 +523,21 @@ export function RevenueOverview({
               />
             </>
           ) : null}
-          <PeriodTabs
-            value={tab}
-            onChange={applyTab}
-            showCustom={useDynamic}
-          />
+          <PeriodTabs value={tab} onChange={applyTab} showCustom={useDynamic} />
         </div>
       }
       bodyClassName="pt-1 pb-3"
     >
-      {isUpdating ? <p role="status" className="mb-2 text-xs text-text-secondary">Updating revenue…</p> : null}
-      {query.isError && points.length > 0 && useDynamic ? <p role="alert" className="mb-2 text-xs text-danger">Could not refresh revenue. Previous figures are shown.</p> : null}
+      {isUpdating ? (
+        <p role="status" className="mb-2 text-xs text-text-secondary">
+          Updating revenue…
+        </p>
+      ) : null}
+      {query.isError && points.length > 0 && useDynamic ? (
+        <p role="alert" className="mb-2 text-xs text-danger">
+          Could not refresh revenue. Previous figures are shown.
+        </p>
+      ) : null}
       {isLoading ? (
         <Skeleton className="h-64 w-full rounded-xl" />
       ) : rangeInvalid ? (

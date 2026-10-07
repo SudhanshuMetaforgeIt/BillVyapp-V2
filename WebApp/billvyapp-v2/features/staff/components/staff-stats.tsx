@@ -1,5 +1,7 @@
 'use client';
 
+import { getBusinessRegion } from '@/lib/business-region';
+
 import {
   CalendarOff,
   CheckCircle2,
@@ -16,9 +18,9 @@ type StaffStatsProps = {
 
 export function StaffStats({ stats, loading }: StaffStatsProps) {
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -31,7 +33,8 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
       subtitle: 'Across all branches',
       subtitleColor: 'text-stone-500 dark:text-stone-400',
       icon: Users,
-      iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+      iconBg:
+        'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
     },
     {
       id: 'active-staff',
@@ -40,7 +43,8 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
       subtitle: `${stats.activeStaffPct}% of total`,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: CheckCircle2,
-      iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+      iconBg:
+        'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
     },
     {
       id: 'on-leave',
@@ -58,7 +62,8 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
       subtitle: `${stats.inactiveStaffPct}% of total`,
       subtitleColor: 'text-amber-600 dark:text-amber-400',
       icon: UserMinus,
-      iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+      iconBg:
+        'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
     },
     {
       id: 'total-payroll',
@@ -67,7 +72,8 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
       subtitle: 'Across all branches',
       subtitleColor: 'text-stone-500 dark:text-stone-400',
       icon: IndianRupee,
-      iconBg: 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400',
+      iconBg:
+        'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400',
     },
   ];
 
@@ -98,7 +104,9 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
                 )}
               </div>
               <div className="mt-1.5">
-                <span className={`text-[11px] font-medium ${card.subtitleColor}`}>
+                <span
+                  className={`text-[11px] font-medium ${card.subtitleColor}`}
+                >
                   {card.subtitle}
                 </span>
               </div>

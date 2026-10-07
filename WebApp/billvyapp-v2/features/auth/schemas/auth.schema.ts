@@ -1,3 +1,4 @@
+import { cleanPhoneInput, isValidPhoneInput } from '@/lib/phone';
 import { z } from 'zod';
 
 /**
@@ -8,12 +9,14 @@ import { z } from 'zod';
  */
 
 /**
- * Indian mobile numbers are stored as exactly 10 digits with no +91 prefix,
- * matching users.phone in the database.
+ * Local input inherits the franchise country; international input keeps its prefix.
  */
 export const phoneSchema = z
   .string()
-  .regex(/^[0-9]{10}$/, 'Enter a 10-digit mobile number without +91');
+  .refine(
+    isValidPhoneInput,
+    'Enter 10 local digits or an international number',
+  );
 
 /**
  * Staff/admin sign-in. Backend LoginDto is email + password only.
@@ -24,28 +27,17 @@ export const loginSchema = z.object({
   phone: z
     .string()
     .trim()
-    .refine(
-      (value) =>
-        value === '' ||
-        /^[0-9]{10}$/.test(value) ||
-        /^\+91\s?[0-9]{10}$/.test(value),
-      {
-        message:
-          'Enter a 10-digit mobile number, optionally prefixed with +91',
-      },
-    ),
+    .refine((value) => value === '' || isValidPhoneInput(value), {
+      message: 'Enter 10 local digits or an international number',
+    }),
   password: z.string().min(1, 'Password is required').max(128),
 });
 
 /**
- * Normalises UI phone input to the 10-digit form the backend stores.
+ * Cleans phone input without removing an existing country prefix.
  */
 export function normalizeIndianPhone(value: string): string {
-  const trimmed = value.trim();
-  if (/^\+91\s?[0-9]{10}$/.test(trimmed)) {
-    return trimmed.replace(/^\+91\s?/, '');
-  }
-  return trimmed;
+  return cleanPhoneInput(value);
 }
 
 /**
@@ -69,15 +61,9 @@ export const registerSchema = z
       .string()
       .trim()
       .min(1, 'Phone number is required')
-      .refine(
-        (value) =>
-          /^[0-9]{10}$/.test(normalizeIndianPhone(value)) ||
-          /^\+91\s?[0-9]{10}$/.test(value),
-        {
-          message:
-            'Enter a 10-digit mobile number, optionally prefixed with +91',
-        },
-      ),
+      .refine((value) => isValidPhoneInput(value), {
+        message: 'Enter 10 local digits or an international number',
+      }),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')

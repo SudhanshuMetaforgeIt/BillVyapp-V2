@@ -1,3 +1,4 @@
+import { normalizeFranchisePhone } from '../common/phone';
 import {
   BadRequestException,
   ConflictException,
@@ -17,7 +18,7 @@ import {
 } from '../common/pagination/pagination';
 import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { ScopeService } from '../common/scope/scope.service';
-import { trimOrNull, trimRequired } from '../common/strings';
+import { trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
@@ -150,7 +151,12 @@ export class UsersService {
           firstName: trimRequired(dto.firstName),
           lastName: trimRequired(dto.lastName),
           email: dto.email.trim().toLowerCase(),
-          phone: trimOrNull(dto.phone) ?? null,
+          phone: await normalizeFranchisePhone(
+            this.prisma,
+            dto.phone,
+            franchiseId,
+            salonId,
+          ),
           passwordHash,
           salary:
             dto.salary === undefined || dto.salary === null
@@ -237,7 +243,14 @@ export class UsersService {
             ? { email: dto.email.trim().toLowerCase() }
             : {}),
           ...(dto.phone !== undefined
-            ? { phone: trimOrNull(dto.phone) ?? null }
+            ? {
+                phone: await normalizeFranchisePhone(
+                  this.prisma,
+                  dto.phone,
+                  nextFranchiseId,
+                  nextSalonId,
+                ),
+              }
             : {}),
           ...(dto.salary !== undefined
             ? {
@@ -389,9 +402,7 @@ export class UsersService {
       return;
     }
     if (franchiseId !== actor.franchiseId) {
-      throw new ForbiddenException(
-        'Cannot move users outside your franchise',
-      );
+      throw new ForbiddenException('Cannot move users outside your franchise');
     }
   }
 
@@ -407,7 +418,7 @@ export class UsersService {
     if (
       (existingCode === RoleCode.ADMIN ||
         existingCode === RoleCode.SUPER_ADMIN) &&
-      nextRoleCode !== existingCode
+      (nextRoleCode as RoleCode) !== existingCode
     ) {
       throw new ForbiddenException(
         'Admins cannot change Admin or Super Admin roles',

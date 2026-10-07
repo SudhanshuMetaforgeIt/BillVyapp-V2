@@ -1,5 +1,8 @@
 'use client';
 
+import { formatCompactCurrency } from '@/lib/format';
+import { getBusinessRegion } from '@/lib/business-region';
+
 import { SelectInput } from '@/components/data/form-fields';
 
 import { useState } from 'react';
@@ -16,9 +19,9 @@ export function RevenueByBranchBarChart({
   const [period, setPeriod] = useState('This Month');
 
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -57,10 +60,7 @@ export function RevenueByBranchBarChart({
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 text-[10px] text-stone-400">
               {[1, 0.66, 0.33, 0].map((pct, i) => {
                 const labelVal = Math.round(ceilMax * pct);
-                const label =
-                  labelVal >= 100000
-                    ? `₹${(labelVal / 100000).toFixed(1).replace('.0', '')}L`
-                    : `₹0`;
+                const label = formatCompactCurrency(labelVal);
                 return (
                   <div key={i} className="flex items-center gap-2">
                     <span className="w-8 text-right shrink-0">{label}</span>

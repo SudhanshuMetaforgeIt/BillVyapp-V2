@@ -41,7 +41,9 @@ export function CustomerDetailsSection({
       {selected ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-ivory-soft px-4 py-3">
           <div>
-            <p className="font-semibold text-text">{formatFullName(selected)}</p>
+            <p className="font-semibold text-text">
+              {formatFullName(selected)}
+            </p>
             <p className="text-sm text-text-secondary">
               {formatPhone(selected.phone)} · {selected.email}
             </p>
@@ -56,7 +58,7 @@ export function CustomerDetailsSection({
             <Input
               value={phoneQuery}
               onChange={(e) => onPhoneQueryChange(e.target.value)}
-              placeholder="+91 phone number"
+              placeholder="10 local digits"
               inputMode="tel"
               className="h-11 pr-10"
               aria-label="Search customer by phone"

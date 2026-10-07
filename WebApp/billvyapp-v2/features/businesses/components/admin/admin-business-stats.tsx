@@ -1,5 +1,7 @@
 'use client';
 
+import { formatCurrency } from '@/lib/format';
+
 import { CheckCircle2, Clock, IndianRupee, Store, Users } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,7 +13,10 @@ type AdminBusinessStatsProps = {
   isLoading?: boolean;
 };
 
-export function AdminBusinessStatsCards({ stats, isLoading }: AdminBusinessStatsProps) {
+export function AdminBusinessStatsCards({
+  stats,
+  isLoading,
+}: AdminBusinessStatsProps) {
   if (isLoading || !stats) {
     return (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -49,7 +54,8 @@ export function AdminBusinessStatsCards({ stats, isLoading }: AdminBusinessStats
       id: 'active-branches',
       label: 'Active Branches',
       value: stats.activeBranches.toLocaleString('en-IN'),
-      subtext: stats.totalBranches > 0 ? `${activePercent}% of total` : '0% of total',
+      subtext:
+        stats.totalBranches > 0 ? `${activePercent}% of total` : '0% of total',
       subtextClass: 'text-emerald font-medium',
       icon: CheckCircle2,
       iconClass: 'bg-emerald-100/80 text-emerald-700',
@@ -58,8 +64,14 @@ export function AdminBusinessStatsCards({ stats, isLoading }: AdminBusinessStats
       id: 'inactive-branches',
       label: 'Inactive Branches',
       value: stats.inactiveBranches.toLocaleString('en-IN'),
-      subtext: stats.totalBranches > 0 ? `${inactivePercent}% of total` : '0% of total',
-      subtextClass: stats.inactiveBranches > 0 ? 'text-danger font-medium' : 'text-text-secondary',
+      subtext:
+        stats.totalBranches > 0
+          ? `${inactivePercent}% of total`
+          : '0% of total',
+      subtextClass:
+        stats.inactiveBranches > 0
+          ? 'text-danger font-medium'
+          : 'text-text-secondary',
       icon: Clock,
       iconClass: 'bg-purple-100/80 text-purple-700',
     },
@@ -75,8 +87,10 @@ export function AdminBusinessStatsCards({ stats, isLoading }: AdminBusinessStats
     {
       id: 'revenue-month',
       label: 'Collected (This Month)',
-      value: `₹${stats.revenueMonth.toLocaleString('en-IN')}`,
-      subtext: stats.revenueMonthPartial ? `Partial — latest 100 payments` : 'successful payments',
+      value: formatCurrency(stats.revenueMonth),
+      subtext: stats.revenueMonthPartial
+        ? `Partial — latest 100 payments`
+        : 'successful payments',
       subtextClass: 'text-emerald font-medium',
       icon: IndianRupee,
       iconClass: 'bg-amber-100/80 text-amber-700',
@@ -107,7 +121,9 @@ export function AdminBusinessStatsCards({ stats, isLoading }: AdminBusinessStats
               <p className="mt-1 text-xl font-bold tracking-tight text-text sm:text-2xl">
                 {c.value}
               </p>
-              <p className={cn('mt-0.5 truncate text-xs', c.subtextClass)}>{c.subtext}</p>
+              <p className={cn('mt-0.5 truncate text-xs', c.subtextClass)}>
+                {c.subtext}
+              </p>
             </div>
           </div>
         );

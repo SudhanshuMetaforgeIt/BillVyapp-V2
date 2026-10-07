@@ -112,6 +112,21 @@ function fixture(bills = [bill]): AdminReportSnapshot {
 }
 
 describe('Franchise Admin XLSX reports', () => {
+  it('exports USD amounts and US calendar date formats', async () => {
+    const s = { ...fixture(), currency: 'USD', dateFormat: 'MM/DD/YYYY' };
+    const book = new ExcelJS.Workbook();
+    const buffer = await buildAdminWorkbook(s);
+    await book.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+    expect(book.getWorksheet('Revenue Analysis')!.getCell('B6').numFmt).toBe(
+      '"$"#,##0.00',
+    );
+    expect(book.getWorksheet('Revenue Analysis')!.getCell('A6').numFmt).toBe(
+      'mm/dd/yyyy',
+    );
+    expect(book.getWorksheet('Revenue Analysis')!.getCell('B6').value).toBe(
+      1000,
+    );
+  });
   it('generates typed, formatted sheets with matching totals and native worksheet-linked charts', async () => {
     const s = fixture(),
       buffer = await buildAdminWorkbook(s);
@@ -288,6 +303,7 @@ describe('Franchise Admin XLSX reports', () => {
 
 describe('Franchise report authorization and snapshots', () => {
   const tx = {
+    franchise: { findUnique: jest.fn().mockResolvedValue({ preferences: {} }) },
     salon: { findMany: jest.fn() },
     bill: { count: jest.fn(), findMany: jest.fn() },
     customer: { count: jest.fn() },
@@ -540,12 +556,11 @@ describe('Franchise report authorization and snapshots', () => {
     );
   });
   it('processes background admin report and updates status to Ready', async () => {
-    (
-      prisma.platformReport as unknown as { findUnique: jest.Mock }
-    ).findUnique = jest.fn().mockResolvedValue({
-      id: 'report-bg',
-      snapshot: { status: 'Generating' },
-    });
+    (prisma.platformReport as unknown as { findUnique: jest.Mock }).findUnique =
+      jest.fn().mockResolvedValue({
+        id: 'report-bg',
+        snapshot: { status: 'Generating' },
+      });
     (prisma as unknown as { user: { findUnique: jest.Mock } }).user = {
       findUnique: jest.fn().mockResolvedValue({
         id: actor.userId,

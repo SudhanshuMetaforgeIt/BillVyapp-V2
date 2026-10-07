@@ -1,5 +1,7 @@
+import { normalizePhone } from '../common/phone';
 import {
   ConflictException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,6 +24,7 @@ import { UpdateFranchiseDto } from './dto/update-franchise.dto';
 import { FranchisePreferencesDto } from './dto/franchise-preferences.dto';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import type { Prisma } from '../generated/prisma/client';
+import { franchiseRegion, validateRegionPreferences } from '../common/regional';
 
 const FRANCHISE_SELECT = {
   id: true,
@@ -121,7 +124,10 @@ export class FranchisesService {
         data: {
           name: trimRequired(dto.name),
           code,
-          phone: trimOrNull(dto.phone) ?? null,
+          phone: dto.phone?.trim()
+            ? normalizePhone(dto.phone, dto.phoneCountry ?? 'IN')
+            : null,
+          preferences: { phoneCountry: dto.phoneCountry ?? 'IN' },
           email: trimOrNull(dto.email) ?? null,
         },
         select: FRANCHISE_SELECT,
@@ -163,20 +169,51 @@ export class FranchisesService {
     } = {};
 
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
-    if (dto.code !== undefined) data.code = trimRequired(dto.code).toUpperCase();
-    if (dto.phone !== undefined) data.phone = trimOrNull(dto.phone) ?? null;
+    if (dto.code !== undefined)
+      data.code = trimRequired(dto.code).toUpperCase();
     if (dto.email !== undefined) data.email = trimOrNull(dto.email) ?? null;
+    if (dto.phone !== undefined) {
+      const country =
+        dto.phoneCountry ??
+        dto.preferences?.phoneCountry ??
+        franchiseRegion(existing.preferences).phoneCountry;
+      data.phone = dto.phone?.trim()
+        ? normalizePhone(dto.phone, country === 'US' ? 'US' : 'IN')
+        : null;
+    }
+    if (dto.phoneCountry !== undefined)
+      dto.preferences = { ...dto.preferences, phoneCountry: dto.phoneCountry };
     if (dto.preferences !== undefined) {
+      validateRegionPreferences(
+        dto.preferences as Record<
+          string,
+          string | number | boolean | undefined
+        >,
+      );
+      if (
+        dto.preferences.currency &&
+        dto.preferences.currency !==
+          franchiseRegion(existing.preferences).currency
+      ) {
+        const bill = await this.prisma.bill.findFirst({
+          where: { salon: { franchiseId: existing.id } },
+          select: { id: true },
+        });
+        if (bill)
+          throw new BadRequestException(
+            'Currency cannot change after bills exist. Create a separate franchise for a different currency; existing amounts are never converted.',
+          );
+      }
       const existingPrefs =
         existing.preferences &&
         typeof existing.preferences === 'object' &&
         !Array.isArray(existing.preferences)
-          ? (existing.preferences as Record<string, unknown>)
+          ? existing.preferences
           : {};
       data.preferences = {
         ...existingPrefs,
         ...dto.preferences,
-      } as Prisma.InputJsonValue;
+      };
     }
 
     try {
@@ -306,7 +343,9 @@ export class FranchisesService {
       );
       const active =
         activeSubs.length > 0
-          ? activeSubs.sort((a, b) => b.endsAt.getTime() - a.endsAt.getTime())[0]
+          ? activeSubs.sort(
+              (a, b) => b.endsAt.getTime() - a.endsAt.getTime(),
+            )[0]
           : null;
       const latest = active ?? subs[0] ?? null;
 
@@ -317,9 +356,7 @@ export class FranchisesService {
         subscriptionStartsAt: latest
           ? formatDateOnlyUtc(latest.startsAt)
           : null,
-        subscriptionEndsAt: latest
-          ? formatDateOnlyUtc(latest.endsAt)
-          : null,
+        subscriptionEndsAt: latest ? formatDateOnlyUtc(latest.endsAt) : null,
         subscriptionActive: Boolean(active),
       };
     });

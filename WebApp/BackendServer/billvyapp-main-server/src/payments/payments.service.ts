@@ -204,6 +204,12 @@ export class PaymentsService {
         paidAmount: true,
         dueAmount: true,
         paymentStatus: true,
+        salon: {
+          select: {
+            franchiseId: true,
+            franchise: { select: { preferences: true } },
+          },
+        },
       },
     });
 
@@ -212,6 +218,17 @@ export class PaymentsService {
     }
 
     await this.assertBillPaymentAccess(actor, bill);
+
+    const preferences = (bill.salon?.franchise?.preferences ?? {}) as Record<
+      string,
+      unknown
+    >;
+    if (
+      dto.paymentMethod === PaymentMethod.UPI &&
+      preferences.currency === 'USD'
+    ) {
+      throw new BadRequestException('UPI is unavailable for USD payments');
+    }
 
     if ((bill.status as BillStatus) !== BillStatus.COMPLETED) {
       throw new BadRequestException('Only COMPLETED bills accept payments');
@@ -242,7 +259,10 @@ export class PaymentsService {
             paymentDate: dto.paymentDate
               ? this.resolvePaymentDateInput(
                   dto.paymentDate,
-                  await this.businessTimezone.resolveForUser(actor),
+                  await this.businessTimezone.resolveForUser({
+                    ...actor,
+                    franchiseId: bill.salon?.franchiseId ?? actor.franchiseId,
+                  }),
                 )
               : new Date(),
             status,

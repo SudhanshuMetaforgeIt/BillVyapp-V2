@@ -87,7 +87,14 @@ export function CreateAppointmentDialog({
       Boolean(appointmentDate) &&
       Boolean(startTime) &&
       !create.isPending,
-    [salonId, customer, serviceId, appointmentDate, startTime, create.isPending],
+    [
+      salonId,
+      customer,
+      serviceId,
+      appointmentDate,
+      startTime,
+      create.isPending,
+    ],
   );
 
   if (!open) return null;
@@ -197,6 +204,7 @@ export function CreateAppointmentDialog({
                 <>
                   <Input
                     id="appt-phone"
+                    type="tel"
                     value={phoneQuery}
                     onChange={(e) => setPhoneQuery(e.target.value)}
                     placeholder="Search by phone"
@@ -246,7 +254,8 @@ export function CreateAppointmentDialog({
 
             <div className="space-y-1.5">
               <Label htmlFor="appt-service">Service</Label>
-              <SelectInput className="h-10 w-full text-sm font-medium"
+              <SelectInput
+                className="h-10 w-full text-sm font-medium"
                 id="appt-service"
                 value={serviceId}
                 onChange={(e) => setServiceId(e.target.value)}
@@ -263,7 +272,8 @@ export function CreateAppointmentDialog({
             {(staff.data ?? []).length > 0 ? (
               <div className="space-y-1.5">
                 <Label htmlFor="appt-staff">Staff (optional)</Label>
-                <SelectInput className="h-10 w-full text-sm font-medium"
+                <SelectInput
+                  className="h-10 w-full text-sm font-medium"
                   id="appt-staff"
                   value={staffId}
                   onChange={(e) => setStaffId(e.target.value)}

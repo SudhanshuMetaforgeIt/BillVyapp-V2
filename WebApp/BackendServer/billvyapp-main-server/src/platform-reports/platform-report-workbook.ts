@@ -2,8 +2,8 @@ import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import type { PlatformReportRecord } from './platform-reports.service';
 import type { ReportAnalytics } from './report-analytics.service';
+import { excelCurrencyFormat, excelDateFormat } from '../common/regional';
 
-const currency = '\\₹#,##0.00';
 const percent = '0.00%';
 const blue = 'FF1F4E78';
 const empty = 'No data available for the selected period.';
@@ -82,10 +82,10 @@ function table(
       '05_Payments': 'Payments',
       '06_Customers_Memberships': 'MembershipPlans',
     } as Record<string, string>
-  )[ws.name];
+  )[ws.name.replace(/^(INR|USD)_/, '')];
   if (tableName && (row === 4 || row === 25))
     ws.addTable({
-      name: tableName,
+      name: `${ws.name.startsWith('INR_') ? 'INR_' : ws.name.startsWith('USD_') ? 'USD_' : ''}${tableName}`,
       ref: `A${row}`,
       headerRow: true,
       totalsRow: false,
@@ -102,11 +102,69 @@ function table(
 /** Reproduces the supplied seven-sheet reference without embedding its sample data. */
 export async function buildPlatformWorkbook(
   record: PlatformReportRecord,
+  book = new ExcelJS.Workbook(),
+  prefix = '',
+  finalize = true,
 ): Promise<Buffer> {
-  const book = new ExcelJS.Workbook();
   book.creator = 'BillVyApp';
   book.created = record.generatedOn;
   const a = record.snapshot.analytics as ReportAnalytics | undefined;
+  if (a?.currencyGroups?.length) {
+    const overview = book.addWorksheet('Currency Totals');
+    overview.columns = [
+      { width: 18 },
+      { width: 26 },
+      { width: 24 },
+      { width: 30 },
+    ];
+    writeRow(
+      overview,
+      1,
+      [
+        'Currency',
+        'Successful payment revenue',
+        'Successful payments',
+        'Average transaction',
+      ],
+      {},
+      true,
+    );
+    a.currencyGroups.forEach((group, i) =>
+      writeRow(
+        overview,
+        i + 2,
+        [
+          group.scope.currency ?? '',
+          num(group.summary?.totalRevenue),
+          num(group.summary?.successfulPayments),
+          num(group.summary?.averageTransactionValue),
+        ],
+        {
+          2: excelCurrencyFormat(group.scope.currency),
+          4: excelCurrencyFormat(group.scope.currency),
+        },
+      ),
+    );
+    overview.getCell(a.currencyGroups.length + 4, 1).value =
+      'Totals are separate by currency. No exchange-rate conversion is applied.';
+    for (const group of a.currencyGroups)
+      await buildPlatformWorkbook(
+        {
+          ...record,
+          snapshot: {
+            ...record.snapshot,
+            metrics: group.summary,
+            analytics: group,
+          },
+        },
+        book,
+        group.scope.currency + '_',
+        false,
+      );
+    return writePlatformBook(book);
+  }
+  const currency = excelCurrencyFormat(a?.scope?.currency);
+  const dateFormat = excelDateFormat(a?.scope?.dateFormat);
   const m =
     a?.summary ??
     (record.snapshot.metrics as
@@ -115,7 +173,7 @@ export async function buildPlatformWorkbook(
   const salons = a?.business?.salons ?? [];
   const franchises = a?.business?.franchises ?? [];
   const create = (name: string, title: string, widths: number[]) => {
-    const ws = book.addWorksheet(name, {
+    const ws = book.addWorksheet(prefix + name, {
       views: [{ state: 'frozen', ySplit: 3, showGridLines: false }],
       properties: { defaultRowHeight: 15 },
       pageSetup: {
@@ -270,7 +328,7 @@ export async function buildPlatformWorkbook(
       'Status',
     ],
     dailyRows,
-    { 1: 'dd-mmm-yyyy', 2: currency, 4: currency, 5: percent },
+    { 1: dateFormat, 2: currency, 4: currency, 5: percent },
   );
   const headers = [
     'Franchise',
@@ -518,14 +576,18 @@ export async function buildPlatformWorkbook(
       ['Salons', num(m?.salonCount), 'Overall count in source report'],
       [
         'Data Scope Note',
-        `Franchise: ${a?.scope?.franchiseName ?? record.franchiseName ?? 'All'}; Salon: ${a?.scope?.salonName ?? text(record.snapshot.salonName, 'All')}. Revenue uses successful payments by payment date; service and customer activity uses completed bills by bill date. ${daily ? 'Hierarchy uses database IDs. No organization model exists.' : 'Legacy snapshot lacks daily and salon payment details. Regenerate for complete detail.'}`,
+        `Currency: ${a?.scope?.currency ?? 'INR'}; Franchise: ${a?.scope?.franchiseName ?? record.franchiseName ?? 'All'}; Salon: ${a?.scope?.salonName ?? text(record.snapshot.salonName, 'All')}. Revenue uses successful payments by payment date; service and customer activity uses completed bills by bill date. ${daily ? 'Hierarchy uses database IDs. No organization model exists.' : 'Legacy snapshot lacks daily and salon payment details. Regenerate for complete detail.'}`,
         'Important',
       ],
     ],
   );
-  for (const row of [6, 7]) info.getCell(row, 2).numFmt = 'dd-mmm-yyyy';
+  for (const row of [6, 7]) info.getCell(row, 2).numFmt = dateFormat;
   info.getCell('B9').numFmt = 'dd-mmm-yyyy hh:mm "UTC"';
   if (!m?.totalPayments && !salons.length) summary.getCell('A3').value = empty;
+  if (!finalize) return Buffer.alloc(0);
+  return writePlatformBook(book);
+}
+async function writePlatformBook(book: ExcelJS.Workbook): Promise<Buffer> {
   const zip = await JSZip.loadAsync(await book.xlsx.writeBuffer());
   // ExcelJS emits totalsRowShown="1" for tables with totalsRow:false.
   // Explicitly hide totals so consumers do not style the final detail as a total.

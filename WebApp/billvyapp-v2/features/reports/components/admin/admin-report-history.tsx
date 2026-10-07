@@ -1,4 +1,5 @@
 'use client';
+import { formatDateTime } from '@/lib/format';
 import { Download, FileSpreadsheet, FolderOpen } from 'lucide-react';
 import type { AdminGeneratedReport } from '../../services/admin-reports.service';
 import { AdminReportPanel, reportDate } from './admin-report-panel';
@@ -110,16 +111,7 @@ export function AdminReportHistory({
                 <div className="text-xs">
                   <p className="font-medium text-text">{report.generatedBy}</p>
                   <p className="mt-1 text-text-secondary">
-                    {new Date(report.generatedOn).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}{' '}
-                    ·{' '}
-                    {new Date(report.generatedOn).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {formatDateTime(report.generatedOn)}
                   </p>
                 </div>
                 <button

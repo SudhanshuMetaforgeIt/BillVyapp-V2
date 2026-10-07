@@ -1,3 +1,4 @@
+import { normalizePhone } from '../common/phone';
 import {
   BadRequestException,
   ConflictException,
@@ -13,6 +14,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
 import { resolveBusinessTimezone } from '../common/datetime/datetime';
+import { franchiseRegion } from '../common/regional';
 import { RoleCode } from '../common/enums/role.enum';
 import {
   AuthenticatedUser,
@@ -54,6 +56,7 @@ export type IssuedAuthTokens = AuthTokensDto & { refreshToken: string };
 export type IssuedAuthSession = AuthResponseDto & { refreshToken: string };
 
 const AUTH_USER_SELECT = {
+  franchise: { select: { preferences: true } },
   id: true,
   firstName: true,
   lastName: true,
@@ -81,6 +84,7 @@ const AUTH_USER_WITH_HASH_SELECT = {
 } as const;
 
 type AuthUserRow = {
+  franchise?: { preferences: unknown } | null;
   id: string;
   firstName: string;
   lastName: string;
@@ -184,7 +188,7 @@ export class AuthService {
     const firstName = trimRequired(dto.firstName);
     const lastName = trimRequired(dto.lastName);
     const email = dto.email.trim().toLowerCase();
-    const phone = dto.phone.trim();
+    const phone = normalizePhone(dto.phone);
 
     const [existingByPhone, existingByEmail, customerRole] = await Promise.all([
       this.prisma.user.findUnique({
@@ -328,10 +332,11 @@ export class AuthService {
     dto: SendOtpDto,
     ctx: RequestContext,
   ): Promise<{ message: string; devOtp?: string }> {
-    await this.otp.consumeResendSlot(dto.phone);
+    const phone = normalizePhone(dto.phone);
+    await this.otp.consumeResendSlot(phone);
 
     const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone },
+      where: { phone },
       select: {
         id: true,
         isActive: true,
@@ -347,7 +352,7 @@ export class AuthService {
       user.role.isActive &&
       user.role.code === (RoleCode.CUSTOMER as string)
     ) {
-      const code = await this.otp.issue(dto.phone);
+      const code = await this.otp.issue(phone);
       if (this.canExposeDevOtp()) {
         devOtp = code;
       }
@@ -376,10 +381,11 @@ export class AuthService {
     dto: VerifyOtpDto,
     ctx: RequestContext,
   ): Promise<IssuedAuthSession> {
+    const phone = normalizePhone(dto.phone);
     let valid = false;
 
     try {
-      valid = await this.otp.verify(dto.phone, dto.otp);
+      valid = await this.otp.verify(phone, dto.otp);
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === 429) {
         await this.audit.record({
@@ -403,7 +409,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone },
+      where: { phone },
       select: AUTH_USER_SELECT,
     });
 
@@ -673,6 +679,17 @@ export class AuthService {
     }
 
     return {
+      ...franchiseRegion(user.franchise?.preferences),
+      phoneCountry: user.franchise
+        ? franchiseRegion(user.franchise.preferences).phoneCountry
+        : user.phone?.startsWith('+1')
+          ? 'US'
+          : 'IN',
+      timezone: resolveBusinessTimezone({
+        franchiseTimezone: franchiseRegion(user.franchise?.preferences)
+          .timezone,
+        platformTimezone: await this.businessTimezone.getPlatformTimezone(),
+      }),
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,

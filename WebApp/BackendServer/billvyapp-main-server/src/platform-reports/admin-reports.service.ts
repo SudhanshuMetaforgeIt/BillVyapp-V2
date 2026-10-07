@@ -21,6 +21,7 @@ import {
 import { RoleCode } from '../common/enums/role.enum';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import type { Prisma } from '../generated/prisma/client';
+import { franchiseRegion } from '../common/regional';
 import { AdminReportQueryDto } from './dto/admin-report-query.dto';
 import {
   aggregateAdminBills,
@@ -86,6 +87,10 @@ export class AdminReportsService {
     const calendarEnd = new Date(parseDateOnlyUtc(dateTo).getTime() + 86400000);
     return this.prisma.$transaction(
       async (tx) => {
+        const franchise = await tx.franchise.findUnique({
+          where: { id: franchiseId },
+          select: { preferences: true },
+        });
         const branches = await tx.salon.findMany({
           where: { franchiseId },
           select: { id: true, name: true },
@@ -224,6 +229,8 @@ export class AdminReportsService {
         );
         return {
           kind: 'FRANCHISE_OVERVIEW',
+          currency: franchiseRegion(franchise?.preferences).currency,
+          dateFormat: franchiseRegion(franchise?.preferences).dateFormat,
           status: 'Ready',
           dateFrom,
           dateTo,

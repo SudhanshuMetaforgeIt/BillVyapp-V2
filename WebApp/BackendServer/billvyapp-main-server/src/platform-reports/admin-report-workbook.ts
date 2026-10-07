@@ -1,11 +1,10 @@
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import type { AdminReportSnapshot } from './admin-report-data';
+import { excelCurrencyFormat, excelDateFormat } from '../common/regional';
 
 export const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const currency = '"₹"#,##0.00';
-const dateFormat = 'dd mmm yyyy';
 const periodLabel = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -54,7 +53,12 @@ type ChartSpec = {
 
 // ExcelJS writes typed cells/tables. DrawingML parts add native, editable charts
 // following the OOXML chart/drawing relationship model; no raster images are used.
-async function addCharts(buffer: Buffer, specs: ChartSpec[]) {
+async function addCharts(
+  buffer: Buffer,
+  specs: ChartSpec[],
+  currency: string,
+  dateFormat: string,
+) {
   const zip = await JSZip.loadAsync(buffer);
   let contentTypes = await zip.file('[Content_Types].xml')!.async('string');
   for (const [index, s] of specs.entries()) {
@@ -129,6 +133,8 @@ async function addCharts(buffer: Buffer, specs: ChartSpec[]) {
 export async function buildAdminWorkbook(
   s: AdminReportSnapshot,
 ): Promise<Buffer> {
+  const currency = excelCurrencyFormat(s.currency);
+  const dateFormat = excelDateFormat(s.dateFormat);
   const book = new ExcelJS.Workbook();
   book.creator = 'BillVyApp';
   book.created = new Date(s.generatedOn);
@@ -369,46 +375,51 @@ export async function buildAdminWorkbook(
       .map((p) => [p.name, p.quantity, p.revenue]),
     { 3: currency },
   );
-  return addCharts(Buffer.from(await book.xlsx.writeBuffer()), [
-    {
-      sheet: 2,
-      name: 'Revenue Analysis',
-      title: 'Revenue Trend',
-      type: 'line',
-      labels: s.revenueSeries.map((r) => periodLabel(r.date)),
-      values: s.revenueSeries.map((r) => r.revenue),
-      categoryColumn: 'F',
-      valueColumn: 'B',
-    },
-    {
-      sheet: 4,
-      name: 'Branch Performance',
-      title: 'Branch Revenue Comparison',
-      type: 'bar',
-      labels: s.branchComparison.map((r) => r.name),
-      values: s.branchComparison.map((r) => r.revenue),
-      categoryColumn: 'A',
-      valueColumn: 'C',
-    },
-    {
-      sheet: 5,
-      name: 'Customer Summary',
-      title: 'Top Customers by Collected Revenue',
-      type: 'bar',
-      labels: s.customers.slice(0, 10).map((r) => r.name),
-      values: s.customers.slice(0, 10).map((r) => r.revenue),
-      categoryColumn: 'A',
-      valueColumn: 'C',
-    },
-    {
-      sheet: 6,
-      name: 'Payment Methods',
-      title: 'Revenue by Payment Method',
-      type: 'bar',
-      labels: s.payments.methods.map((r) => r.name),
-      values: s.payments.methods.map((r) => r.revenue),
-      categoryColumn: 'A',
-      valueColumn: 'B',
-    },
-  ]);
+  return addCharts(
+    Buffer.from(await book.xlsx.writeBuffer()),
+    [
+      {
+        sheet: 2,
+        name: 'Revenue Analysis',
+        title: 'Revenue Trend',
+        type: 'line',
+        labels: s.revenueSeries.map((r) => periodLabel(r.date)),
+        values: s.revenueSeries.map((r) => r.revenue),
+        categoryColumn: 'F',
+        valueColumn: 'B',
+      },
+      {
+        sheet: 4,
+        name: 'Branch Performance',
+        title: 'Branch Revenue Comparison',
+        type: 'bar',
+        labels: s.branchComparison.map((r) => r.name),
+        values: s.branchComparison.map((r) => r.revenue),
+        categoryColumn: 'A',
+        valueColumn: 'C',
+      },
+      {
+        sheet: 5,
+        name: 'Customer Summary',
+        title: 'Top Customers by Collected Revenue',
+        type: 'bar',
+        labels: s.customers.slice(0, 10).map((r) => r.name),
+        values: s.customers.slice(0, 10).map((r) => r.revenue),
+        categoryColumn: 'A',
+        valueColumn: 'C',
+      },
+      {
+        sheet: 6,
+        name: 'Payment Methods',
+        title: 'Revenue by Payment Method',
+        type: 'bar',
+        labels: s.payments.methods.map((r) => r.name),
+        values: s.payments.methods.map((r) => r.revenue),
+        categoryColumn: 'A',
+        valueColumn: 'B',
+      },
+    ],
+    currency,
+    dateFormat,
+  );
 }

@@ -20,6 +20,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { BillItemType } from '../../common/enums/bill-status.enum';
+import { IsOptionalIndianMobileNumber } from '../../common/validators/indian-phone.decorator';
 
 export const BILL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -91,9 +92,7 @@ export class CreateBillItemDto {
 export class BillEnrollmentDetailsDto {
   @ApiProperty() @Equals(true) nameConfirmed: boolean;
   @ApiProperty() @IsBoolean() whatsappSameAsBilling: boolean;
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Matches(/^\+?[0-9]{10,15}$/)
+  @IsOptionalIndianMobileNumber()
   whatsappNumber?: string;
   @ApiPropertyOptional()
   @IsOptional()

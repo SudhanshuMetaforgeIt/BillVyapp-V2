@@ -2,7 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { BUSINESS_TIMEZONES } from '@/lib/business-region';
+import { authService } from '@/services/auth.service';
+import { useAuthStore } from '@/stores/auth.store';
+import { toSessionUser } from '@/services/session';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -10,11 +14,9 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { ROUTES } from '@/constants/routes';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { api } from '@/services/api-client';
-import {
-  SettingsSelectField,
-  SettingsTextField,
-} from '../settings-fields';
+import { SettingsSelectField, SettingsTextField } from '../settings-fields';
 import { SettingsToggle } from '../settings-toggle';
+import { SettingsSaveButton } from '../settings-save-button';
 import {
   BusinessProfileIcon,
   GeneralSettingsIcon,
@@ -27,6 +29,7 @@ import {
 } from './admin-setting-icons';
 
 type FranchisePreferences = {
+  phoneCountry?: string;
   language?: string;
   currency?: string;
   dateFormat?: string;
@@ -95,7 +98,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'business_profile',
     title: 'Business Profile',
     description: 'Franchise name, contact details, and branches.',
-    badgeClass: 'bg-[#FFF4E5] text-[#D97706] dark:bg-amber-950/40 dark:text-amber-400',
+    badgeClass:
+      'bg-[#FFF4E5] text-[#D97706] dark:bg-amber-950/40 dark:text-amber-400',
     icon: <BusinessProfileIcon className="w-5 h-5" />,
     section: 'business_profile',
   },
@@ -103,7 +107,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'user_roles',
     title: 'Staff & Roles',
     description: 'Review assignable roles and manage staff accounts.',
-    badgeClass: 'bg-[#FDF2F4] text-[#E11D48] dark:bg-rose-950/40 dark:text-rose-400',
+    badgeClass:
+      'bg-[#FDF2F4] text-[#E11D48] dark:bg-rose-950/40 dark:text-rose-400',
     icon: <UserRolesIcon className="w-5 h-5" />,
     section: 'user_roles',
   },
@@ -111,7 +116,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'general',
     title: 'General Settings',
     description: 'Language, currency and date format preferences.',
-    badgeClass: 'bg-[#F4F1ED] text-[#78716C] dark:bg-stone-800 dark:text-stone-300',
+    badgeClass:
+      'bg-[#F4F1ED] text-[#78716C] dark:bg-stone-800 dark:text-stone-300',
     icon: <GeneralSettingsIcon className="w-5 h-5" />,
     section: 'general',
   },
@@ -119,7 +125,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'billing',
     title: 'Billing & Taxes',
     description: 'Default tax rate and bill print preferences.',
-    badgeClass: 'bg-[#F3E8FF] text-[#9333EA] dark:bg-purple-950/40 dark:text-purple-400',
+    badgeClass:
+      'bg-[#F3E8FF] text-[#9333EA] dark:bg-purple-950/40 dark:text-purple-400',
     icon: <BillingTaxesIcon className="w-5 h-5" />,
     section: 'billing',
   },
@@ -127,7 +134,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'payments',
     title: 'Payment Methods',
     description: 'Enable or disable payment methods for your franchise.',
-    badgeClass: 'bg-[#E8F8EE] text-[#16A34A] dark:bg-emerald-950/40 dark:text-emerald-400',
+    badgeClass:
+      'bg-[#E8F8EE] text-[#16A34A] dark:bg-emerald-950/40 dark:text-emerald-400',
     icon: <PaymentMethodsIcon className="w-5 h-5" />,
     section: 'payments',
   },
@@ -135,7 +143,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'notifications',
     title: 'Notification Preferences',
     description: 'Default channels for customer and staff notifications.',
-    badgeClass: 'bg-[#E8F2FF] text-[#2563EB] dark:bg-sky-950/40 dark:text-sky-400',
+    badgeClass:
+      'bg-[#E8F2FF] text-[#2563EB] dark:bg-sky-950/40 dark:text-sky-400',
     icon: <NotificationsIcon className="w-5 h-5" />,
     section: 'notifications',
   },
@@ -143,7 +152,8 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'security',
     title: 'Security',
     description: 'Session and access preferences for your franchise.',
-    badgeClass: 'bg-[#FFF1E8] text-[#EA580C] dark:bg-orange-950/40 dark:text-orange-400',
+    badgeClass:
+      'bg-[#FFF1E8] text-[#EA580C] dark:bg-orange-950/40 dark:text-orange-400',
     icon: <SecurityIcon className="w-5 h-5" />,
     section: 'security',
   },
@@ -151,12 +161,14 @@ const SETTING_ITEMS: SettingItem[] = [
     id: 'data_backup',
     title: 'Data & Backup',
     description: 'Backups are managed by the platform operator.',
-    badgeClass: 'bg-[#EAF9F9] text-[#0891B2] dark:bg-cyan-950/40 dark:text-cyan-400',
+    badgeClass:
+      'bg-[#EAF9F9] text-[#0891B2] dark:bg-cyan-950/40 dark:text-cyan-400',
     icon: <DataBackupIcon className="w-5 h-5" />,
   },
 ];
 
 const DEFAULT_PREFS: Required<FranchisePreferences> = {
+  phoneCountry: 'IN',
   language: 'en',
   currency: 'INR',
   dateFormat: 'DD MMM YYYY',
@@ -231,11 +243,13 @@ function SettingRow({
 }
 
 export function AdminSettingsPageView() {
+  const queryClient = useQueryClient();
   const user = useCurrentUser();
   const franchiseId = user?.franchiseId ?? '';
   const [section, setSection] = useState<SettingSection>('list');
   const [saving, setSaving] = useState(false);
-  const [prefs, setPrefs] = useState<Required<FranchisePreferences>>(DEFAULT_PREFS);
+  const [prefs, setPrefs] =
+    useState<Required<FranchisePreferences>>(DEFAULT_PREFS);
   const [businessName, setBusinessName] = useState('');
   const [businessEmail, setBusinessEmail] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
@@ -290,8 +304,14 @@ export function AdminSettingsPageView() {
       await franchiseQuery.refetch();
       toast.success('Business profile saved');
     } catch (err: unknown) {
-      const msg =
-        err && typeof err === 'object' && 'message' in err
+      const serverMessage = (
+        err as { response?: { data?: { message?: string | string[] } } }
+      )?.response?.data?.message;
+      const msg = serverMessage
+        ? Array.isArray(serverMessage)
+          ? serverMessage.join(', ')
+          : serverMessage
+        : err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
           : 'Could not save business profile.';
       toast.error(msg);
@@ -311,10 +331,19 @@ export function AdminSettingsPageView() {
         preferences: { ...prefs, ...nextPrefs },
       });
       await franchiseQuery.refetch();
+      const me = toSessionUser(await authService.me());
+      if (me) useAuthStore.getState().setUser(me);
+      await queryClient.invalidateQueries();
       toast.success('Settings saved');
     } catch (err: unknown) {
-      const msg =
-        err && typeof err === 'object' && 'message' in err
+      const serverMessage = (
+        err as { response?: { data?: { message?: string | string[] } } }
+      )?.response?.data?.message;
+      const msg = serverMessage
+        ? Array.isArray(serverMessage)
+          ? serverMessage.join(', ')
+          : serverMessage
+        : err && typeof err === 'object' && 'message' in err
           ? String((err as { message: unknown }).message)
           : 'Could not save settings.';
       toast.error(msg);
@@ -384,6 +413,7 @@ export function AdminSettingsPageView() {
                 />
                 <SettingsTextField
                   id="admin-business-phone"
+                  type="tel"
                   label="Business Phone"
                   value={businessPhone}
                   onChange={setBusinessPhone}
@@ -402,14 +432,12 @@ export function AdminSettingsPageView() {
                 </Link>
               </div>
               <div className="flex justify-end border-t border-border pt-4">
-                <Button
-                  type="button"
-                  disabled={saving || franchiseQuery.isLoading}
-                  className="bg-brand-orange text-white hover:bg-brand-orange-dark"
+                <SettingsSaveButton
+                  saving={saving}
+                  disabled={franchiseQuery.isLoading}
+                  label="Save Profile"
                   onClick={() => void saveProfile()}
-                >
-                  {saving ? 'Saving…' : 'Save Profile'}
-                </Button>
+                />
               </div>
             </>
           ) : null}
@@ -469,8 +497,8 @@ export function AdminSettingsPageView() {
                 </ul>
               )}
               <p className="text-xs text-text-secondary">
-                Roles are fixed by the platform. Create Manager or Staff accounts
-                from the Staff page and assign them to a branch.
+                Roles are fixed by the platform. Create Manager or Staff
+                accounts from the Staff page and assign them to a branch.
               </p>
               <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
                 <Link
@@ -485,6 +513,11 @@ export function AdminSettingsPageView() {
 
           {section === 'general' ? (
             <>
+              <p className="text-sm text-text-secondary">
+                These settings apply to every salon in your franchise. Choose
+                the currency before billing starts. Changing currency does not
+                convert prices, and is blocked once bills exist.
+              </p>
               <div className="grid gap-4 content-md:grid-cols-2">
                 <SettingsSelectField
                   id="admin-currency"
@@ -494,6 +527,16 @@ export function AdminSettingsPageView() {
                   options={[
                     { value: 'INR', label: 'INR (₹)' },
                     { value: 'USD', label: 'USD ($)' },
+                  ]}
+                />
+                <SettingsSelectField
+                  id="admin-phone-country"
+                  label="Default phone country"
+                  value={prefs.phoneCountry ?? 'IN'}
+                  onChange={(v) => setPrefs((p) => ({ ...p, phoneCountry: v }))}
+                  options={[
+                    { value: 'IN', label: 'India (+91)' },
+                    { value: 'US', label: 'United States (+1)' },
                   ]}
                 />
                 <SettingsSelectField
@@ -532,21 +575,16 @@ export function AdminSettingsPageView() {
                   label="Timezone"
                   value={prefs.timezone}
                   onChange={(v) => setPrefs((p) => ({ ...p, timezone: v }))}
-                  options={[
-                    { value: 'Asia/Kolkata', label: 'Asia/Kolkata' },
-                    { value: 'UTC', label: 'UTC' },
-                  ]}
+                  options={BUSINESS_TIMEZONES}
                 />
               </div>
               <div className="flex justify-end border-t border-border pt-4">
-                <Button
-                  type="button"
-                  disabled={saving || franchiseQuery.isLoading}
-                  className="bg-brand-orange text-white hover:bg-brand-orange-dark"
+                <SettingsSaveButton
+                  saving={saving}
+                  disabled={franchiseQuery.isLoading}
+                  label="Save Changes"
                   onClick={() => void savePreferences()}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
+                />
               </div>
             </>
           ) : null}
@@ -567,7 +605,9 @@ export function AdminSettingsPageView() {
                 />
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-text">Print bill after payment</p>
+                    <p className="text-sm font-medium text-text">
+                      Print bill after payment
+                    </p>
                     <p className="mt-0.5 text-xs text-text-secondary">
                       Open print dialog after a successful payment.
                     </p>
@@ -576,19 +616,19 @@ export function AdminSettingsPageView() {
                     id="admin-bill-print"
                     label="Print bill after payment"
                     checked={prefs.billPrint}
-                    onCheckedChange={(v) => setPrefs((p) => ({ ...p, billPrint: v }))}
+                    onCheckedChange={(v) =>
+                      setPrefs((p) => ({ ...p, billPrint: v }))
+                    }
                   />
                 </div>
               </div>
               <div className="flex justify-end border-t border-border pt-4">
-                <Button
-                  type="button"
-                  disabled={saving || franchiseQuery.isLoading}
-                  className="bg-brand-orange text-white hover:bg-brand-orange-dark"
+                <SettingsSaveButton
+                  saving={saving}
+                  disabled={franchiseQuery.isLoading}
+                  label="Save Changes"
                   onClick={() => void savePreferences()}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
+                />
               </div>
             </>
           ) : null}
@@ -603,7 +643,10 @@ export function AdminSettingsPageView() {
                     ['acceptCard', 'Card', prefs.acceptCard],
                   ] as const
                 ).map(([key, label, checked]) => (
-                  <div key={key} className="flex items-start justify-between gap-4">
+                  <div
+                    key={key}
+                    className="flex items-start justify-between gap-4"
+                  >
                     <div>
                       <p className="text-sm font-medium text-text">{label}</p>
                       <p className="mt-0.5 text-xs text-text-secondary">
@@ -614,20 +657,20 @@ export function AdminSettingsPageView() {
                       id={`admin-pay-${key}`}
                       label={label}
                       checked={checked}
-                      onCheckedChange={(v) => setPrefs((p) => ({ ...p, [key]: v }))}
+                      onCheckedChange={(v) =>
+                        setPrefs((p) => ({ ...p, [key]: v }))
+                      }
                     />
                   </div>
                 ))}
               </div>
               <div className="flex justify-end border-t border-border pt-4">
-                <Button
-                  type="button"
-                  disabled={saving || franchiseQuery.isLoading}
-                  className="bg-brand-orange text-white hover:bg-brand-orange-dark"
+                <SettingsSaveButton
+                  saving={saving}
+                  disabled={franchiseQuery.isLoading}
+                  label="Save Changes"
                   onClick={() => void savePreferences()}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
+                />
               </div>
             </>
           ) : null}
@@ -637,31 +680,42 @@ export function AdminSettingsPageView() {
               <div className="space-y-4">
                 {(
                   [
-                    ['emailNotifications', 'Email notifications', prefs.emailNotifications],
-                    ['smsNotifications', 'SMS notifications', prefs.smsNotifications],
+                    [
+                      'emailNotifications',
+                      'Email notifications',
+                      prefs.emailNotifications,
+                    ],
+                    [
+                      'smsNotifications',
+                      'SMS notifications',
+                      prefs.smsNotifications,
+                    ],
                     ['lowStockAlert', 'Low stock alerts', prefs.lowStockAlert],
                   ] as const
                 ).map(([key, label, checked]) => (
-                  <div key={key} className="flex items-start justify-between gap-4">
+                  <div
+                    key={key}
+                    className="flex items-start justify-between gap-4"
+                  >
                     <p className="text-sm font-medium text-text">{label}</p>
                     <SettingsToggle
                       id={`admin-notif-${key}`}
                       label={label}
                       checked={checked}
-                      onCheckedChange={(v) => setPrefs((p) => ({ ...p, [key]: v }))}
+                      onCheckedChange={(v) =>
+                        setPrefs((p) => ({ ...p, [key]: v }))
+                      }
                     />
                   </div>
                 ))}
               </div>
               <div className="flex justify-end border-t border-border pt-4">
-                <Button
-                  type="button"
-                  disabled={saving || franchiseQuery.isLoading}
-                  className="bg-brand-orange text-white hover:bg-brand-orange-dark"
+                <SettingsSaveButton
+                  saving={saving}
+                  disabled={franchiseQuery.isLoading}
+                  label="Save Changes"
                   onClick={() => void savePreferences()}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
+                />
               </div>
             </>
           ) : null}
@@ -671,7 +725,9 @@ export function AdminSettingsPageView() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-text">Require customer for walk-in</p>
+                    <p className="text-sm font-medium text-text">
+                      Require customer for walk-in
+                    </p>
                     <p className="mt-0.5 text-xs text-text-secondary">
                       Ask for customer details before creating a walk-in bill.
                     </p>
@@ -687,7 +743,9 @@ export function AdminSettingsPageView() {
                 </div>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-text">Auto backup preference</p>
+                    <p className="text-sm font-medium text-text">
+                      Auto backup preference
+                    </p>
                     <p className="mt-0.5 text-xs text-text-secondary">
                       Request daily backups from the platform operator.
                     </p>
@@ -696,19 +754,19 @@ export function AdminSettingsPageView() {
                     id="admin-auto-backup"
                     label="Auto backup preference"
                     checked={prefs.autoBackup}
-                    onCheckedChange={(v) => setPrefs((p) => ({ ...p, autoBackup: v }))}
+                    onCheckedChange={(v) =>
+                      setPrefs((p) => ({ ...p, autoBackup: v }))
+                    }
                   />
                 </div>
               </div>
               <div className="flex justify-end border-t border-border pt-4">
-                <Button
-                  type="button"
-                  disabled={saving || franchiseQuery.isLoading}
-                  className="bg-brand-orange text-white hover:bg-brand-orange-dark"
+                <SettingsSaveButton
+                  saving={saving}
+                  disabled={franchiseQuery.isLoading}
+                  label="Save Changes"
                   onClick={() => void savePreferences()}
-                >
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
+                />
               </div>
             </>
           ) : null}

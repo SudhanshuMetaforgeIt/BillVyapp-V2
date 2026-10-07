@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Lock, Mail, Phone } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -17,17 +17,18 @@ import {
   type LoginValues,
 } from '@/features/auth/schemas/auth.schema';
 import { cn } from '@/lib/utils';
+import type { PhoneCountry } from '@/lib/phone';
 
 import { BrandLogo } from './brand-logo';
 
 export function LoginFormCard() {
   const login = useLogin();
   const [showPassword, setShowPassword] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState<PhoneCountry>('IN');
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -69,11 +70,7 @@ export function LoginFormCard() {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
-          <Field
-            id="email"
-            label="Email Address"
-            error={errors.email?.message}
-          >
+          <Field id="email" label="Email Address" error={errors.email?.message}>
             <div className="relative">
               <Mail
                 className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
@@ -94,22 +91,16 @@ export function LoginFormCard() {
             </div>
           </Field>
 
-          <Field
-            id="phone"
-            label="Phone Number"
-            error={errors.phone?.message}
-          >
+          <Field id="phone" label="Phone Number" error={errors.phone?.message}>
             <div className="relative">
-              <Phone
-                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
-                aria-hidden
-              />
               <Input
                 id="phone"
                 type="tel"
+                phoneCountry={phoneCountry}
+                onPhoneCountryChange={setPhoneCountry}
                 autoComplete="tel"
                 inputMode="tel"
-                placeholder="+91 9966996688"
+                placeholder="10 local digits"
                 aria-invalid={Boolean(errors.phone)}
                 aria-describedby={errors.phone ? 'phone-error' : undefined}
                 disabled={isSubmitting}
@@ -151,9 +142,15 @@ export function LoginFormCard() {
                 disabled={isSubmitting}
               >
                 {showPassword ? (
-                  <EyeOff className="h-4 w-4 transition-opacity duration-150" aria-hidden />
+                  <EyeOff
+                    className="h-4 w-4 transition-opacity duration-150"
+                    aria-hidden
+                  />
                 ) : (
-                  <Eye className="h-4 w-4 transition-opacity duration-150" aria-hidden />
+                  <Eye
+                    className="h-4 w-4 transition-opacity duration-150"
+                    aria-hidden
+                  />
                 )}
               </button>
             </div>
@@ -196,7 +193,10 @@ export function LoginFormCard() {
           aria-hidden
         />
 
-        <p data-auth-animate="secondary" className="mt-5 flex justify-center gap-4 text-center">
+        <p
+          data-auth-animate="secondary"
+          className="mt-5 flex justify-center gap-4 text-center"
+        >
           <PrefetchLink
             href={ROUTES.auth.otp}
             prefetchStrategy="intent"
@@ -230,12 +230,19 @@ function Field({
 }) {
   return (
     <div data-auth-animate="field" className="min-w-0">
-      <Label htmlFor={id} className="mb-2 text-[13px] font-medium text-charcoal">
+      <Label
+        htmlFor={id}
+        className="mb-2 text-[13px] font-medium text-charcoal"
+      >
         {label}
       </Label>
       {children}
       {error ? (
-        <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-danger">
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="mt-1.5 text-xs text-danger"
+        >
           {error}
         </p>
       ) : null}

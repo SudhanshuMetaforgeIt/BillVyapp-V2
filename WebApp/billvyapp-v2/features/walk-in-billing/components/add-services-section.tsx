@@ -1,5 +1,7 @@
 'use client';
 
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { SelectInput } from '@/components/data/form-fields';
 
 import { Minus, Plus, Search, Trash2 } from 'lucide-react';
@@ -17,7 +19,11 @@ import {
   useSalonServices,
   useServiceCategories,
 } from '../hooks/use-service-catalog';
-import type { CartLine, SalonService, BillPreview } from '../types/walk-in-billing.types';
+import type {
+  CartLine,
+  SalonService,
+  BillPreview,
+} from '../types/walk-in-billing.types';
 
 type AddServicesSectionProps = {
   enabled: boolean;
@@ -84,7 +90,8 @@ export function AddServicesSection({
             aria-hidden
           />
         </div>
-        <SelectInput className="h-10 w-auto min-w-[9rem] text-sm font-medium"
+        <SelectInput
+          className="h-10 w-auto min-w-[9rem] text-sm font-medium"
           value={categoryId}
           onChange={(e) => onCategoryChange(e.target.value)}
           aria-label="Service category"
@@ -129,7 +136,20 @@ export function AddServicesSection({
                       <p className="text-xs text-text-secondary">
                         {formatCurrency(line.unitPrice)} · tax {line.taxRate}%
                       </p>
-                      {(membershipPricing?.[line.serviceId]?.discount ?? 0) > 0 && <p className="text-xs text-emerald">Membership benefit: −{formatCurrency(membershipPricing![line.serviceId].discount)} ({membershipPricing![line.serviceId].units} units) · Final before tax: {formatCurrency(membershipPricing![line.serviceId].final)}</p>}
+                      {(membershipPricing?.[line.serviceId]?.discount ?? 0) >
+                        0 && (
+                        <p className="text-xs text-emerald">
+                          Membership benefit: −
+                          {formatCurrency(
+                            membershipPricing![line.serviceId].discount,
+                          )}{' '}
+                          ({membershipPricing![line.serviceId].units} units) ·
+                          Final before tax:{' '}
+                          {formatCurrency(
+                            membershipPricing![line.serviceId].final,
+                          )}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -233,7 +253,7 @@ export function AddServicesSection({
               htmlFor="discount-amount"
               className="text-xs font-medium text-text-secondary"
             >
-              Discount (₹)
+              Discount ({getCurrencySymbol()})
             </label>
             <Input
               id="discount-amount"

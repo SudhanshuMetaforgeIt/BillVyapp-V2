@@ -11,7 +11,7 @@ const planIds = [], billIds = []; let userId, customerId;
   const catalog = await db.service.findFirst({ where: { isActive: true, price: { gt: 0 }, salon: { isActive: true } }, include: { salon: true } });
   const role = await db.role.findFirstOrThrow({ where: { code: 'CUSTOMER' } });
   const token = randomUUID();
-  const user = await db.user.create({ data: { roleId: role.id, firstName: 'Enrollment', lastName: 'Verification', email: `${token}@example.test`, phone: `9${String(randomInt(100000000, 999999999))}`, passwordHash: '!disabled-verification-login' } }); userId = user.id;
+  const user = await db.user.create({ data: { roleId: role.id, firstName: 'Enrollment', lastName: 'Verification', email: `${token}@example.test`, phone: `+919${String(randomInt(100000000, 999999999))}`, passwordHash: '!disabled-verification-login' } }); userId = user.id;
   const customer = await db.customer.create({ data: { userId, customerCode: `CHECK-${token}` } }); customerId = customer.id;
   const actor = { userId, role: 'MANAGER', salonId: catalog.salonId, franchiseId: catalog.salon.franchiseId };
   const scope = { assertSalonAccess: async (_, id) => assert.equal(id, catalog.salonId), assertCustomerAccess: async (_, id) => assert.equal(id, customerId) };

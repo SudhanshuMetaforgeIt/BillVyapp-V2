@@ -10,12 +10,17 @@ import {
   useGenerateReport,
   useDownloadReport,
 } from '../hooks/use-report-mutations';
-import { AnalyticsTable } from './report-analytics-widgets';
+import {
+  AnalyticsTable,
+  CurrencySections,
+  SummaryCards,
+} from './report-analytics-widgets';
 import type {
   AnalyticsParams,
   ReportFilterOptions,
   ReportListRow,
   ReportType,
+  ReportAnalytics,
 } from '../types/reports.types';
 import { REPORT_TYPES } from '../types/report-options';
 export function ReportDialog({
@@ -233,6 +238,7 @@ export function ReportPreview({
 }) {
   const download = useDownloadReport();
   const metrics = report.snapshot.metrics;
+  const analytics = report.snapshot.analytics as ReportAnalytics | undefined;
   const values =
     metrics && typeof metrics === 'object'
       ? Object.entries(metrics).map(([metric, value]) => ({
@@ -265,15 +271,28 @@ export function ReportPreview({
           </div>
         ))}
       </dl>
-      <AnalyticsTable
-        title="Captured summary"
-        data={values}
-        columns={[
-          { key: 'metric', label: 'Metric' },
-          { key: 'value', label: 'Value' },
-        ]}
-        empty="This older report has no captured summary."
-      />
+      {analytics?.currencyGroups ? (
+        <CurrencySections data={analytics}>
+          {(group) =>
+            group.summary ? (
+              <SummaryCards
+                metrics={group.summary}
+                range={report.dateRangeLabel}
+              />
+            ) : null
+          }
+        </CurrencySections>
+      ) : (
+        <AnalyticsTable
+          title="Captured summary"
+          data={values}
+          columns={[
+            { key: 'metric', label: 'Metric' },
+            { key: 'value', label: 'Value' },
+          ]}
+          empty="This older report has no captured summary."
+        />
+      )}
       <Button
         disabled={download.isPending}
         onClick={() => download.mutate({ id: report.id, name: report.name })}

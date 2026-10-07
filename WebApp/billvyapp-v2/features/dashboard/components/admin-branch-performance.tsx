@@ -1,13 +1,20 @@
 'use client';
 
-import { DashboardSectionCard, SectionEmptyState } from '@/components/layout/section-states';
+import { formatCurrency } from '@/lib/format';
+
+import {
+  DashboardSectionCard,
+  SectionEmptyState,
+} from '@/components/layout/section-states';
 import type { AdminBranchPerf } from '../types/admin-dashboard.types';
 
 type AdminBranchPerformanceProps = {
   branches: AdminBranchPerf[];
 };
 
-export function AdminBranchPerformance({ branches }: AdminBranchPerformanceProps) {
+export function AdminBranchPerformance({
+  branches,
+}: AdminBranchPerformanceProps) {
   return (
     <DashboardSectionCard
       title="Branch Performance"
@@ -15,7 +22,9 @@ export function AdminBranchPerformance({ branches }: AdminBranchPerformanceProps
       className="h-full"
       bodyClassName="space-y-4 pt-2 pb-4"
     >
-      <p className="text-xs text-text-secondary">Revenue by branch this month</p>
+      <p className="text-xs text-text-secondary">
+        Revenue by branch this month
+      </p>
       {branches.length === 0 ? (
         <SectionEmptyState message="No branch performance data recorded yet." />
       ) : (
@@ -23,15 +32,19 @@ export function AdminBranchPerformance({ branches }: AdminBranchPerformanceProps
           {branches.map((branch) => (
             <li key={branch.id}>
               <div className="mb-1.5 flex items-center justify-between gap-4">
-                <span className="truncate text-sm font-semibold text-text">{branch.name}</span>
+                <span className="truncate text-sm font-semibold text-text">
+                  {branch.name}
+                </span>
                 <span className="shrink-0 text-sm font-bold text-text">
-                  ₹{branch.revenue.toLocaleString('en-IN')}
+                  {formatCurrency(branch.revenue)}
                 </span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-brand-orange transition-all duration-500"
-                  style={{ width: `${Math.max(branch.percent, branch.revenue > 0 ? 4 : 0)}%` }}
+                  style={{
+                    width: `${Math.max(branch.percent, branch.revenue > 0 ? 4 : 0)}%`,
+                  }}
                   role="progressbar"
                   aria-valuenow={branch.percent}
                   aria-valuemin={0}

@@ -10,6 +10,14 @@ import {
 } from 'class-validator';
 
 export class FranchisePreferencesDto {
+  @ApiPropertyOptional({
+    enum: ['IN', 'US'],
+    description:
+      'Default phone country inherited by salons and phone entry forms',
+  })
+  @IsOptional()
+  @IsString()
+  phoneCountry?: string;
   @ApiPropertyOptional({ example: 'en' })
   @IsOptional()
   @IsString()

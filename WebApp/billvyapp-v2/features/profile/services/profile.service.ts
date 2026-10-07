@@ -1,3 +1,8 @@
+import {
+  cleanPhoneInput,
+  isValidPhoneInput,
+  normalizePhone as internationalPhone,
+} from '@/lib/phone';
 import { ROLE_LABELS, isRoleCode } from '@/constants/roles';
 import type { AuthMeUser } from '@/services/auth.service';
 import { api } from '@/services/api-client';
@@ -40,7 +45,10 @@ function fromUserDetail(detail: UserApiItem): ProfileUser {
   };
 }
 
-function toProfileUser(me: AuthMeUser, detail: UserApiItem | null): ProfileUser {
+function toProfileUser(
+  me: AuthMeUser,
+  detail: UserApiItem | null,
+): ProfileUser {
   const role = isRoleCode(me.role) ? me.role : 'SUPER_ADMIN';
 
   return {
@@ -117,12 +125,10 @@ export function splitFullName(fullName: string): {
   };
 }
 
-/** Normalize UI phone input to the 10-digit value the API expects. */
+/** Normalize UI phone input to the international value the API expects. */
 export function normalizePhone(value: string): string | null {
-  const digits = value.replace(/\D/g, '');
-  if (!digits) return null;
-  const local = digits.length > 10 ? digits.slice(-10) : digits;
-  return local.length === 10 ? local : null;
+  const input = cleanPhoneInput(value);
+  return isValidPhoneInput(input) ? internationalPhone(input) : null;
 }
 
 export function profileInitials(firstName: string, lastName: string): string {

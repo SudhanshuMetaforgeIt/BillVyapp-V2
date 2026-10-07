@@ -21,6 +21,11 @@ export function toSessionUser(me: AuthUser): AuthUser | null {
     subscriptionPlanName: me.subscriptionPlanName ?? null,
     subscriptionEndsAt: me.subscriptionEndsAt ?? null,
     timezone: me.timezone ?? null,
+    phoneCountry: me.phoneCountry,
+    currency: me.currency,
+    locale: me.locale,
+    dateFormat: me.dateFormat,
+    timeFormat: me.timeFormat,
   };
 }
 

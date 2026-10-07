@@ -1,5 +1,7 @@
 'use client';
 
+import { getBusinessRegion } from '@/lib/business-region';
+
 import {
   IndianRupee,
   RotateCcw,
@@ -16,9 +18,9 @@ type CustomersStatsProps = {
 
 export function CustomersStats({ stats, loading }: CustomersStatsProps) {
   const formatINR = (val: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat(getBusinessRegion().locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: getBusinessRegion().currency,
       maximumFractionDigits: 0,
     }).format(val);
   };
@@ -31,7 +33,8 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
       subtitle: stats.totalCustomersChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: Users,
-      iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+      iconBg:
+        'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
       hasTrendIcon: stats.totalCustomers > 0,
     },
     {
@@ -41,7 +44,8 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
       subtitle: stats.newCustomersChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: UserPlus,
-      iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+      iconBg:
+        'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
       hasTrendIcon: stats.newCustomers > 0,
     },
     {
@@ -51,7 +55,8 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
       subtitle: `${stats.returningCustomersPct}% of total`,
       subtitleColor: 'text-purple-600 dark:text-purple-400',
       icon: RotateCcw,
-      iconBg: 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400',
+      iconBg:
+        'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400',
     },
     {
       id: 'total-spent',
@@ -60,7 +65,8 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
       subtitle: stats.totalSpentChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: IndianRupee,
-      iconBg: 'bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400',
+      iconBg:
+        'bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400',
       hasTrendIcon: stats.totalSpentThisMonth > 0,
     },
   ];
@@ -95,7 +101,9 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
                 {card.hasTrendIcon && (
                   <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                 )}
-                <span className={`text-[11px] font-medium ${card.subtitleColor}`}>
+                <span
+                  className={`text-[11px] font-medium ${card.subtitleColor}`}
+                >
                   {card.subtitle}
                 </span>
               </div>

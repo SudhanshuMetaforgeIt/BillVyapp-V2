@@ -1,7 +1,8 @@
 'use client';
+import { normalizePhone, type PhoneCountry } from '@/lib/phone';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound, Phone } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -32,6 +33,7 @@ const INPUT_CLASS =
  * POST /auth/verify-otp. Only existing CUSTOMER accounts can complete it.
  */
 export function OtpLoginCard() {
+  const [phoneCountry, setPhoneCountry] = useState<PhoneCountry>('IN');
   const sendOtp = useSendOtp();
   const verifyOtp = useVerifyOtp();
   const [step, setStep] = useState<OtpStep>('request-code');
@@ -49,7 +51,7 @@ export function OtpLoginCard() {
   });
 
   const requestCode = phoneForm.handleSubmit((values) => {
-    const normalized = normalizeIndianPhone(values.phone);
+    const normalized = normalizePhone(values.phone, phoneCountry);
     sendOtp.mutate(
       { phone: normalized },
       {
@@ -67,8 +69,7 @@ export function OtpLoginCard() {
     verifyOtp.mutate({ phone: values.phone, otp: values.code });
   });
 
-  const error =
-    step === 'request-code' ? sendOtp.error : verifyOtp.error;
+  const error = step === 'request-code' ? sendOtp.error : verifyOtp.error;
 
   return (
     <div data-auth-animate="card" className="auth-form-shell @container">
@@ -101,13 +102,11 @@ export function OtpLoginCard() {
               error={phoneForm.formState.errors.phone?.message}
             >
               <div className="relative">
-                <Phone
-                  className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-secondary"
-                  aria-hidden
-                />
                 <Input
                   id="otp-phone"
                   type="tel"
+                  phoneCountry={phoneCountry}
+                  onPhoneCountryChange={setPhoneCountry}
                   autoComplete="tel"
                   inputMode="tel"
                   placeholder="9966996688"
@@ -167,7 +166,8 @@ export function OtpLoginCard() {
 
             {devOtp ? (
               <p className="rounded-lg border border-border bg-ivory-soft px-3 py-2 text-xs text-text-secondary">
-                Development code: <span className="font-mono font-semibold">{devOtp}</span>
+                Development code:{' '}
+                <span className="font-mono font-semibold">{devOtp}</span>
               </p>
             ) : null}
 
@@ -252,12 +252,19 @@ function Field({
 }) {
   return (
     <div data-auth-animate="field" className="min-w-0">
-      <Label htmlFor={id} className="mb-2 text-[13px] font-medium text-charcoal">
+      <Label
+        htmlFor={id}
+        className="mb-2 text-[13px] font-medium text-charcoal"
+      >
         {label}
       </Label>
       {children}
       {error ? (
-        <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-danger">
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="mt-1.5 text-xs text-danger"
+        >
           {error}
         </p>
       ) : null}

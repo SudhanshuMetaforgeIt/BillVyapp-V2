@@ -1,4 +1,5 @@
 'use client';
+import { isValidPhoneInput } from '@/lib/phone';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -69,7 +70,7 @@ export function CreateCustomerDialog({
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     email.trim().length > 0 &&
-    normalizedPhone.length === 10;
+    isValidPhoneInput(normalizedPhone);
 
   return (
     <div
@@ -158,13 +159,14 @@ export function CreateCustomerDialog({
               inputMode="numeric"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="10-digit mobile"
+              placeholder="10 local digits"
               autoComplete="tel"
             />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="walkin-gender">Gender (optional)</Label>
-            <SelectInput className="h-10 w-full text-sm font-medium"
+            <SelectInput
+              className="h-10 w-full text-sm font-medium"
               id="walkin-gender"
               value={gender}
               onChange={(e) =>

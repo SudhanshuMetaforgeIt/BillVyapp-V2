@@ -94,20 +94,40 @@ export class ScopeService {
   /**
    * Scope fragment for the `customers` table.
    *
-   * Customers are global (no salonId on the row). SUPER_ADMIN sees everyone.
-   * CUSTOMER sees only their own profile. ADMIN / MANAGER / STAFF need a
-   * customer directory for salon operations (walk-in lookup, booking) so they
-   * are not limited to prior appointments — those relations are not guaranteed
-   * in this phase. Optional `salonId` list filters use
-   * {@link customerSalonAssociation} after {@link assertSalonAccess}.
+   * Global customer identities are visible to a business only when registered
+   * there or associated through a visit, appointment or membership.
    */
   customerTableScope(user: AuthenticatedUser): Record<string, unknown> {
     switch (user.role) {
       case RoleCode.SUPER_ADMIN:
+        return {};
       case RoleCode.ADMIN:
       case RoleCode.MANAGER:
       case RoleCode.STAFF:
-        return {};
+        return {
+          OR: [
+            { user: { franchiseId: this.requireFranchise(user) } },
+            {
+              appointments: {
+                some: { salon: { franchiseId: this.requireFranchise(user) } },
+              },
+            },
+            {
+              bills: {
+                some: { salon: { franchiseId: this.requireFranchise(user) } },
+              },
+            },
+            {
+              memberships: {
+                some: {
+                  membershipPlan: {
+                    salon: { franchiseId: this.requireFranchise(user) },
+                  },
+                },
+              },
+            },
+          ],
+        };
       case RoleCode.CUSTOMER:
         return { userId: user.userId };
       default:
@@ -116,14 +136,16 @@ export class ScopeService {
   }
 
   /**
-   * Customers associated with a salon via appointments or bills.
+   * Customers registered with a salon or linked through visits/memberships.
    * Spread into a customer `where` after verifying salon access.
    */
   customerSalonAssociation(salonId: string): Record<string, unknown> {
     return {
       OR: [
+        { user: { salonId } },
         { appointments: { some: { salonId } } },
         { bills: { some: { salonId } } },
+        { memberships: { some: { membershipPlan: { salonId } } } },
       ],
     };
   }
@@ -131,9 +153,8 @@ export class ScopeService {
   /**
    * Row-level check for a specific customer id.
    *
-   * CUSTOMER may only touch their own profile. Staff roles may access any
-   * existing customer (global profiles, salon operations). SUPER_ADMIN is
-   * unrestricted. Missing rows are a 404 for the caller to raise.
+   * Apply the same business association rules as the directory, so guessing
+   * another franchise's customer id does not bypass list filtering.
    */
   async assertCustomerAccess(
     user: AuthenticatedUser,
@@ -144,13 +165,17 @@ export class ScopeService {
       return;
     }
 
+    if (user.role === RoleCode.SUPER_ADMIN) return;
     if (
-      user.role === RoleCode.SUPER_ADMIN ||
       user.role === RoleCode.ADMIN ||
       user.role === RoleCode.MANAGER ||
       user.role === RoleCode.STAFF
     ) {
-      return;
+      const customer = await this.prisma.customer.findFirst({
+        where: { id: customerId, ...this.customerTableScope(user) },
+        select: { id: true },
+      });
+      if (customer) return;
     }
 
     throw new ForbiddenException('Customer record outside your scope');

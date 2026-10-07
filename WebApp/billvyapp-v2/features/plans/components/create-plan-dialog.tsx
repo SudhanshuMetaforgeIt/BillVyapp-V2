@@ -1,5 +1,7 @@
 'use client';
 
+import { getCurrencySymbol } from '@/lib/business-region';
+
 import { SelectInput } from '@/components/data/form-fields';
 
 import { useEffect, useId, useState } from 'react';
@@ -8,11 +10,12 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  useCreatePlan,
-  useUpdatePlan,
-} from '../hooks/use-plan-mutations';
-import type { BillingCycle, PlatformPlan, PlanStatus } from '../types/plans.types';
+import { useCreatePlan, useUpdatePlan } from '../hooks/use-plan-mutations';
+import type {
+  BillingCycle,
+  PlatformPlan,
+  PlanStatus,
+} from '../types/plans.types';
 
 type CreatePlanDialogProps = {
   open: boolean;
@@ -152,7 +155,9 @@ export function CreatePlanDialog({
 
           {!isCustom ? (
             <div>
-              <Label htmlFor="plan-price">Monthly price (₹)</Label>
+              <Label htmlFor="plan-price">
+                Monthly price ({getCurrencySymbol()})
+              </Label>
               <Input
                 id="plan-price"
                 type="number"

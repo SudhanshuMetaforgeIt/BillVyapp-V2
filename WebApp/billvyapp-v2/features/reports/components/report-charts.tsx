@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { SectionEmptyState } from '@/components/layout/section-states';
-import { formatCurrency } from '@/lib/format';
+import { useReportMoney } from './report-region';
 import type { AnalyticsRow } from '../types/reports.types';
 import { AnalyticsTable } from './report-analytics-widgets';
 
 export function RevenueTrend({ data }: { data: AnalyticsRow[] }) {
+  const formatCurrency = useReportMoney();
   const chartRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
   useEffect(() => {
@@ -130,6 +131,7 @@ export function RevenueBars({
   label: string;
   limit?: number;
 }) {
+  const formatCurrency = useReportMoney();
   const max = Math.max(1, ...data.map((r) => Number(r.revenue)));
   return (
     <div className="app-surface-card p-5">
