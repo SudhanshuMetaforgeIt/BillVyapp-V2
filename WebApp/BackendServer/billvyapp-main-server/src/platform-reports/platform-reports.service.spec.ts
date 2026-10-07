@@ -11,7 +11,12 @@ jest.mock('@nestjs/bullmq', () => ({
   Processor: () => (cls: unknown) => cls,
   WorkerHost: class WorkerHost {},
 }));
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import ExcelJS from 'exceljs';
 import { AuditService } from '../audit/audit.service';
 import { RoleCode } from '../common/enums/role.enum';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
@@ -264,8 +269,16 @@ describe('PlatformReportsService', () => {
       limit: 2,
       franchiseId: 'fr-1',
     });
-    const list = prisma.platformReport.findMany.mock.calls[0][0];
-    const grouped = prisma.platformReport.groupBy.mock.calls[0][0];
+    const list = (
+      prisma.platformReport.findMany.mock.calls as unknown as [
+        { where: unknown },
+      ][]
+    )[0][0];
+    const grouped = (
+      prisma.platformReport.groupBy.mock.calls as unknown as [
+        { where: unknown },
+      ][]
+    )[0][0];
     expect(list.where).toEqual(grouped.where);
     expect(list.where).toMatchObject({ franchiseId: 'fr-1' });
     expect(list).toMatchObject({ skip: 2, take: 2 });
@@ -281,18 +294,21 @@ describe('PlatformReportsService', () => {
     expect(result.summary.byType.every((item) => item.count === 0)).toBe(true);
   });
 
-  it('downloads CSV of the snapshot', async () => {
+  it('downloads a seven-sheet XLSX of the captured snapshot', async () => {
     prisma.platformReport.findUnique.mockResolvedValue(reportRow());
 
     const file = await service.download(actor, 'pr-1');
 
-    expect(file.contentType).toContain('text/csv');
-    expect(file.fileName).toMatch(/\.csv$/);
-    expect(file.body).toContain('totalRevenue');
-    expect(file.body).toContain('1500.00');
+    expect(file.contentType).toContain('spreadsheetml.sheet');
+    expect(file.fileName).toMatch(/\.xlsx$/);
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(file.body as unknown as ExcelJS.Buffer);
+    expect(book.worksheets).toHaveLength(7);
+    expect(book.worksheets[0].getCell('B5').value).toBe(1500);
+    expect(analytics.query).not.toHaveBeenCalled();
   });
 
-  it('keeps snapshot names stable and neutralizes spreadsheet formulas in CSV', async () => {
+  it('keeps snapshot names stable and writes formula-leading names as literal XLSX strings', async () => {
     const row = reportRow({
       name: '=HYPERLINK("bad")',
       franchise: { id: 'f', name: 'Renamed franchise' },
@@ -306,8 +322,30 @@ describe('PlatformReportsService', () => {
     const report = await service.findOne(actor, 'pr-1');
     expect(report.franchiseName).toBe('Original franchise');
     const file = await service.download(actor, 'pr-1');
-    expect(file.body).toContain("'=HYPERLINK");
-    expect(file.body).toContain('analytics.revenue.series.0.revenue');
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(file.body as unknown as ExcelJS.Buffer);
+    expect(book.worksheets[6].getCell('B4').value).toBe('=HYPERLINK("bad")');
+    expect(book.worksheets[6].getCell('B4').type).toBe(
+      ExcelJS.ValueType.String,
+    );
+  });
+
+  it.each([
+    RoleCode.ADMIN,
+    RoleCode.MANAGER,
+    RoleCode.STAFF,
+    RoleCode.CUSTOMER,
+  ])('rejects %s before accessing platform snapshots', async (role) => {
+    await expect(
+      service.download({ ...actor, role }, 'pr-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.findOne({ ...actor, role }, 'pr-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.list({ ...actor, role }, {})).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(prisma.platformReport.findUnique).not.toHaveBeenCalled();
   });
 
   it('throws when downloading a missing report', async () => {
@@ -395,14 +433,13 @@ describe('PlatformReportsService', () => {
       },
     });
 
-    expect(prisma.platformReport.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'pr-1' },
-        data: expect.objectContaining({
-          snapshot: expect.objectContaining({ status: 'Ready' }),
-        }),
-      }),
-    );
+    const update = (
+      prisma.platformReport.update.mock.calls as unknown as [
+        { where: { id: string }; data: { snapshot: { status: string } } },
+      ][]
+    )[0][0];
+    expect(update.where.id).toBe('pr-1');
+    expect(update.data.snapshot.status).toBe('Ready');
   });
 });
 

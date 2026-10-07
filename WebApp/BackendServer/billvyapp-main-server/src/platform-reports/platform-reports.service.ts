@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -40,6 +41,8 @@ import {
   type PlatformReportTypeApi,
 } from './dto/generate-platform-report.dto';
 import { ListPlatformReportsQueryDto } from './dto/list-platform-reports-query.dto';
+import { buildPlatformWorkbook } from './platform-report-workbook';
+import { XLSX_CONTENT_TYPE } from './admin-report-workbook';
 
 const REPORT_SELECT = {
   id: true,
@@ -119,7 +122,7 @@ export type PlatformReportsListResult = {
 export type PlatformReportDownload = {
   fileName: string;
   contentType: string;
-  body: string;
+  body: Buffer;
 };
 
 const TYPE_TO_API: Record<PlatformReportType, PlatformReportTypeApi> = {
@@ -161,16 +164,6 @@ const TYPE_LABELS: Record<PlatformReportTypeApi, string> = {
 
 const ALL_TYPES = Object.keys(TYPE_TO_DB) as PlatformReportTypeApi[];
 
-type SnapshotMetrics = {
-  totalRevenue: string;
-  successfulPayments: number;
-  totalPayments: number;
-  userCount: number;
-  customerCount: number;
-  franchiseCount: number;
-  salonCount: number;
-};
-
 @Injectable()
 export class PlatformReportsService {
   private readonly logger = new Logger(PlatformReportsService.name);
@@ -185,10 +178,18 @@ export class PlatformReportsService {
     private readonly reportQueue?: Queue<PlatformReportJobPayload>,
   ) {}
 
+  private assertAccess(user: AuthenticatedUser) {
+    if (user.role !== RoleCode.SUPER_ADMIN)
+      throw new ForbiddenException(
+        'Platform reports require Super Admin access',
+      );
+  }
+
   async list(
     user: AuthenticatedUser,
     query: ListPlatformReportsQueryDto,
   ): Promise<PlatformReportsListResult> {
+    this.assertAccess(user);
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const timeZone = await this.businessTimezone.resolveForUser(user);
     const where = this.buildListWhere(query, timeZone);
@@ -241,9 +242,10 @@ export class PlatformReportsService {
   }
 
   async findOne(
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     id: string,
   ): Promise<PlatformReportRecord> {
+    this.assertAccess(user);
     const row = await this.prisma.platformReport.findUnique({
       where: { id },
       select: REPORT_SELECT,
@@ -257,6 +259,7 @@ export class PlatformReportsService {
     dto: GeneratePlatformReportDto,
     ctx: RequestContext,
   ): Promise<PlatformReportRecord> {
+    this.assertAccess(user);
     if (dto.async) {
       return this.generateAsync(user, dto, ctx);
     }
@@ -273,7 +276,7 @@ export class PlatformReportsService {
 
     if (dto.format === 'pdf')
       throw new BadRequestException(
-        'PDF generation is not implemented. Use Excel-compatible CSV.',
+        'PDF generation is not implemented. Use Excel (.xlsx).',
       );
     const analytics = await this.analytics.query(user, dto, true);
     const metrics = analytics.summary!;
@@ -302,6 +305,17 @@ export class PlatformReportsService {
       analytics,
     };
 
+    // Verify XLSX generation before marking the persisted snapshot ready.
+    await buildPlatformWorkbook({
+      name,
+      typeLabel: TYPE_LABELS[type],
+      dateFrom: dto.dateFrom,
+      dateTo: dto.dateTo,
+      generatedOn: new Date(),
+      generatedBy: user.email,
+      franchiseName,
+      snapshot,
+    } as PlatformReportRecord);
     const created = await this.prisma.platformReport.create({
       data: {
         name,
@@ -343,6 +357,7 @@ export class PlatformReportsService {
     dto: GeneratePlatformReportDto,
     ctx: RequestContext,
   ): Promise<PlatformReportRecord> {
+    this.assertAccess(user);
     if (!isDateOnlyString(dto.dateFrom) || !isDateOnlyString(dto.dateTo)) {
       throw new BadRequestException('dateFrom/dateTo must be YYYY-MM-DD');
     }
@@ -355,9 +370,10 @@ export class PlatformReportsService {
 
     if (dto.format === 'pdf')
       throw new BadRequestException(
-        'PDF generation is not implemented. Use Excel-compatible CSV.',
+        'PDF generation is not implemented. Use Excel (.xlsx).',
       );
 
+    await this.analytics.query(user, dto); // Validate filters before persisting/queueing.
     const type = dto.type;
     const format = dto.format ?? 'excel';
     const dateRangeLabel = this.formatDateRangeLabel(dateFrom, dateTo);
@@ -465,13 +481,14 @@ export class PlatformReportsService {
     const authUser: AuthenticatedUser = {
       userId: payload.actorUserId,
       email: actor?.email ?? '',
-      role: (actor?.role?.code as RoleCode) ?? RoleCode.SUPER_ADMIN,
+      role: actor?.role?.code as RoleCode,
       franchiseId: actor?.franchiseId ?? null,
       salonId: actor?.salonId ?? null,
       sessionId: null,
     };
 
     try {
+      this.assertAccess(authUser);
       const dto = payload.dto as GeneratePlatformReportDto;
       const analytics = await this.analytics.query(authUser, dto, true);
       const metrics = analytics.summary!;
@@ -500,6 +517,16 @@ export class PlatformReportsService {
         analytics,
       };
 
+      await buildPlatformWorkbook({
+        name: `${TYPE_LABELS[dto.type]} Report — ${dto.dateFrom} to ${dto.dateTo}`,
+        typeLabel: TYPE_LABELS[dto.type],
+        dateFrom: dto.dateFrom,
+        dateTo: dto.dateTo,
+        generatedOn: new Date(),
+        generatedBy: authUser.email,
+        franchiseName,
+        snapshot,
+      } as PlatformReportRecord);
       await this.prisma.platformReport.update({
         where: { id: payload.reportId },
         data: {
@@ -519,7 +546,7 @@ export class PlatformReportsService {
           snapshot: {
             ...current,
             status: 'Failed',
-          } as Prisma.InputJsonValue,
+          },
         },
       });
       throw error;
@@ -527,9 +554,10 @@ export class PlatformReportsService {
   }
 
   async download(
-    _user: AuthenticatedUser,
+    user: AuthenticatedUser,
     id: string,
   ): Promise<PlatformReportDownload> {
+    this.assertAccess(user);
     const row = await this.prisma.platformReport.findUnique({
       where: { id },
       select: REPORT_SELECT,
@@ -537,27 +565,20 @@ export class PlatformReportsService {
     if (!row) throw new NotFoundException('Platform report not found');
 
     const record = this.toRecord(row);
-    if (
-      record.snapshot &&
-      (record.snapshot as Record<string, unknown>).status === 'Generating'
-    ) {
+    if (record.snapshot && record.snapshot.status === 'Generating') {
       throw new BadRequestException(
         'Report is still generating. Please try again shortly',
       );
     }
-    if (
-      record.snapshot &&
-      (record.snapshot as Record<string, unknown>).status === 'Failed'
-    ) {
+    if (record.snapshot && record.snapshot.status === 'Failed') {
       throw new BadRequestException(
         'Report generation failed. Please regenerate',
       );
     }
-    const body = this.snapshotToCsv(record);
-    const safeName = record.name.replace(/[^\w.\- ]+/g, '_').trim() || 'report';
+    const body = await buildPlatformWorkbook(record);
     return {
-      fileName: `${safeName}.csv`,
-      contentType: 'text/csv; charset=utf-8',
+      fileName: `${record.typeLabel}_Report_${record.dateFrom}_to_${record.dateTo}.xlsx`,
+      contentType: XLSX_CONTENT_TYPE,
       body,
     };
   }
@@ -567,6 +588,7 @@ export class PlatformReportsService {
     id: string,
     ctx: RequestContext,
   ): Promise<{ id: string }> {
+    this.assertAccess(user);
     const existing = await this.prisma.platformReport.findUnique({
       where: { id },
       select: { id: true, type: true },
@@ -626,75 +648,6 @@ export class PlatformReportsService {
           }
         : {}),
     };
-  }
-
-  private snapshotToCsv(record: PlatformReportRecord): string {
-    const metrics =
-      (record.snapshot.metrics as SnapshotMetrics | undefined) ?? null;
-    const lines: string[] = [
-      'field,value',
-      this.csvRow('id', record.id),
-      this.csvRow('name', record.name),
-      this.csvRow('type', record.type),
-      this.csvRow('format', record.format),
-      this.csvRow('dateFrom', record.dateFrom),
-      this.csvRow('dateTo', record.dateTo),
-      this.csvRow('franchiseId', record.franchiseId ?? ''),
-      this.csvRow('franchiseName', record.franchiseName ?? ''),
-      this.csvRow(
-        'salonId',
-        typeof record.snapshot.salonId === 'string'
-          ? record.snapshot.salonId
-          : '',
-      ),
-      this.csvRow(
-        'salonName',
-        typeof record.snapshot.salonName === 'string'
-          ? record.snapshot.salonName
-          : '',
-      ),
-      this.csvRow('generatedBy', record.generatedBy),
-      this.csvRow('generatedOn', record.generatedOn.toISOString()),
-    ];
-
-    if (metrics) {
-      lines.push(
-        this.csvRow('totalRevenue', metrics.totalRevenue),
-        this.csvRow('successfulPayments', String(metrics.successfulPayments)),
-        this.csvRow('totalPayments', String(metrics.totalPayments)),
-        this.csvRow('userCount', String(metrics.userCount)),
-        this.csvRow('customerCount', String(metrics.customerCount)),
-        this.csvRow('franchiseCount', String(metrics.franchiseCount)),
-        this.csvRow('salonCount', String(metrics.salonCount)),
-      );
-    }
-
-    // Append analytics without removing any legacy field/value rows.
-    const flatten = (prefix: string, value: unknown) => {
-      if (value && typeof value === 'object') {
-        for (const [key, child] of Object.entries(value))
-          flatten(`${prefix}.${key}`, child);
-      } else
-        lines.push(
-          this.csvRow(
-            prefix,
-            typeof value === 'string' ||
-              typeof value === 'number' ||
-              typeof value === 'boolean'
-              ? String(value)
-              : '',
-          ),
-        );
-    };
-    if (record.snapshot.analytics)
-      flatten('analytics', record.snapshot.analytics);
-    return `\uFEFF${lines.join('\n')}\n`;
-  }
-
-  private csvRow(field: string, value: string): string {
-    const safeValue = /^[=+@\-\t\r]/.test(value) ? `'${value}` : value;
-    const escaped = `"${safeValue.replace(/"/g, '""')}"`;
-    return `${field},${escaped}`;
   }
 
   private toRecord(row: ReportRow): PlatformReportRecord {

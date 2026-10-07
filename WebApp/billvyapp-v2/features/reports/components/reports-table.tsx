@@ -39,7 +39,7 @@ export function ReportsTable({
     range: row.dateRangeLabel,
     date: formatDateTime(row.generatedOn),
     by: row.generatedBy,
-    format: 'Excel-compatible CSV',
+    format: 'Excel (.xlsx)',
     status: 'Generated',
   }));
   return (

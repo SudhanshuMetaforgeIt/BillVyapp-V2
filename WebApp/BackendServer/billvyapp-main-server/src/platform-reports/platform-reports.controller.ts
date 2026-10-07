@@ -81,7 +81,7 @@ export class PlatformReportsController {
   @ApiOperation({
     summary: 'Generate a platform report snapshot',
     description:
-      'Aggregates live metrics for the date range (and optional franchise), persists a snapshot, and returns the report row. Downloads are CSV in v1 regardless of format.',
+      'Aggregates live metrics for the date range (and optional franchise), persists a snapshot, and returns the report row. Downloads are seven-sheet Excel workbooks matching the business report reference.',
   })
   @ApiResponse({ status: 201, type: PlatformReportResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid dates or franchise' })
@@ -106,11 +106,14 @@ export class PlatformReportsController {
 
   @Get(':id/download')
   @ApiOperation({
-    summary: 'Download a platform report as CSV',
-    description: 'Always returns text/csv in v1 (even when format is pdf).',
+    summary: 'Download a platform report as Excel',
+    description:
+      'Returns the captured report snapshot as a real XLSX attachment.',
   })
-  @ApiProduces('text/csv')
-  @ApiResponse({ status: 200, description: 'CSV attachment' })
+  @ApiProduces(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  @ApiResponse({ status: 200, description: 'XLSX attachment' })
   @ApiResponse({ status: 404, description: 'Platform report not found' })
   @Header('Cache-Control', 'private, no-store')
   async download(
