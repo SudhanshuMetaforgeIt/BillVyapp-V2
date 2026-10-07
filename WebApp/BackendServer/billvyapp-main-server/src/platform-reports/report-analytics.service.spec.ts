@@ -153,6 +153,12 @@ describe('Reporting aggregates', () => {
       averageTransactionValue: 0,
     });
   });
+  it('propagates database failures instead of generating a zero report', async () => {
+    raw.mockRejectedValueOnce(new Error('Database unavailable'));
+    await expect(service.query(actor, query, true)).rejects.toThrow(
+      'Database unavailable',
+    );
+  });
   it('rejects invalid dates and unrelated salons before aggregation', async () => {
     await expect(
       service.query(actor, { ...query, dateFrom: '2026-02-30' }),
@@ -186,6 +192,31 @@ describe('Reporting aggregates', () => {
     expect(sql).toContain("b.status='COMPLETED'");
     expect(sql).toContain('SUM(b.membershipFee)');
     expect(sql).not.toContain('SUM(mp.price)');
+  });
+  it('captures complete export groups with database ownership and actual daily buckets', async () => {
+    await service.query(actor, { ...query, interval: 'month' }, true);
+    const queries = raw.mock.calls.map(([s]) => s);
+    expect(queries.every((s) => !s.sql.includes('LIMIT 50'))).toBe(true);
+    expect(
+      queries.some(
+        (s) =>
+          s.sql.includes('p.paymentMethod AS method') &&
+          s.sql.includes('s.id AS salonId'),
+      ),
+    ).toBe(true);
+    expect(
+      queries.some(
+        (s) =>
+          s.sql.includes('COALESCE(sv.id,i.id) AS id') &&
+          s.sql.includes('f.id AS franchiseId'),
+      ),
+    ).toBe(true);
+    expect(
+      queries.some(
+        (s) =>
+          s.values.includes('2026-10-02') && s.values.includes('2026-10-03'),
+      ),
+    ).toBe(true);
   });
   it('aggregates intervals with exact business-calendar bounds across DST', () => {
     const days = reportBuckets(

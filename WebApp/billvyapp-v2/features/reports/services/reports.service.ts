@@ -186,7 +186,7 @@ export async function downloadPlatformReport(id: string): Promise<void> {
   const disposition = response.headers['content-disposition'] as
     string | undefined;
   const match = disposition?.match(/filename="?([^"]+)"?/i);
-  const fileName = match?.[1] ?? `platform-report-${id}.csv`;
+  const fileName = match?.[1] ?? `platform-report-${id}.xlsx`;
 
   const url = URL.createObjectURL(response.data);
   const anchor = document.createElement('a');

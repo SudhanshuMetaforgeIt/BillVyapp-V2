@@ -22,13 +22,19 @@ All live sections accept the same inclusive `dateFrom`, `dateTo`, franchise and 
 
 Each section has a separate query/loading/error/retry state. Placeholder data from a previous filter is not displayed as current data. Generated history is independently paginated and scope/type filtered, and visibly retains original snapshot ranges instead of silently filtering by generation date.
 
-Rankings show the top 50 rows, explicitly labeled. Chart requests are bounded to 500 buckets and date ranges to ten years; use a larger interval for long ranges. Existing payment, bill-date, relationship and tenant indexes support the underlying queries. Populations and filters require aggregate/select queries rather than client-side raw-history fetching.
+Dashboard rankings show the top 50 rows, explicitly labeled. Export snapshots include every aggregated group. Chart requests are bounded to 500 buckets and date ranges to ten years; use a larger interval for long ranges. Existing payment, bill-date, relationship and tenant indexes support the underlying queries. Populations and filters require aggregate/select queries rather than client-side raw-history fetching.
 
 ## Generation and exports
 
 The configuration dialog starts with the dashboard's range, interval, sort choices and scope. Applying its configuration updates the dashboard to the same values. Generation captures all sections in a repeatable-read database transaction and persists the analytics and legacy metrics in the existing JSON snapshot. Salon IDs/names, sort choices and interval are added to snapshot metadata without a database migration; original franchise names are preserved when a business is subsequently renamed.
 
-The existing download implementation is CSV, even for old PDF/Excel metadata. New generation exposes **Excel-compatible CSV** and rejects PDF. Existing legacy files remain downloadable. No unsupported PDF/XLSX option is advertised. The export preserves all original field/value rows and appends flattened captured analytics. UTF-8 BOM supports spreadsheet readers; formula-leading text is escaped. Preview reads persisted summary data, not freshly calculated KPIs. Regeneration creates a new snapshot with the original report's dates, scope, interval and sort choices.
+Downloads now return actual ExcelJS-generated XLSX attachments with the supplied seven-sheet reference layout, Calibri typography, blue headers, rupee/percentage formats, native striped tables with filters, merged sections, frozen panes and landscape print settings. The existing generation/history/download routes and frontend blob mechanism are preserved. PDF remains unsupported.
+
+New snapshots additionally capture daily timezone-aware successful-payment totals, salon-specific payment methods, status amounts, and database franchise/salon IDs on services and membership plans. Detail rankings are complete in exports. Queries aggregate payments, bill lines and memberships separately before combining group results, avoiding join multiplication. Distinct franchise customers are queried directly rather than summed across salons. Service details group under franchise and salon, retaining the selected ranking within each salon. Salon Performance preserves the selected salon sort.
+
+Historical snapshots remain downloadable without fetching newer business data. Missing historical daily/payment ownership details are disclosed in Report Information; regenerate to capture complete details. Performance Note stays blank because the database has no editorial performance-note field or agreed rule. There is no organization model; Overall Business is the platform scope label. Super Admin authorization is enforced at both controller and service boundaries, including download, history and background processing. Franchise-admin reporting remains independently scoped to the authenticated franchise.
+
+Revenue shares use successful-payment revenue as the reference denominator. Services, fees and customer spend remain bill-based metrics and may differ from collected revenue. Current retained populations and membership statuses follow the existing report definitions.
 
 ## Verification
 
