@@ -308,6 +308,7 @@ model User {
   platformReports     PlatformReport[]     @relation("PlatformReportGeneratedBy")
   supportTickets      SupportTicket[]      @relation("SupportTicketCreatedBy")
   createdCampaigns    Campaign[]           @relation("CampaignCreatedBy")
+  createdExpenses     Expense[]            @relation("ExpenseCreatedBy")
 
   @@index([phone])
   @@index([franchiseId, salonId])
@@ -351,11 +352,13 @@ model Franchise {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  salons          Salon[]
-  users           User[]
-  platformReports PlatformReport[]
-  supportTickets  SupportTicket[]
-  subscriptions   FranchiseSubscription[]
+  salons            Salon[]
+  users             User[]
+  platformReports   PlatformReport[]
+  supportTickets    SupportTicket[]
+  subscriptions     FranchiseSubscription[]
+  expenseCategories ExpenseCategory[]
+  expenses          Expense[]
 
   @@index([isActive])
   @@map("franchises")
@@ -403,6 +406,7 @@ model Salon {
   notifications       Notification[]
   supportTickets      SupportTicket[]
   campaigns           Campaign[]
+  expenses            Expense[]
 
   /// Salon code is unique inside its franchise, not globally.
   @@unique([franchiseId, code])
@@ -1396,4 +1400,69 @@ model MembershipRedemption {
   @@index([membershipId, redeemedAt])
   @@index([billId])
   @@map("membership_redemptions")
+}
+
+// Recorded costs: no approval or lifecycle status.
+enum ExpensePaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  CHEQUE
+  OTHER
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  businessId  String   @db.VarChar(36)
+  parentId    String?  @db.VarChar(36)
+  name        String   @db.VarChar(191)
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Franchise         @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parent   ExpenseCategory?  @relation("ExpenseCategoryHierarchy", fields: [businessId, parentId], references: [businessId, id], onDelete: Restrict, onUpdate: Cascade)
+  children ExpenseCategory[] @relation("ExpenseCategoryHierarchy")
+  expenses Expense[]
+
+  // Composite references prevent categories crossing business boundaries.
+  @@unique([businessId, id])
+  @@unique([businessId, parentId, name])
+  @@index([businessId, name])
+  @@index([businessId, parentId])
+  @@index([businessId, isActive])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id            String               @id @default(uuid()) @db.VarChar(36)
+  businessId    String               @db.VarChar(36)
+  branchId      String               @db.VarChar(36)
+  categoryId    String               @db.VarChar(36)
+  expenseNumber String               @unique @db.VarChar(50)
+  amount        Decimal              @db.Decimal(12, 2)
+  expenseDate   DateTime             @db.Date
+  paymentMethod ExpensePaymentMethod
+  vendorName    String?              @db.VarChar(191)
+  description   String?              @db.Text
+  receiptUrl    String?              @db.VarChar(2048)
+  createdBy     String               @db.VarChar(36)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  business      Franchise       @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  branch        Salon           @relation(fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category      ExpenseCategory @relation(fields: [businessId, categoryId], references: [businessId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdByUser User            @relation("ExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([businessId, branchId, expenseDate])
+  @@index([businessId, categoryId, expenseDate])
+  @@index([branchId, expenseDate])
+  @@index([categoryId])
+  @@index([createdBy])
+  @@index([expenseDate])
+  @@index([businessId, paymentMethod, expenseDate])
+  @@map("expenses")
 }

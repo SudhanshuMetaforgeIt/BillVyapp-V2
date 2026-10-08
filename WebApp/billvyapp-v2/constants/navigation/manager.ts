@@ -35,6 +35,7 @@ export const MANAGER_NAVIGATION: NavSection[] = [
       { id: 'dashboard', label: 'Dashboard', href: base, icon: LayoutDashboard },
       { id: 'walk-in-billing', label: 'Walk-in Billing', href: `${base}/walk-in-billing`, icon: Receipt },
       { id: 'bills', label: 'Bills', href: `${base}/bills`, icon: FileText },
+      { id: 'expenses', label: 'Expenses', href: `${base}/expenses`, icon: Receipt },
       { id: 'appointments', label: 'Appointments', href: `${base}/appointments`, icon: CalendarDays },
       { id: 'customers', label: 'Customers', href: `${base}/customers`, icon: Users },
       { id: 'services', label: 'Services', href: `${base}/services`, icon: Scissors },

@@ -65,6 +65,7 @@ export function ManagerShell({ children }: SalonShellProps) {
   const pathname = usePathname();
   const r = ROUTES.dashboard.manager;
   const pageMeta: PageMeta = {
+    [r.expenses]: { title: 'Expenses', subtitle: 'Record and track your branch expenses.' },
     ...useRootMeta(r.root, "Here's what's happening at your salon today."),
     ...sharedMeta(r),
     [r.salonPhotos]: { title: 'Salon Photos', subtitle: 'Manage your salon cover and gallery.' },

@@ -11,6 +11,7 @@ type SuperAdminShellProps = {
 };
 
 const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
+  [ROUTES.dashboard.superAdmin.expenses]: { title: 'Expenses', subtitle: 'View recorded expenses across businesses.' },
   [ROUTES.dashboard.superAdmin.root]: {
     title: 'Dashboard',
     subtitle: 'Overview of your BillVyApp platform.',

@@ -20,6 +20,7 @@ export const ROUTES = {
   dashboard: {
     root: '/dashboard',
     superAdmin: {
+      expenses: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/expenses`,
       memberships: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/memberships`,
       root: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}`,
       businesses: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/businesses`,
@@ -37,6 +38,7 @@ export const ROUTES = {
       profile: `/dashboard/${ROLE_SEGMENTS.SUPER_ADMIN}/profile`,
     },
     admin: {
+      expenses: `/dashboard/${ROLE_SEGMENTS.ADMIN}/expenses`,
       memberships: `/dashboard/${ROLE_SEGMENTS.ADMIN}/memberships`,
       root: `/dashboard/${ROLE_SEGMENTS.ADMIN}`,
       businesses: `/dashboard/${ROLE_SEGMENTS.ADMIN}/businesses`,
@@ -60,6 +62,7 @@ export const ROUTES = {
       subscriptionRequired: `/dashboard/${ROLE_SEGMENTS.ADMIN}/subscription-required`,
     },
     manager: {
+      expenses: `/dashboard/${ROLE_SEGMENTS.MANAGER}/expenses`,
       root: `/dashboard/${ROLE_SEGMENTS.MANAGER}`,
       salonPhotos: `/dashboard/${ROLE_SEGMENTS.MANAGER}/salon-photos`,
       salonLocation: `/dashboard/${ROLE_SEGMENTS.MANAGER}/salon-location`,

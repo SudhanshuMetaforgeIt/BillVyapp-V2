@@ -66,6 +66,7 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/payments`,
         icon: CreditCard,
       },
+      { id: 'expenses', label: 'Expenses', href: `${base}/expenses`, icon: Receipt },
       {
         id: 'customers',
         label: 'Customers',
