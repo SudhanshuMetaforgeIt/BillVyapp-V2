@@ -92,3 +92,5 @@ export type CreateServiceCategoryPayload = {
   name: string;
   description?: string | null;
 };
+
+export type UpdateServicePayload = Omit<CreateServicePayload, 'salonId'>;

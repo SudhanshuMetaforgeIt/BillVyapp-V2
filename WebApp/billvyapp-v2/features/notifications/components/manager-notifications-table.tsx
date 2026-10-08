@@ -1,11 +1,12 @@
 'use client';
 
+import { useMarkNotificationsRead } from '../hooks/use-notifications';
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import {
   Bell,
   CalendarDays,
   CheckCheck,
   CreditCard,
-  MoreVertical,
   Package,
   Receipt,
   Sparkles,
@@ -79,6 +80,7 @@ export function ManagerNotificationsTable({
   markAllPending,
   canMarkAll,
 }: ManagerNotificationsTableProps) {
+  const markRead = useMarkNotificationsRead();
   return (
     <div className="app-surface-card overflow-hidden" data-dash-animate="section">
       <div className="flex flex-col gap-3 border-b border-border px-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
@@ -197,15 +199,8 @@ export function ManagerNotificationsTable({
                         </span>
                       </td>
                       <td className="px-3 py-3.5 xl:px-4">
-                        <button
-                          type="button"
-                          className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                          disabled
-                          title="Actions coming soon"
-                          aria-label={`More actions for ${row.title}`}
-                        >
-                          <MoreVertical className="size-4" />
-                        </button>
+                        <RowActionsMenu name={row.title} fields={[["Message", row.message], ["Category", row.category], ["Channel", row.channelLabel], ["Date", row.dateTimeLabel], ["Status", row.readStatusLabel]]}
+      actions={row.isUnread ? [{ label: 'Mark as read', disabled: markRead.isPending, onClick: () => markRead.mutate([row.id]) }] : []} />
                       </td>
                     </tr>
                   );

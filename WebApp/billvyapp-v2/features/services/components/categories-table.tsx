@@ -1,6 +1,7 @@
 'use client';
 
-import { MoreVertical, Pencil, Tags } from 'lucide-react';
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
+import { Pencil, Tags } from 'lucide-react';
 
 import {
   SectionEmptyState,
@@ -155,15 +156,10 @@ export function CategoriesTable({
                         )}
                       />
                     </button>
-                    <button
-                      type="button"
-                      className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      disabled
-                      title="Actions coming soon"
-                      aria-label={`More actions for ${row.name}`}
-                    >
-                      <MoreVertical className="size-4" />
-                    </button>
+                    <RowActionsMenu name={row.name}
+      fields={[["Description", row.description], ["Services", row.serviceCount], ["Status", row.statusLabel]]}
+      actions={[{ label: row.isActive ? 'Deactivate category' : 'Activate category', disabled: toggle.isPending,
+        onClick: () => toggle.mutate({ id: row.id, isActive: !row.isActive, name: row.name }) }]} />
                   </div>
                 </td>
               </tr>

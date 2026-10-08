@@ -1,6 +1,7 @@
 'use client';
 import { getBusinessRegion } from '@/lib/business-region';
 
+import { createPortal } from 'react-dom';
 import { CustomerMemberships } from '@/features/memberships/components/customer-memberships';
 import { Mail, MapPin, Phone, Receipt, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ export function CustomerDetailsDialog({
     }).format(val);
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs">
       <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -147,6 +148,7 @@ export function CustomerDetailsDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,9 +1,13 @@
 "use client";
 
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { useState } from "react";
 import { MembershipDetails } from "./membership-details";
+import { EditMemberDialog } from './edit-member-dialog';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { can } from '@/lib/capabilities';
 
-import { Eye, MoreVertical, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import {
   SectionEmptyState,
@@ -42,6 +46,9 @@ export function MembersTable({
   onPageChange,
 }: MembersTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingMember, setEditingMember] = useState<MemberListRow | null>(null);
+  const user = useCurrentUser();
+  const canEdit = can(user, 'memberships.write');
   if (isLoading) {
     return (
       <div className="space-y-3 p-5">
@@ -73,6 +80,8 @@ export function MembersTable({
   return (
     <>
       {selectedId && <MembershipDetails key={selectedId} id={selectedId} onClose={() => setSelectedId(null)} />}
+      {editingMember && <EditMemberDialog key={editingMember.id} id={editingMember.id}
+        name={editingMember.memberName} onClose={() => setEditingMember(null)} />}
       <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
         <table className="w-full min-w-[1080px] text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
@@ -145,30 +154,14 @@ export function MembersTable({
                     <button
                       type="button"
                       className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      aria-label={`View ${row.memberName}`}
-                      onClick={() => setSelectedId(row.id)}
-                      title="View membership details"
-                    >
-                      <Eye className="size-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
                       aria-label={`Edit ${row.memberName}`}
-                      disabled
-                      title="Edit coming soon"
+                      disabled={!canEdit}
+                      onClick={() => setEditingMember(row)}
+                      title="Edit membership"
                     >
                       <Pencil className="size-4" />
                     </button>
-                    <button
-                      type="button"
-                      className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      aria-label={`More actions for ${row.memberName}`}
-                      disabled
-                      title="Actions coming soon"
-                    >
-                      <MoreVertical className="size-4" />
-                    </button>
+                    <RowActionsMenu name={row.memberName} actions={[{ label: 'View membership', onClick: () => setSelectedId(row.id) }, ...(canEdit ? [{ label: 'Edit membership', onClick: () => setEditingMember(row) }] : [])]} />
                   </div>
                 </td>
               </tr>

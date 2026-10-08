@@ -691,9 +691,9 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     customersPage.data.map((customer) => [customer.id, customer]),
   );
 
-  const nonDraftToday = todayBills.data.filter((b) => b.status !== 'DRAFT');
+  const nonDraftToday = todayBills.data.filter((b) => b.status === 'COMPLETED');
   const nonDraftYesterday = yesterdayBills.data.filter(
-    (b) => b.status !== 'DRAFT',
+    (b) => b.status === 'COMPLETED',
   );
 
   const todaySales = todayPayments.data.reduce(
@@ -722,7 +722,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
       : 0;
 
   const pendingBills = [...unpaidBills.data, ...partialBills.data].filter(
-    (b) => toAmount(b.dueAmount) > 0 && b.status !== 'CANCELLED',
+    (b) => toAmount(b.dueAmount) > 0 && b.status === 'COMPLETED',
   );
   const pendingTotal = pendingBills.reduce(
     (sum, b) => sum + toAmount(b.dueAmount),
@@ -811,7 +811,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
   }
 
   for (const bill of rangeBills.data) {
-    if (bill.status === 'DRAFT' || bill.status === 'CANCELLED') continue;
+    if (bill.status !== 'COMPLETED') continue;
     const key = bill.billDate.slice(0, 10);
     const amount = toAmount(bill.paidAmount);
     if (amount <= 0) continue;
@@ -920,7 +920,7 @@ export async function fetchManagerDashboard(): Promise<ManagerDashboardData> {
     { name: string; quantity: number; revenue: number }
   >();
   for (const bill of rangeBills.data) {
-    if (bill.status === 'DRAFT' || bill.status === 'CANCELLED') continue;
+    if (bill.status !== 'COMPLETED') continue;
     for (const item of bill.items ?? []) {
       if (item.itemType !== 'SERVICE') continue;
       const amount = toAmount(item.total);

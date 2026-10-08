@@ -1,5 +1,6 @@
 'use client';
 
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { getCurrencySymbol } from '@/lib/business-region';
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -7,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit2,
-  MoreVertical,
   Plus,
   User,
 } from 'lucide-react';
@@ -231,14 +231,7 @@ export function StaffTable({
                         >
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => onViewStaff(member)}
-                          title="More options"
-                          className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
+                        <RowActionsMenu name={member.name} actions={[{ label: 'View staff', onClick: () => onViewStaff(member) }, { label: 'Edit staff', onClick: () => onEditStaff(member) }]} />
                       </div>
                     </td>
                   </tr>

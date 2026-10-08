@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect, useId } from 'react';
 import {
   Building2,
@@ -86,7 +87,7 @@ export function UserDetailsDialog({
 
   if (!open || !userId) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
       role="presentation"
@@ -275,6 +276,7 @@ export function UserDetailsDialog({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

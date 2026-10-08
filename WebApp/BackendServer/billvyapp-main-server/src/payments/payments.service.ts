@@ -137,6 +137,10 @@ export class PaymentsService {
     }
     if (query.status) {
       filters.push({ status: query.status });
+      // Legacy refunded bills may still have SUCCESS payment rows.
+      if (query.status === PaymentStatus.SUCCESS) {
+        billFilters.push({ status: BillStatus.COMPLETED });
+      }
     }
     if (query.paymentMethod) {
       filters.push({ paymentMethod: query.paymentMethod });

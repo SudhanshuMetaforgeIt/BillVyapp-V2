@@ -1,6 +1,7 @@
 'use client';
 
-import { MoreVertical, Pencil, Scissors } from 'lucide-react';
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
+import { Pencil, Scissors } from 'lucide-react';
 
 import {
   SectionEmptyState,
@@ -19,6 +20,7 @@ type ServicesTableProps = {
   isError?: boolean;
   onRetry?: () => void;
   onPageChange: (page: number) => void;
+  onEditService?: (row: ServiceListRow) => void;
 };
 
 export function ServicesTable({
@@ -28,6 +30,7 @@ export function ServicesTable({
   isError,
   onRetry,
   onPageChange,
+  onEditService,
 }: ServicesTableProps) {
   const toggle = useToggleServiceStatus();
 
@@ -130,8 +133,9 @@ export function ServicesTable({
                       type="button"
                       className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
                       aria-label={`Edit ${row.name}`}
-                      disabled
-                      title="Edit coming soon"
+                      disabled={!onEditService}
+                      onClick={() => onEditService?.(row)}
+                      title="Edit service"
                     >
                       <Pencil className="size-4" />
                     </button>
@@ -160,15 +164,10 @@ export function ServicesTable({
                         )}
                       />
                     </button>
-                    <button
-                      type="button"
-                      className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      aria-label={`More actions for ${row.name}`}
-                      disabled
-                      title="Actions coming soon"
-                    >
-                      <MoreVertical className="size-4" />
-                    </button>
+                    <RowActionsMenu name={row.name}
+      fields={[["Description", row.description], ["Category", row.categoryLabel], ["Price", row.priceLabel], ["Duration", row.durationLabel], ["Status", row.statusLabel]]}
+      actions={[...(onEditService ? [{ label: 'Edit service', onClick: () => onEditService(row) }] : []), { label: row.isActive ? 'Deactivate service' : 'Activate service', disabled: toggle.isPending,
+        onClick: () => toggle.mutate({ id: row.id, isActive: !row.isActive, name: row.name }) }]} />
                   </div>
                 </td>
               </tr>

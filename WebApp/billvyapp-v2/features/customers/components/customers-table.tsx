@@ -1,8 +1,9 @@
 "use client";
 
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
+import { Modal } from '@/components/data/modal';
 import { memo, useState } from "react";
 import { CustomerMemberships } from "@/features/memberships/components/customer-memberships";
-import { Eye, MoreVertical } from "lucide-react";
 
 import {
   SectionEmptyState,
@@ -90,23 +91,7 @@ const CustomerTableRow = memo(function CustomerTableRow({
       </td>
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-            aria-label={`View ${row.fullName}`}
-            onClick={() => onView(row)}
-          >
-            <Eye className="size-4" />
-          </button>
-          <button
-            type="button"
-            className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-            aria-label={`More actions for ${row.fullName}`}
-            disabled
-            title="Actions coming soon"
-          >
-            <MoreVertical className="size-4" />
-          </button>
+          <RowActionsMenu name={row.fullName} actions={[{ label: 'View customer', onClick: () => onView(row) }]} />
         </div>
       </td>
     </tr>
@@ -129,25 +114,19 @@ export const CustomersTable = memo(function CustomersTable({
       data-dash-animate="section"
     >
       {selectedCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Customer memberships"
-            className="app-dialog app-surface-card max-h-[90vh] w-full max-w-lg overflow-y-auto p-5"
-          >
-            <button
-              className="float-right"
-              onClick={() => setSelectedCustomer(null)}
-            >
-              Close
-            </button>
+        <Modal open onClose={() => setSelectedCustomer(null)} title={selectedCustomer.fullName}>
+            <div className="mb-5 space-y-2 text-sm text-text">
+              <p>Phone: {selectedCustomer.phone || '—'}</p>
+              <p>Email: {selectedCustomer.email || '—'}</p>
+              <p>Total visits: {selectedCustomer.totalVisitsLabel}</p>
+              <p>Total spend: {selectedCustomer.totalSpendLabel}</p>
+              <p>Status: {selectedCustomer.statusLabel}</p>
+            </div>
             <CustomerMemberships
               key={selectedCustomer.id}
               customerId={selectedCustomer.id}
             />
-          </div>
-        </div>
+        </Modal>
       )}
       {isLoading ? (
         <div className="space-y-3 p-5">

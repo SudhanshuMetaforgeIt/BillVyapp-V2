@@ -1,6 +1,7 @@
 'use client';
 
 import { SelectInput } from '@/components/data/form-fields';
+import { createPortal } from 'react-dom';
 import { useEffect, useId } from 'react';
 import { X } from 'lucide-react';
 
@@ -67,7 +68,7 @@ export function SupportTicketDetailsDialog({
 
   if (!open || !ticket) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
       role="presentation"
@@ -195,6 +196,7 @@ export function SupportTicketDetailsDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

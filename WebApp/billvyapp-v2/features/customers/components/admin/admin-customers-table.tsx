@@ -1,5 +1,6 @@
 'use client';
 
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { getBusinessRegion } from '@/lib/business-region';
 import { getCurrencySymbol } from '@/lib/business-region';
 
@@ -8,8 +9,6 @@ import { SelectInput } from '@/components/data/form-fields';
 import {
   ChevronLeft,
   ChevronRight,
-  Eye,
-  MoreVertical,
   Plus,
   Receipt,
 } from 'lucide-react';
@@ -186,28 +185,13 @@ export function AdminCustomersTable({
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
-                            onClick={() => onViewCustomer(c)}
-                            title="View Customer Profile"
-                            className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
                             onClick={() => onViewCustomerBills?.(c)}
                             title="View Bills"
                             className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
                           >
                             <Receipt className="h-4 w-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => onViewCustomer(c)}
-                            title="More options"
-                            className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
+                          <RowActionsMenu name={c.name} actions={[{ label: 'View customer', onClick: () => onViewCustomer(c) }, ...(onViewCustomerBills ? [{ label: 'View bills', onClick: () => onViewCustomerBills(c) }] : [])]} />
                         </div>
                       </td>
                     </tr>

@@ -11,6 +11,7 @@ import type {
   ServicesListParams,
   ServicesPageData,
   CategoryListRow,
+  UpdateServicePayload,
 } from '../types/services.types';
 
 async function countServices(isActive?: boolean) {
@@ -228,6 +229,14 @@ export async function fetchServicesPage(
 
 export async function createService(payload: CreateServicePayload) {
   return api.post<ServiceApiItem>('/services', payload);
+}
+
+export async function fetchService(id: string) {
+  return api.get<ServiceApiItem>(`/services/${id}`);
+}
+
+export async function updateService(id: string, payload: UpdateServicePayload) {
+  return api.patch<ServiceApiItem>(`/services/${id}`, payload);
 }
 
 export async function createServiceCategory(

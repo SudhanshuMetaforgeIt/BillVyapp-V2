@@ -158,10 +158,9 @@ export async function fetchAdminStaff(
   const salonMap = new Map(rawSalons.map((s) => [s.id, s.name]));
 
   // Map to StaffItem
-  const staffList: StaffItem[] = rawUsers.map((u, idx) => {
+  const staffList: StaffItem[] = rawUsers.map((u) => {
     const fullName =
       `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Staff Member';
-    const shortCode = `ST${String(idx + 1).padStart(3, '0')}`;
     const branchName =
       u.salon?.name ||
       (u.salonId ? salonMap.get(u.salonId) : null) ||
@@ -187,7 +186,7 @@ export async function fetchAdminStaff(
       name: fullName,
       firstName: u.firstName,
       lastName: u.lastName,
-      staffCode: shortCode,
+      staffCode: u.id,
       roleName,
       roleCode: u.role?.code || 'STAFF',
       branchName,
@@ -232,9 +231,6 @@ export async function fetchAdminStaff(
     }
   }
 
-  // Placeholder for onLeave (can be 0 or derived)
-  const onLeaveCount = 0;
-
   const calcPct = (cnt: number, tot: number) =>
     tot > 0 ? Number(((cnt / tot) * 100).toFixed(1)) : 0;
 
@@ -242,8 +238,9 @@ export async function fetchAdminStaff(
     totalStaff: totalStaffCount,
     activeStaff: activeCount,
     activeStaffPct: calcPct(activeCount, totalStaffCount),
-    onLeave: onLeaveCount,
-    onLeavePct: calcPct(onLeaveCount, totalStaffCount),
+    // The users API does not expose attendance or leave records.
+    onLeave: null,
+    onLeavePct: null,
     inactiveStaff: inactiveCount,
     inactiveStaffPct: calcPct(inactiveCount, totalStaffCount),
     totalPayrollThisMonth: totalPayroll,

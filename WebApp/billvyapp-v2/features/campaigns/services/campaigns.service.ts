@@ -10,70 +10,37 @@ import type {
   CampaignsPageData,
 } from '../types/campaigns.types';
 
-function zeroMetrics(): DashboardMetric[] {
-  return [
-    {
-      id: 'camp-total',
-      label: 'Total Campaigns',
-      value: '0',
-      rawValue: 0,
-      comparisonLabel: 'no campaigns API yet',
-      changePercent: null,
-      tone: 'accent',
-      comparisonIsPlaceholder: true,
-    },
-    {
-      id: 'camp-active',
-      label: 'Active Campaigns',
-      value: '0',
-      rawValue: 0,
-      comparisonLabel: 'no campaigns API yet',
-      changePercent: null,
-      tone: 'success',
-      comparisonIsPlaceholder: true,
-    },
-    {
-      id: 'camp-upcoming',
-      label: 'Upcoming Campaigns',
-      value: '0',
-      rawValue: 0,
-      comparisonLabel: 'no campaigns API yet',
-      changePercent: null,
-      tone: 'neutral',
-      comparisonIsPlaceholder: true,
-    },
-    {
-      id: 'camp-completed',
-      label: 'Completed Campaigns',
-      value: '0',
-      rawValue: 0,
-      comparisonLabel: 'no campaigns API yet',
-      changePercent: null,
-      tone: 'neutral',
-      comparisonIsPlaceholder: true,
-    },
-  ];
-}
-
-/**
- * Campaigns are not implemented on the backend yet (no Prisma model / routes).
- * Return an honest empty payload so the UI matches the mockup without inventing data.
- */
+/** Counts use API pagination totals, independent of the selected status and page. */
 export async function fetchCampaignsPage(
   params: CampaignsListParams,
 ): Promise<CampaignsPageData> {
   const statusMap: Record<string, string | undefined> = { active: 'ACTIVE', upcoming: 'SCHEDULED', completed: 'COMPLETED', draft: 'DRAFT' };
-  const result = await api.get<Paginated<Campaign>>('/campaigns', { params: { page: params.page, limit: params.limit, search: params.search || undefined, status: statusMap[params.statusTab] } });
-  const count = (status: string) => result.data.filter((campaign) => campaign.status === status).length;
+  const search = params.search.trim() || undefined;
+  const [result, total, active, upcoming, completed, draft, cancelled] = await Promise.all([
+    api.get<Paginated<Campaign>>('/campaigns', { params: { page: params.page, limit: params.limit, search, status: statusMap[params.statusTab] } }),
+    ...[undefined, 'ACTIVE', 'SCHEDULED', 'COMPLETED', 'DRAFT', 'CANCELLED'].map((status) =>
+      api.get<Paginated<Campaign>>('/campaigns', { params: { page: 1, limit: 1, search, status } }),
+    ),
+  ]);
+  const metric = (id: string, label: string, count: number, tone: DashboardMetric['tone']): DashboardMetric => ({
+    id, label, value: String(count), rawValue: count, comparisonLabel: 'current total',
+    changePercent: null, tone, comparisonIsPlaceholder: false,
+  });
   return {
     rows: result.data.map((campaign) => ({ campaign, id: campaign.id, name: campaign.name, description: campaign.description ?? '', typeLabel: campaign.type, typeTone: 'promotion', periodLabel: campaign.startDate && campaign.endDate ? `${new Date(campaign.startDate).toLocaleDateString()} – ${new Date(campaign.endDate).toLocaleDateString()}` : 'Not scheduled', audienceLabel: campaign.targetAudience.replaceAll('_', ' '), status: campaign.status === 'SCHEDULED' ? 'upcoming' : campaign.status.toLowerCase() as CampaignStatusTab, statusLabel: campaign.status })),
     meta: result.meta,
-    metrics: [{ ...zeroMetrics()[0], value: String(result.meta.total), rawValue: result.meta.total, comparisonLabel: 'campaigns' }, { ...zeroMetrics()[1], value: String(count('ACTIVE')), rawValue: count('ACTIVE'), comparisonLabel: 'active now' }, { ...zeroMetrics()[2], value: String(count('SCHEDULED')), rawValue: count('SCHEDULED'), comparisonLabel: 'scheduled' }, { ...zeroMetrics()[3], value: String(count('COMPLETED')), rawValue: count('COMPLETED'), comparisonLabel: 'completed' }],
+    metrics: [
+      metric('camp-total', 'Total Campaigns', total.meta.total, 'accent'),
+      metric('camp-active', 'Active Campaigns', active.meta.total, 'success'),
+      metric('camp-upcoming', 'Upcoming Campaigns', upcoming.meta.total, 'neutral'),
+      metric('camp-completed', 'Completed Campaigns', completed.meta.total, 'neutral'),
+    ],
     summary: [
-      { status: 'Active', count: 0, tone: 'success' },
-      { status: 'Upcoming', count: 0, tone: 'warning' },
-      { status: 'Completed', count: 0, tone: 'neutral' },
-      { status: 'Draft', count: 0, tone: 'muted' },
+      { status: 'Active', count: active.meta.total, tone: 'success' },
+      { status: 'Upcoming', count: upcoming.meta.total, tone: 'warning' },
+      { status: 'Completed', count: completed.meta.total, tone: 'neutral' },
+      { status: 'Draft', count: draft.meta.total, tone: 'muted' },
+      { status: 'Cancelled', count: cancelled.meta.total, tone: 'muted' },
     ],
     apiUnavailable: false,
   };

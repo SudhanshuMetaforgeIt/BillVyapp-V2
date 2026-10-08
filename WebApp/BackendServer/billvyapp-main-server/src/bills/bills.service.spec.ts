@@ -167,6 +167,7 @@ function billRow(overrides: Record<string, unknown> = {}) {
 
 describe('BillsService', () => {
   const prisma = {
+    payment: { updateMany: jest.fn() },
     bill: {
       findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
@@ -922,6 +923,42 @@ describe('BillsService', () => {
         ctx,
       ),
     ).rejects.toThrow('Insufficient stock');
+  });
+
+  it('refunds successful payments and clears collection and dues in the bill transaction', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow({
+      status: BillStatus.COMPLETED, paidAmount: '500.00', dueAmount: '442.82',
+      paymentStatus: BillPaymentStatus.PARTIAL,
+    }));
+    prisma.payment.updateMany.mockResolvedValue({ count: 1 });
+    prisma.bill.update.mockResolvedValue(billRow({
+      status: BillStatus.REFUNDED, paidAmount: '0.00', dueAmount: '0.00',
+      paymentStatus: BillPaymentStatus.REFUNDED,
+    }));
+    const result = await service.updateStatus(manager, 'bill-1', { status: BillStatus.REFUNDED }, ctx);
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { billId: 'bill-1', status: PaymentStatus.SUCCESS },
+      data: { status: PaymentStatus.REFUNDED },
+    });
+    expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      where: { billId: 'bill-1', status: PaymentStatus.PENDING },
+      data: { status: PaymentStatus.CANCELLED },
+    });
+    expect(prisma.bill.update).toHaveBeenCalledWith(expect.objectContaining({ data: {
+      status: BillStatus.REFUNDED, paidAmount: '0.00', dueAmount: '0.00',
+      paymentStatus: BillPaymentStatus.REFUNDED,
+    } }));
+    expect(result.paidAmount).toBe('0.00');
+    expect(result.dueAmount).toBe('0.00');
+    expect(result.paymentStatus).toBe(BillPaymentStatus.REFUNDED);
+  });
+
+  it('does not update the bill when a refund payment update fails', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow({ status: BillStatus.COMPLETED, paidAmount: '942.82' }));
+    prisma.payment.updateMany.mockRejectedValue(new Error('Database update failed'));
+    await expect(service.updateStatus(manager, 'bill-1', { status: BillStatus.REFUNDED }, ctx))
+      .rejects.toThrow('Database update failed');
+    expect(prisma.bill.update).not.toHaveBeenCalled();
   });
 
   it('rejects cancelling a bill with payments', async () => {

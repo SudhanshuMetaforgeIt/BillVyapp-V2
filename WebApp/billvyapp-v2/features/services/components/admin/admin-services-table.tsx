@@ -1,5 +1,6 @@
 'use client';
 
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { getCurrencySymbol } from '@/lib/business-region';
 import { formatCurrency } from '@/lib/format';
 
@@ -7,7 +8,6 @@ import { useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   Pencil,
   Plus,
   Scissors,
@@ -180,13 +180,9 @@ export function AdminServicesTable({
                         </button>
 
                         {/* More menu */}
-                        <button
-                          type="button"
-                          className="rounded-lg p-1.5 text-text-secondary hover:bg-champagne-light hover:text-charcoal transition"
-                          aria-label="More actions"
-                        >
-                          <MoreVertical className="size-4" />
-                        </button>
+                        <RowActionsMenu name={s.name} fields={[["Description", s.description], ["Category", s.categoryName], ["Branch", s.branchName], ["Price", formatCurrency(s.price)], ["Duration", `${s.durationMinutes} mins`], ["Status", s.isActive ? 'Active' : 'Inactive']]}
+      actions={[...(onEditService ? [{ label: 'Edit service', onClick: () => onEditService(s) }] : []),
+        { label: s.isActive ? 'Deactivate service' : 'Activate service', disabled: togglingId === s.id, onClick: () => void handleToggle(s) }]} />
                       </div>
                     </td>
                   </tr>

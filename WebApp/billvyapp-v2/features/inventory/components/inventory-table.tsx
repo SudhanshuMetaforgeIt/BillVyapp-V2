@@ -1,6 +1,7 @@
 'use client';
 
-import { MoreVertical, Package } from 'lucide-react';
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
+import { Package } from 'lucide-react';
 
 import {
   SectionEmptyState,
@@ -147,15 +148,9 @@ export function InventoryTable({
                             Adjust
                           </Button>
                         ) : null}
-                        <button
-                          type="button"
-                          className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                          aria-label={`More actions for ${row.productName}`}
-                          disabled
-                          title="Actions coming soon"
-                        >
-                          <MoreVertical className="size-4" />
-                        </button>
+                        <RowActionsMenu name={row.productName}
+      fields={[["SKU", row.productSku], ["Category", row.categoryLabel], ["On hand", row.quantityOnHand], ["Reserved", row.reservedQuantity], ["Available", row.availableQuantity], ["Reorder level", row.reorderLevel], ["Average cost", row.averageCostLabel], ["Last stocked", row.lastStockedLabel], ["Status", row.stockStatusLabel]]}
+      actions={onAdjustRow ? [{ label: 'Adjust stock', onClick: () => onAdjustRow(row) }] : []} />
                       </div>
                     </td>
                   </tr>

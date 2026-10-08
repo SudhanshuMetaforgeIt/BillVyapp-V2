@@ -473,6 +473,10 @@ export async function createMembership(payload: CreateMembershipPayload) {
   return api.post<MembershipApiItem>('/memberships', payload);
 }
 
+export async function updateMembership(id: string, payload: import('../types/memberships.types').UpdateMembershipPayload) {
+  return api.patch<MembershipApiItem>(`/memberships/${id}`, payload);
+}
+
 export async function createMembershipPlan(
   payload: CreateMembershipPlanPayload,
 ) {

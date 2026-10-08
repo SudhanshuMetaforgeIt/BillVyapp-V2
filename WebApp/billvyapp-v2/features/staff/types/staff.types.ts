@@ -4,8 +4,8 @@ export type StaffStats = {
   totalStaff: number;
   activeStaff: number;
   activeStaffPct: number;
-  onLeave: number;
-  onLeavePct: number;
+  onLeave: number | null;
+  onLeavePct: number | null;
   inactiveStaff: number;
   inactiveStaffPct: number;
   totalPayrollThisMonth: number;

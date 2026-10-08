@@ -9,12 +9,14 @@ import {
   createMembershipPlan,
   updateMembershipPlan,
   setMembershipPlanStatus,
+  updateMembership,
 } from "../services/memberships.service";
 import type {
   CreateMembershipPayload,
   CreateMembershipPlanPayload,
   MembershipApiItem,
   MembershipPlanApiItem,
+  UpdateMembershipPayload,
 } from "../types/memberships.types";
 
 export function useCreateMembership(
@@ -34,6 +36,21 @@ export function useCreateMembership(
     onError: (error) => {
       toast.error(error.message);
     },
+  });
+}
+
+export function useUpdateMembership(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation<MembershipApiItem, ApiError, { id: string; payload: UpdateMembershipPayload }>({
+    mutationFn: ({ id, payload }) => updateMembership(id, payload),
+    onSuccess: () => {
+      toast.success('Membership updated');
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey.includes('memberships'),
+      });
+      onSuccess?.();
+    },
+    onError: (error) => toast.error(error.message),
   });
 }
 

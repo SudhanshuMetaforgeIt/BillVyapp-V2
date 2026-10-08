@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { createPortal } from 'react-dom';
-import { MoreVertical, Pencil, Power, Tags, UserRound } from 'lucide-react';
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
+import { UserRound } from 'lucide-react';
 
 import {
   SectionEmptyState,
@@ -47,138 +46,22 @@ function statusTone(
 
 function RowActions({
   row,
-  menuOpen,
-  onToggleMenu,
-  onCloseMenu,
   onEditBusiness,
   onEnrollPlan,
   onToggleStatus,
   statusPending,
 }: {
   row: BusinessListRow;
-  menuOpen: boolean;
-  onToggleMenu: () => void;
-  onCloseMenu: () => void;
   onEditBusiness: (row: BusinessListRow) => void;
   onEnrollPlan: (row: BusinessListRow) => void;
   onToggleStatus: (row: BusinessListRow) => void;
   statusPending: boolean;
 }) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      setPos(null);
-      return;
-    }
-
-    const place = () => {
-      const el = triggerRef.current;
-      if (!el) return;
-      if (el.getClientRects().length === 0) {
-        setPos(null);
-        return;
-      }
-      const rect = el.getBoundingClientRect();
-      const width = 168;
-      setPos({
-        top: rect.bottom + 6,
-        left: Math.min(rect.right - width, window.innerWidth - width - 8),
-      });
-    };
-    place();
-
-    const onPointerDown = (event: PointerEvent) => {
-      const t = event.target as Node;
-      if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      onCloseMenu();
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseMenu();
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKey);
-    window.addEventListener('resize', place);
-    window.addEventListener('scroll', place, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKey);
-      window.removeEventListener('resize', place);
-      window.removeEventListener('scroll', place, true);
-    };
-  }, [menuOpen, onCloseMenu]);
-
-  const runAction =
-    (action: () => void) => (event: ReactPointerEvent<HTMLButtonElement>) => {
-      // Fire on pointerdown so the document outside-close listener cannot
-      // unmount the menu before a click handler would run.
-      event.preventDefault();
-      event.stopPropagation();
-      if (statusPending) return;
-      onCloseMenu();
-      action();
-    };
-
-  const menu =
-    menuOpen && pos && typeof document !== 'undefined'
-      ? createPortal(
-          <div
-            ref={menuRef}
-            role="menu"
-            className="fixed z-[300] min-w-[10.5rem] overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg"
-            style={{ top: pos.top, left: pos.left, width: 168 }}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text hover:bg-champagne-light"
-              onPointerDown={runAction(() => onEditBusiness(row))}
-            >
-              <Pencil className="size-3.5 text-text-secondary" aria-hidden />
-              Edit
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text hover:bg-champagne-light"
-              onPointerDown={runAction(() => onEnrollPlan(row))}
-            >
-              <Tags className="size-3.5 text-text-secondary" aria-hidden />
-              {row.subscriptionActive ? 'Change plan' : 'Enroll plan'}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              disabled={statusPending}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text hover:bg-champagne-light disabled:opacity-50"
-              onPointerDown={runAction(() => onToggleStatus(row))}
-            >
-              <Power className="size-3.5 text-text-secondary" aria-hidden />
-              {row.isActive ? 'Suspend' : 'Activate'}
-            </button>
-          </div>,
-          document.body,
-        )
-      : null;
-
-  return (
-    <div className="flex items-center justify-end gap-1">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="rounded-md p-1.5 text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-        aria-label={`More actions for ${row.name}`}
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        onClick={onToggleMenu}
-      >
-        <MoreVertical className="size-4" />
-      </button>
-      {menu}
-    </div>
-  );
+  return <RowActionsMenu name={row.name} actions={[
+    { label: 'Edit business', onClick: () => onEditBusiness(row) },
+    { label: row.subscriptionActive ? 'Change plan' : 'Enroll plan', onClick: () => onEnrollPlan(row) },
+    { label: row.isActive ? 'Suspend' : 'Activate', disabled: statusPending, onClick: () => onToggleStatus(row) },
+  ]} />;
 }
 
 export function BusinessesTable({
@@ -193,8 +76,6 @@ export function BusinessesTable({
   onToggleStatus,
   statusPendingId,
 }: BusinessesTableProps) {
-  const [menuRowId, setMenuRowId] = useState<string | null>(null);
-  const closeMenu = useCallback(() => setMenuRowId(null), []);
 
   return (
     <div className="app-panel app-surface-card min-w-0" data-dash-animate="section">
@@ -285,13 +166,6 @@ export function BusinessesTable({
                     <td className="px-5 py-3.5">
                       <RowActions
                         row={row}
-                        menuOpen={menuRowId === row.id}
-                        onToggleMenu={() =>
-                          setMenuRowId((current) =>
-                            current === row.id ? null : row.id,
-                          )
-                        }
-                        onCloseMenu={closeMenu}
                         onEditBusiness={onEditBusiness}
                         onEnrollPlan={onEnrollPlan}
                         onToggleStatus={onToggleStatus}
@@ -329,13 +203,6 @@ export function BusinessesTable({
                     />
                     <RowActions
                       row={row}
-                      menuOpen={menuRowId === row.id}
-                      onToggleMenu={() =>
-                        setMenuRowId((current) =>
-                          current === row.id ? null : row.id,
-                        )
-                      }
-                      onCloseMenu={closeMenu}
                       onEditBusiness={onEditBusiness}
                       onEnrollPlan={onEnrollPlan}
                       onToggleStatus={onToggleStatus}

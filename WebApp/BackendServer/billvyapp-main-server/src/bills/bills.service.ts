@@ -966,9 +966,20 @@ export class BillsService {
           inventoryAudits.push(...adjustments);
         }
 
-        const paidAmount = this.asNumber(locked.paidAmount);
+        if (next === BillStatus.REFUNDED) {
+          // A full bill refund must remove its collections from payment-based revenue.
+          await tx.payment.updateMany({
+            where: { billId: locked.id, status: PaymentStatus.SUCCESS },
+            data: { status: PaymentStatus.REFUNDED },
+          });
+          await tx.payment.updateMany({
+            where: { billId: locked.id, status: PaymentStatus.PENDING },
+            data: { status: PaymentStatus.CANCELLED },
+          });
+        }
+        const paidAmount = next === BillStatus.REFUNDED ? 0 : this.asNumber(locked.paidAmount);
         const total = this.asNumber(locked.total);
-        const dueAmount = this.roundMoney(total - paidAmount);
+        const dueAmount = next === BillStatus.REFUNDED ? 0 : this.roundMoney(total - paidAmount);
         const paymentStatus = this.derivePaymentStatus(
           paidAmount,
           dueAmount,
@@ -979,6 +990,7 @@ export class BillsService {
           where: { id: existing.id },
           data: {
             status: next,
+            paidAmount: this.decimalString(paidAmount),
             dueAmount: this.decimalString(dueAmount),
             paymentStatus,
           },

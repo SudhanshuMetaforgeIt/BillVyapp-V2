@@ -165,6 +165,23 @@ describe('PaymentsService', () => {
     );
   });
 
+  it('excludes refunded bills from successful-payment totals used by dashboards', async () => {
+    prisma.payment.count.mockResolvedValue(0);
+    await service.list(manager, { status: PaymentStatus.SUCCESS });
+    expect(prisma.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { AND: [
+        { bill: { AND: [{}, { status: BillStatus.COMPLETED }] } },
+        { status: PaymentStatus.SUCCESS },
+      ] },
+    }));
+    expect(prisma.payment.count).toHaveBeenCalledWith(expect.objectContaining({
+      where: { AND: [
+        { bill: { AND: [{}, { status: BillStatus.COMPLETED }] } },
+        { status: PaymentStatus.SUCCESS },
+      ] },
+    }));
+  });
+
   it('creates a SUCCESS payment and recalculates bill amounts', async () => {
     const created = paymentRow();
     prisma.payment.create.mockResolvedValue(created);
