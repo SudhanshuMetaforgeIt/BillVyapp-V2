@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSettingsDraftField } from '../hooks/use-settings-draft-field';
+import type { SecuritySettings } from '../services/settings.service';
 import toast from 'react-hot-toast';
 
 import {
@@ -47,38 +48,16 @@ function fail(error: unknown) {
   toast.error(isApiError(error) ? error.message : 'Could not save settings.');
 }
 
-function ensureOption(value: string, options: { value: string; label: string }[]) {
+function ensureOption(
+  value: string,
+  options: { value: string; label: string }[],
+) {
   if (options.some((o) => o.value === value)) return options;
   return [{ value, label: value }, ...options];
 }
 
 export function SettingsSecurityPanel() {
   const query = useSecuritySettings();
-  const savePolicy = useUpdatePasswordPolicy();
-  const saveSession = useUpdateSessionSettings();
-
-  const [minLength, setMinLength] = useState('8');
-  const [requireUppercase, setRequireUppercase] = useState(false);
-  const [requireLowercase, setRequireLowercase] = useState(false);
-  const [requireNumbers, setRequireNumbers] = useState(false);
-  const [requireSpecial, setRequireSpecial] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState('30');
-  const [maxAttempts, setMaxAttempts] = useState('5');
-  const [lockoutDuration, setLockoutDuration] = useState('15');
-
-  useEffect(() => {
-    const data = query.data;
-    if (!data) return;
-    setMinLength(String(data.passwordPolicy.minLength));
-    setRequireUppercase(data.passwordPolicy.requireUppercase);
-    setRequireLowercase(data.passwordPolicy.requireLowercase);
-    setRequireNumbers(data.passwordPolicy.requireNumbers);
-    setRequireSpecial(data.passwordPolicy.requireSpecial);
-    setSessionTimeout(String(data.session.timeoutMinutes));
-    setMaxAttempts(String(data.session.maxLoginAttempts));
-    setLockoutDuration(String(data.session.lockoutDurationMinutes));
-  }, [query.data]);
-
   if (query.isLoading && !query.data) {
     return <Skeleton className="h-80 w-full rounded-xl" />;
   }
@@ -102,11 +81,60 @@ export function SettingsSecurityPanel() {
     );
   }
 
+  return <SecuritySettingsForm data={query.data} />;
+}
+
+function SecuritySettingsForm({ data }: { data: SecuritySettings }) {
+  const savePolicy = useUpdatePasswordPolicy();
+  const saveSession = useUpdateSessionSettings();
+  const [minLength, setMinLength, resetMinLength] = useSettingsDraftField(
+    String(data.passwordPolicy.minLength),
+  );
+  const [requireUppercase, setRequireUppercase, resetUppercase] =
+    useSettingsDraftField(data.passwordPolicy.requireUppercase);
+  const [requireLowercase, setRequireLowercase, resetLowercase] =
+    useSettingsDraftField(data.passwordPolicy.requireLowercase);
+  const [requireNumbers, setRequireNumbers, resetNumbers] =
+    useSettingsDraftField(data.passwordPolicy.requireNumbers);
+  const [requireSpecial, setRequireSpecial, resetSpecial] =
+    useSettingsDraftField(data.passwordPolicy.requireSpecial);
+  const [sessionTimeout, setSessionTimeout, resetSessionTimeout] =
+    useSettingsDraftField(String(data.session.timeoutMinutes));
+  const [maxAttempts, setMaxAttempts, resetMaxAttempts] = useSettingsDraftField(
+    String(data.session.maxLoginAttempts),
+  );
+  const [lockoutDuration, setLockoutDuration, resetLockout] =
+    useSettingsDraftField(String(data.session.lockoutDurationMinutes));
+  const validMinLength =
+    minLength.trim() !== '' &&
+    Number.isInteger(Number(minLength)) &&
+    Number(minLength) >= 6 &&
+    Number(minLength) <= 128;
   const flags = [
-    { id: 'require-uppercase', label: 'Require Uppercase', checked: requireUppercase, onChange: setRequireUppercase },
-    { id: 'require-lowercase', label: 'Require Lowercase', checked: requireLowercase, onChange: setRequireLowercase },
-    { id: 'require-numbers', label: 'Require Numbers', checked: requireNumbers, onChange: setRequireNumbers },
-    { id: 'require-special', label: 'Require Special Characters', checked: requireSpecial, onChange: setRequireSpecial },
+    {
+      id: 'require-uppercase',
+      label: 'Require Uppercase',
+      checked: requireUppercase,
+      onChange: setRequireUppercase,
+    },
+    {
+      id: 'require-lowercase',
+      label: 'Require Lowercase',
+      checked: requireLowercase,
+      onChange: setRequireLowercase,
+    },
+    {
+      id: 'require-numbers',
+      label: 'Require Numbers',
+      checked: requireNumbers,
+      onChange: setRequireNumbers,
+    },
+    {
+      id: 'require-special',
+      label: 'Require Special Characters',
+      checked: requireSpecial,
+      onChange: setRequireSpecial,
+    },
   ];
 
   return (
@@ -118,12 +146,22 @@ export function SettingsSecurityPanel() {
       >
         <SettingsTextField
           id="min-password-length"
+          disabled={savePolicy.isPending}
           label="Minimum Length"
           type="number"
           value={minLength}
           onChange={setMinLength}
           placeholder="e.g. 8"
         />
+        {!validMinLength && (
+          <p role="alert" className="text-sm text-red-600">
+            Enter a whole number between 6 and 128.
+          </p>
+        )}
+        <p className="text-xs text-text-secondary">
+          These rules apply when creating a password. Existing passwords
+          continue to work.
+        </p>
         <ul className="space-y-3">
           {flags.map((flag) => (
             <li
@@ -137,25 +175,33 @@ export function SettingsSecurityPanel() {
                 id={flag.id}
                 label={flag.label}
                 checked={flag.checked}
+                disabled={savePolicy.isPending}
                 onCheckedChange={flag.onChange}
               />
             </li>
           ))}
         </ul>
         <SettingsSaveButton
-          disabled={savePolicy.isPending}
+          disabled={savePolicy.isPending || !validMinLength}
           label={savePolicy.isPending ? 'Saving…' : 'Save Policy'}
           onClick={() =>
             savePolicy.mutate(
               {
-                minLength: Number(minLength) || 8,
+                minLength: Number(minLength),
                 requireUppercase,
                 requireLowercase,
                 requireNumbers,
                 requireSpecial,
               },
               {
-                onSuccess: () => toast.success('Password policy saved'),
+                onSuccess: () => {
+                  resetMinLength();
+                  resetUppercase();
+                  resetLowercase();
+                  resetNumbers();
+                  resetSpecial();
+                  toast.success('Password policy saved');
+                },
                 onError: fail,
               },
             )
@@ -200,7 +246,12 @@ export function SettingsSecurityPanel() {
                 lockoutDurationMinutes: Number(lockoutDuration) || 15,
               },
               {
-                onSuccess: () => toast.success('Session settings saved'),
+                onSuccess: () => {
+                  resetSessionTimeout();
+                  resetMaxAttempts();
+                  resetLockout();
+                  toast.success('Session settings saved');
+                },
                 onError: fail,
               },
             )

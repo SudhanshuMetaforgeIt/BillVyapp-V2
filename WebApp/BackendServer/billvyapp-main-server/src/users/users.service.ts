@@ -140,6 +140,7 @@ export class UsersService {
     this.assertRoleScope(role.code, franchiseId, salonId);
     await this.assertFranchiseSalonPair(franchiseId, salonId);
 
+    await this.passwords.assertPolicy(dto.password);
     const passwordHash = await this.passwords.hash(dto.password);
 
     try {

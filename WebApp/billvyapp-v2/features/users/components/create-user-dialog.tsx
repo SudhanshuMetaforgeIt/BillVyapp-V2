@@ -123,7 +123,8 @@ export function CreateUserDialog({
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 8 &&
+    password.length >= 6 &&
+    password.length <= 128 &&
     (!needsFranchise || Boolean(franchiseId)) &&
     (!needsSalon || Boolean(salonId));
 
@@ -299,9 +300,9 @@ export function CreateUserDialog({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={8}
+              minLength={6}
               maxLength={128}
-              placeholder="At least 8 characters"
+              placeholder="Must meet the platform password policy"
             />
           </div>
 

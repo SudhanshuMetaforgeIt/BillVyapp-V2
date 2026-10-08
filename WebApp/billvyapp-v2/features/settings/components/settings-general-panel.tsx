@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSettingsDraftField } from '../hooks/use-settings-draft-field';
+import type { GeneralSettings } from '../services/settings.service';
 import toast from 'react-hot-toast';
 
 import {
@@ -42,32 +43,6 @@ function fail(error: unknown) {
 
 export function SettingsGeneralPanel() {
   const query = useGeneralSettings();
-  const saveGeneral = useUpdateGeneral();
-  const saveBranding = useUpdateBranding();
-  const saveMaintenance = useUpdateMaintenance();
-
-  const [platformName, setPlatformName] = useState('');
-  const [tagline, setTagline] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [contactNumber, setContactNumber] = useState('');
-  const [timezone, setTimezone] = useState('Asia/Kolkata');
-  const [dateFormat, setDateFormat] = useState('DD MMM YYYY');
-  const [primaryColor, setPrimaryColor] = useState('');
-  const [secondaryColor, setSecondaryColor] = useState('');
-
-  useEffect(() => {
-    const data = query.data;
-    if (!data) return;
-    setPlatformName(data.platformName ?? '');
-    setTagline(data.tagline ?? '');
-    setAdminEmail(data.adminEmail ?? '');
-    setContactNumber(data.contactNumber ?? '');
-    setTimezone(data.timezone || 'Asia/Kolkata');
-    setDateFormat(data.dateFormat || 'DD MMM YYYY');
-    setPrimaryColor(data.primaryColor ?? '');
-    setSecondaryColor(data.secondaryColor ?? '');
-  }, [query.data]);
-
   if (query.isLoading && !query.data) {
     return (
       <div className="space-y-6">
@@ -95,6 +70,46 @@ export function SettingsGeneralPanel() {
       </DashboardSectionCard>
     );
   }
+
+  return <GeneralSettingsForm data={query.data} />;
+}
+
+function ensureOption(
+  value: string,
+  options: { value: string; label: string }[],
+) {
+  return options.some((option) => option.value === value)
+    ? options
+    : [{ value, label: value }, ...options];
+}
+
+function GeneralSettingsForm({ data }: { data: GeneralSettings }) {
+  const saveGeneral = useUpdateGeneral();
+  const saveBranding = useUpdateBranding();
+  const saveMaintenance = useUpdateMaintenance();
+  const [platformName, setPlatformName, resetName] = useSettingsDraftField(
+    data.platformName,
+  );
+  const [tagline, setTagline, resetTagline] = useSettingsDraftField(
+    data.tagline ?? '',
+  );
+  const [adminEmail, setAdminEmail, resetEmail] = useSettingsDraftField(
+    data.adminEmail,
+  );
+  const [contactNumber, setContactNumber, resetContact] = useSettingsDraftField(
+    data.contactNumber ?? '',
+  );
+  const [timezone, setTimezone, resetTimezone] = useSettingsDraftField(
+    data.timezone,
+  );
+  const [dateFormat, setDateFormat, resetDateFormat] = useSettingsDraftField(
+    data.dateFormat,
+  );
+  const [primaryColor, setPrimaryColor, resetPrimary] = useSettingsDraftField(
+    data.primaryColor ?? '',
+  );
+  const [secondaryColor, setSecondaryColor, resetSecondary] =
+    useSettingsDraftField(data.secondaryColor ?? '');
 
   return (
     <div className="space-y-6 xl:space-y-7">
@@ -139,7 +154,7 @@ export function SettingsGeneralPanel() {
             label="Timezone"
             value={timezone}
             onChange={setTimezone}
-            options={TIMEZONE_OPTIONS}
+            options={ensureOption(timezone, TIMEZONE_OPTIONS)}
             placeholder="Select timezone"
           />
           <SettingsSelectField
@@ -147,12 +162,14 @@ export function SettingsGeneralPanel() {
             label="Date Format"
             value={dateFormat}
             onChange={setDateFormat}
-            options={DATE_FORMAT_OPTIONS}
+            options={ensureOption(dateFormat, DATE_FORMAT_OPTIONS)}
             placeholder="Select date format"
           />
         </div>
         <SettingsSaveButton
-          disabled={saveGeneral.isPending}
+          disabled={
+            saveGeneral.isPending || !platformName.trim() || !adminEmail.trim()
+          }
           label={saveGeneral.isPending ? 'Saving…' : 'Save Changes'}
           onClick={() =>
             saveGeneral.mutate(
@@ -165,7 +182,15 @@ export function SettingsGeneralPanel() {
                 dateFormat,
               },
               {
-                onSuccess: () => toast.success('General settings saved'),
+                onSuccess: () => {
+                  resetName();
+                  resetTagline();
+                  resetEmail();
+                  resetContact();
+                  resetTimezone();
+                  resetDateFormat();
+                  toast.success('General settings saved');
+                },
                 onError: fail,
               },
             )
@@ -179,7 +204,8 @@ export function SettingsGeneralPanel() {
         bodyClassName="space-y-5"
       >
         <p className="text-xs text-text-secondary">
-          Logo and favicon uploads use the media upload flow. Colors update immediately.
+          Logo and favicon uploads use the media upload flow. Colors update
+          immediately.
         </p>
         <div className="grid gap-4 panel-md:grid-cols-2">
           <ColorField
@@ -207,7 +233,11 @@ export function SettingsGeneralPanel() {
                 secondaryColor: secondaryColor.trim() || null,
               },
               {
-                onSuccess: () => toast.success('Branding saved'),
+                onSuccess: () => {
+                  resetPrimary();
+                  resetSecondary();
+                  toast.success('Branding saved');
+                },
                 onError: fail,
               },
             )
@@ -221,17 +251,22 @@ export function SettingsGeneralPanel() {
         bodyClassName="flex items-center justify-between gap-4"
       >
         <div>
-          <p className="text-sm font-medium text-text">Enable maintenance mode</p>
+          <p className="text-sm font-medium text-text">
+            Enable maintenance mode
+          </p>
           <p className="text-xs text-text-secondary">
             Temporarily take the platform offline for users.
           </p>
         </div>
         <SettingsToggle
-          checked={query.data.maintenanceMode}
+          checked={data.maintenanceMode}
+          disabled={saveMaintenance.isPending}
           onCheckedChange={(next) =>
             saveMaintenance.mutate(next, {
               onSuccess: () =>
-                toast.success(next ? 'Maintenance mode on' : 'Maintenance mode off'),
+                toast.success(
+                  next ? 'Maintenance mode on' : 'Maintenance mode off',
+                ),
               onError: fail,
             })
           }

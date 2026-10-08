@@ -108,7 +108,11 @@ describe('UsersService', () => {
   };
   const scope = { userTableScope: jest.fn().mockReturnValue({}) };
   const audit = { record: jest.fn() };
-  const passwords = { hash: jest.fn(), verify: jest.fn() };
+  const passwords = {
+    hash: jest.fn(),
+    verify: jest.fn(),
+    assertPolicy: jest.fn().mockResolvedValue(undefined),
+  };
   let service: UsersService;
 
   beforeEach(() => {
@@ -178,8 +182,11 @@ describe('UsersService', () => {
       }),
     );
     expect(
-      (prisma.user.findMany.mock.calls[0][0] as { where: Record<string, unknown> })
-        .where.role,
+      (
+        prisma.user.findMany.mock.calls[0][0] as {
+          where: Record<string, unknown>;
+        }
+      ).where.role,
     ).toBeUndefined();
     expect(result.data).toEqual([customer]);
     expect(result.meta.total).toBe(1);

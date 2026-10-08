@@ -20,6 +20,7 @@ import {
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { AllowDuringMaintenance } from '../common/decorators/allow-during-maintenance.decorator';
 import { SkipSubscription } from '../common/decorators/skip-subscription.decorator';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -49,6 +50,7 @@ type TokenBundle = {
 
 @ApiTags('Auth')
 @Controller('auth')
+@AllowDuringMaintenance()
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
@@ -87,7 +89,10 @@ export class AuthController {
   })
   @ApiResponse({ status: 201, type: AuthResponseDto })
   @ApiResponse({ status: 400, description: 'Validation failed' })
-  @ApiResponse({ status: 409, description: 'Email or phone already registered' })
+  @ApiResponse({
+    status: 409,
+    description: 'Email or phone already registered',
+  })
   @ApiResponse({ status: 429, description: 'Too many registration attempts' })
   async register(
     @Body() dto: RegisterCustomerDto,

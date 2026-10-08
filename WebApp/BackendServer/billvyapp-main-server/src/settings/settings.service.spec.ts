@@ -150,6 +150,23 @@ describe('SettingsService', () => {
     );
   });
 
+  it('rejects blank general fields and unsupported timezones before writing', async () => {
+    await expect(service.updateGeneral(actor, { platformName: '   ' }, ctx)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.updateGeneral(actor, { timezone: 'Not/A_Timezone' }, ctx)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.platformSettings.update).not.toHaveBeenCalled();
+  });
+
+  it('rehydrates dates returned from a warm JSON cache', async () => {
+    const row = settingsRow();
+    const cache = { wrap: jest.fn().mockResolvedValue(JSON.parse(JSON.stringify(row))) };
+    const cached = new SettingsService(prisma as unknown as PrismaService, audit as unknown as AuditService,
+      media as unknown as MediaService, redis as unknown as RedisService, cache as unknown as CacheService);
+    const result = await cached.getGeneral();
+    expect(result.updatedAt).toBeInstanceOf(Date);
+    expect(result.updatedAt.toISOString()).toBe(row.updatedAt.toISOString());
+    expect(prisma.platformSettings.findUnique).not.toHaveBeenCalled();
+  });
+
   it('never returns smtp password from email settings', async () => {
     prisma.platformSettings.findUnique.mockResolvedValue(
       settingsRow({

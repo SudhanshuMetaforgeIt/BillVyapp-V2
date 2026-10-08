@@ -126,7 +126,10 @@ export function getSecuritySettings(): Promise<SecuritySettings> {
 export function updatePasswordPolicy(
   body: SecuritySettings['passwordPolicy'],
 ): Promise<SecuritySettings> {
-  return api.patch<SecuritySettings>('/settings/security/password-policy', body);
+  return api.patch<SecuritySettings>(
+    '/settings/security/password-policy',
+    body,
+  );
 }
 
 export function updateSessionSettings(
@@ -205,7 +208,9 @@ export function getLogRetention(): Promise<LogRetention> {
   return api.get<LogRetention>('/settings/logs/retention');
 }
 
-export function updateLogRetention(retentionDays: number): Promise<LogRetention> {
+export function updateLogRetention(
+  retentionDays: number,
+): Promise<LogRetention> {
   return api.patch<LogRetention>('/settings/logs/retention', { retentionDays });
 }
 
@@ -232,7 +237,10 @@ export function listSettingsActivity(page = 1, limit = 20) {
   });
 }
 
-export function clearSettingsCache(): Promise<{ message: string; deletedKeys?: number }> {
+export function clearSettingsCache(): Promise<{
+  message: string;
+  deletedKeys?: number;
+}> {
   return api.post<{ message: string; deletedKeys?: number }>(
     '/settings/cache/clear',
     { confirm: true },
@@ -263,19 +271,27 @@ export type SystemUpdateStatus = {
 };
 
 export function createSettingsBackup(): Promise<SettingsBackup> {
-  return api.post<SettingsBackup>('/settings/backup');
+  return api.post<SettingsBackup>('/settings/backup', undefined, {
+    timeout: 6 * 60_000,
+  });
 }
 
 export function listSettingsBackups(): Promise<SettingsBackup[]> {
   return api.get<SettingsBackup[]>('/settings/backups');
 }
 
-export function restoreSettingsBackup(backupId?: string): Promise<SettingsBackup> {
-  return api.post<SettingsBackup>('/settings/restore', {
-    confirm: true,
-    confirmationPhrase: 'RESTORE',
-    ...(backupId ? { backupId } : {}),
-  });
+export function restoreSettingsBackup(
+  backupId?: string,
+): Promise<SettingsBackup> {
+  return api.post<SettingsBackup>(
+    '/settings/restore',
+    {
+      confirm: true,
+      confirmationPhrase: 'RESTORE',
+      ...(backupId ? { backupId } : {}),
+    },
+    { timeout: 16 * 60_000 },
+  );
 }
 
 export function checkSystemUpdateStatus(): Promise<SystemUpdateStatus> {

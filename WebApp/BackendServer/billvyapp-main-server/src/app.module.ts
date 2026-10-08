@@ -16,6 +16,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ScopeGuard } from './common/guards/scope.guard';
 import { SubscriptionActiveGuard } from './common/guards/subscription-active.guard';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { ScopeModule } from './common/scope/scope.module';
 import { DatetimeModule } from './common/datetime/datetime.module';
 
@@ -130,6 +131,7 @@ import { ExpensesModule } from './expenses/expenses.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },
+    { provide: APP_GUARD, useClass: MaintenanceGuard },
     { provide: APP_GUARD, useClass: SubscriptionActiveGuard },
 
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
