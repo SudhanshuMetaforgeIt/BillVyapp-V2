@@ -17,6 +17,7 @@ import { useServices } from '../hooks/use-services';
 import type {
   ServiceStatusFilter,
   ServicesTab,
+  ServiceListRow,
 } from '../types/services.types';
 const LazyAddCategoryDialog = dynamic(() => import('./add-category-dialog').then((module) => module.AddCategoryDialog), { loading: () => <p role="status">Opening dialog…</p> });
 function AddCategoryDialog(props: import('react').ComponentProps<typeof import('./add-category-dialog').AddCategoryDialog>) {
@@ -30,6 +31,7 @@ import { CategoriesTable } from './categories-table';
 import { ServicesFilters } from './services-filters';
 import { ServicesTable } from './services-table';
 import { ServicesTabs } from './services-tabs';
+import { EditServiceDialog } from './edit-service-dialog';
 
 import { can } from '@/lib/capabilities';
 
@@ -49,6 +51,7 @@ export function ServicesPageView() {
   const [page, setPage] = useState(1);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [editingService, setEditingService] = useState<ServiceListRow | null>(null);
 
   useEffect(() => {
     setPage(1);
@@ -154,6 +157,7 @@ export function ServicesPageView() {
 
             {tab === 'services' ? (
               <ServicesTable
+                onEditService={can(user, 'catalog.write') ? setEditingService : undefined}
                 rows={data?.serviceRows ?? []}
                 meta={{ ...(data?.serviceMeta ?? emptyMeta), page }}
                 isLoading={query.isLoading && !data}
@@ -190,6 +194,9 @@ export function ServicesPageView() {
         onOpenChange={setAddCategoryOpen}
         salonId={salonId}
       />
+      {editingService && <EditServiceDialog key={editingService.id}
+        service={editingService} categoryOptions={data?.categoryOptions ?? []}
+        onClose={() => setEditingService(null)} />}
     </>
   );
 }

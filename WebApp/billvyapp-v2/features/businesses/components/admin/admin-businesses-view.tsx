@@ -1,5 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
+import { Modal } from '@/components/data/modal';
 
 import { useRef, useState } from 'react';
 
@@ -32,6 +33,7 @@ export function AdminBusinessesView() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editBusinessOpen, setEditBusinessOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<AdminBranchItem | null>(null);
+  const [viewingBranch, setViewingBranch] = useState<AdminBranchItem | null>(null);
 
   useGSAP(
     () => {
@@ -68,7 +70,7 @@ export function AdminBusinessesView() {
           <AdminBranchesTable
             branches={data?.branches ?? []}
             onAddBranch={() => setCreateDialogOpen(true)}
-            onViewBranch={(branch) => setEditingBranch(branch)}
+            onViewBranch={setViewingBranch}
             onEditBranch={(branch) => setEditingBranch(branch)}
           />
         </div>
@@ -97,6 +99,16 @@ export function AdminBusinessesView() {
         onClose={() => setEditingBranch(null)}
         branch={editingBranch}
       />
+      <Modal open={Boolean(viewingBranch)} onClose={() => setViewingBranch(null)} title={viewingBranch?.name ?? 'Branch'}>
+        {viewingBranch && <dl className="space-y-3 text-sm text-text">
+          <div><dt className="text-text-secondary">Code</dt><dd>{viewingBranch.code}</dd></div>
+          <div><dt className="text-text-secondary">Location</dt><dd>{viewingBranch.location}</dd></div>
+          <div><dt className="text-text-secondary">Manager</dt><dd>{viewingBranch.managerName ?? '—'}</dd></div>
+          <div><dt className="text-text-secondary">Manager phone</dt><dd>{viewingBranch.managerPhone ?? '—'}</dd></div>
+          <div><dt className="text-text-secondary">Staff</dt><dd>{viewingBranch.staffCount ?? '—'}</dd></div>
+          <div><dt className="text-text-secondary">Status</dt><dd>{viewingBranch.status}</dd></div>
+        </dl>}
+      </Modal>
     </div>
   );
 }

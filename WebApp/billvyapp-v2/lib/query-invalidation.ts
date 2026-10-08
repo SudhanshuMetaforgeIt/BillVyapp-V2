@@ -13,6 +13,7 @@ export type QueryDomain =
   | 'products'
   | 'vendors'
   | 'purchases'
+  | 'expenses'
   | 'memberships'
   | 'loyalty'
   | 'notifications'
@@ -56,6 +57,7 @@ export const INVALIDATION_MAP: Record<QueryDomain, QueryDomain[]> = {
   products: ['products', 'inventory'],
   vendors: ['vendors'],
   purchases: ['purchases', 'inventory', 'stock-movements'],
+  expenses: ['expenses'],
   memberships: ['memberships', 'dashboard'],
   loyalty: ['loyalty'],
   notifications: ['notifications'],

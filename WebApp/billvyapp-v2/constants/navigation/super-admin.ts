@@ -1,6 +1,7 @@
 import {
   Building2,
   CreditCard,
+  Receipt,
   FileBarChart2,
   Headset,
   History,
@@ -51,6 +52,7 @@ export const SUPER_ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/payments`,
         icon: CreditCard,
       },
+      { id: 'expenses', label: 'Expenses', href: `${base}/expenses`, icon: Receipt },
       {
         id: 'users',
         label: 'Users',

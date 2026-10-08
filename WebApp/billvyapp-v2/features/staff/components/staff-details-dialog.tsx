@@ -1,9 +1,10 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { getBusinessRegion } from '@/lib/business-region';
 import { getCurrencySymbol } from '@/lib/business-region';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Briefcase,
   Calendar,
@@ -31,15 +32,9 @@ export function StaffDetailsDialog({
   onClose,
 }: StaffDetailsDialogProps) {
   const updateStaff = useUpdateStaff();
-  const [salary, setSalary] = useState('');
+  const [salary, setSalary] = useState(staff && staff.salary > 0 ? String(staff.salary) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!staff) return;
-    setSalary(staff.salary > 0 ? String(staff.salary) : '');
-    setError(null);
-  }, [staff]);
 
   if (!isOpen || !staff) return null;
 
@@ -75,7 +70,7 @@ export function StaffDetailsDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-xs">
       <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-800 dark:bg-stone-900 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-stone-100 pb-4 dark:border-stone-800">
@@ -201,6 +196,7 @@ export function StaffDetailsDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

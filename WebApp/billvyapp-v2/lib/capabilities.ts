@@ -41,6 +41,9 @@ export const CAPABILITIES = {
   'productVendors.read': ALL,
   'productVendors.write': MANAGEMENT,
   'purchases.manage': INTERNAL,
+  'expenses.read': MANAGEMENT,
+  'expenses.write': ['ADMIN', 'MANAGER'],
+  'expenseCategories.write': ['ADMIN'],
   'inventory.read': INTERNAL,
   'inventory.adjust': MANAGEMENT,
 

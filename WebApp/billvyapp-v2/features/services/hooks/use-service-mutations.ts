@@ -10,16 +10,31 @@ import {
   createServiceCategory,
   updateCategoryStatus,
   updateServiceStatus,
+  updateService,
 } from '../services/services.service';
 import type {
   CreateServiceCategoryPayload,
   CreateServicePayload,
   ServiceApiItem,
   ServiceCategoryApiItem,
+  UpdateServicePayload,
 } from '../types/services.types';
 
 function invalidate(queryClient: ReturnType<typeof useQueryClient>) {
   void invalidateAfter(queryClient, 'services');
+}
+
+export function useUpdateService(onSuccess?: () => void) {
+  const queryClient = useQueryClient();
+  return useMutation<ServiceApiItem, ApiError, { id: string; payload: UpdateServicePayload }>({
+    mutationFn: ({ id, payload }) => updateService(id, payload),
+    onSuccess: (row) => {
+      toast.success(`${row.name} updated`);
+      invalidate(queryClient);
+      onSuccess?.();
+    },
+    onError: (error) => toast.error(error.message),
+  });
 }
 
 export function useCreateService(onSuccess?: (row: ServiceApiItem) => void) {

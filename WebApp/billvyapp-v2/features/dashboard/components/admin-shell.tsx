@@ -12,6 +12,7 @@ type AdminShellProps = {
 };
 
 const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
+  [ROUTES.dashboard.admin.expenses]: { title: 'Expenses', subtitle: 'Track expenses across your business and branches.' },
   [ROUTES.dashboard.admin.root]: {
     title: 'Dashboard',
     subtitle: 'Overview of your franchise on BillVyApp.',

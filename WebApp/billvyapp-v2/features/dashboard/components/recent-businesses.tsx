@@ -1,7 +1,7 @@
 'use client';
 
+import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import Link from 'next/link';
-import { MoreVertical } from 'lucide-react';
 
 import {
   DashboardSectionCard,
@@ -122,13 +122,7 @@ export function RecentBusinesses({
                       />
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <button
-                        type="button"
-                        className="rounded-md p-1.5 text-text-secondary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                        aria-label={`Actions for ${row.name}`}
-                      >
-                        <MoreVertical className="size-4" />
-                      </button>
+                      <RowActionsMenu name={row.name} fields={[["Business code", row.code], ["Owner", row.ownerLabel], ["Plan", row.planLabel], ["Status", row.statusLabel]]} />
                     </td>
                   </tr>
                 ))}

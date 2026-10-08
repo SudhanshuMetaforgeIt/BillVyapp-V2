@@ -49,6 +49,8 @@ export function StaffFilters({
               <button
                 key={tab.id}
                 type="button"
+                disabled={tab.id === 'ON_LEAVE'}
+                title={tab.id === 'ON_LEAVE' ? 'Leave data unavailable' : undefined}
                 onClick={() => onChange({ statusTab: tab.id, page: 1 })}
                 className={`relative whitespace-nowrap pb-2 text-sm font-medium transition-colors ${
                   isActive
@@ -150,7 +152,7 @@ export function StaffFilters({
           >
             <option value="all">All Status</option>
             <option value="ACTIVE">Active</option>
-            <option value="ON_LEAVE">On Leave</option>
+            <option value="ON_LEAVE" disabled>On Leave (unavailable)</option>
             <option value="INACTIVE">Inactive</option>
           </SelectInput>
 

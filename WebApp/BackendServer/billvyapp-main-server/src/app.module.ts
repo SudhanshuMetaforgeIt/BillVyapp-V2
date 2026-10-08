@@ -53,6 +53,7 @@ import { SettingsModule } from './settings/settings.module';
 import { SupportTicketsModule } from './support-tickets/support-tickets.module';
 import { UsersModule } from './users/users.module';
 import { VendorsModule } from './vendors/vendors.module';
+import { ExpensesModule } from './expenses/expenses.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { VendorsModule } from './vendors/vendors.module';
     ProductCategoriesModule,
     ProductsModule,
     VendorsModule,
+    ExpensesModule,
     PurchasesModule,
     InventoryModule,
     BillsModule,

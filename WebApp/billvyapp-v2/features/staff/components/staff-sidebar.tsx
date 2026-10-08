@@ -33,7 +33,7 @@ export function StaffSidebar({
   const active = stats.activeStaff;
   const onLeave = stats.onLeave;
   const inactive = stats.inactiveStaff;
-  const other = Math.max(0, total - (active + onLeave + inactive));
+  const other = Math.max(0, total - (active + inactive));
 
   // Donut chart calculations
   const radius = 42;
@@ -46,7 +46,6 @@ export function StaffSidebar({
 
     const segments = [
       { count: active, color: '#22c55e' }, // Green
-      { count: onLeave, color: '#f59e0b' }, // Amber
       { count: inactive, color: '#ef4444' }, // Red
       { count: other, color: '#a8a29e' }, // Gray
     ];
@@ -151,8 +150,8 @@ export function StaffSidebar({
                 <span className="text-stone-600 dark:text-stone-400 font-medium">On Leave</span>
               </div>
               <span className="font-semibold text-stone-800 dark:text-stone-200">
-                {onLeave.toLocaleString('en-IN')}{' '}
-                <span className="font-normal text-stone-400">({stats.onLeavePct}%)</span>
+                {onLeave?.toLocaleString('en-IN') ?? 'Unavailable'}{' '}
+                {stats.onLeavePct !== null && <span className="font-normal text-stone-400">({stats.onLeavePct}%)</span>}
               </span>
             </div>
 

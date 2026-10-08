@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useEffect, useId, type ReactNode } from 'react';
 
@@ -39,9 +40,9 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, busy, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal(
     <div
       className={cn(
         'fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4',
@@ -82,6 +83,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

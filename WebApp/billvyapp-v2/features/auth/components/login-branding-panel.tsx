@@ -1,8 +1,5 @@
 import { AuthAuroraBackground } from './auth-aurora-background';
-import {
-  DashboardPreview,
-  FeatureHighlights,
-} from './dashboard-preview';
+import { FeatureHighlights } from './dashboard-preview';
 import { BrandLogo } from './brand-logo';
 
 /** Left branding column for auth pages (desktop) / compact header (mobile). */
@@ -71,10 +68,6 @@ export function LoginBrandingPanel({ compact = false }: { compact?: boolean }) {
           BillVyApp is the all-in-one platform to manage businesses, clients,
           payments, and reports efficiently.
         </p>
-
-        <div data-auth-animate="preview" className="mt-6 min-w-0 w-full xl:mt-10">
-          <DashboardPreview />
-        </div>
       </div>
 
       <div className="relative z-10 w-full min-w-0 max-w-full shrink-0 pt-2">

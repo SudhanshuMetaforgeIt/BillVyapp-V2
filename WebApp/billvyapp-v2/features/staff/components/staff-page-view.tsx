@@ -42,8 +42,8 @@ export function StaffPageView() {
     totalStaff: 0,
     activeStaff: 0,
     activeStaffPct: 0,
-    onLeave: 0,
-    onLeavePct: 0,
+    onLeave: null,
+    onLeavePct: null,
     inactiveStaff: 0,
     inactiveStaffPct: 0,
     totalPayrollThisMonth: 0,
@@ -120,6 +120,7 @@ export function StaffPageView() {
 
       {/* Staff Details Modal */}
       <StaffDetailsDialog
+        key={viewingStaff?.id ?? 'closed'}
         staff={viewingStaff}
         isOpen={!!viewingStaff}
         onClose={() => setViewingStaff(null)}

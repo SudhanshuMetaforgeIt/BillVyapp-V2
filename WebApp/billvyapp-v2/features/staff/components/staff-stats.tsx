@@ -49,8 +49,8 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
     {
       id: 'on-leave',
       label: 'On Leave',
-      value: stats.onLeave.toLocaleString('en-IN'),
-      subtitle: `${stats.onLeavePct}% of total`,
+      value: stats.onLeave?.toLocaleString('en-IN') ?? '—',
+      subtitle: stats.onLeavePct === null ? 'Leave data unavailable' : `${stats.onLeavePct}% of total`,
       subtitleColor: 'text-rose-600 dark:text-rose-400',
       icon: CalendarOff,
       iconBg: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',

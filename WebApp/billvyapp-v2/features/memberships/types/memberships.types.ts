@@ -16,6 +16,11 @@ export type MembershipStatus = "PENDING" | "ACTIVE" | "EXPIRED" | "CANCELLED";
 
 export type MembershipStatusFilter = "all" | MembershipStatus | "expiring";
 
+export type UpdateMembershipPayload = {
+  membershipPlanId?: string;
+  startDate?: string;
+};
+
 export type MembershipApiItem = {
   id: string;
   couponCode?: string | null;
