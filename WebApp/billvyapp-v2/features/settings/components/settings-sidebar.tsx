@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { isApiError } from '@/services/api-client';
+import { useLogout } from '@/features/auth/hooks/use-logout';
 import {
   useCheckSystemUpdate,
   useClearCache,
@@ -36,7 +37,7 @@ const QUICK_ACTIONS = [
   {
     id: 'backup',
     label: 'Backup Database',
-    description: 'Create a platform settings snapshot',
+    description: 'Back up all application data',
     icon: DatabaseBackup,
   },
   {
@@ -67,6 +68,7 @@ type SettingsSidebarProps = {
   isError?: boolean;
   onRetry?: () => void;
   onViewLogs?: () => void;
+  onReset?: () => void;
 };
 
 function healthRows(health: SystemHealth) {
@@ -94,17 +96,19 @@ export function SettingsSidebar({
   isError,
   onRetry,
   onViewLogs,
+  onReset,
 }: SettingsSidebarProps) {
   const createBackup = useCreateBackup();
+  const { logout } = useLogout();
   const restoreBackup = useRestoreBackup();
   const checkUpdate = useCheckSystemUpdate();
   const clearCache = useClearCache();
   const resetSettings = useResetSettings();
   const backupsQuery = useSettingsBackups();
 
-  const [busyAction, setBusyAction] = useState<QuickActionId | 'cache' | 'reset' | null>(
-    null,
-  );
+  const [busyAction, setBusyAction] = useState<
+    QuickActionId | 'cache' | 'reset' | null
+  >(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [restorePhrase, setRestorePhrase] = useState('');
@@ -124,7 +128,9 @@ export function SettingsSidebar({
       setBusyAction('backup');
       createBackup.mutate(undefined, {
         onSuccess: (res) => {
-          toast.success(res.message ?? `Backup created (${res.id.slice(0, 8)}…)`);
+          toast.success(
+            res.message ?? `Backup created (${res.id.slice(0, 8)}…)`,
+          );
           void backupsQuery.refetch();
         },
         onError: (error) => fail(error, 'Could not create backup.'),
@@ -135,6 +141,10 @@ export function SettingsSidebar({
 
     if (id === 'restore') {
       void backupsQuery.refetch().then((result) => {
+        if (result.error) {
+          fail(result.error, 'Could not load database backups.');
+          return;
+        }
         const list = result.data ?? [];
         if (list.length === 0) {
           toast.error('No backups available. Create a backup first.');
@@ -176,9 +186,11 @@ export function SettingsSidebar({
     setBusyAction('restore');
     restoreBackup.mutate(selectedBackupId || undefined, {
       onSuccess: (res) => {
-        toast.success(res.message ?? 'Settings restored from backup.');
+        toast.success(res.message ?? 'Database restored from backup.');
         setRestoreOpen(false);
         setRestorePhrase('');
+        // Restored users and sessions may differ from the current browser identity.
+        void logout();
       },
       onError: (error) => fail(error, 'Could not restore backup.'),
       onSettled: () => setBusyAction(null),
@@ -194,6 +206,7 @@ export function SettingsSidebar({
     resetSettings.mutate(undefined, {
       onSuccess: () => {
         toast.success('Platform settings restored to defaults.');
+        onReset?.();
         setResetOpen(false);
         setResetPhrase('');
       },
@@ -359,7 +372,7 @@ export function SettingsSidebar({
         open={restoreOpen}
         onClose={() => !restoreBackup.isPending && setRestoreOpen(false)}
         title="Restore Database"
-        description="Restore platform settings and integrations from a previous snapshot. Type RESTORE to confirm."
+        description="Replace all application data with the selected database backup, including bills, customers, expenses and settings. Changes made after that backup will be lost. A recovery backup is created first. Type RESTORE to confirm."
         busy={restoreBackup.isPending}
       >
         <div className="space-y-4">
@@ -398,7 +411,11 @@ export function SettingsSidebar({
             <Button
               type="button"
               variant="destructive"
-              disabled={restoreBackup.isPending || !selectedBackupId}
+              disabled={
+                restoreBackup.isPending ||
+                !selectedBackupId ||
+                restorePhrase !== 'RESTORE'
+              }
               onClick={submitRestore}
             >
               {restoreBackup.isPending ? 'Restoring…' : 'Restore'}

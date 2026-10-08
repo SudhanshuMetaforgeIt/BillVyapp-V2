@@ -228,6 +228,7 @@ export class AuthService {
       throw new ConflictException('Phone already belongs to a staff account');
     }
 
+    await this.passwords.assertPolicy(dto.password);
     const passwordHash = await this.passwords.hash(dto.password);
     const customerCode = `CUST-${randomBytes(4).toString('hex').toUpperCase()}`;
 

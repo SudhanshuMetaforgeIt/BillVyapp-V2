@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { PageTransition } from '@/components/layout/page-transition';
 import { useLikelyNextPagesPrefetch } from '@/hooks/use-likely-next-pages-prefetch';
 import { AppShellSkeleton } from '@/components/skeletons/app-shell-skeleton';
+import { MaintenanceGate } from '@/components/layout/maintenance-gate';
 
 type AppShellProps = {
   children: ReactNode;
@@ -71,14 +72,17 @@ export function AppShell({
     }
 
     const expected = ROLE_SEGMENTS[user.role];
-    if (pathname.startsWith('/dashboard/') && !pathname.includes(`/${expected}`)) {
+    if (
+      pathname.startsWith('/dashboard/') &&
+      !pathname.includes(`/${expected}`)
+    ) {
       router.replace(dashboardHomeFor(user.role));
     }
   }, [status, user, requiredRole, router, pathname]);
 
   const sections = useMemo(
     () => (user ? navigationForRole(user.role) : []),
-    [user?.role],
+    [user],
   );
 
   if (status === 'loading' || !user) {
@@ -90,45 +94,47 @@ export function AppShell({
   }
 
   return (
-    <div className="app-dashboard flex h-svh overflow-hidden bg-ivory text-text">
-      <AppSidebar
-        sections={sections}
-        role={user.role}
-        mobileOpen={sidebarOpen}
-        onCloseMobile={handleCloseMobile}
-        collapsed={sidebarCollapsed}
-      />
+    <MaintenanceGate>
+      <div className="app-dashboard flex h-svh overflow-hidden bg-ivory text-text">
+        <AppSidebar
+          sections={sections}
+          role={user.role}
+          mobileOpen={sidebarOpen}
+          onCloseMobile={handleCloseMobile}
+          collapsed={sidebarCollapsed}
+        />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {!hidePageHeader ? (
-          <AppHeader
-            user={user}
-            title={title}
-            subtitle={subtitle}
-            notificationCount={notificationCount}
-            onOpenSidebar={handleOpenMobile}
-            onToggleCollapsed={handleToggleCollapsed}
-            sidebarCollapsed={sidebarCollapsed}
-          />
-        ) : (
-          <AppHeader
-            user={user}
-            notificationCount={notificationCount}
-            onOpenSidebar={handleOpenMobile}
-            onToggleCollapsed={handleToggleCollapsed}
-            sidebarCollapsed={sidebarCollapsed}
-          />
-        )}
-
-        <main
-          className={cn(
-            'app-dashboard-content min-h-0 min-w-0 flex-1 overflow-y-auto py-5 lg:py-6',
-            contentClassName,
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {!hidePageHeader ? (
+            <AppHeader
+              user={user}
+              title={title}
+              subtitle={subtitle}
+              notificationCount={notificationCount}
+              onOpenSidebar={handleOpenMobile}
+              onToggleCollapsed={handleToggleCollapsed}
+              sidebarCollapsed={sidebarCollapsed}
+            />
+          ) : (
+            <AppHeader
+              user={user}
+              notificationCount={notificationCount}
+              onOpenSidebar={handleOpenMobile}
+              onToggleCollapsed={handleToggleCollapsed}
+              sidebarCollapsed={sidebarCollapsed}
+            />
           )}
-        >
-          <PageTransition key={pathname}>{children}</PageTransition>
-        </main>
+
+          <main
+            className={cn(
+              'app-dashboard-content min-h-0 min-w-0 flex-1 overflow-y-auto py-5 lg:py-6',
+              contentClassName,
+            )}
+          >
+            <PageTransition key={pathname}>{children}</PageTransition>
+          </main>
+        </div>
       </div>
-    </div>
+    </MaintenanceGate>
   );
 }

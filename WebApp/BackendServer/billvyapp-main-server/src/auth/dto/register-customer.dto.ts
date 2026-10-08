@@ -36,9 +36,13 @@ export class RegisterCustomerDto {
   @IsIndianMobileNumber()
   phone: string;
 
-  @ApiProperty({ example: 'S3cure!Pass', minLength: 8 })
+  @ApiProperty({
+    example: 'S3cure!Pass',
+    minLength: 6,
+    description: 'Must satisfy the current platform password policy.',
+  })
   @IsString()
-  @MinLength(8)
+  @MinLength(6)
   @MaxLength(128)
   password: string;
 }

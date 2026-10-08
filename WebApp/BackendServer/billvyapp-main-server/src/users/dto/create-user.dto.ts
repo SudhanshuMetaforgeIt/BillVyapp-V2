@@ -59,9 +59,13 @@ export class CreateUserDto {
   @IsOptionalIndianMobileNumber()
   phone?: string | null;
 
-  @ApiProperty({ example: 'S3cure!Passw0rd', minLength: 8 })
+  @ApiProperty({
+    example: 'S3cure!Passw0rd',
+    minLength: 6,
+    description: 'Must satisfy the current platform password policy.',
+  })
   @IsString()
-  @MinLength(8)
+  @MinLength(6)
   @MaxLength(128)
   password: string;
 

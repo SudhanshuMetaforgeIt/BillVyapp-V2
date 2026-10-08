@@ -63,6 +63,9 @@ import {
   UpdateSystemSettingsDto,
 } from './dto/settings-write.dto';
 import { SettingsService } from './settings.service';
+import { Public } from '../common/decorators/public.decorator';
+import { MaintenanceService } from './maintenance.service';
+import { DatabaseBackupService } from './database-backup.service';
 
 @ApiTags('Settings')
 @ApiBearerAuth()
@@ -71,7 +74,21 @@ import { SettingsService } from './settings.service';
 @Roles(RoleCode.SUPER_ADMIN)
 @Controller('settings')
 export class SettingsController {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly maintenance: MaintenanceService,
+    private readonly databaseBackups: DatabaseBackupService,
+  ) {}
+
+  @Public()
+  @Roles()
+  @Get('maintenance-status')
+  @ApiOperation({
+    summary: 'Get public maintenance availability (no platform configuration)',
+  })
+  getMaintenanceStatus() {
+    return this.maintenance.getStatus();
+  }
 
   // ---------------------------------------------------------------- general
 
@@ -288,29 +305,26 @@ export class SettingsController {
   @Post('backup')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Create a platform settings backup snapshot',
+    summary: 'Create a full MySQL database backup',
     description:
-      'Persists a restoreable snapshot of platform settings and integrations under local storage.',
+      'Backs up all application tables, schema, routines, triggers and events to local storage.',
   })
   @ApiResponse({ status: 200, type: SettingsBackupResponseDto })
-  createBackup(
-    @CurrentUser() user: AuthenticatedUser,
-    @Req() req: Request,
-  ) {
-    return this.settingsService.createBackup(user, requestContext(req));
+  createBackup(@CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    return this.databaseBackups.createBackup(user, requestContext(req));
   }
 
   @Get('backups')
-  @ApiOperation({ summary: 'List platform settings backups' })
+  @ApiOperation({ summary: 'List complete database backups' })
   @ApiResponse({ status: 200, type: [SettingsBackupListItemDto] })
   listBackups() {
-    return this.settingsService.listBackups();
+    return this.databaseBackups.listBackups();
   }
 
   @Post('restore')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Restore platform settings from a backup',
+    summary: 'Restore the full application database from a backup',
     description:
       'Requires confirm=true and confirmationPhrase=RESTORE. Defaults to the latest backup when backupId is omitted.',
   })
@@ -320,7 +334,7 @@ export class SettingsController {
     @Body() dto: ConfirmRestoreDto,
     @Req() req: Request,
   ) {
-    return this.settingsService.restoreBackup(user, dto, requestContext(req));
+    return this.databaseBackups.restoreBackup(user, dto, requestContext(req));
   }
 
   // ------------------------------------------------------------------ email

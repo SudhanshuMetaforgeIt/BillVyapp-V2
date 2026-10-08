@@ -229,7 +229,7 @@ export function useRestoreBackup() {
   const qc = useQueryClient();
   return useMutation<SettingsBackup, ApiError, string | undefined>({
     mutationFn: (backupId) => restoreSettingsBackup(backupId),
-    onSuccess: () => invalidateAfter(qc, 'settings'),
+    onSuccess: () => qc.cancelQueries(),
   });
 }
 

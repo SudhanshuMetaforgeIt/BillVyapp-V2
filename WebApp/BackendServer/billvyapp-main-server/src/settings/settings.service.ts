@@ -53,7 +53,10 @@ import type {
   UpdateSessionSettingsDto,
   UpdateSystemSettingsDto,
 } from './dto/settings-write.dto';
-import type { ActivityQueryDto, LogsQueryDto } from './dto/settings-response.dto';
+import type {
+  ActivityQueryDto,
+  LogsQueryDto,
+} from './dto/settings-response.dto';
 
 type SettingsRow = {
   id: string;
@@ -181,6 +184,17 @@ export class SettingsService {
     dto: UpdateGeneralSettingsDto,
     ctx: RequestContext,
   ) {
+    for (const field of ['platformName', 'timezone', 'dateFormat'] as const) {
+      if (dto[field] !== undefined && !dto[field].trim())
+        throw new BadRequestException(`${field} cannot be blank`);
+    }
+    if (dto.timezone !== undefined) {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: dto.timezone.trim() });
+      } catch {
+        throw new BadRequestException('Select a valid timezone');
+      }
+    }
     const existing = await this.ensureSettings();
     const updated = await this.prisma.platformSettings.update({
       where: { id: PLATFORM_SETTINGS_ID },
@@ -580,9 +594,7 @@ export class SettingsService {
         ...(dto.smtpFromName !== undefined
           ? { smtpFromName: trimOrNull(dto.smtpFromName) ?? null }
           : {}),
-        ...(dto.smtpSecure !== undefined
-          ? { smtpSecure: dto.smtpSecure }
-          : {}),
+        ...(dto.smtpSecure !== undefined ? { smtpSecure: dto.smtpSecure } : {}),
       },
       select: SETTINGS_SELECT,
     });
@@ -762,9 +774,7 @@ export class SettingsService {
   ) {
     this.assertConfirmed(dto.confirm);
     if (dto.confirmationPhrase !== 'RESET') {
-      throw new BadRequestException(
-        'confirmationPhrase must be exactly RESET',
-      );
+      throw new BadRequestException('confirmationPhrase must be exactly RESET');
     }
 
     const existing = await this.ensureSettings();
@@ -787,8 +797,10 @@ export class SettingsService {
           DEFAULT_PLATFORM_SETTINGS.passwordRequireUppercase,
         passwordRequireLowercase:
           DEFAULT_PLATFORM_SETTINGS.passwordRequireLowercase,
-        passwordRequireNumbers: DEFAULT_PLATFORM_SETTINGS.passwordRequireNumbers,
-        passwordRequireSpecial: DEFAULT_PLATFORM_SETTINGS.passwordRequireSpecial,
+        passwordRequireNumbers:
+          DEFAULT_PLATFORM_SETTINGS.passwordRequireNumbers,
+        passwordRequireSpecial:
+          DEFAULT_PLATFORM_SETTINGS.passwordRequireSpecial,
         sessionTimeoutMinutes: DEFAULT_PLATFORM_SETTINGS.sessionTimeoutMinutes,
         maxLoginAttempts: DEFAULT_PLATFORM_SETTINGS.maxLoginAttempts,
         lockoutDurationMinutes:
@@ -904,9 +916,7 @@ export class SettingsService {
         const stat = await fs.stat(filePath);
         items.push({
           id: parsed.id ?? file.replace(/\.json$/, ''),
-          createdAt: parsed.createdAt
-            ? new Date(parsed.createdAt)
-            : stat.mtime,
+          createdAt: parsed.createdAt ? new Date(parsed.createdAt) : stat.mtime,
           createdBy: parsed.createdBy ?? null,
           sizeBytes: stat.size,
         });
@@ -915,9 +925,7 @@ export class SettingsService {
       }
     }
 
-    return items.sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-    );
+    return items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   async restoreBackup(
@@ -955,7 +963,9 @@ export class SettingsService {
       >;
     };
     try {
-      payload = JSON.parse(await fs.readFile(filePath, 'utf8')) as typeof payload;
+      payload = JSON.parse(
+        await fs.readFile(filePath, 'utf8'),
+      ) as typeof payload;
     } catch {
       throw new BadRequestException('Backup file is corrupt or unreadable');
     }
@@ -1096,7 +1106,9 @@ export class SettingsService {
               ? undefined
               : dto.config === null
                 ? PrismaRuntime.DbNull
-                : (this.sanitizeJsonObject(dto.config) as Prisma.InputJsonValue),
+                : (this.sanitizeJsonObject(
+                    dto.config,
+                  ) as Prisma.InputJsonValue),
           isActive: dto.isActive ?? true,
         },
       });
@@ -1106,7 +1118,9 @@ export class SettingsService {
         action: 'SETTINGS_INTEGRATION_CREATED',
         entityType: INTEGRATION_ENTITY_TYPE,
         entityId: created.id,
-        newData: this.toIntegration(created) as unknown as Prisma.InputJsonValue,
+        newData: this.toIntegration(
+          created,
+        ) as unknown as Prisma.InputJsonValue,
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,
       });
@@ -1155,8 +1169,12 @@ export class SettingsService {
         action: 'SETTINGS_INTEGRATION_UPDATED',
         entityType: INTEGRATION_ENTITY_TYPE,
         entityId: id,
-        oldData: this.toIntegration(existing) as unknown as Prisma.InputJsonValue,
-        newData: this.toIntegration(updated) as unknown as Prisma.InputJsonValue,
+        oldData: this.toIntegration(
+          existing,
+        ) as unknown as Prisma.InputJsonValue,
+        newData: this.toIntegration(
+          updated,
+        ) as unknown as Prisma.InputJsonValue,
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,
       });
@@ -1269,9 +1287,14 @@ export class SettingsService {
 
   private async ensureSettings(): Promise<SettingsRow> {
     if (this.cache) {
-      return this.cache.wrap('cache:settings:platform', 3600, () =>
+      const row = await this.cache.wrap('cache:settings:platform', 3600, () =>
         this.fetchEnsureSettings(),
       );
+      return {
+        ...row,
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+      };
     }
     return this.fetchEnsureSettings();
   }
@@ -1302,8 +1325,10 @@ export class SettingsService {
           DEFAULT_PLATFORM_SETTINGS.passwordRequireUppercase,
         passwordRequireLowercase:
           DEFAULT_PLATFORM_SETTINGS.passwordRequireLowercase,
-        passwordRequireNumbers: DEFAULT_PLATFORM_SETTINGS.passwordRequireNumbers,
-        passwordRequireSpecial: DEFAULT_PLATFORM_SETTINGS.passwordRequireSpecial,
+        passwordRequireNumbers:
+          DEFAULT_PLATFORM_SETTINGS.passwordRequireNumbers,
+        passwordRequireSpecial:
+          DEFAULT_PLATFORM_SETTINGS.passwordRequireSpecial,
         sessionTimeoutMinutes: DEFAULT_PLATFORM_SETTINGS.sessionTimeoutMinutes,
         maxLoginAttempts: DEFAULT_PLATFORM_SETTINGS.maxLoginAttempts,
         lockoutDurationMinutes:
@@ -1402,7 +1427,9 @@ export class SettingsService {
     withMtime.sort((a, b) => b.mtimeMs - a.mtimeMs);
     const excess = withMtime.slice(SETTINGS_BACKUP_MAX_COUNT);
     await Promise.all(
-      excess.map(({ file }) => fs.unlink(join(dir, file)).catch(() => undefined)),
+      excess.map(({ file }) =>
+        fs.unlink(join(dir, file)).catch(() => undefined),
+      ),
     );
   }
 

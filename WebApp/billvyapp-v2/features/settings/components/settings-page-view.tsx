@@ -18,6 +18,7 @@ import { SettingsTabs } from './settings-tabs';
 export function SettingsPageView() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<SettingsTabId>('general');
+  const [settingsVersion, setSettingsVersion] = useState(0);
   const healthQuery = useSystemHealth();
 
   useGSAP(
@@ -35,6 +36,7 @@ export function SettingsPageView() {
       isError={healthQuery.isError}
       onRetry={() => void healthQuery.refetch()}
       onViewLogs={() => setTab('logs')}
+      onReset={() => setSettingsVersion((version) => version + 1)}
     />
   );
 
@@ -44,16 +46,16 @@ export function SettingsPageView() {
 
       {tab === 'general' ? (
         <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(17rem,0.85fr)] xl:gap-7">
-          <SettingsGeneralPanel />
+          <SettingsGeneralPanel key={`general-${settingsVersion}`} />
           <div className="space-y-6 xl:space-y-7">
-            <SettingsSecurityPanel />
+            <SettingsSecurityPanel key={`security-${settingsVersion}`} />
             <SettingsDataCleanupPanel />
           </div>
           {sidebar}
         </div>
       ) : tab === 'security' ? (
         <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
-          <SettingsSecurityPanel />
+          <SettingsSecurityPanel key={`security-${settingsVersion}`} />
           {sidebar}
         </div>
       ) : tab === 'email' ? (

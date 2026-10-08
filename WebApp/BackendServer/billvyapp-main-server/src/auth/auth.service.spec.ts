@@ -94,6 +94,7 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
   const passwords = {
+    assertPolicy: jest.fn().mockResolvedValue(undefined),
     hash: jest.fn(),
     verify: jest.fn(),
   };
@@ -529,7 +530,7 @@ describe('AuthService', () => {
       const me = await auth.me(identity);
 
       expect(me).toEqual({
-        phoneCountry:'IN',
+        phoneCountry: 'IN',
         currency: 'INR',
         locale: 'en-IN',
         dateFormat: 'DD MMM YYYY',

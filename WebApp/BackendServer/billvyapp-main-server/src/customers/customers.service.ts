@@ -448,7 +448,8 @@ export class CustomersService {
     gender: Gender | null;
   }): Promise<CustomerRow> {
     const passwordHash = await this.passwords.hash(
-      randomBytes(32).toString('base64url'),
+      // An inaccessible generated password satisfies every supported platform policy.
+      `Aa1!${randomBytes(96).toString('base64url').slice(0, 124)}`,
     );
     const customerCode = this.nextCustomerCode();
 
