@@ -306,8 +306,13 @@ describe('ServicesService', () => {
 
   it('delegates to cache.wrap for catalogue listing and invalidates on service creation', async () => {
     const mockCache = {
-      wrap: jest.fn().mockImplementation((key, ttl, fn) => fn()),
+      wrap: jest
+        .fn()
+        .mockImplementation(
+          (_key: string, _ttl: number, fn: () => Promise<unknown>) => fn(),
+        ),
       hashQuery: jest.fn().mockReturnValue('hash-123'),
+      permissionScope: jest.fn().mockReturnValue('scope-123'),
       invalidateSalonCatalogue: jest.fn().mockResolvedValue(undefined),
     };
     const cachedService = new ServicesService(
@@ -320,14 +325,20 @@ describe('ServicesService', () => {
     prisma.service.findMany.mockResolvedValue([serviceRow()]);
     prisma.service.count.mockResolvedValue(1);
 
-    await cachedService.list(customer, { salonId: 'salon-a1', page: 1, limit: 20 });
+    await cachedService.list(customer, {
+      salonId: 'salon-a1',
+      page: 1,
+      limit: 20,
+    });
     expect(mockCache.wrap).toHaveBeenCalledWith(
       expect.stringContaining('cache:catalogue:salon-a1:services:'),
-      1800,
+      300,
       expect.any(Function),
     );
 
-    prisma.service.create.mockResolvedValue(serviceRow({ salonId: 'salon-a1' }));
+    prisma.service.create.mockResolvedValue(
+      serviceRow({ salonId: 'salon-a1' }),
+    );
     await cachedService.create(manager, createDto, ctx);
     expect(mockCache.invalidateSalonCatalogue).toHaveBeenCalledWith('salon-a1');
   });

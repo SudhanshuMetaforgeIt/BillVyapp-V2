@@ -10,9 +10,11 @@ import {
   Injectable,
   Logger,
   ServiceUnavailableException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import { ATTACHMENT_MAX_BYTES } from '../attachment-validation';
 import type {
   ObjectStorageProvider,
   PresignedDownload,
@@ -77,12 +79,14 @@ export class S3StorageProvider implements ObjectStorageProvider {
   async createUploadUrl(params: {
     storageKey: string;
     mimeType: string;
+    fileSize?: number;
   }): Promise<PresignedUpload> {
     const client = this.requireClient();
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: params.storageKey,
       ContentType: params.mimeType,
+      ContentLength: params.fileSize,
     });
     const uploadUrl = await getSignedUrl(client, command, {
       expiresIn: this.expiresInSeconds,
@@ -99,6 +103,8 @@ export class S3StorageProvider implements ObjectStorageProvider {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: storageKey,
+      ResponseContentDisposition: 'attachment',
+      ResponseContentType: 'application/octet-stream',
     });
     const downloadUrl = await getSignedUrl(client, command, {
       expiresIn: this.expiresInSeconds,
@@ -124,7 +130,7 @@ export class S3StorageProvider implements ObjectStorageProvider {
         new HeadObjectCommand({ Bucket: this.bucket, Key: storageKey }),
       );
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         typeof error === 'object' &&
         error !== null &&
@@ -173,7 +179,20 @@ export class S3StorageProvider implements ObjectStorageProvider {
     );
     if (!object.Body)
       throw new ServiceUnavailableException('Image object is missing');
-    return Buffer.from(await object.Body.transformToByteArray());
+    if (object.ContentLength && object.ContentLength > ATTACHMENT_MAX_BYTES)
+      throw new BadRequestException('Attachment is too large');
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of object.Body as AsyncIterable<Uint8Array>) {
+      const bytes = Buffer.from(chunk);
+      size += bytes.length;
+      if (size > ATTACHMENT_MAX_BYTES) {
+        (object.Body as { destroy?: () => void }).destroy?.();
+        throw new BadRequestException('Attachment is too large');
+      }
+      chunks.push(bytes);
+    }
+    return Buffer.concat(chunks);
   }
 
   private requireClient(): S3Client {

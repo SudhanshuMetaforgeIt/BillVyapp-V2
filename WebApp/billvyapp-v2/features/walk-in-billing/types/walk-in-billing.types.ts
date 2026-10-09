@@ -64,6 +64,7 @@ export type WalkInPaymentMethod = 'UPI' | 'CASH' | 'CARD' | 'WALLET';
 export type EnrollmentDetails = { nameConfirmed: boolean; whatsappSameAsBilling: boolean; whatsappNumber?: string; dateOfBirth?: string; address?: string; email?: string };
 export type MembershipOffer = { id: string; name: string; price: string; durationDays: number; benefits: string | null; termsAndConditions: string | null; couponUsageLimit: number | null; eligibleServices: { id: string; name: string }[] };
 export type CreateBillPayload = {
+  idempotencyKey?: string;
   enrollmentPlanId?: string | null;
   enrollmentDetails?: EnrollmentDetails;
   couponCode?: string | null;
@@ -79,6 +80,7 @@ export type CreateBillPayload = {
 };
 
 export type BillRecord = {
+  currency?: 'INR' | 'USD';
   enrolledCouponCode?: string | null;
   membershipFee?: string; enrollmentPlanId?: string | null; enrollmentPlanName?: string | null;
   couponCode?: string | null;
@@ -122,12 +124,15 @@ export type BillRecord = {
 };
 
 export type CreatePaymentPayload = {
+  currency?: 'INR' | 'USD';
+  idempotencyKey?: string;
   billId: string;
   amount: number;
   paymentMethod: WalkInPaymentMethod;
 };
 
 export type PaymentRecord = {
+  currency?: 'INR' | 'USD';
   id: string;
   billId: string;
   amount: string;

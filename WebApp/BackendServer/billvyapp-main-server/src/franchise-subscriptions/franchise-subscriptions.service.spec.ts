@@ -44,6 +44,7 @@ describe('FranchiseSubscriptionsService', () => {
     },
     supportTicket: { create: jest.fn() },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
   };
   const audit = { record: jest.fn() };
   const notifications = {
@@ -52,6 +53,22 @@ describe('FranchiseSubscriptionsService', () => {
     notifySupportTicketOpened: jest.fn(),
   };
   let service: FranchiseSubscriptionsService;
+
+  it('does not permit a franchise owner to grant their own platform entitlement', async () => {
+    await expect(
+      service.enroll(
+        { ...actor, role: RoleCode.ADMIN, franchiseId: 'fr-1' },
+        {
+          franchiseId: 'fr-1',
+          platformPlanId: 'plan-1',
+          billingCycle: 'monthly',
+          idempotencyKey: 'self-enrollment',
+        },
+        ctx,
+      ),
+    ).rejects.toThrow();
+    expect(prisma.franchiseSubscription.create).not.toHaveBeenCalled();
+  });
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -103,6 +120,7 @@ describe('FranchiseSubscriptionsService', () => {
     const result = await service.enroll(
       actor,
       {
+        idempotencyKey: 'test-request-0001',
         franchiseId: 'fr-1',
         platformPlanId: 'plan-1',
         billingCycle: 'monthly',
@@ -159,6 +177,7 @@ describe('FranchiseSubscriptionsService', () => {
     const result = await service.enroll(
       actor,
       {
+        idempotencyKey: 'test-request-0001',
         franchiseId: 'fr-1',
         platformPlanId: 'plan-1',
         billingCycle: 'custom',
@@ -168,9 +187,11 @@ describe('FranchiseSubscriptionsService', () => {
       ctx,
     );
 
-    const createArg = prisma.franchiseSubscription.create.mock.calls[0][0] as {
-      data: { startsAt: Date; endsAt: Date };
-    };
+    const createArg = (
+      prisma.franchiseSubscription.create.mock.calls as unknown as [
+        { data: { startsAt: Date; endsAt: Date } },
+      ][]
+    )[0][0];
     expect(createArg.data.startsAt.toISOString()).toBe(
       '2026-10-01T00:00:00.000Z',
     );
@@ -197,6 +218,7 @@ describe('FranchiseSubscriptionsService', () => {
       service.enroll(
         actor,
         {
+          idempotencyKey: 'test-request-0001',
           franchiseId: 'fr-1',
           platformPlanId: 'plan-1',
           billingCycle: 'custom',
@@ -208,9 +230,9 @@ describe('FranchiseSubscriptionsService', () => {
 
   it('reports active coverage for a franchise', async () => {
     prisma.franchiseSubscription.findFirst.mockResolvedValue({ id: 'sub-1' });
-    await expect(
-      service.isFranchiseSubscriptionActive('fr-1'),
-    ).resolves.toBe(true);
+    await expect(service.isFranchiseSubscriptionActive('fr-1')).resolves.toBe(
+      true,
+    );
   });
 
   it('lists franchise subscriptions with paginated metadata without N+1 timezone calls', async () => {

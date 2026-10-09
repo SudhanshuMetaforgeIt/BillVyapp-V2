@@ -119,7 +119,8 @@ export function AddMemberDialog({
               </SelectInput>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="mem-plan">Membership plan</Label>
+              <Label htmlFor="mem-plan">Free membership plan</Label>
+              <p className="text-sm text-muted-foreground">Paid and qualifying memberships are enrolled through Walk-in Billing and activate after full payment.</p>
               <SelectInput
                 className="h-10 w-full text-sm font-medium"
                 id="mem-plan"

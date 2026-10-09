@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsEnum,
   IsNumber,
@@ -9,18 +10,44 @@ import {
   Matches,
   MaxLength,
   Min,
+  Equals,
 } from 'class-validator';
 import { PaymentMethod, PaymentStatus } from '../../common/enums/payment.enum';
 
 export const PAYMENT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export class CreatePaymentDto {
+  @ApiProperty({
+    description: 'Stable key reused for retries of the same collection',
+    minLength: 8,
+    maxLength: 191,
+  })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:_-]{7,190}$/)
+  idempotencyKey?: string;
+
+  @ApiPropertyOptional({
+    enum: ['MANUAL'],
+    description:
+      'Gateway settlement is unavailable until trusted server verification is integrated',
+  })
+  @IsOptional()
+  @Equals('MANUAL')
+  source?: 'MANUAL';
+
+  @ApiPropertyOptional({
+    enum: ['INR', 'USD'],
+    description: 'Must match the parent bill currency',
+  })
+  @IsOptional()
+  @Matches(/^(INR|USD)$/)
+  currency?: string;
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   billId: string;
 
   @ApiProperty({ example: 500.0, minimum: 0.01 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   amount: number;

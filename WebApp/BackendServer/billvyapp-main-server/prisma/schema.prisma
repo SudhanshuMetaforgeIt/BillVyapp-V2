@@ -830,6 +830,9 @@ model StockMovement {
 
 /// Invoice document. The table is deliberately named "bills" (not invoices).
 model Bill {
+  currency           String            @default("INR") @db.VarChar(3)
+  idempotencyKey     String?           @db.VarChar(191)
+  requestHash        String?           @db.VarChar(64)
   enrollmentPlanId   String?           @db.VarChar(36)
   enrollmentPlan     MembershipPlan?   @relation("BillEnrollmentPlan", fields: [enrollmentPlanId], references: [id], onDelete: Restrict)
   enrollmentDetails  Json?
@@ -867,6 +870,7 @@ model Bill {
 
   /// Bill number is unique per salon.
   @@unique([salonId, billNumber])
+  @@unique([salonId, idempotencyKey])
   @@index([customerId])
   @@index([createdBy])
   @@index([billDate])
@@ -919,6 +923,11 @@ model BillItem {
 /// A bill may be settled by several payments (split / partial payment).
 /// onDelete is Restrict: a bill that already has payments cannot be deleted.
 model Payment {
+  currency             String        @default("INR") @db.VarChar(3)
+  idempotencyKey       String?       @db.VarChar(191)
+  requestHash          String?       @db.VarChar(64)
+  provider             String        @default("MANUAL") @db.VarChar(50)
+  providerTransactionId String?      @db.VarChar(191)
   id                   String        @id @default(uuid()) @db.VarChar(36)
   billId               String        @db.VarChar(36)
   amount               Decimal       @db.Decimal(12, 2)
@@ -933,6 +942,8 @@ model Payment {
   bill Bill @relation(fields: [billId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([billId])
+  @@unique([billId, idempotencyKey])
+  @@unique([provider, providerTransactionId])
   @@index([billId, paymentDate])
   @@index([paymentDate])
   @@index([paymentDate, createdAt])
@@ -1000,6 +1011,9 @@ model MembershipPlan {
 }
 
 model Membership {
+  idempotencyKey       String?       @db.VarChar(191)
+  requestHash          String?       @db.VarChar(64)
+  @@unique([customerId, idempotencyKey])
   id               String           @id @default(uuid()) @db.VarChar(36)
   customerId       String           @db.VarChar(36)
   membershipPlanId String           @db.VarChar(36)
@@ -1029,6 +1043,9 @@ model Membership {
 
 /// Append-only points ledger. Negative points represent redemptions.
 model LoyaltyTransaction {
+  idempotencyKey       String?       @db.VarChar(191)
+  requestHash          String?       @db.VarChar(64)
+  @@unique([customerId, idempotencyKey])
   id              String                 @id @default(uuid()) @db.VarChar(36)
   customerId      String                 @db.VarChar(36)
   /// Nullable so head-office / promotional adjustments are not tied to one salon.
@@ -1268,6 +1285,9 @@ model PlatformPlan {
 
 /// Links a franchise to a platform plan for a billing period.
 model FranchiseSubscription {
+  idempotencyKey       String?       @db.VarChar(191)
+  requestHash          String?       @db.VarChar(64)
+  @@unique([franchiseId, idempotencyKey])
   id             String                      @id @default(uuid()) @db.VarChar(36)
   franchiseId    String                      @db.VarChar(36)
   platformPlanId String                      @db.VarChar(36)

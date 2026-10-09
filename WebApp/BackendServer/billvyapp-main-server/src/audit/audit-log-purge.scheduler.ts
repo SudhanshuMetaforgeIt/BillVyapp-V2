@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { SAFE_JOB_OPTIONS } from '../common/security/job-validation';
 import {
   AUDIT_LOG_PURGE_CRON,
   AUDIT_LOG_PURGE_JOB,
@@ -29,6 +30,7 @@ export class AuditLogPurgeScheduler implements OnModuleInit {
         name: AUDIT_LOG_PURGE_JOB,
         data: {},
         opts: {
+          ...SAFE_JOB_OPTIONS,
           removeOnComplete: 20,
           removeOnFail: 50,
         },

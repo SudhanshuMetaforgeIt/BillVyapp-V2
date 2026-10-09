@@ -1,5 +1,6 @@
+import { StrictNumber } from '../common/transformers/strict-number';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsIn,
   IsInt,
@@ -31,7 +32,7 @@ export class InitializeProfilePhotoDto {
   mimeType: string;
 
   @ApiProperty({ minimum: 1, maximum: PROFILE_IMAGE_MAX_BYTES })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(PROFILE_IMAGE_MAX_BYTES)

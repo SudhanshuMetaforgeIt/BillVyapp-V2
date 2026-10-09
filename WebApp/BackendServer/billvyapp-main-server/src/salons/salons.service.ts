@@ -155,12 +155,13 @@ export class SalonsService {
 
   async findOne(user: AuthenticatedUser, id: string) {
     const isCustomer = user.role === RoleCode.CUSTOMER;
+    if (!isCustomer) await this.scope.assertSalonAccess(user, id);
     const cacheKey = this.cache
-      ? `cache:salon:${id}:${isCustomer ? 'public' : `internal:${user.franchiseId ?? 'all'}`}`
+      ? `cache:salon:${id}:scope:${this.cache.permissionScope(user)}:${isCustomer ? 'public' : `internal:v2:${user.role}:${user.franchiseId ?? 'none'}:${user.salonId ?? 'none'}`}`
       : null;
 
     if (cacheKey && this.cache) {
-      return this.cache.wrap(cacheKey, 1800, () => this.fetchFindOne(user, id));
+      return this.cache.wrap(cacheKey, 300, () => this.fetchFindOne(user, id));
     }
 
     return this.fetchFindOne(user, id);

@@ -83,6 +83,7 @@ function txnRow(overrides: Record<string, unknown> = {}) {
 describe('LoyaltyService', () => {
   const prisma = {
     loyaltyTransaction: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       findUnique: jest.fn(),
@@ -92,6 +93,7 @@ describe('LoyaltyService', () => {
     customer: { findUnique: jest.fn() },
     salon: { findUnique: jest.fn() },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
   };
   const scope = {
     salonScope: jest.fn().mockReturnValue({}),
@@ -122,8 +124,10 @@ describe('LoyaltyService', () => {
     prisma.loyaltyTransaction.aggregate.mockResolvedValue({
       _sum: { points: 200 },
     });
-    prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
-      Promise.all(ops),
+    prisma.$transaction.mockImplementation((ops: unknown) =>
+      typeof ops === 'function'
+        ? (ops as (tx: typeof prisma) => Promise<unknown>)(prisma)
+        : Promise.all(ops as Promise<unknown>[]),
     );
     service = new LoyaltyService(
       prisma as unknown as PrismaService,
@@ -136,8 +140,9 @@ describe('LoyaltyService', () => {
     prisma.loyaltyTransaction.create.mockResolvedValue(txnRow());
 
     const result = await service.create(
-      staff,
+      manager,
       {
+        idempotencyKey: 'test-request-0001',
         customerId: 'cust-1',
         salonId: 'salon-a1',
         points: 100,
@@ -151,12 +156,29 @@ describe('LoyaltyService', () => {
       expect.objectContaining({ action: 'LOYALTY_TRANSACTION_CREATED' }),
     );
   });
-
-  it('rejects REDEEMED with non-negative points', async () => {
+  it('denies manual staff loyalty adjustments before any write', async () => {
     await expect(
       service.create(
         staff,
         {
+          idempotencyKey: 'test-request-0001',
+          customerId: 'cust-1',
+          salonId: 'salon-a1',
+          points: 10,
+          transactionType: LoyaltyTransactionType.BONUS,
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.loyaltyTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects REDEEMED with non-negative points', async () => {
+    await expect(
+      service.create(
+        manager,
+        {
+          idempotencyKey: 'test-request-0001',
           customerId: 'cust-1',
           points: 50,
           transactionType: LoyaltyTransactionType.REDEEMED,
@@ -173,8 +195,9 @@ describe('LoyaltyService', () => {
 
     await expect(
       service.create(
-        staff,
+        manager,
         {
+          idempotencyKey: 'test-request-0001',
           customerId: 'cust-1',
           points: -50,
           transactionType: LoyaltyTransactionType.REDEEMED,
@@ -196,8 +219,9 @@ describe('LoyaltyService', () => {
     );
 
     const result = await service.create(
-      staff,
+      manager,
       {
+        idempotencyKey: 'test-request-0001',
         customerId: 'cust-1',
         points: -40,
         transactionType: LoyaltyTransactionType.REDEEMED,
@@ -244,8 +268,9 @@ describe('LoyaltyService', () => {
 
     await expect(
       service.create(
-        staff,
+        manager,
         {
+          idempotencyKey: 'test-request-0001',
           customerId: 'missing',
           points: 10,
           transactionType: LoyaltyTransactionType.EARNED,
@@ -262,8 +287,9 @@ describe('LoyaltyService', () => {
 
     await expect(
       service.create(
-        staff,
+        manager,
         {
+          idempotencyKey: 'test-request-0001',
           customerId: 'cust-1',
           salonId: 'salon-a2',
           points: 10,
@@ -290,6 +316,7 @@ describe('LoyaltyService', () => {
 describe('CreateLoyaltyTransactionDto validation', () => {
   function dto(overrides: Record<string, unknown> = {}) {
     return Object.assign(new CreateLoyaltyTransactionDto(), {
+      idempotencyKey: 'test-request-0001',
       customerId: '11111111-1111-4111-8111-111111111111',
       points: 100,
       transactionType: LoyaltyTransactionType.EARNED,
@@ -322,7 +349,7 @@ describe('LoyaltyController authorization', () => {
       RoleCode.CUSTOMER,
     );
     expect(handlerRoles(LoyaltyController, 'create')).toEqual(
-      expect.arrayContaining([RoleCode.STAFF]),
+      expect.arrayContaining([RoleCode.MANAGER]),
     );
   });
 });

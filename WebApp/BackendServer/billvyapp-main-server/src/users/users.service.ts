@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
+import { assertUnchangedLoginIdentifiers } from '../auth/login-identifier-policy';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { RoleCode } from '../common/enums/role.enum';
 import type { RequestContext } from '../common/http/request-context';
@@ -198,6 +199,23 @@ export class UsersService {
   ): Promise<UserRecord> {
     const existing = await this.findOne(actor, id);
 
+    if ((existing.role.code as RoleCode) === RoleCode.CUSTOMER) {
+      assertUnchangedLoginIdentifiers(existing, {
+        email: dto.email?.trim().toLowerCase(),
+        phone:
+          dto.phone === undefined
+            ? undefined
+            : dto.phone?.trim() === existing.phone
+              ? existing.phone
+              : await normalizeFranchisePhone(
+                  this.prisma,
+                  dto.phone,
+                  existing.franchiseId,
+                  existing.salonId,
+                ),
+      });
+    }
+
     if ('password' in dto || 'passwordHash' in dto) {
       throw new BadRequestException(
         'Password cannot be updated through this endpoint',
@@ -228,40 +246,46 @@ export class UsersService {
     });
 
     try {
-      const updated = await this.prisma.user.update({
-        where: { id: existing.id },
-        data: {
-          roleId: nextRoleId,
-          franchiseId: nextFranchiseId,
-          salonId: nextSalonId,
-          ...(dto.firstName !== undefined
-            ? { firstName: trimRequired(dto.firstName) }
-            : {}),
-          ...(dto.lastName !== undefined
-            ? { lastName: trimRequired(dto.lastName) }
-            : {}),
-          ...(dto.email !== undefined
-            ? { email: dto.email.trim().toLowerCase() }
-            : {}),
-          ...(dto.phone !== undefined
-            ? {
-                phone: await normalizeFranchisePhone(
-                  this.prisma,
-                  dto.phone,
-                  nextFranchiseId,
-                  nextSalonId,
-                ),
-              }
-            : {}),
-          ...(dto.salary !== undefined
-            ? {
-                salary:
-                  dto.salary === null ? null : Number(dto.salary).toFixed(2),
-              }
-            : {}),
-        },
-        select: USER_SELECT,
-      });
+      const [updated] = await this.prisma.$transaction([
+        this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            roleId: nextRoleId,
+            franchiseId: nextFranchiseId,
+            salonId: nextSalonId,
+            ...(dto.firstName !== undefined
+              ? { firstName: trimRequired(dto.firstName) }
+              : {}),
+            ...(dto.lastName !== undefined
+              ? { lastName: trimRequired(dto.lastName) }
+              : {}),
+            ...(dto.email !== undefined
+              ? { email: dto.email.trim().toLowerCase() }
+              : {}),
+            ...(dto.phone !== undefined
+              ? {
+                  phone: await normalizeFranchisePhone(
+                    this.prisma,
+                    dto.phone,
+                    nextFranchiseId,
+                    nextSalonId,
+                  ),
+                }
+              : {}),
+            ...(dto.salary !== undefined
+              ? {
+                  salary:
+                    dto.salary === null ? null : Number(dto.salary).toFixed(2),
+                }
+              : {}),
+          },
+          select: USER_SELECT,
+        }),
+        this.prisma.userSession.updateMany({
+          where: { userId: existing.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        }),
+      ]);
 
       await this.audit.record({
         userId: actor.userId,
@@ -303,11 +327,17 @@ export class UsersService {
 
     await this.assertSafeMutation(actor, existing, { isActive: dto.isActive });
 
-    const updated = await this.prisma.user.update({
-      where: { id: existing.id },
-      data: { isActive: dto.isActive },
-      select: USER_SELECT,
-    });
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: existing.id },
+        data: { isActive: dto.isActive },
+        select: USER_SELECT,
+      }),
+      this.prisma.userSession.updateMany({
+        where: { userId: existing.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
 
     await this.audit.record({
       userId: actor.userId,

@@ -21,6 +21,8 @@ const member = {
     eligibleServices: [{ id: 'spa', name: 'Hair Spa' }],
   },
   membershipPlan: {
+    price: '0.00',
+    enrollmentThreshold: null,
     name: 'Renamed Plan',
     isActive: false,
     benefits: 'Changed benefits',
@@ -48,6 +50,39 @@ afterEach(() => {
   jest.useRealTimers();
 });
 describe('Bill membership coupon validation', () => {
+  it('rejects legacy paid memberships without payment evidence', async () => {
+    const { typed } = setup({
+      membershipPlan: { ...member.membershipPlan, price: '100.00' },
+    });
+    await expect(requireBillCoupon(typed, input)).rejects.toThrow(
+      'evidence is missing',
+    );
+  });
+  it.each([
+    { status: 'COMPLETED', total: '100.00', paidAmount: '99.00' },
+    { status: 'REFUNDED', total: '100.00', paidAmount: '100.00' },
+  ])(
+    'rejects a coupon backed by an unpaid or refunded qualifying bill (%o)',
+    async (qualifyingBill) => {
+      const { typed } = setup({ qualifyingBill });
+      await expect(requireBillCoupon(typed, input)).rejects.toThrow(
+        'not fully settled',
+      );
+    },
+  );
+  it('honors an active paid membership backed by a completed settled bill', async () => {
+    const { typed } = setup({
+      membershipPlan: { ...member.membershipPlan, price: '100.00' },
+      qualifyingBill: {
+        status: 'COMPLETED',
+        total: '100.00',
+        paidAmount: '100.00',
+      },
+    });
+    await expect(requireBillCoupon(typed, input)).resolves.toHaveProperty(
+      'couponCode',
+    );
+  });
   it('normalizes code and constrains lookup by customer and salon', async () => {
     const { client, typed } = setup();
     const result = await requireBillCoupon(typed, input);

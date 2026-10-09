@@ -32,7 +32,7 @@ jest.mock('../prisma/prisma.service', () => ({ PrismaService: class {} }));
 
 // A real tiny PNG; also used to prove declared documents cannot bypass byte checks.
 const png = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9z8AAAAASUVORK5CYII=',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC',
   'base64',
 );
 const actor = (role = RoleCode.CUSTOMER): AuthenticatedUser => ({

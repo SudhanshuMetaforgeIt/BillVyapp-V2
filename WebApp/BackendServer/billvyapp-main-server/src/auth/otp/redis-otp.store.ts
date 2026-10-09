@@ -37,6 +37,19 @@ export class RedisOtpStore implements OtpStore {
     await this.redis.client.del(this.loginKey(phone));
   }
 
+  async consumeHash(phone: string, expectedHash: string): Promise<boolean> {
+    return (
+      Number(
+        await this.redis.client.eval(
+          "if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end; redis.call('DEL', KEYS[1]); return 1",
+          1,
+          this.loginKey(phone),
+          expectedHash,
+        ),
+      ) === 1
+    );
+  }
+
   async getAttempts(phone: string): Promise<number> {
     const raw = await this.redis.client.get(this.attemptsKey(phone));
     if (!raw) return 0;
@@ -46,11 +59,14 @@ export class RedisOtpStore implements OtpStore {
 
   async incrementAttempts(phone: string, ttlSeconds: number): Promise<number> {
     const key = this.attemptsKey(phone);
-    const next = await this.redis.client.incr(key);
-    if (next === 1) {
-      await this.redis.client.expire(key, ttlSeconds);
-    }
-    return next;
+    return Number(
+      await this.redis.client.eval(
+        "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return n",
+        1,
+        key,
+        ttlSeconds,
+      ),
+    );
   }
 
   async resetAttempts(phone: string): Promise<void> {

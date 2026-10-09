@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,10 +9,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
-import { createReadStream, createWriteStream, existsSync } from 'fs';
+import { createReadStream, existsSync, lstatSync, statSync } from 'fs';
 import { mkdir, unlink, readFile, writeFile } from 'fs/promises';
-import { dirname, normalize, resolve, sep } from 'path';
-import { pipeline } from 'stream/promises';
+import { dirname, resolve, sep } from 'path';
+import { ATTACHMENT_MAX_BYTES } from '../attachment-validation';
 import type { Readable } from 'stream';
 import type {
   ObjectStorageProvider,
@@ -115,7 +117,10 @@ export class LocalFilesystemStorageProvider
   }
 
   readObject(storageKey: string): Promise<Buffer> {
-    return readFile(this.resolveSafePath(storageKey));
+    const path = this.resolveSafePath(storageKey);
+    if (statSync(path).size > ATTACHMENT_MAX_BYTES)
+      throw new BadRequestException('Attachment is too large');
+    return readFile(path);
   }
 
   assertValidSignature(
@@ -125,7 +130,12 @@ export class LocalFilesystemStorageProvider
     sig: string,
   ): void {
     const expiresAt = Number(exp);
-    if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) {
+    if (
+      !Number.isSafeInteger(expiresAt) ||
+      Date.now() > expiresAt ||
+      expiresAt > Date.now() + this.expiresInSeconds * 1000 + 1000 ||
+      typeof sig !== 'string'
+    ) {
       throw new ForbiddenException('Media URL has expired');
     }
 
@@ -141,9 +151,29 @@ export class LocalFilesystemStorageProvider
   }
 
   async writeObject(storageKey: string, body: Readable): Promise<void> {
-    const absolute = this.resolveSafePath(storageKey);
-    await mkdir(dirname(absolute), { recursive: true });
-    await pipeline(body, createWriteStream(absolute));
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of body) {
+      const bytes = Buffer.isBuffer(chunk)
+        ? chunk
+        : Buffer.from(chunk as Uint8Array);
+      size += bytes.length;
+      if (size > ATTACHMENT_MAX_BYTES)
+        throw new BadRequestException('Attachment is too large');
+      chunks.push(bytes);
+    }
+    if (!size) throw new BadRequestException('Attachment is empty');
+    try {
+      await this.uploadObject(
+        storageKey,
+        Buffer.concat(chunks),
+        'application/octet-stream',
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST')
+        throw new ConflictException('Upload has already been used');
+      throw error;
+    }
   }
 
   openReadStream(storageKey: string): Readable {
@@ -176,17 +206,35 @@ export class LocalFilesystemStorageProvider
   }
 
   private resolveSafePath(storageKey: string): string {
-    const normalizedKey = normalize(storageKey).replace(
-      /^(\.\.(\/|\\|$))+/,
-      '',
-    );
-    const absolute = resolve(this.rootDir, normalizedKey);
+    if (
+      typeof storageKey !== 'string' ||
+      !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,511}$/.test(storageKey) ||
+      storageKey
+        .split('/')
+        .some(
+          (part) =>
+            !part ||
+            part === '.' ||
+            part === '..' ||
+            /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part),
+        )
+    )
+      throw new ForbiddenException('Invalid storage key');
+    const absolute = resolve(this.rootDir, storageKey);
     const rootWithSep = this.rootDir.endsWith(sep)
       ? this.rootDir
       : `${this.rootDir}${sep}`;
     if (absolute !== this.rootDir && !absolute.startsWith(rootWithSep)) {
       throw new ForbiddenException('Invalid storage key');
     }
+    let current = this.rootDir;
+    for (const part of storageKey.split('/')) {
+      if (existsSync(current) && lstatSync(current).isSymbolicLink())
+        throw new ForbiddenException('Invalid storage path');
+      current = resolve(current, part);
+    }
+    if (existsSync(current) && lstatSync(current).isSymbolicLink())
+      throw new ForbiddenException('Invalid storage path');
     return absolute;
   }
 }

@@ -116,6 +116,7 @@ function paymentRow(overrides: Record<string, unknown> = {}) {
 describe('PaymentsService', () => {
   const prisma = {
     payment: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
       findUnique: jest.fn(),
@@ -124,10 +125,13 @@ describe('PaymentsService', () => {
       update: jest.fn(),
     },
     bill: {
+      findUniqueOrThrow: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
+    membership: { updateMany: jest.fn() },
   };
   const scope = {
     salonScope: jest.fn().mockReturnValue({}),
@@ -146,6 +150,13 @@ describe('PaymentsService', () => {
     scope.assertOwnCustomerAccess.mockResolvedValue(undefined);
     audit.record.mockResolvedValue(undefined);
     prisma.bill.findUnique.mockResolvedValue(completedBill());
+    prisma.bill.findUniqueOrThrow.mockImplementation(
+      () =>
+        prisma.bill.findUnique.mock.results.at(-1)?.value as Promise<
+          ReturnType<typeof completedBill>
+        >,
+    );
+    prisma.$queryRaw.mockResolvedValue([]);
     prisma.bill.update.mockResolvedValue(completedBill());
     prisma.payment.findMany.mockResolvedValue([]);
     prisma.$transaction.mockImplementation((arg: unknown) => {
@@ -168,18 +179,26 @@ describe('PaymentsService', () => {
   it('excludes refunded bills from successful-payment totals used by dashboards', async () => {
     prisma.payment.count.mockResolvedValue(0);
     await service.list(manager, { status: PaymentStatus.SUCCESS });
-    expect(prisma.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { AND: [
-        { bill: { AND: [{}, { status: BillStatus.COMPLETED }] } },
-        { status: PaymentStatus.SUCCESS },
-      ] },
-    }));
-    expect(prisma.payment.count).toHaveBeenCalledWith(expect.objectContaining({
-      where: { AND: [
-        { bill: { AND: [{}, { status: BillStatus.COMPLETED }] } },
-        { status: PaymentStatus.SUCCESS },
-      ] },
-    }));
+    expect(prisma.payment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { bill: { AND: [{}, { status: BillStatus.COMPLETED }] } },
+            { status: PaymentStatus.SUCCESS },
+          ],
+        },
+      }),
+    );
+    expect(prisma.payment.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { bill: { AND: [{}, { status: BillStatus.COMPLETED }] } },
+            { status: PaymentStatus.SUCCESS },
+          ],
+        },
+      }),
+    );
   });
 
   it('creates a SUCCESS payment and recalculates bill amounts', async () => {
@@ -191,6 +210,7 @@ describe('PaymentsService', () => {
     const result = await service.create(
       manager,
       {
+        idempotencyKey: 'test-request-0001',
         billId: 'bill-1',
         amount: 500,
         paymentMethod: PaymentMethod.UPI,
@@ -221,6 +241,7 @@ describe('PaymentsService', () => {
       service.create(
         manager,
         {
+          idempotencyKey: 'test-request-0001',
           billId: 'bill-1',
           amount: 100,
           paymentMethod: PaymentMethod.CASH,
@@ -233,6 +254,7 @@ describe('PaymentsService', () => {
   it('rejects UPI for a USD franchise', async () => {
     prisma.bill.findUnique.mockResolvedValue(
       completedBill({
+        currency: 'USD',
         salon: {
           franchiseId: 'us',
           franchise: { preferences: { currency: 'USD' } },
@@ -242,7 +264,12 @@ describe('PaymentsService', () => {
     await expect(
       service.create(
         manager,
-        { billId: 'bill-1', amount: 10.25, paymentMethod: PaymentMethod.UPI },
+        {
+          idempotencyKey: 'test-request-0001',
+          billId: 'bill-1',
+          amount: 10.25,
+          paymentMethod: PaymentMethod.UPI,
+        },
         ctx,
       ),
     ).rejects.toThrow('USD');
@@ -251,6 +278,7 @@ describe('PaymentsService', () => {
   it('records USD cents without conversion and recalculates the remaining balance', async () => {
     prisma.bill.findUnique.mockResolvedValue(
       completedBill({
+        currency: 'USD',
         total: '100.25',
         dueAmount: '100.25',
         salon: {
@@ -268,7 +296,12 @@ describe('PaymentsService', () => {
     prisma.payment.findMany.mockResolvedValue([{ amount: '40.15' }]);
     await service.create(
       manager,
-      { billId: 'bill-1', amount: 40.15, paymentMethod: PaymentMethod.CARD },
+      {
+        idempotencyKey: 'test-request-0001',
+        billId: 'bill-1',
+        amount: 40.15,
+        paymentMethod: PaymentMethod.CARD,
+      },
       ctx,
     );
     expect(
@@ -292,6 +325,7 @@ describe('PaymentsService', () => {
       service.create(
         manager,
         {
+          idempotencyKey: 'test-request-0001',
           billId: 'bill-1',
           amount: 150,
           paymentMethod: PaymentMethod.CASH,
@@ -306,6 +340,7 @@ describe('PaymentsService', () => {
       service.create(
         manager,
         {
+          idempotencyKey: 'test-request-0001',
           billId: 'bill-1',
           amount: 0,
           paymentMethod: PaymentMethod.CASH,
@@ -322,6 +357,7 @@ describe('PaymentsService', () => {
     await service.create(
       manager,
       {
+        idempotencyKey: 'test-request-0001',
         billId: 'bill-1',
         amount: 100,
         paymentMethod: PaymentMethod.CASH,
@@ -333,26 +369,43 @@ describe('PaymentsService', () => {
     expect(prisma.bill.update).not.toHaveBeenCalled();
   });
 
-  it('lets a customer pay their own bill', async () => {
-    const created = paymentRow();
-    prisma.payment.create.mockResolvedValue(created);
-    prisma.payment.findUniqueOrThrow.mockResolvedValue(created);
-    prisma.payment.findMany.mockResolvedValue([{ amount: '500.00' }]);
+  it.each([undefined, PaymentStatus.PENDING, PaymentStatus.SUCCESS])(
+    'rejects customer payment creation with status %s before any writes',
+    async (status) => {
+      const created = paymentRow();
+      prisma.payment.create.mockResolvedValue(created);
+      prisma.payment.findUniqueOrThrow.mockResolvedValue(created);
+      prisma.payment.findMany.mockResolvedValue([{ amount: '500.00' }]);
 
-    await service.create(
-      customerActor,
-      {
-        billId: 'bill-1',
-        amount: 500,
-        paymentMethod: PaymentMethod.UPI,
-      },
-      ctx,
-    );
+      await expect(
+        service.create(
+          customerActor,
+          {
+            idempotencyKey: 'test-request-0001',
+            billId: 'bill-1',
+            amount: 500,
+            paymentMethod: PaymentMethod.UPI,
+            status,
+          },
+          ctx,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.bill.findUnique).not.toHaveBeenCalled();
+      expect(prisma.payment.create).not.toHaveBeenCalled();
+      expect(prisma.bill.update).not.toHaveBeenCalled();
+    },
+  );
 
-    expect(scope.assertOwnCustomerAccess).toHaveBeenCalledWith(
-      customerActor,
-      'cust-1',
-    );
+  it('rejects direct customer payment status mutation', async () => {
+    await expect(
+      service.updateStatus(
+        customerActor,
+        'pay-1',
+        { status: PaymentStatus.SUCCESS },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.payment.update).not.toHaveBeenCalled();
   });
 
   it('rejects a customer paying someone else bill', async () => {
@@ -364,6 +417,7 @@ describe('PaymentsService', () => {
       service.create(
         otherCustomer,
         {
+          idempotencyKey: 'test-request-0001',
           billId: 'bill-1',
           amount: 100,
           paymentMethod: PaymentMethod.CASH,
@@ -403,6 +457,12 @@ describe('PaymentsService', () => {
   });
 
   it('marks payment SUCCESS and recalculates bill', async () => {
+    prisma.payment.findUniqueOrThrow.mockResolvedValueOnce(
+      paymentRow({
+        status: PaymentStatus.PENDING,
+        bill: completedBill({ dueAmount: '942.82' }),
+      }),
+    );
     prisma.payment.findUnique.mockResolvedValue(
       paymentRow({
         status: PaymentStatus.PENDING,
@@ -467,6 +527,7 @@ describe('PaymentsService', () => {
       service.create(
         manager,
         {
+          idempotencyKey: 'test-request-0001',
           billId: 'missing',
           amount: 10,
           paymentMethod: PaymentMethod.CASH,
@@ -480,6 +541,7 @@ describe('PaymentsService', () => {
 describe('CreatePaymentDto validation', () => {
   it('rejects amount below 0.01', async () => {
     const dto = Object.assign(new CreatePaymentDto(), {
+      idempotencyKey: 'test-request-0001',
       billId: '11111111-1111-4111-8111-111111111111',
       amount: 0,
       paymentMethod: PaymentMethod.CASH,
@@ -490,12 +552,15 @@ describe('CreatePaymentDto validation', () => {
 });
 
 describe('PaymentsController authorization', () => {
-  it('allows CUSTOMER on list, create and findOne', () => {
-    for (const method of ['list', 'create', 'findOne'] as const) {
+  it('allows CUSTOMER to read payments only', () => {
+    for (const method of ['list', 'findOne'] as const) {
       expect(handlerRoles(PaymentsController, method)).toContain(
         RoleCode.CUSTOMER,
       );
     }
+    expect(handlerRoles(PaymentsController, 'create')).not.toContain(
+      RoleCode.CUSTOMER,
+    );
   });
 
   it('does not allow CUSTOMER to change payment status', () => {

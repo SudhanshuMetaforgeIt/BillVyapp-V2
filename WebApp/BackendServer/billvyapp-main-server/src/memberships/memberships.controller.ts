@@ -43,7 +43,6 @@ const MEMBERSHIP_CREATE_ROLES = [
   RoleCode.SUPER_ADMIN,
   RoleCode.ADMIN,
   RoleCode.MANAGER,
-  RoleCode.STAFF,
 ] as const;
 
 const MEMBERSHIP_WRITE_ROLES = [
@@ -76,11 +75,11 @@ export class MembershipsController {
   }
 
   @Post()
-  @Roles(...MEMBERSHIP_CREATE_ROLES, RoleCode.CUSTOMER)
+  @Roles(...MEMBERSHIP_CREATE_ROLES)
   @ApiOperation({
     summary: 'Create a membership',
     description:
-      'endDate is computed as startDate + plan.durationDays. CUSTOMER callers use their own customer id. Default status is ACTIVE.',
+      'Authorized business users may issue memberships. Customers cannot activate memberships directly. endDate is computed as startDate + plan.durationDays.',
   })
   @ApiResponse({ status: 201, type: MembershipResponseDto })
   @ApiResponse({

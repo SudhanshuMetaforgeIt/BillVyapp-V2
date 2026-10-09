@@ -1,3 +1,4 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsInt,
@@ -5,11 +6,16 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsIn,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+
+import {
+  ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_MIME_TYPES,
+} from '../attachment-validation';
 
 export class CreateMediaUploadDto {
   @ApiProperty({ example: 'receipt.pdf' })
@@ -22,13 +28,14 @@ export class CreateMediaUploadDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
+  @IsIn(ATTACHMENT_MIME_TYPES)
   mimeType: string;
 
   @ApiProperty({ example: 204800, minimum: 1 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
-  @Max(50 * 1024 * 1024)
+  @Max(ATTACHMENT_MAX_BYTES)
   fileSize: number;
 
   @ApiPropertyOptional({ format: 'uuid' })

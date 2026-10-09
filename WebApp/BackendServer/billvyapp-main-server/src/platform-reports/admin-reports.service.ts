@@ -1,3 +1,13 @@
+import { boundedWorkbook } from './bounded-workbook';
+import {
+  SAFE_JOB_OPTIONS,
+  validateJobQuery,
+} from '../common/security/job-validation';
+import {
+  claimReport,
+  reportClaimWhere,
+  assertReportDeadline,
+} from './report-job-security';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { measureBaseline } from '../common/performance/baseline';
@@ -29,7 +39,6 @@ import {
   type ReportService,
 } from './admin-report-data';
 import {
-  buildAdminWorkbook,
   adminReportFileName,
   XLSX_CONTENT_TYPE,
 } from './admin-report-workbook';
@@ -352,7 +361,7 @@ export class AdminReportsService {
     });
     try {
       await measureBaseline('report:workbook:ms', () =>
-        buildAdminWorkbook(snapshot),
+        boundedWorkbook('admin', snapshot),
       );
       const ready = await this.prisma.platformReport.update({
         where: { id: row.id },
@@ -461,7 +470,7 @@ export class AdminReportsService {
         generatedById: user.userId,
         dateFrom: parseDateOnlyUtc(dateFrom),
         dateTo: parseDateOnlyUtc(dateTo),
-        snapshot: initialSnapshot as unknown as Prisma.InputJsonValue,
+        snapshot: initialSnapshot,
       },
     });
 
@@ -482,8 +491,8 @@ export class AdminReportsService {
         },
         {
           jobId: `admin-report-${row.id}`,
-          removeOnComplete: true,
-          removeOnFail: false,
+          ...SAFE_JOB_OPTIONS,
+          backoff: { type: 'fixed', delay: 600_000 },
         },
       );
     }
@@ -496,7 +505,12 @@ export class AdminReportsService {
   ): Promise<void> {
     const report = await this.prisma.platformReport.findUnique({
       where: { id: payload.reportId },
-      select: { id: true, snapshot: true },
+      select: {
+        id: true,
+        snapshot: true,
+        franchiseId: true,
+        generatedById: true,
+      },
     });
     if (!report) {
       this.logger.warn(
@@ -507,47 +521,97 @@ export class AdminReportsService {
 
     const actor = await this.prisma.user.findUnique({
       where: { id: payload.actorUserId },
-      select: { id: true, email: true, franchiseId: true },
+      select: {
+        id: true,
+        email: true,
+        franchiseId: true,
+        isActive: true,
+        role: { select: { code: true, isActive: true } },
+      },
     });
 
+    const initial = report.snapshot as Record<string, unknown> | null;
+    if (
+      !actor?.isActive ||
+      !actor.role.isActive ||
+      (actor.role.code as RoleCode) !== RoleCode.ADMIN ||
+      report.generatedById !== actor.id ||
+      !report.franchiseId ||
+      report.franchiseId !== actor.franchiseId ||
+      report.franchiseId !== payload.franchiseId ||
+      initial?.kind !== 'FRANCHISE_OVERVIEW'
+    ) {
+      throw new ForbiddenException(
+        'Report ownership or actor scope has changed',
+      );
+    }
+    const scopedQuery = {
+      ...payload.query,
+      dateFrom: initial.dateFrom as string,
+      dateTo: initial.dateTo as string,
+      branchId: (initial.branchId as string | null) ?? undefined,
+      interval: initial.interval as AdminReportQueryDto['interval'],
+    };
     const authUser: AuthenticatedUser = {
       userId: payload.actorUserId,
-      email: actor?.email ?? '',
+      email: actor.email,
       role: RoleCode.ADMIN,
-      franchiseId: actor?.franchiseId ?? payload.franchiseId,
+      franchiseId: report.franchiseId,
       salonId: null,
       sessionId: null,
     };
 
+    const processingToken = await claimReport(this.prisma, report.id, initial);
+    if (!processingToken) return;
+    const startedAt = Date.now();
     try {
+      await validateJobQuery(scopedQuery, AdminReportQueryDto);
       const snapshot = await measureBaseline('report:snapshot:ms', () =>
-        this.snapshot(authUser, payload.query),
+        this.snapshot(authUser, scopedQuery),
       );
       await measureBaseline('report:workbook:ms', () =>
-        buildAdminWorkbook(snapshot),
+        boundedWorkbook('admin', snapshot),
       );
-      await this.prisma.platformReport.update({
-        where: { id: payload.reportId },
-        data: {
-          snapshot: snapshot as unknown as Prisma.InputJsonValue,
+      const currentActor = await this.prisma.user.findUnique({
+        where: { id: payload.actorUserId },
+        select: {
+          isActive: true,
+          franchiseId: true,
+          role: { select: { code: true, isActive: true } },
         },
       });
-    } catch (error) {
+      if (
+        !currentActor?.isActive ||
+        !currentActor.role.isActive ||
+        (currentActor.role.code as RoleCode) !== RoleCode.ADMIN ||
+        currentActor.franchiseId !== report.franchiseId
+      ) {
+        throw new ForbiddenException(
+          'Report actor scope changed during generation',
+        );
+      }
+      assertReportDeadline(startedAt);
+      await this.prisma.platformReport.updateMany({
+        where: reportClaimWhere(payload.reportId, processingToken),
+        data: {
+          snapshot: snapshot,
+        },
+      });
+    } catch {
       this.logger.error(
-        `Failed to generate background admin report ${payload.reportId}: ${(error as Error).message}`,
-        (error as Error).stack,
+        `Failed to generate background admin report ${payload.reportId}`,
       );
       const current = report.snapshot as Record<string, unknown> | null;
-      await this.prisma.platformReport.update({
-        where: { id: payload.reportId },
+      await this.prisma.platformReport.updateMany({
+        where: reportClaimWhere(payload.reportId, processingToken),
         data: {
           snapshot: {
             ...(typeof current === 'object' && current !== null ? current : {}),
             status: 'Failed',
-          } as unknown as Prisma.InputJsonValue,
+          },
         },
       });
-      throw error;
+      throw new Error('Admin report generation failed');
     }
   }
 
@@ -587,7 +651,7 @@ export class AdminReportsService {
     if (snapshot.status !== 'Ready')
       throw new BadRequestException('Report is not ready. Generate it again');
     return {
-      body: await buildAdminWorkbook(snapshot),
+      body: await boundedWorkbook('admin', snapshot),
       fileName: adminReportFileName(snapshot),
       contentType: XLSX_CONTENT_TYPE,
     };

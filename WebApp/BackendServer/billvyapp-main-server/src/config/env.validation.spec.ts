@@ -9,6 +9,27 @@ const base = {
 };
 
 describe('validateEnv', () => {
+  it.each(['garbage', '7d', '0m'])(
+    'rejects an unsafe access token expiry %s',
+    (expiry) => {
+      expect(() =>
+        validateEnv({ ...base, JWT_ACCESS_EXPIRES_IN: expiry }),
+      ).toThrow('JWT expiry');
+    },
+  );
+  it('requires explicit HTTPS origins and disables dev OTP in production', () => {
+    expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(
+      'CORS_ORIGIN',
+    );
+    expect(() =>
+      validateEnv({
+        ...base,
+        NODE_ENV: 'production',
+        CORS_ORIGIN: 'https://app.example.com',
+        DEV_OTP_ENABLED: true,
+      }),
+    ).toThrow('OTP');
+  });
   it('accepts a valid configuration', () => {
     expect(() => validateEnv(base)).not.toThrow();
   });

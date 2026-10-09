@@ -42,7 +42,6 @@ const LOYALTY_WRITE_ROLES = [
   RoleCode.SUPER_ADMIN,
   RoleCode.ADMIN,
   RoleCode.MANAGER,
-  RoleCode.STAFF,
 ] as const;
 
 @ApiTags('Loyalty')

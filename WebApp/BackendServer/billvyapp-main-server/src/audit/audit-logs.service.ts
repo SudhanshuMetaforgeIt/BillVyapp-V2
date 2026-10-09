@@ -12,6 +12,7 @@ import {
 } from '../common/pagination/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogQueryDto } from './dto/audit-log-query.dto';
+import { redactSensitive } from '../common/security/redaction';
 
 const AUDIT_SELECT = {
   id: true,
@@ -26,8 +27,6 @@ const AUDIT_SELECT = {
   userAgent: true,
   createdAt: true,
 } as const;
-
-const SENSITIVE_KEY = /password|token|secret|otp|hash/i;
 
 export type AuditLogRecord = {
   id: string;
@@ -89,10 +88,7 @@ export class AuditLogsService {
     );
   }
 
-  async findOne(
-    user: AuthenticatedUser,
-    id: string,
-  ): Promise<AuditLogRecord> {
+  async findOne(user: AuthenticatedUser, id: string): Promise<AuditLogRecord> {
     this.assertAuditReader(user);
 
     const row = await this.prisma.auditLog.findUnique({
@@ -133,34 +129,11 @@ export class AuditLogsService {
       action: row.action,
       entityType: row.entityType,
       entityId: row.entityId,
-      oldData: this.redactSensitive(row.oldData),
-      newData: this.redactSensitive(row.newData),
+      oldData: redactSensitive(row.oldData),
+      newData: redactSensitive(row.newData),
       ipAddress: row.ipAddress,
       userAgent: row.userAgent,
       createdAt: row.createdAt,
     };
-  }
-
-  private redactSensitive(value: unknown): unknown {
-    if (value === null || value === undefined) {
-      return value ?? null;
-    }
-    if (Array.isArray(value)) {
-      return value.map((item) => this.redactSensitive(item));
-    }
-    if (typeof value === 'object') {
-      const out: Record<string, unknown> = {};
-      for (const [key, nested] of Object.entries(
-        value as Record<string, unknown>,
-      )) {
-        if (SENSITIVE_KEY.test(key)) {
-          out[key] = '[REDACTED]';
-        } else {
-          out[key] = this.redactSensitive(nested);
-        }
-      }
-      return out;
-    }
-    return value;
   }
 }

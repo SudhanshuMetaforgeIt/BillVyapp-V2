@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsArray,
   IsEnum,
@@ -31,7 +32,7 @@ export class CreateMembershipPlanDto {
       'Maximum completed visits receiving a membership benefit; null means no additional visit cap',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(2147483647)
@@ -57,7 +58,7 @@ export class CreateMembershipPlanDto {
 
   @ApiPropertyOptional({ nullable: true, minimum: 0, maximum: 100 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
@@ -65,7 +66,7 @@ export class CreateMembershipPlanDto {
 
   @ApiPropertyOptional({ nullable: true, minimum: 1 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(2147483647)
@@ -88,7 +89,7 @@ export class CreateMembershipPlanDto {
   description?: string | null;
 
   @ApiProperty({ example: 4999.0, minimum: 0 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(9999999999.99)
@@ -99,7 +100,7 @@ export class CreateMembershipPlanDto {
     minimum: 1,
     description: 'Plan length in calendar days',
   })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   durationDays: number;
@@ -108,7 +109,7 @@ export class CreateMembershipPlanDto {
     description: 'Null disables automatic enrollment',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(9999999999.99)

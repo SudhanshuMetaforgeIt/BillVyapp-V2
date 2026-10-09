@@ -3,10 +3,9 @@ import { Transform } from 'class-transformer';
 /**
  * Query-string boolean: true/false/1/0. Empty means "not filtered".
  *
- * IMPORTANT: Nest ValidationPipe uses `enableImplicitConversion: true`, which
- * converts the query string "false" into boolean `true` (because
- * Boolean("false") === true) BEFORE @Transform's `value` argument is set.
- * The raw string is still available on `obj[key]` — always prefer that.
+ * Read the raw property explicitly so a future transformer change cannot
+ * turn the query string "false" into a truthy boolean. Invalid values remain
+ * present for @IsBoolean to reject rather than silently removing the filter.
  */
 export function toOptionalBoolean({
   value,
@@ -16,7 +15,7 @@ export function toOptionalBoolean({
   value: unknown;
   obj?: Record<string, unknown>;
   key?: string;
-}): boolean | undefined {
+}): unknown {
   const raw =
     obj && key !== undefined && Object.prototype.hasOwnProperty.call(obj, key)
       ? obj[key]
@@ -31,7 +30,7 @@ export function toOptionalBoolean({
   if (raw === false || raw === 'false' || raw === '0' || raw === 0) {
     return false;
   }
-  return undefined;
+  return raw;
 }
 
 export const OptionalBooleanTransform = () =>

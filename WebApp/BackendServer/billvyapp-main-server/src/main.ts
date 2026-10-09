@@ -1,10 +1,16 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+import { RequestValidationPipe } from './common/security/request-validation.pipe';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import {
+  allowedBrowserOrigins,
+  browserOriginMiddleware,
+  isBrowserOriginAllowed,
+} from './common/security/browser-origin-policy';
 import {
   baselineMiddleware,
   startBaseline,
@@ -35,12 +41,24 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  // credentials:true requires a concrete Allow-Origin. When CORS_ORIGIN is "*",
-  // reflect the request Origin so HttpOnly refresh cookies work cross-port
-  // (e.g. Next on :3001 talking to API on :3000).
-  const corsOrigin = config.get<string>('cors.origin', '*');
+  // Share the same origin policy for CORS and cookie request verification.
+  // Development permits local/LAN IP origins; production uses exact configured origins.
+  const production = config.get<string>('nodeEnv') === 'production';
+  const origins = allowedBrowserOrigins(
+    config.get<string>('cors.origin', '*'),
+    production,
+  );
+  app.use(browserOriginMiddleware(origins, production));
   app.enableCors({
-    origin: corsOrigin === '*' ? true : corsOrigin,
+    origin: (
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
+    ) => {
+      callback(
+        null,
+        !origin || isBrowserOriginAllowed(origin, origins, production),
+      );
+    },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -48,14 +66,7 @@ async function bootstrap() {
 
   // -------------------------------------------------------------- validation
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
+  app.useGlobalPipes(new RequestValidationPipe());
 
   // ------------------------------------------------------------------ routing
 
@@ -63,26 +74,28 @@ async function bootstrap() {
 
   // ------------------------------------------------------------------ swagger
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('BillVyApp V2 API')
-    .setDescription(
-      'Salon management backend. Billing documents are "bills" throughout - there is no invoice resource.',
-    )
-    .setVersion('1.0')
-    .addBearerAuth({
-      type: 'http',
-      scheme: 'bearer',
-      bearerFormat: 'JWT',
-      description: 'Paste the accessToken returned by /api/auth/login',
-    })
-    .build();
+  if (!production) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('BillVyApp V2 API')
+      .setDescription(
+        'Salon management backend. Billing documents are "bills" throughout - there is no invoice resource.',
+      )
+      .setVersion('1.0')
+      .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Paste the accessToken returned by /api/auth/login',
+      })
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
 
-  // Absolute path: setup() is not affected by setGlobalPrefix.
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: { persistAuthorization: true },
-  });
+    // Absolute path: setup() is not affected by setGlobalPrefix.
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: { persistAuthorization: false },
+    });
+  }
 
   // ----------------------------------------------------------------- listen
 

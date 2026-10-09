@@ -41,7 +41,7 @@ export class AuditLogQueryDto extends PaginationQueryDto {
     description: 'Inclusive lower bound on createdAt (ISO 8601)',
   })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   dateFrom?: string;
 
   @ApiPropertyOptional({
@@ -49,6 +49,6 @@ export class AuditLogQueryDto extends PaginationQueryDto {
     description: 'Inclusive upper bound on createdAt (ISO 8601)',
   })
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true })
   dateTo?: string;
 }

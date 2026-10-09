@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { CacheService } from '../redis/cache.service';
 import { randomUUID } from 'crypto';
+import { redactSensitive } from '../common/security/redaction';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { Prisma } from '../generated/prisma/client';
@@ -29,7 +30,6 @@ import {
   DEFAULT_PLATFORM_SETTINGS,
   INTEGRATION_ENTITY_TYPE,
   PLATFORM_SETTINGS_ID,
-  SECRET_CONFIG_KEYS,
   SETTINGS_BACKUP_DIR,
   SETTINGS_BACKUP_FORMAT_VERSION,
   SETTINGS_BACKUP_MAX_COUNT,
@@ -226,8 +226,8 @@ export class SettingsService {
       action: 'SETTINGS_GENERAL_UPDATED',
       entityType: SETTINGS_ENTITY_TYPE,
       entityId: PLATFORM_SETTINGS_ID,
-      oldData: this.toGeneral(existing) as unknown as Prisma.InputJsonValue,
-      newData: this.toGeneral(updated) as unknown as Prisma.InputJsonValue,
+      oldData: this.toGeneral(existing),
+      newData: this.toGeneral(updated),
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
@@ -604,8 +604,8 @@ export class SettingsService {
       action: 'SETTINGS_EMAIL_UPDATED',
       entityType: SETTINGS_ENTITY_TYPE,
       entityId: PLATFORM_SETTINGS_ID,
-      oldData: this.toEmail(existing) as unknown as Prisma.InputJsonValue,
-      newData: this.toEmail(updated) as unknown as Prisma.InputJsonValue,
+      oldData: this.toEmail(existing),
+      newData: this.toEmail(updated),
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
@@ -824,8 +824,8 @@ export class SettingsService {
       action: 'SETTINGS_RESET',
       entityType: SETTINGS_ENTITY_TYPE,
       entityId: PLATFORM_SETTINGS_ID,
-      oldData: this.toGeneral(existing) as unknown as Prisma.InputJsonValue,
-      newData: this.toGeneral(updated) as unknown as Prisma.InputJsonValue,
+      oldData: this.toGeneral(existing),
+      newData: this.toGeneral(updated),
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
@@ -879,7 +879,7 @@ export class SettingsService {
         backupId: id,
         sizeBytes: stat.size,
         integrationCount: integrations.length,
-      } as Prisma.InputJsonValue,
+      },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
@@ -1049,12 +1049,12 @@ export class SettingsService {
       action: 'SETTINGS_BACKUP_RESTORED',
       entityType: SETTINGS_ENTITY_TYPE,
       entityId: PLATFORM_SETTINGS_ID,
-      oldData: this.toGeneral(existing) as unknown as Prisma.InputJsonValue,
+      oldData: this.toGeneral(existing),
       newData: {
         backupId: targetId,
         settings: this.toGeneral(updated),
         integrationCount: payload.integrations?.length ?? 0,
-      } as unknown as Prisma.InputJsonValue,
+      },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
@@ -1247,7 +1247,16 @@ export class SettingsService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return paginated(data, total, page, limit);
+    return paginated(
+      data.map((row) => ({
+        ...row,
+        oldData: redactSensitive(row.oldData) as Prisma.JsonValue,
+        newData: redactSensitive(row.newData) as Prisma.JsonValue,
+      })),
+      total,
+      page,
+      limit,
+    );
   }
 
   async listActivity(
@@ -1280,7 +1289,16 @@ export class SettingsService {
       this.prisma.auditLog.count({ where }),
     ]);
 
-    return paginated(data, total, page, limit);
+    return paginated(
+      data.map((row) => ({
+        ...row,
+        oldData: redactSensitive(row.oldData) as Prisma.JsonValue,
+        newData: redactSensitive(row.newData) as Prisma.JsonValue,
+      })),
+      total,
+      page,
+      limit,
+    );
   }
 
   // ---------------------------------------------------------------- helpers
@@ -1509,7 +1527,7 @@ export class SettingsService {
   ): Record<string, unknown> | null {
     if (value === null || value === undefined) return null;
     if (typeof value === 'object' && !Array.isArray(value)) {
-      return value as Record<string, unknown>;
+      return value;
     }
     return null;
   }
@@ -1528,21 +1546,6 @@ export class SettingsService {
   private redactSecrets(
     value: Record<string, unknown> | null,
   ): Record<string, unknown> | null {
-    if (!value) return null;
-    const redacted: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(value)) {
-      const lower = key.toLowerCase();
-      const isSecret = SECRET_CONFIG_KEYS.some(
-        (secret) =>
-          lower === secret.toLowerCase() ||
-          lower.includes('password') ||
-          lower.includes('secret') ||
-          lower.endsWith('token') ||
-          lower.endsWith('apikey') ||
-          lower.endsWith('api_key'),
-      );
-      redacted[key] = isSecret ? '[REDACTED]' : entry;
-    }
-    return redacted;
+    return redactSensitive(value) as Record<string, unknown> | null;
   }
 }

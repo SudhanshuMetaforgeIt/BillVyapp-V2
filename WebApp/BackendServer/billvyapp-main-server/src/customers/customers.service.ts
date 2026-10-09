@@ -7,6 +7,7 @@ import {
 import { randomBytes } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { PasswordService } from '../auth/password.service';
+import { assertUnchangedLoginIdentifiers } from '../auth/login-identifier-policy';
 import {
   calendarDateInTimeZone,
   DEFAULT_BUSINESS_TIMEZONE,
@@ -254,32 +255,25 @@ export class CustomersService {
       throw new ConflictException('Phone already belongs to a staff account');
     }
 
+    if (existingByPhone) {
+      throw new ConflictException(
+        'Existing accounts require verified ownership before linking',
+      );
+    }
+
     try {
-      const created = existingByPhone
-        ? await this.linkExistingUser({
-            franchiseId: actor.franchiseId,
-            salonId: actor.salonId,
-            userId: existingByPhone.id,
-            firstName,
-            lastName,
-            email,
-            phone,
-            profilePhoto,
-            dateOfBirth,
-            gender,
-          })
-        : await this.createUserAndCustomer({
-            franchiseId: actor.franchiseId,
-            salonId: actor.salonId,
-            roleId: customerRole.id,
-            firstName,
-            lastName,
-            email,
-            phone,
-            profilePhoto,
-            dateOfBirth,
-            gender,
-          });
+      const created = await this.createUserAndCustomer({
+        franchiseId: actor.franchiseId,
+        salonId: actor.salonId,
+        roleId: customerRole.id,
+        firstName,
+        lastName,
+        email,
+        phone,
+        profilePhoto,
+        dateOfBirth,
+        gender,
+      });
 
       await this.audit.record({
         userId: actor.userId,
@@ -333,13 +327,20 @@ export class CustomersService {
       userData.email = dto.email.trim().toLowerCase();
     }
     if (dto.phone !== undefined) {
-      userData.phone = (await normalizeFranchisePhone(
-        this.prisma,
-        dto.phone,
-        actor.franchiseId,
-        actor.salonId,
-      ))!;
+      userData.phone =
+        dto.phone.trim() === existing.user.phone
+          ? existing.user.phone
+          : (await normalizeFranchisePhone(
+              this.prisma,
+              dto.phone,
+              actor.franchiseId,
+              actor.salonId,
+            ))!;
     }
+    assertUnchangedLoginIdentifiers(existing.user, userData);
+    // Unchanged identity fields need not be rewritten by ordinary profile updates.
+    delete userData.email;
+    delete userData.phone;
     if (dto.dateOfBirth !== undefined) {
       customerData.dateOfBirth = dto.dateOfBirth;
     }
@@ -398,10 +399,16 @@ export class CustomersService {
     const existing = await this.requireCustomer(id, actor);
     await this.scope.assertCustomerAccess(actor, existing.id);
 
-    await this.prisma.user.update({
-      where: { id: existing.userId },
-      data: { isActive: dto.isActive },
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: existing.userId },
+        data: { isActive: dto.isActive },
+      }),
+      this.prisma.userSession.updateMany({
+        where: { userId: existing.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
 
     const updated = await this.requireCustomer(id, actor);
 
@@ -472,45 +479,6 @@ export class CustomersService {
       return tx.customer.create({
         data: {
           userId: user.id,
-          customerCode,
-          dateOfBirth: input.dateOfBirth,
-          gender: input.gender,
-        },
-        select: CUSTOMER_SELECT,
-      });
-    });
-  }
-
-  private async linkExistingUser(input: {
-    franchiseId: string | null;
-    salonId: string | null;
-    userId: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    profilePhoto: string | null;
-    dateOfBirth: Date | null;
-    gender: Gender | null;
-  }): Promise<CustomerRow> {
-    const customerCode = this.nextCustomerCode();
-
-    return this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: input.userId },
-        data: {
-          firstName: input.firstName,
-          lastName: input.lastName,
-          email: input.email,
-          phone: input.phone,
-          franchiseId: input.franchiseId,
-          salonId: input.salonId,
-        },
-      });
-
-      return tx.customer.create({
-        data: {
-          userId: input.userId,
           customerCode,
           dateOfBirth: input.dateOfBirth,
           gender: input.gender,

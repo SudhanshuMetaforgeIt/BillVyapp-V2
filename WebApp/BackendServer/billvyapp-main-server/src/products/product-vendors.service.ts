@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { RoleCode } from '../common/enums/role.enum';
+import { assertPermission } from '../common/security/access-policy';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -66,6 +67,7 @@ export class ProductVendorsService {
     page?: number,
     limit?: number,
   ): Promise<PaginatedResult<ProductVendorRecord>> {
+    assertPermission(user, 'ProductVendorsController.list');
     const product = await this.requireProductAccess(user, productId);
     const pagination = normalizePagination(page, limit);
     const where = { productId: product.id };
@@ -131,9 +133,7 @@ export class ProductVendorsService {
       return this.toResponse(created);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
-        throw new ConflictException(
-          'Vendor is already linked to this product',
-        );
+        throw new ConflictException('Vendor is already linked to this product');
       }
       throw error;
     }

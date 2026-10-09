@@ -94,6 +94,7 @@ function userRecord(overrides: Record<string, unknown> = {}) {
 
 describe('UsersService', () => {
   const prisma = {
+    userSession: { updateMany: jest.fn() },
     user: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -150,10 +151,23 @@ describe('UsersService', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           role: { code: { not: RoleCode.CUSTOMER } },
-        }),
+        }) as Record<string, unknown>,
       }),
     );
   });
+
+  it.each([{ email: 'attacker@example.com' }, { phone: '9123456789' }])(
+    'blocks alternate user-admin identifier changes for a customer: %o',
+    async (dto) => {
+      prisma.user.findFirst.mockResolvedValue(
+        userRecord({ role: customerRole, roleId: customerRole.id }),
+      );
+      await expect(service.update(actor, 'user-1', dto, ctx)).rejects.toThrow(
+        'ownership verification',
+      );
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    },
+  );
 
   it('lists CUSTOMER accounts when filtered by roleId', async () => {
     const customer = userRecord({
@@ -178,12 +192,12 @@ describe('UsersService', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           roleId: customerRole.id,
-        }),
+        }) as Record<string, unknown>,
       }),
     );
     expect(
       (
-        prisma.user.findMany.mock.calls[0][0] as {
+        (prisma.user.findMany.mock.calls as [unknown][])[0][0] as {
           where: Record<string, unknown>;
         }
       ).where.role,
@@ -390,6 +404,10 @@ describe('UsersService', () => {
     );
 
     expect(result.isActive).toBe(false);
+    expect(prisma.userSession.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) as Date },
+    });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'USER_STATUS_CHANGED' }),
     );
@@ -421,7 +439,10 @@ describe('UsersService', () => {
     expect(result.role.code).toBe(RoleCode.MANAGER);
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ franchiseId: 'fr-1' }),
+        data: expect.objectContaining({ franchiseId: 'fr-1' }) as Record<
+          string,
+          unknown
+        >,
       }),
     );
   });

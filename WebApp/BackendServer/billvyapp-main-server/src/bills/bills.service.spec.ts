@@ -90,6 +90,7 @@ const otherCustomer: AuthenticatedUser = {
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
 const createDto: CreateBillDto = {
+  idempotencyKey: 'test-request-0001',
   salonId: 'salon-a1',
   customerId: 'cust-1',
   items: [
@@ -169,6 +170,7 @@ describe('BillsService', () => {
   const prisma = {
     payment: { updateMany: jest.fn() },
     bill: {
+      findFirst: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -202,6 +204,7 @@ describe('BillsService', () => {
     $queryRaw: jest.fn(),
     membershipPlan: { findFirst: jest.fn(), findMany: jest.fn() },
     membership: {
+      updateMany: jest.fn(),
       create: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -217,6 +220,45 @@ describe('BillsService', () => {
   };
   const audit = { record: jest.fn() };
   let service: BillsService;
+
+  it('computes staff line prices and taxes from the catalog for the supplied quantity', async () => {
+    prisma.bill.create.mockResolvedValue(billRow());
+    await service.create(
+      { ...manager, role: RoleCode.STAFF },
+      { ...createDto, items: [{ ...createDto.items[0], quantity: 2 }] },
+      ctx,
+    );
+    const calls = prisma.bill.create.mock.calls as unknown as [
+      { data: { total: string; subtotal: string; tax: string } },
+    ][];
+    expect(calls[0][0].data).toMatchObject({
+      subtotal: '1598.00',
+      tax: '287.64',
+      total: '1885.64',
+    });
+  });
+  it.each([{ discount: 800, tax: 1000 }, { roundOff: 1 }, { roundOff: -1 }])(
+    'rejects excessive discount or rounding even for an approving manager (%o)',
+    async (override) => {
+      await expect(
+        service.create(manager, { ...createDto, ...override }, ctx),
+      ).rejects.toThrow();
+      expect(prisma.bill.create).not.toHaveBeenCalled();
+    },
+  );
+  it.each([0, -1, 1.5, Number.MAX_SAFE_INTEGER])(
+    'rejects invalid quantity %s before bill creation',
+    async (quantity) => {
+      await expect(
+        service.create(
+          manager,
+          { ...createDto, items: [{ ...createDto.items[0], quantity }] },
+          ctx,
+        ),
+      ).rejects.toThrow('Quantity');
+      expect(prisma.bill.create).not.toHaveBeenCalled();
+    },
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -272,6 +314,53 @@ describe('BillsService', () => {
     );
   });
 
+  it.each([{ unitPrice: 1 }, { taxRate: 0 }, { discount: 1 }])(
+    'rejects staff line overrides %j before writes',
+    async (override) => {
+      await expect(
+        service.create(
+          { ...manager, role: RoleCode.STAFF },
+          {
+            idempotencyKey: 'test-request-0001',
+            ...createDto,
+            items: [{ ...createDto.items[0], ...override }],
+          },
+          ctx,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.bill.create).not.toHaveBeenCalled();
+    },
+  );
+  it.each([{ discount: 1 }, { tax: 0 }, { roundOff: 1 }])(
+    'rejects staff total overrides %j before writes',
+    async (override) => {
+      await expect(
+        service.create(
+          { ...manager, role: RoleCode.STAFF },
+          { idempotencyKey: 'test-request-0001', ...createDto, ...override },
+          ctx,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.bill.create).not.toHaveBeenCalled();
+    },
+  );
+  it('rejects staff refunds before changing a bill or payments', async () => {
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({ status: BillStatus.COMPLETED }),
+    );
+    await expect(
+      service.updateStatus(
+        { ...manager, role: RoleCode.STAFF },
+        'bill-1',
+        { status: BillStatus.REFUNDED },
+        ctx,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.bill.update).not.toHaveBeenCalled();
+    expect(prisma.payment.updateMany).not.toHaveBeenCalled();
+  });
+
   it('completes normal billing without issuing any membership even when plans qualify', async () => {
     prisma.bill.findUnique.mockResolvedValue(billRow());
     prisma.bill.update.mockResolvedValue(
@@ -297,6 +386,7 @@ describe('BillsService', () => {
     await service.create(
       manager,
       {
+        idempotencyKey: 'test-request-0001',
         ...createDto,
         enrollmentPlanId: 'plan',
         enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
@@ -337,6 +427,7 @@ describe('BillsService', () => {
       service.create(
         manager,
         {
+          idempotencyKey: 'test-request-0001',
           ...createDto,
           enrollmentPlanId: 'plan',
           enrollmentDetails: {
@@ -357,6 +448,8 @@ describe('BillsService', () => {
         membershipFee: '499.00',
         enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
         total: '1441.82',
+        paidAmount: '1441.82',
+        dueAmount: '0.00',
       }),
     );
     prisma.bill.update.mockResolvedValue(
@@ -366,6 +459,8 @@ describe('BillsService', () => {
         membershipFee: '499.00',
         enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
         total: '1441.82',
+        paidAmount: '1441.82',
+        dueAmount: '0.00',
       }),
     );
     prisma.membershipPlan.findFirst.mockResolvedValue({
@@ -451,6 +546,8 @@ describe('BillsService', () => {
         membershipFee: '499.00',
         enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
         total: '1441.82',
+        paidAmount: '1441.82',
+        dueAmount: '0.00',
       }),
     );
     prisma.bill.update.mockResolvedValue(
@@ -460,6 +557,8 @@ describe('BillsService', () => {
         membershipFee: '499.00',
         enrollmentDetails: { nameConfirmed: true, whatsappSameAsBilling: true },
         total: '1441.82',
+        paidAmount: '1441.82',
+        dueAmount: '0.00',
       }),
     );
     prisma.membershipPlan.findFirst.mockResolvedValue({
@@ -511,6 +610,8 @@ describe('BillsService', () => {
       membershipPlan: {
         name: 'Club',
         benefits: null,
+        price: '0.00',
+        enrollmentThreshold: null,
         benefitType: 'PERCENTAGE_DISCOUNT',
         discountPercentage: '0',
         eligibleServices: [{ id: 'svc-1', name: 'Haircut' }],
@@ -524,7 +625,12 @@ describe('BillsService', () => {
     );
     const result = await service.create(
       manager,
-      { ...createDto, couponCode: 'club-123', discount: 100 },
+      {
+        idempotencyKey: 'test-request-0001',
+        ...createDto,
+        couponCode: 'club-123',
+        discount: 100,
+      },
       ctx,
     );
     expect(result.couponCode).toBe('CLUB-123');
@@ -542,7 +648,15 @@ describe('BillsService', () => {
   it('rejects a coupon that belongs to another customer or salon before saving a draft', async () => {
     prisma.membership.findFirst.mockResolvedValue(null);
     await expect(
-      service.create(manager, { ...createDto, couponCode: 'CLUB-123' }, ctx),
+      service.create(
+        manager,
+        {
+          idempotencyKey: 'test-request-0001',
+          ...createDto,
+          couponCode: 'CLUB-123',
+        },
+        ctx,
+      ),
     ).rejects.toThrow('not valid for this customer and salon');
     expect(prisma.bill.create).not.toHaveBeenCalled();
   });
@@ -560,7 +674,12 @@ describe('BillsService', () => {
       startDate: new Date('2000-01-01'),
       endDate: new Date('2099-12-31'),
       status: 'CANCELLED',
-      membershipPlan: { name: 'Club', eligibleServices: [] },
+      membershipPlan: {
+        price: '0.00',
+        enrollmentThreshold: null,
+        name: 'Club',
+        eligibleServices: [],
+      },
     });
     await expect(
       service.updateStatus(
@@ -644,7 +763,11 @@ describe('BillsService', () => {
 
     const result = await service.create(
       manager,
-      { ...createDto, billDate: '2026-10-01' },
+      {
+        idempotencyKey: 'test-request-0001',
+        ...createDto,
+        billDate: '2026-10-01',
+      },
       ctx,
     );
 
@@ -685,6 +808,7 @@ describe('BillsService', () => {
     const result = await service.create(
       manager,
       {
+        idempotencyKey: 'test-request-0001',
         salonId: 'salon-a1',
         customerId: 'cust-1',
         items: [
@@ -926,16 +1050,29 @@ describe('BillsService', () => {
   });
 
   it('refunds successful payments and clears collection and dues in the bill transaction', async () => {
-    prisma.bill.findUnique.mockResolvedValue(billRow({
-      status: BillStatus.COMPLETED, paidAmount: '500.00', dueAmount: '442.82',
-      paymentStatus: BillPaymentStatus.PARTIAL,
-    }));
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({
+        status: BillStatus.COMPLETED,
+        paidAmount: '500.00',
+        dueAmount: '442.82',
+        paymentStatus: BillPaymentStatus.PARTIAL,
+      }),
+    );
     prisma.payment.updateMany.mockResolvedValue({ count: 1 });
-    prisma.bill.update.mockResolvedValue(billRow({
-      status: BillStatus.REFUNDED, paidAmount: '0.00', dueAmount: '0.00',
-      paymentStatus: BillPaymentStatus.REFUNDED,
-    }));
-    const result = await service.updateStatus(manager, 'bill-1', { status: BillStatus.REFUNDED }, ctx);
+    prisma.bill.update.mockResolvedValue(
+      billRow({
+        status: BillStatus.REFUNDED,
+        paidAmount: '0.00',
+        dueAmount: '0.00',
+        paymentStatus: BillPaymentStatus.REFUNDED,
+      }),
+    );
+    const result = await service.updateStatus(
+      manager,
+      'bill-1',
+      { status: BillStatus.REFUNDED },
+      ctx,
+    );
     expect(prisma.payment.updateMany).toHaveBeenCalledWith({
       where: { billId: 'bill-1', status: PaymentStatus.SUCCESS },
       data: { status: PaymentStatus.REFUNDED },
@@ -944,20 +1081,36 @@ describe('BillsService', () => {
       where: { billId: 'bill-1', status: PaymentStatus.PENDING },
       data: { status: PaymentStatus.CANCELLED },
     });
-    expect(prisma.bill.update).toHaveBeenCalledWith(expect.objectContaining({ data: {
-      status: BillStatus.REFUNDED, paidAmount: '0.00', dueAmount: '0.00',
-      paymentStatus: BillPaymentStatus.REFUNDED,
-    } }));
+    expect(prisma.bill.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          status: BillStatus.REFUNDED,
+          paidAmount: '0.00',
+          dueAmount: '0.00',
+          paymentStatus: BillPaymentStatus.REFUNDED,
+        },
+      }),
+    );
     expect(result.paidAmount).toBe('0.00');
     expect(result.dueAmount).toBe('0.00');
     expect(result.paymentStatus).toBe(BillPaymentStatus.REFUNDED);
   });
 
   it('does not update the bill when a refund payment update fails', async () => {
-    prisma.bill.findUnique.mockResolvedValue(billRow({ status: BillStatus.COMPLETED, paidAmount: '942.82' }));
-    prisma.payment.updateMany.mockRejectedValue(new Error('Database update failed'));
-    await expect(service.updateStatus(manager, 'bill-1', { status: BillStatus.REFUNDED }, ctx))
-      .rejects.toThrow('Database update failed');
+    prisma.bill.findUnique.mockResolvedValue(
+      billRow({ status: BillStatus.COMPLETED, paidAmount: '942.82' }),
+    );
+    prisma.payment.updateMany.mockRejectedValue(
+      new Error('Database update failed'),
+    );
+    await expect(
+      service.updateStatus(
+        manager,
+        'bill-1',
+        { status: BillStatus.REFUNDED },
+        ctx,
+      ),
+    ).rejects.toThrow('Database update failed');
     expect(prisma.bill.update).not.toHaveBeenCalled();
   });
 
@@ -1047,6 +1200,7 @@ describe('BillsService', () => {
 describe('CreateBillDto validation', () => {
   it('requires at least one item', async () => {
     const dto = Object.assign(new CreateBillDto(), {
+      idempotencyKey: 'test-request-0001',
       salonId: '11111111-1111-4111-8111-111111111111',
       customerId: '22222222-2222-4222-8222-222222222222',
       items: [],

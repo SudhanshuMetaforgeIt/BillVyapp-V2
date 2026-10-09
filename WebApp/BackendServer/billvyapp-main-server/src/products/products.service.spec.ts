@@ -157,6 +157,13 @@ describe('ProductsService', () => {
     );
   });
 
+  it('omits acquisition cost and stock thresholds from customer catalogue responses', async () => {
+    prisma.product.findUnique.mockResolvedValue(productRow());
+    const result = await service.findOne(customer, 'prod-1');
+    expect(result.sellingPrice).toBe('499.00');
+    expect(result).not.toHaveProperty('costPrice');
+    expect(result).not.toHaveProperty('reorderLevel');
+  });
   it('creates a product in a valid salon and category', async () => {
     prisma.product.create.mockResolvedValue(productRow());
 

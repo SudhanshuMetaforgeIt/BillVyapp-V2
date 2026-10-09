@@ -152,7 +152,7 @@ export function MembershipsPageView() {
                   setPage(1);
                 });
               }}
-              planOptions={(data?.planOptions ?? []).filter((p) => p.isActive)}
+            planOptions={(data?.planOptions ?? []).filter((p) => p.isActive && p.manualEnrollmentAllowed)}
               status={status}
               onStatusChange={(value) => {
                 startTransition(() => {

@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { Readable } from 'stream';
 import { createHash } from 'crypto';
 import { CloudinaryImageProvider } from './cloudinary-image.provider';
 import { CloudinarySalonImageProvider } from '../../salon-photos/storage/cloudinary-salon-image.provider';
@@ -38,6 +39,38 @@ describe('Shared Cloudinary image adapter', () => {
     }),
   );
   afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    { format: 'svg' },
+    { bytes: 10 * 1024 * 1024 + 1 },
+    { width: 8193 },
+    { width: 5000, height: 5000 },
+    { pages: 2 },
+    { width: undefined },
+    { public_id: 'other-salon/object' },
+  ])(
+    'rejects unsafe server-verified direct-upload metadata %j',
+    async (override) => {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            public_id: 'salons/salon-1/object',
+            resource_type: 'image',
+            secure_url: 'https://res.cloudinary.com/demo/image/upload/object',
+            format: 'png',
+            bytes: 100,
+            width: 20,
+            height: 20,
+            ...override,
+          }),
+          { status: 200 },
+        ),
+      );
+      await expect(
+        provider.getImage('salons/salon-1/object'),
+      ).rejects.toThrow();
+    },
+  );
 
   it('uploads signed profile bytes from the server and produces sized, optimized delivery URLs', async () => {
     const fetch = jest.spyOn(global, 'fetch').mockResolvedValue(
@@ -176,7 +209,7 @@ describe('Existing local and S3 storage compatibility', () => {
       ContentType: 'image/png',
       IfNoneMatch: '*',
     });
-    send.mockResolvedValue({ Body: { transformToByteArray: () => bytes } });
+    send.mockResolvedValue({ Body: Readable.from([bytes]) });
     expect(await provider.readObject('users/u/profile/object')).toEqual(bytes);
     expect((send.mock.calls[1] as [GetObjectCommand])[0]).toBeInstanceOf(
       GetObjectCommand,

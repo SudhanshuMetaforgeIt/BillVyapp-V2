@@ -6,6 +6,7 @@ import {
 } from './membership-enrollment';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -25,11 +26,22 @@ import {
 import { ScopeService } from '../common/scope/scope.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
+import {
+  assertPermission,
+  assertFinancialAuthority,
+} from '../common/security/access-policy';
+import {
+  requireRequestKey,
+  financialRequestHash,
+  assertSameFinancialRequest,
+  moneyCents,
+} from '../common/security/financial-integrity';
 import { MembershipQueryDto } from './dto/membership-query.dto';
 import { UpdateMembershipDto } from './dto/update-membership.dto';
 import { UpdateMembershipStatusDto } from './dto/update-membership-status.dto';
 
 const MEMBERSHIP_SELECT = {
+  requestHash: true,
   id: true,
   couponCode: true,
   qualifyingBillId: true,
@@ -244,25 +256,73 @@ export class MembershipsService {
     dto: CreateMembershipDto,
     ctx: RequestContext,
   ): Promise<MembershipRecord> {
+    assertFinancialAuthority(actor);
+    const idempotencyKey = requireRequestKey(dto.idempotencyKey);
+    const requestHash = financialRequestHash({ actor: actor.userId, ...dto });
+    if (
+      ![
+        RoleCode.SUPER_ADMIN,
+        RoleCode.ADMIN,
+        RoleCode.MANAGER,
+        RoleCode.STAFF,
+      ].includes(actor.role)
+    ) {
+      throw new ForbiddenException(
+        'Customers cannot activate memberships directly',
+      );
+    }
     const customerId = await this.resolveCustomerId(actor, dto.customerId);
+    await this.scope.assertCustomerAccess(actor, customerId);
     await this.requireActiveCustomer(customerId);
 
     const plan = await this.requirePlan(dto.membershipPlanId);
     if (!plan.isActive) {
       throw new BadRequestException('Membership plan is inactive');
     }
-    if (actor.role !== RoleCode.CUSTOMER) {
-      await this.scope.assertSalonAccess(actor, plan.salonId);
-    }
+    await this.scope.assertSalonAccess(actor, plan.salonId);
 
     const startDate = this.parseDateOnly(dto.startDate ?? this.todayDateOnly());
-    const created = await this.prisma.$transaction(async (tx) => {
-      const issued = await issueMembership(tx, plan, customerId, startDate);
-      return tx.membership.findUniqueOrThrow({
-        where: { id: issued.id },
-        select: MEMBERSHIP_SELECT,
-      });
-    });
+    const created = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM membership_plans WHERE id = ${plan.id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM customers WHERE id = ${customerId} FOR UPDATE`;
+        const retry = await tx.membership.findFirst({
+          where: { customerId, idempotencyKey },
+          select: MEMBERSHIP_SELECT,
+        });
+        if (retry) {
+          assertSameFinancialRequest(retry.requestHash, requestHash);
+          return retry;
+        }
+        const currentPlan = await tx.membershipPlan.findUniqueOrThrow({
+          where: { id: plan.id },
+          select: ENROLLMENT_PLAN_SELECT,
+        });
+        if (
+          !currentPlan.isActive ||
+          moneyCents(currentPlan.price, 'membership price') !== 0 ||
+          currentPlan.enrollmentThreshold != null
+        )
+          throw new BadRequestException(
+            'Paid or qualifying memberships must be enrolled through a qualifying bill and activated after full payment',
+          );
+        const issued = await issueMembership(
+          tx,
+          currentPlan,
+          customerId,
+          startDate,
+        );
+        await tx.membership.update({
+          where: { id: issued.id },
+          data: { idempotencyKey, requestHash },
+        });
+        return tx.membership.findUniqueOrThrow({
+          where: { id: issued.id },
+          select: MEMBERSHIP_SELECT,
+        });
+      },
+      { isolationLevel: 'ReadCommitted' },
+    );
 
     await this.audit.record({
       userId: actor.userId,
@@ -290,6 +350,7 @@ export class MembershipsService {
     dto: UpdateMembershipDto,
     ctx: RequestContext,
   ): Promise<MembershipRecord> {
+    assertPermission(actor, 'MembershipsController.update');
     const existing = await this.requireMembership(id);
     await this.assertMembershipAccess(actor, existing);
 
@@ -304,6 +365,13 @@ export class MembershipsService {
         throw new BadRequestException('Membership plan is inactive');
       }
       await this.scope.assertSalonAccess(actor, plan.salonId);
+      if (
+        moneyCents(plan.price, 'membership price') > 0 ||
+        plan.enrollmentThreshold != null
+      )
+        throw new BadRequestException(
+          'A paid or qualifying plan change requires a new settled bill',
+        );
       if (
         existing.qualifyingBillId &&
         plan.salonId !== existing.membershipPlan.salonId
@@ -369,11 +437,27 @@ export class MembershipsService {
     dto: UpdateMembershipStatusDto,
     ctx: RequestContext,
   ): Promise<MembershipRecord> {
+    assertPermission(actor, 'MembershipsController.updateStatus');
     const existing = await this.requireMembership(id);
     await this.assertMembershipAccess(actor, existing);
 
     const current = existing.status as MembershipStatus;
     const next = dto.status;
+    if (next === MembershipStatus.ACTIVE && current !== next) {
+      if (existing.qualifyingBillId)
+        throw new BadRequestException(
+          'Bill-linked activation requires a settled bill',
+        );
+      const plan = await this.requirePlan(existing.membershipPlanId);
+      if (
+        !plan.isActive ||
+        moneyCents(plan.price, 'membership price') > 0 ||
+        plan.enrollmentThreshold != null
+      )
+        throw new BadRequestException(
+          'Paid or qualifying activation requires a settled bill',
+        );
+    }
 
     if (current === next) {
       return this.toResponse(existing);

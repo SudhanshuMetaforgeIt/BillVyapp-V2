@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsInt,
   IsNotEmpty,
@@ -52,20 +53,20 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({ example: 250.0, minimum: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   costPrice?: number;
 
   @ApiProperty({ example: 499.0, minimum: 0 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   sellingPrice: number;
 
   @ApiPropertyOptional({ example: 18, minimum: 0, maximum: 100 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
@@ -73,7 +74,7 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({ example: 5, minimum: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(0)
   reorderLevel?: number;

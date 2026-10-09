@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
+import { secureWorkbookText } from './workbook-security';
 import type { PlatformReportRecord } from './platform-reports.service';
 import type { ReportAnalytics } from './report-analytics.service';
 import { excelCurrencyFormat, excelDateFormat } from '../common/regional';
@@ -588,6 +589,7 @@ export async function buildPlatformWorkbook(
   return writePlatformBook(book);
 }
 async function writePlatformBook(book: ExcelJS.Workbook): Promise<Buffer> {
+  secureWorkbookText(book);
   const zip = await JSZip.loadAsync(await book.xlsx.writeBuffer());
   // ExcelJS emits totalsRowShown="1" for tables with totalsRow:false.
   // Explicitly hide totals so consumers do not style the final detail as a total.

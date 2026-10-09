@@ -40,7 +40,6 @@ const READ_ROLES = [
   RoleCode.ADMIN,
   RoleCode.MANAGER,
   RoleCode.STAFF,
-  RoleCode.CUSTOMER,
 ] as const;
 
 const WRITE_ROLES = [

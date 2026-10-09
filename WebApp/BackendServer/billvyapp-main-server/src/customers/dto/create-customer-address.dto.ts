@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsBoolean,
   IsEnum,
@@ -61,7 +62,7 @@ export class CreateCustomerAddressDto {
     nullable: true,
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 7 })
   @Min(-90)
   @Max(90)
@@ -73,7 +74,7 @@ export class CreateCustomerAddressDto {
     nullable: true,
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 7 })
   @Min(-180)
   @Max(180)
@@ -81,7 +82,8 @@ export class CreateCustomerAddressDto {
 
   @ApiPropertyOptional({
     example: true,
-    description: 'When true, clears isDefault on other addresses for this customer',
+    description:
+      'When true, clears isDefault on other addresses for this customer',
   })
   @IsOptional()
   @IsBoolean()

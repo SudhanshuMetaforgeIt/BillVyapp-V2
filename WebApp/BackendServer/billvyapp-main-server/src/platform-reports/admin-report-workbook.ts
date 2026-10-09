@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
+import { secureWorkbookText } from './workbook-security';
 import type { AdminReportSnapshot } from './admin-report-data';
 import { excelCurrencyFormat, excelDateFormat } from '../common/regional';
 
@@ -375,6 +376,7 @@ export async function buildAdminWorkbook(
       .map((p) => [p.name, p.quantity, p.revenue]),
     { 3: currency },
   );
+  secureWorkbookText(book);
   return addCharts(
     Buffer.from(await book.xlsx.writeBuffer()),
     [

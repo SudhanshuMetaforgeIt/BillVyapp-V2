@@ -1,3 +1,5 @@
+/* Jest asymmetric matchers deliberately return any in expectation fixtures. */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
 import { RoleCode } from '../common/enums/role.enum';
@@ -80,6 +82,30 @@ describe('AuditLogsService', () => {
       Promise.all(ops),
     );
     service = new AuditLogsService(prisma as unknown as PrismaService);
+  });
+
+  it('masks historical credential keys and signed URLs on both read paths', async () => {
+    const row = auditRow({
+      newData: {
+        api_key: 'private-key',
+        nested: {
+          otp: '654321',
+          endpoint:
+            'https://user:password@example.test/file?sig=private-signature',
+        },
+      },
+    });
+    prisma.auditLog.findMany.mockResolvedValue([row]);
+    prisma.auditLog.count.mockResolvedValue(1);
+    prisma.auditLog.findUnique.mockResolvedValue(row);
+    for (const result of [
+      await service.list(superAdmin, {}),
+      await service.findOne(superAdmin, 'log-1'),
+    ]) {
+      expect(JSON.stringify(result)).not.toMatch(
+        /private-key|654321|user:password|private-signature/,
+      );
+    }
   });
 
   it('lets SUPER_ADMIN list without salon filters', async () => {

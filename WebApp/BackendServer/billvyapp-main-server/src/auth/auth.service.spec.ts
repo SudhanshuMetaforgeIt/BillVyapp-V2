@@ -103,6 +103,7 @@ describe('AuthService', () => {
     findValid: jest.fn(),
     revoke: jest.fn(),
     isActive: jest.fn(),
+    rotate: jest.fn(),
   };
   const otp = {
     consumeResendSlot: jest.fn(),
@@ -120,6 +121,11 @@ describe('AuthService', () => {
     resolveForUser: jest.fn().mockResolvedValue('Asia/Kolkata'),
   };
 
+  const security = {
+    assertLoginAllowed: jest.fn(),
+    failedLogin: jest.fn(),
+    successfulLogin: jest.fn(),
+  };
   let auth: AuthService;
 
   beforeEach(() => {
@@ -164,6 +170,7 @@ describe('AuthService', () => {
       audit as unknown as AuditService,
       subscriptions as never,
       businessTimezone as never,
+      security as never,
     );
   });
 
@@ -240,86 +247,26 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    beforeEach(() => {
-      (prisma as any).role = { findUnique: jest.fn() };
-      (prisma as any).customer = { create: jest.fn() };
-      (prisma as any).$transaction = jest.fn();
-      (prisma as any).user.findUniqueOrThrow = jest.fn();
-      (prisma as any).user.create = jest.fn();
-    });
-
-    it('creates a CUSTOMER account and returns a session', async () => {
-      prisma.user.findUnique
-        .mockResolvedValueOnce(null) // phone
-        .mockResolvedValueOnce(null); // email
-      (prisma as any).role.findUnique.mockResolvedValue({
-        id: 'role-customer',
-        isActive: true,
-      });
-      passwords.hash.mockResolvedValue('hashed');
-      (prisma as any).$transaction.mockImplementation(
-        async (fn: (tx: unknown) => Promise<string>) => {
-          const tx = {
-            user: {
-              create: jest.fn().mockResolvedValue({ id: 'new-cust-1' }),
+    it.each(['new@example.com', 'taken@example.com'])(
+      'requires ownership verification without account enumeration for %s',
+      async (email) => {
+        await expect(
+          auth.register(
+            {
+              firstName: 'New',
+              lastName: 'Customer',
+              email,
+              phone: '9988776655',
+              password: 'Password1',
             },
-            customer: { create: jest.fn().mockResolvedValue({}) },
-          };
-          return fn(tx);
-        },
-      );
-      (prisma as any).user.findUniqueOrThrow.mockResolvedValue(
-        customerUser({
-          id: 'new-cust-1',
-          email: 'new@example.com',
-          phone: '9988776655',
-        }),
-      );
-
-      const result = await auth.register(
-        {
-          firstName: 'New',
-          lastName: 'Customer',
-          email: 'new@example.com',
-          phone: '9988776655',
-          password: 'Password1',
-        },
-        ctx,
-      );
-
-      expect(result.user.role).toBe(RoleCode.CUSTOMER);
-      expect(result.user.email).toBe('new@example.com');
-      expect(result.accessToken).toBeDefined();
-      expect(audit.record).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'CUSTOMER_CREATED',
-          newData: expect.objectContaining({ role: RoleCode.CUSTOMER }),
-        }),
-      );
-    });
-
-    it('rejects duplicate email', async () => {
-      prisma.user.findUnique
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: 'existing' });
-      (prisma as any).role.findUnique.mockResolvedValue({
-        id: 'role-customer',
-        isActive: true,
-      });
-
-      await expect(
-        auth.register(
-          {
-            firstName: 'New',
-            lastName: 'Customer',
-            email: 'taken@example.com',
-            phone: '9988776655',
-            password: 'Password1',
-          },
-          ctx,
-        ),
-      ).rejects.toThrow('Email already exists');
-    });
+            ctx,
+          ),
+        ).rejects.toThrow('verified ownership');
+        expect(prisma.user.findUnique).not.toHaveBeenCalled();
+        expect(prisma.user.update).not.toHaveBeenCalled();
+        expect(sessions.create).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('sendOtp', () => {
@@ -423,6 +370,7 @@ describe('AuthService', () => {
       jwt.verifyAsync.mockResolvedValue({
         sub: 'admin-1',
         type: JWT_TYPE_REFRESH,
+        exp: Math.floor(Date.now() / 1000) + 900,
         sessionId: 'sess-1',
       });
       sessions.findValid.mockResolvedValue({
@@ -442,7 +390,11 @@ describe('AuthService', () => {
           timezone: 'Asia/Kolkata',
         }),
       );
-      expect(sessions.revoke).toHaveBeenCalledWith('sess-1');
+      expect(sessions.rotate).toHaveBeenCalledWith(
+        'sess-1',
+        'refresh.jwt',
+        expect.objectContaining({ userId: 'admin-1' }),
+      );
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: 'TOKEN_REFRESHED' }),
       );
@@ -452,6 +404,7 @@ describe('AuthService', () => {
       jwt.verifyAsync.mockResolvedValue({
         sub: 'admin-1',
         type: JWT_TYPE_REFRESH,
+        exp: Math.floor(Date.now() / 1000) + 900,
         sessionId: 'sess-1',
       });
       sessions.findValid.mockResolvedValue({ id: 'sess-1', userId: 'admin-1' });
@@ -471,6 +424,7 @@ describe('AuthService', () => {
       jwt.verifyAsync.mockResolvedValue({
         sub: 'admin-1',
         type: JWT_TYPE_REFRESH,
+        exp: Math.floor(Date.now() / 1000) + 900,
         sessionId: 'sess-1',
       });
       sessions.findValid.mockResolvedValue(null);
@@ -484,6 +438,7 @@ describe('AuthService', () => {
       jwt.verifyAsync.mockResolvedValue({
         sub: 'admin-1',
         type: JWT_TYPE_REFRESH,
+        exp: Math.floor(Date.now() / 1000) + 900,
         sessionId: 'sess-1',
       });
       sessions.findValid.mockResolvedValue(null);

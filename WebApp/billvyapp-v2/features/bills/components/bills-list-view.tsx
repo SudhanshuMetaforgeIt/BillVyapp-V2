@@ -114,8 +114,8 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
         ),
       },
       { id: 'salon', header: 'Salon', cell: (b) => b.salon?.name ?? '-' },
-      { id: 'total', header: 'Total', cell: (b) => formatCurrency(b.total) },
-      { id: 'due', header: 'Due', cell: (b) => formatCurrency(b.dueAmount) },
+      { id: 'total', header: 'Total', cell: (b) => formatCurrency(b.total, b.currency) },
+      { id: 'due', header: 'Due', cell: (b) => formatCurrency(b.dueAmount, b.currency) },
       {
         id: 'status',
         header: 'Status',

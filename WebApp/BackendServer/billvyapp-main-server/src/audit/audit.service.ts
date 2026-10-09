@@ -3,6 +3,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PLATFORM_SETTINGS_ID } from '../settings/settings.constants';
 import { DEFAULT_LOG_RETENTION_DAYS } from './audit.constants';
+import { redactSensitive } from '../common/security/redaction';
 
 export type AuditAction =
   | 'LOGIN_SUCCESS'
@@ -148,17 +149,16 @@ export class AuditService {
           action: entry.action,
           entityType: entry.entityType,
           entityId: entry.entityId ?? null,
-          oldData: entry.oldData,
-          newData: entry.newData,
+          oldData: redactSensitive(entry.oldData) as
+            Prisma.InputJsonValue | undefined,
+          newData: redactSensitive(entry.newData) as
+            Prisma.InputJsonValue | undefined,
           ipAddress: entry.ipAddress ?? null,
           userAgent: entry.userAgent?.slice(0, 512) ?? null,
         },
       });
-    } catch (error) {
-      this.logger.error(
-        `Failed to write audit log for action ${entry.action}`,
-        error instanceof Error ? error.stack : undefined,
-      );
+    } catch {
+      this.logger.error(`Failed to write audit log for action ${entry.action}`);
     }
   }
 

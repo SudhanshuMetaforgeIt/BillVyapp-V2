@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiProduces, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RoleCode } from '../common/enums/role.enum';
@@ -36,11 +37,13 @@ export class AdminReportsController {
   }
 
   @Get()
+  @Header('Cache-Control', 'private, no-store')
   history(@CurrentUser() user: AuthenticatedUser) {
     return this.reports.history(user);
   }
 
   @Post('generate')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   generate(
     @CurrentUser() user: AuthenticatedUser,
     @Body() query: AdminReportQueryDto,
@@ -49,6 +52,7 @@ export class AdminReportsController {
   }
 
   @Get(':id/download')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiProduces(XLSX_CONTENT_TYPE)
   @Header('Cache-Control', 'private, no-store')
   async download(

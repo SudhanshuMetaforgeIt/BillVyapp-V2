@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsUUID, Matches } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsUUID, Matches } from 'class-validator';
 
 export const PLATFORM_REPORT_TYPES = [
   'financial',
@@ -78,5 +78,6 @@ export class GeneratePlatformReportDto {
     example: true,
   })
   @IsOptional()
+  @IsBoolean()
   async?: boolean;
 }

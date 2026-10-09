@@ -45,7 +45,7 @@ function mediaRow(overrides: Record<string, unknown> = {}) {
     salonId: 'salon-a1',
     uploadedBy: 'mgr-1',
     storageProvider: 'S3',
-    storageKey: 'salons/salon-a1/uuid-file.pdf',
+    storageKey: 'verified/salon-a1/uuid-file.pdf',
     originalFileName: 'file.pdf',
     mimeType: 'application/pdf',
     fileSize: 1024,
@@ -126,6 +126,86 @@ describe('MediaService', () => {
       expect.objectContaining({ action: 'MEDIA_FILE_CREATED' }),
     );
   });
+
+  it.each(['findOne', 'createDownloadUrl', 'confirmUpload', 'remove'] as const)(
+    'denies another admin null-salon media through %s',
+    async (method) => {
+      prisma.mediaFile.findUnique.mockResolvedValue(
+        mediaRow({ salonId: null, uploadedBy: 'admin-a' }),
+      );
+      const adminB = {
+        ...manager,
+        userId: 'admin-b',
+        role: RoleCode.ADMIN,
+        franchiseId: 'fr-b',
+        salonId: null,
+      };
+      await expect(
+        service[method](adminB, 'media-1', ctx),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(storage.createDownloadUrl).not.toHaveBeenCalled();
+      expect(storage.deleteObject).not.toHaveBeenCalled();
+      expect(prisma.mediaFile.delete).not.toHaveBeenCalled();
+      expect(audit.record).not.toHaveBeenCalled();
+    },
+  );
+
+  it('lists only admin-owned null-salon media and same-franchise salon media', async () => {
+    prisma.mediaFile.findMany.mockResolvedValue([]);
+    prisma.mediaFile.count.mockResolvedValue(0);
+    await service.list(
+      {
+        ...manager,
+        userId: 'admin-b',
+        role: RoleCode.ADMIN,
+        franchiseId: 'fr-b',
+        salonId: null,
+      },
+      {},
+    );
+    expect(prisma.mediaFile.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { salonId: null, uploadedBy: 'admin-b' },
+            { salon: { franchiseId: 'fr-b' } },
+          ],
+        }) as Record<string, unknown>,
+      }),
+    );
+  });
+
+  it.each([RoleCode.ADMIN, RoleCode.SUPER_ADMIN])(
+    'allows intended null-salon access for %s',
+    async (role) => {
+      prisma.mediaFile.findUnique.mockResolvedValue(
+        mediaRow({ salonId: null, uploadedBy: 'owner' }),
+      );
+      const actor = {
+        ...manager,
+        userId: role === RoleCode.ADMIN ? 'owner' : 'platform-admin',
+        role,
+      };
+      await expect(
+        service.createDownloadUrl(actor, 'media-1'),
+      ).resolves.toHaveProperty('downloadUrl');
+    },
+  );
+
+  it.each([RoleCode.ADMIN, RoleCode.MANAGER, RoleCode.STAFF])(
+    'denies unassigned %s list and detail',
+    async (role) => {
+      const actor = { ...manager, role, franchiseId: null, salonId: null };
+      await expect(service.list(actor, {})).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      await expect(service.findOne(actor, 'media-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.mediaFile.findMany).not.toHaveBeenCalled();
+      expect(prisma.mediaFile.findUnique).not.toHaveBeenCalled();
+    },
+  );
 
   it('creates a download URL after access check', async () => {
     prisma.mediaFile.findUnique.mockResolvedValue(mediaRow());

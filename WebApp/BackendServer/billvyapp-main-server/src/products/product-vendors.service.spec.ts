@@ -59,6 +59,12 @@ describe('ProductVendorsService', () => {
     );
   });
 
+  it('rejects customer access to supplier purchase prices before querying', async () => {
+    await expect(
+      service.list({ ...manager, role: RoleCode.CUSTOMER }, 'prod-1'),
+    ).rejects.toThrow('permission');
+    expect(prisma.productVendor.findMany).not.toHaveBeenCalled();
+  });
   it('links a vendor and audits PRODUCT_VENDOR_LINKED', async () => {
     prisma.productVendor.create.mockResolvedValue({
       id: 'link-1',

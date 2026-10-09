@@ -71,7 +71,7 @@ export class ScopeService {
     if (user.role === RoleCode.MANAGER || user.role === RoleCode.STAFF) {
       return { salons: { some: { id: this.requireSalon(user) } } };
     }
-    return {};
+    throw new ForbiddenException('Franchise outside your scope');
   }
 
   /** Scope fragment for the `users` table. */
@@ -101,9 +101,10 @@ export class ScopeService {
     switch (user.role) {
       case RoleCode.SUPER_ADMIN:
         return {};
-      case RoleCode.ADMIN:
       case RoleCode.MANAGER:
       case RoleCode.STAFF:
+        return this.customerSalonAssociation(this.requireSalon(user));
+      case RoleCode.ADMIN:
         return {
           OR: [
             { user: { franchiseId: this.requireFranchise(user) } },

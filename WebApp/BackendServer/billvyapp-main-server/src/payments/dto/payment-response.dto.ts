@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaymentMethod, PaymentStatus } from '../../common/enums/payment.enum';
 
 export class PaymentResponseDto {
+  @ApiProperty({ enum: ['INR', 'USD'] }) currency: string;
   @ApiProperty() id: string;
   @ApiProperty() billId: string;
   @ApiProperty({ example: '500.00' }) amount: string;

@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsEmail,
   IsNotEmpty,
@@ -63,7 +64,7 @@ export class CreateSalonDto {
     example: 28.6328,
     description: 'Decimal(10,7), range -90 to 90',
   })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 7 })
   @Min(-90)
   @Max(90)
@@ -73,7 +74,7 @@ export class CreateSalonDto {
     example: 77.2197,
     description: 'Decimal(10,7), range -180 to 180',
   })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 7 })
   @Min(-180)
   @Max(180)

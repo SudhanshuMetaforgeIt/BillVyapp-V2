@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client';
+import { safeRequestPath } from '../security/redaction';
 
 interface ApiErrorBody {
   statusCode: number;
@@ -22,7 +23,7 @@ interface ApiErrorBody {
  *
  * Raw Prisma errors are never forwarded to clients: they leak table names,
  * column names and constraint names. They are mapped to safe HTTP errors here
- * and the detail is kept in the server log only.
+ * without writing raw SQL, credentials or personal data into server logs.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -35,20 +36,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const { status, message, error } = this.translate(exception);
 
+    const path = safeRequestPath(request.url);
     if (status >= 500) {
-      this.logger.error(
-        `${request.method} ${request.url} -> ${status}`,
-        exception instanceof Error ? exception.stack : String(exception),
-      );
+      this.logger.error(`${request.method} ${path} -> ${status}`);
     } else {
-      this.logger.warn(`${request.method} ${request.url} -> ${status}`);
+      this.logger.warn(`${request.method} ${path} -> ${status}`);
     }
 
     const body: ApiErrorBody = {
       statusCode: status,
       error,
       message,
-      path: request.url,
+      path,
       timestamp: new Date().toISOString(),
     };
 
@@ -60,8 +59,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
     message: string | string[];
     error: string;
   } {
+    if (exception && typeof exception === 'object' && 'type' in exception) {
+      if (exception.type === 'entity.too.large')
+        return {
+          status: 413,
+          message: 'Request body is too large',
+          error: 'Payload Too Large',
+        };
+      if (exception.type === 'entity.parse.failed')
+        return {
+          status: 400,
+          message: 'Invalid JSON request body',
+          error: 'Bad Request',
+        };
+    }
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      if (status >= 500)
+        return {
+          status,
+          message:
+            status === 503
+              ? 'Service unavailable. Please try again.'
+              : 'Internal server error',
+          error: this.reason(status),
+        };
       const payload = exception.getResponse();
       const message =
         typeof payload === 'string'

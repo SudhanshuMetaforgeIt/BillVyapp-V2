@@ -71,6 +71,8 @@ describe('Billing membership coupon', () => {
       amount: 842.82,
       paymentMethod: 'UPI',
       status: 'SUCCESS',
+      source: 'MANUAL',
+      idempotencyKey: expect.any(String),
     });
     expect(result.bill.couponCode).toBe('CLUB-123');
   });

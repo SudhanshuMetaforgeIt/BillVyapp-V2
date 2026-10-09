@@ -127,7 +127,7 @@ export function PaymentsListView() {
       },
       { id: 'salon', header: 'Salon', cell: (p) => salonName(p.salonId) },
       { id: 'method', header: 'Method', cell: (p) => PAYMENT_METHOD_LABELS[p.paymentMethod] },
-      { id: 'amount', header: 'Amount', cell: (p) => formatCurrency(p.amount) },
+      { id: 'amount', header: 'Amount', cell: (p) => formatCurrency(p.amount, p.currency) },
       {
         id: 'status',
         header: 'Status',

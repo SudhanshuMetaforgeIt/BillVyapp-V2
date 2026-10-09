@@ -14,6 +14,7 @@ import { validateEnv } from './config/env.validation';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { RecentAuthGuard } from './common/guards/recent-auth.guard';
 import { ScopeGuard } from './common/guards/scope.guard';
 import { SubscriptionActiveGuard } from './common/guards/subscription-active.guard';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
@@ -25,6 +26,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { redisConnectionOptions } from './redis/redis-security';
 import { RolesModule } from './roles/roles.module';
 
 // Phase 1 skeletons - registered so the module graph is complete.
@@ -76,8 +78,14 @@ import { ExpensesModule } from './expenses/expenses.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         connection: {
-          url: config.getOrThrow<string>('redis.url'),
-          maxRetriesPerRequest: null,
+          ...redisConnectionOptions(
+            config.getOrThrow<string>('redis.url'),
+            config.get<string>('nodeEnv') === 'production',
+            config.get<string>('redis.caPath'),
+          ),
+          // Queue producers fail promptly. BullMQ creates blocking worker connections with null retries.
+          maxRetriesPerRequest: 2,
+          enableOfflineQueue: false,
         },
       }),
     }),
@@ -130,6 +138,7 @@ import { ExpensesModule } from './expenses/expenses.module';
     // scope. Guards without metadata pass through.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: RecentAuthGuard },
     { provide: APP_GUARD, useClass: ScopeGuard },
     { provide: APP_GUARD, useClass: MaintenanceGuard },
     { provide: APP_GUARD, useClass: SubscriptionActiveGuard },

@@ -12,12 +12,16 @@ describe('OtpService', () => {
     saveHash: jest.fn(),
     getHash: jest.fn(),
     deleteHash: jest.fn(),
+    consumeHash: jest.fn(),
     getAttempts: jest.fn(),
     incrementAttempts: jest.fn(),
     resetAttempts: jest.fn(),
     acquireResendSlot: jest.fn(),
   };
-  const sender: jest.Mocked<OtpSender> = { send: jest.fn() };
+  const sender: jest.Mocked<OtpSender> = {
+    send: jest.fn(),
+    isAvailable: jest.fn(),
+  };
   const passwords = {
     hash: jest.fn(),
     verify: jest.fn(),
@@ -47,6 +51,9 @@ describe('OtpService', () => {
       };
       return values[key] ?? fallback;
     });
+    store.consumeHash.mockResolvedValue(true);
+    sender.isAvailable.mockReturnValue(true);
+    store.incrementAttempts.mockResolvedValue(1);
     otp = new OtpService(
       store,
       sender,
@@ -56,6 +63,18 @@ describe('OtpService', () => {
   });
 
   describe('consumeResendSlot', () => {
+    it('rejects uniformly before reading any challenge when delivery is unavailable', async () => {
+      sender.isAvailable.mockReturnValue(false);
+      await expect(otp.consumeResendSlot('9876543210')).rejects.toThrow(
+        'not available',
+      );
+      await expect(otp.verify('9876543210', '482913')).rejects.toThrow(
+        'not available',
+      );
+      await expect(otp.issue('9876543210')).rejects.toThrow('not available');
+      expect(store.getHash).not.toHaveBeenCalled();
+      expect(store.saveHash).not.toHaveBeenCalled();
+    });
     it('allows the first request', async () => {
       store.acquireResendSlot.mockResolvedValue(true);
       await expect(
@@ -97,8 +116,11 @@ describe('OtpService', () => {
       passwords.verify.mockResolvedValue(true);
 
       await expect(otp.verify('9876543210', '482913')).resolves.toBe(true);
-      expect(store.deleteHash).toHaveBeenCalledWith('9876543210');
-      expect(store.resetAttempts).toHaveBeenCalledWith('9876543210');
+      expect(store.consumeHash).toHaveBeenCalledWith(
+        '9876543210',
+        'hashed-otp',
+      );
+      expect(store.resetAttempts).not.toHaveBeenCalled();
     });
 
     it('fails when the OTP has expired or is missing', async () => {
@@ -136,7 +158,7 @@ describe('OtpService', () => {
       await expect(otp.verify('9876543210', '482913')).rejects.toBeInstanceOf(
         HttpException,
       );
-      expect(store.deleteHash).toHaveBeenCalledWith('9876543210');
+      expect(store.consumeHash).not.toHaveBeenCalled();
     });
 
     it('blocks when the failing attempt exhausts the budget', async () => {
@@ -148,7 +170,10 @@ describe('OtpService', () => {
       await expect(otp.verify('9876543210', '000000')).rejects.toBeInstanceOf(
         HttpException,
       );
-      expect(store.deleteHash).toHaveBeenCalledWith('9876543210');
+      expect(store.consumeHash).toHaveBeenCalledWith(
+        '9876543210',
+        'hashed-otp',
+      );
     });
   });
 });

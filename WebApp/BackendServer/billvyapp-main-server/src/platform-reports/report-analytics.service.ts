@@ -263,8 +263,18 @@ export class ReportAnalyticsService {
     };
     return this.prisma.$transaction(
       async (tx) => {
-        const sqlRows = async (sql: Prisma.Sql) =>
-          rows(await tx.$queryRaw<RawRow[]>(sql));
+        const sqlRows = async (sql: Prisma.Sql) => {
+          // Keep ordering/aggregation intact; existing literal ranking limits remain unchanged.
+          const bounded = /\bLIMIT\s+\d+\s*$/i.test(sql.sql)
+            ? sql
+            : Prisma.sql`${sql} LIMIT 50001`;
+          const result = await tx.$queryRaw<RawRow[]>(bounded);
+          if (result.length > 50000)
+            throw new BadRequestException(
+              'Report exceeds 50,000 grouped rows; select a narrower scope',
+            );
+          return rows(result);
+        };
         if (wanted('summary')) {
           const [
             payments,

@@ -26,6 +26,7 @@ import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { SAFE_JOB_OPTIONS } from '../common/security/job-validation';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { UpdateNotificationStatusDto } from './dto/update-notification-status.dto';
 import {
@@ -172,6 +173,20 @@ export class NotificationsService {
       await this.scope.assertCustomerAccess(actor, customerId);
     }
 
+    if (
+      dto.userId &&
+      dto.userId !== actor.userId &&
+      actor.role !== RoleCode.SUPER_ADMIN
+    ) {
+      const recipient = await this.prisma.user.findFirst({
+        where: { id: dto.userId, ...this.scope.userTableScope(actor) },
+        select: { id: true },
+      });
+      if (!recipient || !salonId)
+        throw new ForbiddenException(
+          'Notification recipient outside your scope',
+        );
+    }
     const scheduledAt = dto.scheduledAt ? new Date(dto.scheduledAt) : null;
     if (scheduledAt && Number.isNaN(scheduledAt.getTime())) {
       throw new BadRequestException('scheduledAt must be a valid ISO datetime');
@@ -229,12 +244,8 @@ export class NotificationsService {
   async notifyQuietly(input: SystemNotificationInput): Promise<void> {
     try {
       await this.emitSystem(input);
-    } catch (error) {
-      this.logger.warn(
-        `Failed to emit ${input.notificationType} to ${input.recipient}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+    } catch {
+      this.logger.warn(`Failed to emit ${input.notificationType}`);
     }
   }
 
@@ -480,22 +491,22 @@ export class NotificationsService {
       data.failedAt = new Date();
       data.retryCount = existing.retryCount + 1;
     }
-    if (dto.status === NotificationStatus.QUEUED) {
-      await this.notificationQueue.add(
-        'dispatch',
-        { notificationId: existing.id },
-        {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 2000 },
-        },
-      );
-    }
-
     const updated = await this.prisma.notification.update({
       where: { id: existing.id },
       data,
       select: NOTIFICATION_SELECT,
     });
+
+    if (dto.status === NotificationStatus.QUEUED) {
+      await this.notificationQueue.add(
+        'dispatch',
+        { notificationId: existing.id },
+        {
+          ...SAFE_JOB_OPTIONS,
+          jobId: `notification-${existing.id}-retry-${existing.retryCount}`,
+        },
+      );
+    }
 
     await this.audit.record({
       userId: actor.userId,
@@ -528,6 +539,8 @@ export class NotificationsService {
 
     const status = record.status as NotificationStatus;
     if (
+      status === NotificationStatus.SENT ||
+      status === NotificationStatus.FAILED ||
       status === NotificationStatus.CANCELLED ||
       status === NotificationStatus.DELIVERED ||
       status === NotificationStatus.READ
@@ -535,8 +548,14 @@ export class NotificationsService {
       return;
     }
 
-    await this.prisma.notification.update({
-      where: { id: notificationId },
+    if (record.scheduledAt && record.scheduledAt.getTime() > Date.now())
+      throw new BadRequestException('Notification is not due');
+    await this.prisma.notification.updateMany({
+      where: {
+        id: notificationId,
+        status: { in: [NotificationStatus.PENDING, NotificationStatus.QUEUED] },
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
+      },
       data: {
         status: NotificationStatus.SENT,
         provider: record.provider ?? 'logging',
@@ -555,10 +574,18 @@ export class NotificationsService {
         : 0;
 
     try {
+      // Persist QUEUED before publishing: an immediate worker must not be reversed by the producer.
+      const queued = await this.prisma.notification.update({
+        where: { id: notificationId },
+        data: { status: NotificationStatus.QUEUED },
+        select: NOTIFICATION_SELECT,
+      });
       await this.notificationQueue.add(
         'dispatch',
         { notificationId },
         {
+          ...SAFE_JOB_OPTIONS,
+          jobId: `notification-${notificationId}`,
           delay: delayMs,
           attempts: 3,
           backoff: { type: 'exponential', delay: 2000 },
@@ -567,11 +594,7 @@ export class NotificationsService {
         },
       );
 
-      return this.prisma.notification.update({
-        where: { id: notificationId },
-        data: { status: NotificationStatus.QUEUED },
-        select: NOTIFICATION_SELECT,
-      });
+      return queued;
     } catch {
       return this.prisma.notification.update({
         where: { id: notificationId },
@@ -638,12 +661,18 @@ export class NotificationsService {
         return {};
       case RoleCode.ADMIN:
         return {
-          OR: [{ salonId: null }, { salon: { franchiseId: user.franchiseId } }],
+          OR: [
+            { salonId: null, userId: user.userId },
+            this.scope.salonScope(user),
+          ],
         };
       case RoleCode.MANAGER:
       case RoleCode.STAFF:
         return {
-          OR: [{ salonId: null }, { salonId: user.salonId }],
+          OR: [
+            { salonId: null, userId: user.userId },
+            this.scope.salonScope(user),
+          ],
         };
       case RoleCode.CUSTOMER:
         return {};
@@ -675,9 +704,11 @@ export class NotificationsService {
 
     if (record.salonId) {
       await this.scope.assertSalonAccess(user, record.salonId);
-    } else if (user.role === RoleCode.MANAGER || user.role === RoleCode.STAFF) {
-      // Head-office / unscoped notifications: managers/staff may read salon-null
-      // rows only if they are franchise-visible (allowed above via list filter).
+    } else if (
+      user.role !== RoleCode.SUPER_ADMIN &&
+      record.userId !== user.userId
+    ) {
+      throw new ForbiddenException('Notification outside your scope');
     }
 
     return record;

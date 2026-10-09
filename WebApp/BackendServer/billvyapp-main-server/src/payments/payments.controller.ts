@@ -69,11 +69,11 @@ export class PaymentsController {
   }
 
   @Post()
-  @Roles(...PAYMENT_ROLES)
+  @Roles(...PAYMENT_STATUS_ROLES)
   @ApiOperation({
     summary: 'Create a payment',
     description:
-      'Only COMPLETED bills accept payments. Amount must be > 0 and must not exceed dueAmount. SUCCESS payments recalculate bill paid/due/paymentStatus in a transaction. CUSTOMER may pay only their own bills.',
+      'Business users record payments on authorized COMPLETED bills. Customers cannot record settlement; future gateway settlement requires a verified provider workflow.',
   })
   @ApiResponse({ status: 201, type: PaymentResponseDto })
   @ApiResponse({

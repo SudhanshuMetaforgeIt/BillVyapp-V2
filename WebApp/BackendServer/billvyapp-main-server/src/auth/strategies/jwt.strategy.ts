@@ -32,12 +32,23 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+      algorithms: ['HS256'],
+      issuer: 'billvy-api',
+      audience: 'billvy-access',
       secretOrKey: config.getOrThrow<string>('jwt.accessSecret'),
     });
   }
 
   async validate(payload: JwtAccessPayload): Promise<AuthenticatedUser> {
-    if (payload.type !== JWT_TYPE_ACCESS || !payload.sub) {
+    if (
+      payload.type !== JWT_TYPE_ACCESS ||
+      typeof payload.sub !== 'string' ||
+      !payload.sub ||
+      typeof payload.sessionId !== 'string' ||
+      !payload.sessionId ||
+      typeof payload.exp !== 'number' ||
+      payload.exp <= Date.now() / 1000
+    ) {
       throw new UnauthorizedException('Authentication required');
     }
 
@@ -50,6 +61,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         franchiseId: true,
         salonId: true,
         role: { select: { code: true, isActive: true } },
+        franchise: { select: { isActive: true } },
+        salon: { select: { isActive: true, franchiseId: true } },
       },
     });
 
@@ -57,9 +70,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Authentication required');
     }
 
+    const role = user.role.code as RoleCode;
     if (
-      payload.sessionId &&
-      !(await this.sessions.isActive(payload.sessionId))
+      !Object.values(RoleCode).includes(role) ||
+      (role === RoleCode.ADMIN &&
+        (!user.franchiseId || !user.franchise?.isActive)) ||
+      ([RoleCode.MANAGER, RoleCode.STAFF].includes(role) &&
+        (!user.salonId ||
+          !user.franchiseId ||
+          !user.franchise?.isActive ||
+          !user.salon?.isActive ||
+          user.salon.franchiseId !== user.franchiseId)) ||
+      !(await this.sessions.isActive(payload.sessionId, user.id))
     ) {
       throw new UnauthorizedException('Authentication required');
     }

@@ -67,10 +67,10 @@ export type ProductRecord = {
   barcode: string | null;
   description: string | null;
   unit: string;
-  costPrice: string;
+  costPrice?: string;
   sellingPrice: string;
   taxRate: string;
-  reorderLevel: number;
+  reorderLevel?: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -124,7 +124,7 @@ export class ProductsService {
     ]);
 
     return paginated(
-      rows.map((row) => this.toResponse(row)),
+      rows.map((row) => this.toResponse(row, user)),
       total,
       page,
       limit,
@@ -142,7 +142,7 @@ export class ProductsService {
     }
 
     await this.assertReadable(user, record);
-    return this.toResponse(record);
+    return this.toResponse(record, user);
   }
 
   async create(
@@ -377,7 +377,7 @@ export class ProductsService {
     }
   }
 
-  private toResponse(row: ProductRow): ProductRecord {
+  private toResponse(row: ProductRow, user?: AuthenticatedUser): ProductRecord {
     return {
       id: row.id,
       salonId: row.salonId,
@@ -387,10 +387,14 @@ export class ProductsService {
       barcode: row.barcode,
       description: row.description,
       unit: row.unit,
-      costPrice: this.decimalString(row.costPrice),
+      ...(user?.role !== RoleCode.CUSTOMER
+        ? {
+            costPrice: this.decimalString(row.costPrice),
+            reorderLevel: row.reorderLevel,
+          }
+        : {}),
       sellingPrice: this.decimalString(row.sellingPrice),
       taxRate: this.decimalString(row.taxRate),
-      reorderLevel: row.reorderLevel,
       isActive: row.isActive,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

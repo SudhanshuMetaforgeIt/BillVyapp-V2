@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { CacheService } from '../redis/cache.service';
 import { AuditService } from '../audit/audit.service';
+import { assertPermission } from '../common/security/access-policy';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
 import { RoleCode } from '../common/enums/role.enum';
 import type { RequestContext } from '../common/http/request-context';
@@ -138,11 +139,12 @@ export class MembershipPlansService {
             search,
             isActive: query.isActive,
             role: user.role,
+            permissionScope: this.cache.permissionScope(user),
           })}`
         : null;
 
     if (cacheKey && this.cache) {
-      return this.cache.wrap(cacheKey, 1800, () =>
+      return this.cache.wrap(cacheKey, 300, () =>
         this.fetchList(where, page, limit, skip),
       );
     }
@@ -197,6 +199,7 @@ export class MembershipPlansService {
     dto: CreateMembershipPlanDto,
     ctx: RequestContext,
   ): Promise<MembershipPlanRecord> {
+    assertPermission(actor, 'MembershipPlansController.create');
     await this.scope.assertSalonAccess(actor, dto.salonId);
     await this.requireActiveSalon(dto.salonId);
     await this.validateServices(dto.salonId, dto.eligibleServiceIds);
@@ -264,6 +267,7 @@ export class MembershipPlansService {
     dto: UpdateMembershipPlanDto,
     ctx: RequestContext,
   ): Promise<MembershipPlanRecord> {
+    assertPermission(actor, 'MembershipPlansController.update');
     const existing = await this.requireWritable(actor, id);
 
     const data: {
@@ -364,6 +368,7 @@ export class MembershipPlansService {
     dto: UpdateStatusDto,
     ctx: RequestContext,
   ): Promise<MembershipPlanRecord> {
+    assertPermission(actor, 'MembershipPlansController.updateStatus');
     const existing = await this.requireWritable(actor, id);
 
     const updated = await this.prisma.membershipPlan.update({

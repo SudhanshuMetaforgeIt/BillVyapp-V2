@@ -1,3 +1,4 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
@@ -15,7 +16,6 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 
 export class UpdateGeneralSettingsDto {
   @ApiPropertyOptional({ example: 'BillVyApp' })
@@ -25,7 +25,10 @@ export class UpdateGeneralSettingsDto {
   @MaxLength(100)
   platformName?: string;
 
-  @ApiPropertyOptional({ example: 'Smart Billing. Simplified.', nullable: true })
+  @ApiPropertyOptional({
+    example: 'Smart Billing. Simplified.',
+    nullable: true,
+  })
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
   @IsString()
@@ -95,7 +98,7 @@ export class UpdateMaintenanceSettingsDto {
 export class UpdatePasswordPolicyDto {
   @ApiPropertyOptional({ example: 8, minimum: 6, maximum: 128 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(6)
   @Max(128)
@@ -125,7 +128,7 @@ export class UpdatePasswordPolicyDto {
 export class UpdateSessionSettingsDto {
   @ApiPropertyOptional({ example: 30, minimum: 5, maximum: 1440 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(5)
   @Max(1440)
@@ -133,7 +136,7 @@ export class UpdateSessionSettingsDto {
 
   @ApiPropertyOptional({ example: 5, minimum: 1, maximum: 50 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(50)
@@ -141,7 +144,7 @@ export class UpdateSessionSettingsDto {
 
   @ApiPropertyOptional({ example: 15, minimum: 1, maximum: 1440 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(1440)
@@ -150,7 +153,7 @@ export class UpdateSessionSettingsDto {
 
 export class UpdateLogRetentionDto {
   @ApiProperty({ example: 90, minimum: 1, maximum: 3650 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(3650)
@@ -168,7 +171,7 @@ export class UpdateEmailSettingsDto {
   @ApiPropertyOptional({ example: 587, nullable: true })
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(65535)
@@ -231,7 +234,8 @@ export class UpdateNotificationsSettingsDto {
 
 export class UpdateSystemSettingsDto {
   @ApiPropertyOptional({
-    description: 'Feature flags / runtime toggles as a JSON object (no secrets).',
+    description:
+      'Feature flags / runtime toggles as a JSON object (no secrets).',
     example: { maxFranchises: 500, enableOtpLogin: true },
   })
   @IsOptional()
@@ -292,7 +296,10 @@ export class CreateIntegrationDto {
   @MaxLength(100)
   provider: string;
 
-  @ApiPropertyOptional({ example: 'INACTIVE', enum: ['ACTIVE', 'INACTIVE', 'ERROR'] })
+  @ApiPropertyOptional({
+    example: 'INACTIVE',
+    enum: ['ACTIVE', 'INACTIVE', 'ERROR'],
+  })
   @IsOptional()
   @IsString()
   @Matches(/^(ACTIVE|INACTIVE|ERROR)$/)
@@ -320,7 +327,10 @@ export class UpdateIntegrationDto {
   @MaxLength(100)
   name?: string;
 
-  @ApiPropertyOptional({ example: 'ACTIVE', enum: ['ACTIVE', 'INACTIVE', 'ERROR'] })
+  @ApiPropertyOptional({
+    example: 'ACTIVE',
+    enum: ['ACTIVE', 'INACTIVE', 'ERROR'],
+  })
   @IsOptional()
   @IsString()
   @Matches(/^(ACTIVE|INACTIVE|ERROR)$/)
@@ -352,7 +362,7 @@ export class BrandingUploadDto {
   mimeType: string;
 
   @ApiProperty({ example: 20480, minimum: 1 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   @Max(5 * 1024 * 1024)

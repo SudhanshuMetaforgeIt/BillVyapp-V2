@@ -14,6 +14,10 @@ export class LoggingOtpSender implements OtpSender {
 
   constructor(private readonly config: ConfigService) {}
 
+  isAvailable(): boolean {
+    return this.canLogCode();
+  }
+
   send(phone: string, code: string): Promise<void> {
     const masked = this.mask(phone);
 

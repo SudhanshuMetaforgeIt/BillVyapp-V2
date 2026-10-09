@@ -1,5 +1,14 @@
 import { measureBaseline } from '../common/performance/baseline';
 import {
+  moneyCents,
+  centsString,
+  lineTaxCents,
+  requireRequestKey,
+  financialRequestHash,
+  assertSameFinancialRequest,
+  requireCurrency,
+} from '../common/security/financial-integrity';
+import {
   priceMembershipLines,
   requireBenefitConfiguration,
 } from './membership-pricing';
@@ -25,6 +34,10 @@ import {
   BillStatus,
 } from '../common/enums/bill-status.enum';
 import { PaymentMethod, PaymentStatus } from '../common/enums/payment.enum';
+import {
+  assertFinancialAuthority,
+  assertPermission,
+} from '../common/security/access-policy';
 import { RoleCode } from '../common/enums/role.enum';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
@@ -83,6 +96,8 @@ const BILL_PAYMENT_SUMMARY_SELECT = {
 } as const;
 
 const BILL_SELECT = {
+  currency: true,
+  requestHash: true,
   qualifyingMembership: { select: { id: true, couponCode: true } },
   enrollmentPlanId: true,
   enrollmentDetails: true,
@@ -170,6 +185,7 @@ type BillPaymentSummaryRow = {
 };
 
 type BillRow = {
+  currency?: string;
   qualifyingMembership?: { id: string; couponCode: string } | null;
   enrollmentPlanId?: string | null;
   enrollmentDetails?: Prisma.JsonValue | null;
@@ -214,6 +230,7 @@ type BillRow = {
 };
 
 export type BillRecord = {
+  currency: 'INR' | 'USD';
   enrolledCouponCode?: string | null;
   enrollmentPlanId?: string | null;
   membershipFee?: string;
@@ -446,10 +463,12 @@ export class BillsService {
   }
 
   async membershipOffers(actor: AuthenticatedUser, dto: CreateBillDto) {
+    assertPermission(actor, 'BillsController.membershipOffers');
     await this.scope.assertSalonAccess(actor, dto.salonId);
     const customerId = await this.resolveCustomerId(actor, dto.customerId);
     await this.scope.assertCustomerAccess(actor, customerId);
-    const lines = await this.buildLines(dto.items, dto.salonId);
+    const lines = await this.buildLines(dto.items, dto.salonId, actor);
+    this.assertTotalOverrides(actor, dto, lines);
     return this.prisma.$transaction(
       async (tx) => {
         const priced = dto.couponCode
@@ -496,6 +515,9 @@ export class BillsService {
     dto: CreateBillDto,
     ctx: RequestContext,
   ): Promise<BillRecord> {
+    assertPermission(actor, 'BillsController.create');
+    const idempotencyKey = requireRequestKey(dto.idempotencyKey);
+    const requestHash = financialRequestHash({ actor: actor.userId, ...dto });
     const salonId = dto.salonId;
     const salonFranchiseId = await this.requireActiveSalon(salonId);
     await this.scope.assertSalonAccess(actor, salonId);
@@ -509,8 +531,26 @@ export class BillsService {
       franchiseId: salonFranchiseId ?? actor.franchiseId,
     });
     const billDate = this.resolveBillDateInput(dto.billDate, timeZone);
+    const previous = await this.prisma.bill.findFirst({
+      where: { salonId, idempotencyKey },
+      select: BILL_SELECT,
+    });
+    if (previous) {
+      assertSameFinancialRequest(previous.requestHash, requestHash);
+      return this.toResponse(previous, timeZone);
+    }
+    const salonCurrency = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { franchise: { select: { preferences: true } } },
+    });
+    const preferences = salonCurrency?.franchise?.preferences as Record<
+      string,
+      unknown
+    > | null;
+    const currency = requireCurrency(preferences?.currency);
 
-    let lines = await this.buildLines(dto.items, salonId);
+    let lines = await this.buildLines(dto.items, salonId, actor);
+    this.assertTotalOverrides(actor, dto, lines);
     let totals = this.computeBillTotals(lines, dto);
 
     try {
@@ -549,8 +589,12 @@ export class BillsService {
             totals.total = (
               Number(totals.total) + Number(membershipFee)
             ).toFixed(2);
+            moneyCents(totals.total, 'bill total including membership');
             return tx.bill.create({
               data: {
+                currency,
+                idempotencyKey,
+                requestHash,
                 enrollmentPlanId: selected?.id ?? null,
                 enrollmentDetails,
                 membershipFee,
@@ -618,6 +662,14 @@ export class BillsService {
       return this.toResponse(created, timeZone);
     } catch (error) {
       if (isPrismaUniqueError(error)) {
+        const previous = await this.prisma.bill.findFirst({
+          where: { salonId, idempotencyKey },
+          select: BILL_SELECT,
+        });
+        if (previous) {
+          assertSameFinancialRequest(previous.requestHash, requestHash);
+          return this.toResponse(previous, timeZone);
+        }
         throw new ConflictException('Bill number already exists in this salon');
       }
       throw error;
@@ -630,6 +682,7 @@ export class BillsService {
     dto: UpdateBillDto,
     ctx: RequestContext,
   ): Promise<BillRecord> {
+    assertPermission(actor, 'BillsController.update');
     const existing = await this.requireBill(id);
     await this.assertBillAccess(actor, existing);
 
@@ -658,17 +711,18 @@ export class BillsService {
 
     let lines: ComputedLine[];
     if (dto.items) {
-      lines = await this.buildLines(dto.items, salonId);
+      lines = await this.buildLines(dto.items, salonId, actor);
     } else {
       lines = this.unadjustedLines(existing.items);
     }
 
+    this.assertTotalOverrides(actor, dto, lines, existing);
     let totals = this.computeBillTotals(lines, {
       discount:
         dto.discount !== undefined
           ? dto.discount
           : this.asNumber(existing.discount),
-      tax: dto.tax !== undefined ? dto.tax : this.asNumber(existing.tax),
+      tax: dto.tax ?? (dto.items ? undefined : this.asNumber(existing.tax)),
       roundOff:
         dto.roundOff !== undefined
           ? dto.roundOff
@@ -708,7 +762,8 @@ export class BillsService {
               tax:
                 couponCode || existing.appliedMembershipId
                   ? undefined
-                  : (dto.tax ?? this.asNumber(existing.tax)),
+                  : (dto.tax ??
+                    (dto.items ? undefined : this.asNumber(existing.tax))),
               roundOff: dto.roundOff ?? this.asNumber(existing.roundOff),
             });
             const enrollmentPlanId =
@@ -734,6 +789,7 @@ export class BillsService {
             totals.total = (
               Number(totals.total) + Number(membershipFee)
             ).toFixed(2);
+            moneyCents(totals.total, 'bill total including membership');
             if (dto.items || couponCode || existing.appliedMembershipId) {
               await tx.billItem.deleteMany({ where: { billId: existing.id } });
               await tx.billItem.createMany({
@@ -836,11 +892,13 @@ export class BillsService {
     dto: UpdateBillStatusDto,
     ctx: RequestContext,
   ): Promise<BillRecord> {
+    assertPermission(actor, 'BillsController.updateStatus');
     const existing = await this.requireBill(id);
     await this.assertBillAccess(actor, existing);
 
     const current = existing.status as BillStatus;
     const next = dto.status;
+    if (next === BillStatus.REFUNDED) assertFinancialAuthority(actor);
 
     if (current === next) {
       const timeZone = await this.businessTimezone.resolveForUser(actor);
@@ -967,6 +1025,13 @@ export class BillsService {
         }
 
         if (next === BillStatus.REFUNDED) {
+          await tx.membership.updateMany({
+            where: {
+              qualifyingBillId: locked.id,
+              status: { in: ['ACTIVE', 'PENDING'] },
+            },
+            data: { status: 'CANCELLED' },
+          });
           // A full bill refund must remove its collections from payment-based revenue.
           await tx.payment.updateMany({
             where: { billId: locked.id, status: PaymentStatus.SUCCESS },
@@ -977,9 +1042,18 @@ export class BillsService {
             data: { status: PaymentStatus.CANCELLED },
           });
         }
-        const paidAmount = next === BillStatus.REFUNDED ? 0 : this.asNumber(locked.paidAmount);
+        if (next === BillStatus.CANCELLED)
+          await tx.payment.updateMany({
+            where: { billId: locked.id, status: PaymentStatus.PENDING },
+            data: { status: PaymentStatus.CANCELLED },
+          });
+        const paidAmount =
+          next === BillStatus.REFUNDED ? 0 : this.asNumber(locked.paidAmount);
         const total = this.asNumber(locked.total);
-        const dueAmount = next === BillStatus.REFUNDED ? 0 : this.roundMoney(total - paidAmount);
+        const dueAmount =
+          next === BillStatus.REFUNDED
+            ? 0
+            : this.roundMoney(total - paidAmount);
         const paymentStatus = this.derivePaymentStatus(
           paidAmount,
           dueAmount,
@@ -1347,7 +1421,10 @@ export class BillsService {
   private async buildLines(
     items: CreateBillItemDto[],
     salonId: string,
+    actor: AuthenticatedUser,
   ): Promise<ComputedLine[]> {
+    if (!Array.isArray(items) || items.length < 1 || items.length > 1000)
+      throw new BadRequestException('Bills require between 1 and 1000 lines');
     const serviceIds = [
       ...new Set(
         items
@@ -1366,6 +1443,16 @@ export class BillsService {
     ];
 
     for (const item of items) {
+      if (
+        !Number.isInteger(item.quantity) ||
+        item.quantity < 1 ||
+        item.quantity > 2_147_483_647
+      )
+        throw new BadRequestException(
+          'Quantity must be a positive supported integer',
+        );
+      if (![BillItemType.SERVICE, BillItemType.PRODUCT].includes(item.itemType))
+        throw new BadRequestException('Unsupported bill item type');
       if (item.itemType === BillItemType.SERVICE) {
         if (!item.serviceId || item.productId) {
           throw new BadRequestException(
@@ -1473,13 +1560,32 @@ export class BillsService {
         if (!description) description = product.name;
       }
 
+      const catalog =
+        item.itemType === BillItemType.SERVICE
+          ? serviceMap.get(item.serviceId!)
+          : productMap.get(item.productId!);
+      const catalogPrice =
+        item.itemType === BillItemType.SERVICE
+          ? this.asNumber((catalog as CatalogService).price)
+          : this.asNumber((catalog as CatalogProduct).sellingPrice);
+      if (
+        unitPrice !== catalogPrice ||
+        taxRate !== this.asNumber(catalog!.taxRate) ||
+        (item.discount ?? 0) !== 0
+      ) {
+        assertFinancialAuthority(actor);
+      }
       const discount = item.discount ?? 0;
-      const lineNet = this.roundMoney(item.quantity * unitPrice - discount);
+      const grossCents = moneyCents(unitPrice, 'unitPrice') * item.quantity;
+      centsString(grossCents);
+      const netCents = grossCents - moneyCents(discount, 'line discount');
+      const lineNet = netCents / 100;
       if (lineNet < 0) {
         throw new BadRequestException('Line discount exceeds line amount');
       }
-      const taxAmountNum = this.roundMoney((lineNet * taxRate) / 100);
+      const taxAmountNum = lineTaxCents(netCents, taxRate) / 100;
       const lineTotal = this.roundMoney(lineNet + taxAmountNum);
+      centsString(netCents + moneyCents(taxAmountNum, 'line tax'));
 
       lines.push({
         itemType: item.itemType,
@@ -1500,6 +1606,35 @@ export class BillsService {
     return lines;
   }
 
+  private assertTotalOverrides(
+    actor: AuthenticatedUser,
+    dto: {
+      discount?: number;
+      tax?: number;
+      roundOff?: number;
+      items?: unknown;
+    },
+    lines: ComputedLine[],
+    existing?: BillRow,
+  ) {
+    const defaultTax = this.roundMoney(
+      lines.reduce((sum, line) => sum + line.taxAmountNum, 0),
+    );
+    if (
+      (dto.discount !== undefined &&
+        dto.discount !== (existing ? this.asNumber(existing.discount) : 0)) ||
+      (dto.tax !== undefined &&
+        dto.tax !==
+          (existing && !dto.items
+            ? this.asNumber(existing.tax)
+            : defaultTax)) ||
+      (dto.roundOff !== undefined &&
+        dto.roundOff !== (existing ? this.asNumber(existing.roundOff) : 0))
+    ) {
+      assertFinancialAuthority(actor);
+    }
+  }
+
   private computeBillTotals(
     lines: ComputedLine[],
     opts: {
@@ -1515,22 +1650,46 @@ export class BillsService {
     roundOff: string;
     total: string;
   } {
-    const subtotalNum = this.roundMoney(
-      lines.reduce((sum, line) => sum + line.lineNet, 0),
+    const subtotalCents = lines.reduce(
+      (sum, line) => sum + moneyCents(line.lineNet, 'line subtotal'),
+      0,
     );
-    const lineTaxSum = this.roundMoney(
-      lines.reduce((sum, line) => sum + line.taxAmountNum, 0),
+    const subtotalNum = Number(centsString(subtotalCents));
+    const lineTaxSum = Number(
+      centsString(
+        lines.reduce(
+          (sum, line) => sum + moneyCents(line.taxAmountNum, 'line tax'),
+          0,
+        ),
+      ),
     );
     const discount = opts.discount ?? 0;
     const tax = opts.tax !== undefined ? opts.tax : lineTaxSum;
     const roundOff = opts.roundOff ?? 0;
-    const total = this.roundMoney(
-      subtotalNum - discount + tax + roundOff + (opts.membershipFee ?? 0),
+    moneyCents(discount, 'bill discount');
+    moneyCents(tax, 'bill tax');
+    moneyCents(roundOff, 'roundOff', true);
+    moneyCents(opts.membershipFee ?? 0, 'membershipFee');
+    if (discount > subtotalNum)
+      throw new BadRequestException('Bill discount exceeds eligible subtotal');
+    if (Math.abs(roundOff) > 0.5)
+      throw new BadRequestException(
+        'Rounding adjustment must be within half a currency unit',
+      );
+    const total = Number(
+      centsString(
+        subtotalCents -
+          moneyCents(discount, 'discount') +
+          moneyCents(tax, 'tax') +
+          moneyCents(roundOff, 'roundOff', true) +
+          moneyCents(opts.membershipFee ?? 0, 'membershipFee'),
+      ),
     );
 
     if (total < 0) {
       throw new BadRequestException('Bill total cannot be negative');
     }
+    moneyCents(total, 'bill total');
 
     return {
       subtotal: this.decimalString(subtotalNum),
@@ -1594,6 +1753,7 @@ export class BillsService {
 
   private toResponse(row: BillRow, timeZone: string): BillRecord {
     return {
+      currency: requireCurrency(row.currency),
       enrolledCouponCode: row.qualifyingMembership?.couponCode ?? null,
       enrollmentPlanId: row.enrollmentPlanId ?? null,
       membershipFee: this.decimalString(row.membershipFee ?? 0),
