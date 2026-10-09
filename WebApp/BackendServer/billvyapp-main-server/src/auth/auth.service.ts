@@ -1,7 +1,6 @@
 import { normalizePhone } from '../common/phone';
 import {
-  BadRequestException,
-  ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
   Logger,
@@ -10,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtSignOptions } from '@nestjs/jwt';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
 import { resolveBusinessTimezone } from '../common/datetime/datetime';
@@ -20,8 +19,6 @@ import {
   AuthenticatedUser,
   JwtRefreshPayload,
 } from '../common/interfaces/authenticated-user.interface';
-import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
-import { trimRequired } from '../common/strings';
 import { FranchiseSubscriptionsService } from '../franchise-subscriptions/franchise-subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -45,6 +42,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { OtpService } from './otp/otp.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
+import { SecurityStateService } from './security-state.service';
 
 export interface RequestContext {
   ipAddress?: string | null;
@@ -118,11 +116,13 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly subscriptions: FranchiseSubscriptionsService,
     private readonly businessTimezone: BusinessTimezoneService,
+    private readonly security: SecurityStateService,
   ) {}
 
   // ---------------------------------------------------------------- password
 
   async login(dto: LoginDto, ctx: RequestContext): Promise<IssuedAuthSession> {
+    await this.security.assertLoginAllowed(dto.email);
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       select: AUTH_USER_WITH_HASH_SELECT,
@@ -157,6 +157,7 @@ export class AuthService {
       throw new UnauthorizedException(GENERIC_AUTH_FAILURE);
     }
 
+    await this.security.successfulLogin(dto.email);
     const tokens = await this.issueSession(user, ctx);
 
     await this.audit.record({
@@ -175,152 +176,23 @@ export class AuthService {
   // --------------------------------------------------------------- register
 
   /**
-   * Public customer self-registration.
-   *
-   * CUSTOMER is resolved server-side by role code. The DTO has no role /
-   * franchise / salon fields; ValidationPipe forbidNonWhitelisted rejects
-   * any attempt to inject them. franchiseId and salonId are always null.
+   * Public registration remains unavailable until ownership verification is integrated.
+   * No account lookups, writes or session issuance occur before verification.
    */
-  async register(
-    dto: RegisterCustomerDto,
-    ctx: RequestContext,
+  register(
+    _dto: RegisterCustomerDto,
+    _ctx: RequestContext,
   ): Promise<IssuedAuthSession> {
-    const firstName = trimRequired(dto.firstName);
-    const lastName = trimRequired(dto.lastName);
-    const email = dto.email.trim().toLowerCase();
-    const phone = normalizePhone(dto.phone);
-
-    const [existingByPhone, existingByEmail, customerRole] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { phone },
-        select: {
-          id: true,
-          customer: { select: { id: true } },
-          role: { select: { code: true } },
-        },
+    // DTO values are intentionally unused until ownership verification is available.
+    void _dto;
+    void _ctx;
+    return Promise.reject(
+      new ForbiddenException({
+        code: 'OWNERSHIP_VERIFICATION_REQUIRED',
+        message:
+          'Self-registration requires verified ownership. Please contact your salon until verification is available.',
       }),
-      this.prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-      }),
-      this.prisma.role.findUnique({
-        where: { code: RoleCode.CUSTOMER },
-        select: { id: true, isActive: true },
-      }),
-    ]);
-
-    if (!customerRole?.isActive) {
-      throw new BadRequestException('CUSTOMER role is not configured');
-    }
-
-    if (existingByEmail) {
-      throw new ConflictException('Email already exists');
-    }
-
-    if (existingByPhone?.customer) {
-      throw new ConflictException('Phone already exists');
-    }
-
-    if (
-      existingByPhone &&
-      (existingByPhone.role.code as RoleCode) !== RoleCode.CUSTOMER
-    ) {
-      throw new ConflictException('Phone already belongs to a staff account');
-    }
-
-    await this.passwords.assertPolicy(dto.password);
-    const passwordHash = await this.passwords.hash(dto.password);
-    const customerCode = `CUST-${randomBytes(4).toString('hex').toUpperCase()}`;
-
-    let userId: string;
-
-    try {
-      userId = await this.prisma.$transaction(async (tx) => {
-        const user = existingByPhone
-          ? await tx.user.update({
-              where: { id: existingByPhone.id },
-              data: {
-                roleId: customerRole.id,
-                firstName,
-                lastName,
-                email,
-                phone,
-                passwordHash,
-                franchiseId: null,
-                salonId: null,
-                isActive: true,
-              },
-              select: { id: true },
-            })
-          : await tx.user.create({
-              data: {
-                roleId: customerRole.id,
-                firstName,
-                lastName,
-                email,
-                phone,
-                passwordHash,
-                franchiseId: null,
-                salonId: null,
-              },
-              select: { id: true },
-            });
-
-        await tx.customer.create({
-          data: {
-            userId: user.id,
-            customerCode,
-          },
-        });
-
-        return user.id;
-      });
-    } catch (error) {
-      if (isPrismaUniqueError(error)) {
-        const target = (error as { meta?: { target?: string | string[] } }).meta
-          ?.target;
-        const fields = Array.isArray(target) ? target : target ? [target] : [];
-        if (fields.some((field) => field.includes('email'))) {
-          throw new ConflictException('Email already exists');
-        }
-        if (fields.some((field) => field.includes('phone'))) {
-          throw new ConflictException('Phone already exists');
-        }
-        throw new ConflictException(
-          'An account with these details already exists',
-        );
-      }
-      throw error;
-    }
-
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: AUTH_USER_SELECT,
-    });
-
-    // Defence in depth: never return tokens unless the row is CUSTOMER.
-    if ((user.role.code as RoleCode) !== RoleCode.CUSTOMER) {
-      throw new BadRequestException('Registration failed');
-    }
-
-    const tokens = await this.issueSession(user, ctx);
-
-    await this.audit.record({
-      userId: user.id,
-      action: 'CUSTOMER_CREATED',
-      entityType: 'User',
-      entityId: user.id,
-      newData: {
-        email: user.email,
-        phone: user.phone,
-        role: RoleCode.CUSTOMER,
-        source: 'public_register',
-      },
-      ipAddress: ctx.ipAddress,
-      userAgent: ctx.userAgent,
-    });
-
-    return { ...tokens, user: await this.toPublicUser(user) };
+    );
   }
 
   // --------------------------------------------------------------------- otp
@@ -460,12 +332,23 @@ export class AuthService {
     try {
       payload = await this.jwt.verifyAsync<JwtRefreshPayload>(refreshToken, {
         secret: this.config.getOrThrow<string>('jwt.refreshSecret'),
+        algorithms: ['HS256'],
+        issuer: 'billvy-api',
+        audience: 'billvy-refresh',
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    if (payload.type !== JWT_TYPE_REFRESH || !payload.sessionId) {
+    if (
+      payload.type !== JWT_TYPE_REFRESH ||
+      typeof payload.sub !== 'string' ||
+      !payload.sub ||
+      typeof payload.sessionId !== 'string' ||
+      !payload.sessionId ||
+      typeof payload.exp !== 'number' ||
+      payload.exp <= Date.now() / 1000
+    ) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -491,10 +374,9 @@ export class AuthService {
     // Build the response before rotating. If identity enrichment fails, the
     // existing refresh cookie must remain usable for a later retry.
     const publicUser = await this.toPublicMeUser(user);
-    await this.sessions.revoke(session.id);
-
     const tokens = await this.issueSession(user, ctx, {
       updateLastLogin: false,
+      rotation: { sessionId: session.id, refreshToken },
     });
 
     await this.audit.record({
@@ -568,7 +450,10 @@ export class AuthService {
   private async issueSession(
     user: AuthUserRow,
     ctx: RequestContext,
-    options: { updateLastLogin?: boolean } = {},
+    options: {
+      updateLastLogin?: boolean;
+      rotation?: { sessionId: string; refreshToken: string };
+    } = {},
   ): Promise<IssuedAuthTokens> {
     const sessionId = randomUUID();
     const role = user.role.code as RoleCode;
@@ -584,6 +469,9 @@ export class AuthService {
       },
       {
         secret: this.config.getOrThrow<string>('jwt.accessSecret'),
+        algorithm: 'HS256',
+        issuer: 'billvy-api',
+        audience: 'billvy-access',
         expiresIn: this.config.getOrThrow<string>('jwt.accessExpiresIn'),
       } as JwtSignOptions,
     );
@@ -600,18 +488,30 @@ export class AuthService {
       },
       {
         secret: this.config.getOrThrow<string>('jwt.refreshSecret'),
+        algorithm: 'HS256',
+        issuer: 'billvy-api',
+        audience: 'billvy-refresh',
         expiresIn: refreshExpiresIn,
       } as JwtSignOptions,
     );
 
-    await this.sessions.create({
+    const sessionParams = {
       sessionId,
       userId: user.id,
       refreshToken,
       expiresAt: new Date(Date.now() + this.toMilliseconds(refreshExpiresIn)),
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
-    });
+    };
+    if (options.rotation) {
+      await this.sessions.rotate(
+        options.rotation.sessionId,
+        options.rotation.refreshToken,
+        sessionParams,
+      );
+    } else {
+      await this.sessions.create(sessionParams);
+    }
 
     if (options.updateLastLogin !== false) {
       await this.prisma.user.update({
@@ -630,7 +530,12 @@ export class AuthService {
     try {
       const payload = await this.jwt.verifyAsync<JwtRefreshPayload>(
         refreshToken,
-        { secret: this.config.getOrThrow<string>('jwt.refreshSecret') },
+        {
+          secret: this.config.getOrThrow<string>('jwt.refreshSecret'),
+          algorithms: ['HS256'],
+          issuer: 'billvy-api',
+          audience: 'billvy-refresh',
+        },
       );
       if (
         payload.type === JWT_TYPE_REFRESH &&

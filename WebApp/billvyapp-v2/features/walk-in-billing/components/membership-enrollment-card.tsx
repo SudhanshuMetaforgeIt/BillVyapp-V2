@@ -1,16 +1,16 @@
-'use client';
-import { Input } from '@/components/ui/input';
-import { isValidPhoneInput } from '@/lib/phone';
-import { useEffect, useState } from 'react';
-import { useScopedQuery } from '@/hooks/use-scoped-query';
-import { api } from '@/services/api-client';
-import { formatCurrency } from '@/lib/format';
+"use client";
+import { Input } from "@/components/ui/input";
+import { isValidPhoneInput } from "@/lib/phone";
+import { useEffect, useState } from "react";
+import { useScopedQuery } from "@/hooks/use-scoped-query";
+import { api } from "@/services/api-client";
+import { formatCurrency } from "@/lib/format";
 import type {
   CreateBillPayload,
   EnrollmentDetails,
   MembershipOffer,
   WalkInCustomer,
-} from '../types/walk-in-billing.types';
+} from "../types/walk-in-billing.types";
 export type EnrollmentChoice = {
   plan: MembershipOffer | null;
   details: EnrollmentDetails;
@@ -29,15 +29,15 @@ export function MembershipEnrollmentCard({
   onChange: (choice: EnrollmentChoice) => void;
 }) {
   const offers = useScopedQuery(
-    ['memberships', 'billing-offers', payload],
+    ["memberships", "billing-offers", payload],
     () =>
       api.post<{ qualifyingAmount: string; plans: MembershipOffer[] }>(
-        '/bills/membership-offers',
+        "/bills/membership-offers",
         payload,
       ),
     { staleTime: 0, placeholderData: undefined },
   );
-  const [planId, setPlanId] = useState('');
+  const [planId, setPlanId] = useState("");
   const [details, setDetails] = useState<EnrollmentDetails>({
     nameConfirmed: false,
     whatsappSameAsBilling: false,
@@ -49,7 +49,7 @@ export function MembershipEnrollmentCard({
       plan &&
       details.nameConfirmed &&
       (details.whatsappSameAsBilling ||
-        isValidPhoneInput(details.whatsappNumber ?? '')) &&
+        isValidPhoneInput(details.whatsappNumber ?? "")) &&
       (!details.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email)) &&
       (!details.dateOfBirth ||
         details.dateOfBirth <= new Date().toISOString().slice(0, 10)),
@@ -70,14 +70,14 @@ export function MembershipEnrollmentCard({
       {offers.isLoading && <p>Checking eligible plans...</p>}
       {offers.isError && (
         <p role="alert">
-          Could not load plans.{' '}
+          Could not load plans.{" "}
           <button
             type="button"
             className="underline"
             onClick={() => void offers.refetch()}
           >
             Retry
-          </button>{' '}
+          </button>{" "}
           You can continue without enrollment.
         </p>
       )}
@@ -87,7 +87,7 @@ export function MembershipEnrollmentCard({
           name="billing-membership"
           checked={!planId}
           disabled={disabled}
-          onChange={() => setPlanId('')}
+          onChange={() => setPlanId("")}
         />
         No membership — normal billing
       </label>
@@ -102,13 +102,13 @@ export function MembershipEnrollmentCard({
               onChange={() => setPlanId(p.id)}
             />
             <span>
-              {p.name} —{' '}
-              {Number(p.price) === 0 ? 'Free' : formatCurrency(p.price)}
+              {p.name} —{" "}
+              {Number(p.price) === 0 ? "Free" : formatCurrency(p.price)}
               <br />
               {p.durationDays} days
               {p.couponUsageLimit != null
                 ? ` · ${p.couponUsageLimit} benefit visits`
-                : ''}
+                : ""}
             </span>
           </label>
           {p.benefits && (
@@ -119,11 +119,11 @@ export function MembershipEnrollmentCard({
               Read Terms &amp; Conditions
             </summary>
             <p className="mt-2 whitespace-pre-wrap">
-              {p.termsAndConditions || 'No additional terms configured.'}
+              {p.termsAndConditions || "No additional terms configured."}
             </p>
             <p>
-              Eligible services:{' '}
-              {p.eligibleServices.map((s) => s.name).join(', ') || 'None'}
+              Eligible services:{" "}
+              {p.eligibleServices.map((s) => s.name).join(", ") || "None"}
             </p>
           </details>
         </div>
@@ -144,7 +144,7 @@ export function MembershipEnrollmentCard({
             <input
               type="checkbox"
               checked={details.nameConfirmed}
-              onChange={(e) => field('nameConfirmed', e.target.checked)}
+              onChange={(e) => field("nameConfirmed", e.target.checked)}
             />
             Customer confirmed the name above
           </label>
@@ -152,7 +152,7 @@ export function MembershipEnrollmentCard({
             <input
               type="checkbox"
               checked={details.whatsappSameAsBilling}
-              onChange={(e) => field('whatsappSameAsBilling', e.target.checked)}
+              onChange={(e) => field("whatsappSameAsBilling", e.target.checked)}
             />
             WhatsApp number is the same as billing number ({customer.phone})
           </label>
@@ -164,8 +164,8 @@ export function MembershipEnrollmentCard({
                 type="tel"
                 inputMode="tel"
                 maxLength={16}
-                value={details.whatsappNumber ?? ''}
-                onChange={(e) => field('whatsappNumber', e.target.value)}
+                value={details.whatsappNumber ?? ""}
+                onChange={(e) => field("whatsappNumber", e.target.value)}
               />
             </label>
           )}
@@ -175,8 +175,8 @@ export function MembershipEnrollmentCard({
               type="date"
               className="mt-1 w-full rounded border p-2"
               max={new Date().toISOString().slice(0, 10)}
-              value={details.dateOfBirth ?? ''}
-              onChange={(e) => field('dateOfBirth', e.target.value)}
+              value={details.dateOfBirth ?? ""}
+              onChange={(e) => field("dateOfBirth", e.target.value)}
             />
           </label>
           <label className="block">
@@ -184,19 +184,22 @@ export function MembershipEnrollmentCard({
             <textarea
               className="mt-1 w-full rounded border p-2"
               maxLength={255}
-              value={details.address ?? ''}
-              onChange={(e) => field('address', e.target.value)}
+              value={details.address ?? ""}
+              onChange={(e) => field("address", e.target.value)}
             />
           </label>
           <label className="block">
-            Email (optional)
+            Account email
             <input
               type="email"
               className="mt-1 w-full rounded border p-2"
               maxLength={191}
-              value={details.email ?? ''}
-              onChange={(e) => field('email', e.target.value)}
+              value={customer.email ?? ""}
+              readOnly
             />
+            <span className="text-xs text-muted-foreground">
+              Email changes require ownership verification.
+            </span>
           </label>
           <p>
             Membership fee added to this bill: {formatCurrency(plan.price)}. The

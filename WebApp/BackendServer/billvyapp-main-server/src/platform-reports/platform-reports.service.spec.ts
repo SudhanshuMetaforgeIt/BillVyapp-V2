@@ -88,6 +88,7 @@ describe('PlatformReportsService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       delete: jest.fn(),
     },
     franchise: { findUnique: jest.fn(), count: jest.fn() },
@@ -403,7 +404,15 @@ describe('PlatformReportsService', () => {
 
   it('rejects downloading a report that is still generating or failed', async () => {
     prisma.platformReport.findUnique.mockResolvedValueOnce(
-      reportRow({ snapshot: { status: 'Generating' } }),
+      reportRow({
+        generatedById: actor.userId,
+        franchiseId: null,
+        snapshot: {
+          status: 'Generating',
+          dateFrom: '2026-09-01',
+          dateTo: '2026-09-30',
+        },
+      }),
     );
     await expect(service.download(actor, 'pr-1')).rejects.toThrow(
       'Report is still generating. Please try again shortly',
@@ -430,7 +439,13 @@ describe('PlatformReportsService', () => {
       queue as never,
     );
     prisma.platformReport.create.mockResolvedValue(
-      reportRow({ snapshot: { status: 'Generating' } }),
+      reportRow({
+        snapshot: {
+          status: 'Generating',
+          dateFrom: '2026-09-01',
+          dateTo: '2026-09-30',
+        },
+      }),
     );
 
     const result = await asyncService.generate(
@@ -457,17 +472,50 @@ describe('PlatformReportsService', () => {
     );
   });
 
+  it.each([false, true])(
+    'rejects a deactivated actor or forged report owner (active=%s)',
+    async (active) => {
+      prisma.platformReport.findUnique.mockResolvedValue(
+        reportRow({ generatedById: active ? 'other-user' : actor.userId }),
+      );
+      prisma.user.findUnique.mockResolvedValue({
+        email: actor.email,
+        isActive: active,
+        role: { code: RoleCode.SUPER_ADMIN, isActive: true },
+      });
+      await expect(
+        service.processBackgroundPlatformReport({
+          reportId: 'pr-1',
+          actorUserId: actor.userId,
+          dto: {
+            type: 'financial',
+            dateFrom: '2026-09-01',
+            dateTo: '2026-09-30',
+          },
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(analytics.query).not.toHaveBeenCalled();
+      expect(prisma.platformReport.update).not.toHaveBeenCalled();
+    },
+  );
   it('processes background platform report and updates snapshot to Ready', async () => {
     stubAggregate();
     prisma.platformReport.findUnique.mockResolvedValue(
-      reportRow({ snapshot: { status: 'Generating' } }),
+      reportRow({
+        snapshot: {
+          status: 'Generating',
+          dateFrom: '2026-09-01',
+          dateTo: '2026-09-30',
+        },
+      }),
     );
     prisma.user.findUnique.mockResolvedValue({
       id: actor.userId,
       email: actor.email,
-      role: { code: 'SUPER_ADMIN' },
+      isActive: true,
+      role: { code: 'SUPER_ADMIN', isActive: true },
     });
-    prisma.platformReport.update.mockResolvedValue({});
+    prisma.platformReport.updateMany.mockResolvedValue({ count: 1 });
 
     await service.processBackgroundPlatformReport({
       reportId: 'pr-1',
@@ -480,10 +528,10 @@ describe('PlatformReportsService', () => {
     });
 
     const update = (
-      prisma.platformReport.update.mock.calls as unknown as [
+      prisma.platformReport.updateMany.mock.calls as unknown as [
         { where: { id: string }; data: { snapshot: { status: string } } },
       ][]
-    )[0][0];
+    )[1][0];
     expect(update.where.id).toBe('pr-1');
     expect(update.data.snapshot.status).toBe('Ready');
   });

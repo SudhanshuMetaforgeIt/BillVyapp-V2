@@ -16,6 +16,8 @@ export interface AuthenticatedUser {
 }
 
 export interface JwtAccessPayload {
+  exp?: number;
+  iat?: number;
   sub: string;
   role: RoleCode;
   franchiseId: string | null;
@@ -25,6 +27,8 @@ export interface JwtAccessPayload {
 }
 
 export interface JwtRefreshPayload {
+  exp?: number;
+  iat?: number;
   sub: string;
   type: JwtTokenType;
   sessionId: string;

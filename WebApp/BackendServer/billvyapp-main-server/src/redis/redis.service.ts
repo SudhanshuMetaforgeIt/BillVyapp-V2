@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
+import { redisConnectionOptions } from './redis-security';
 import {
   baselineEnabled,
   recordDependency,
@@ -23,7 +24,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
 
   constructor(config: ConfigService) {
-    this.client = new Redis(config.getOrThrow<string>('redis.url'), {
+    this.client = new Redis({
+      ...redisConnectionOptions(
+        config.getOrThrow<string>('redis.url'),
+        config.get<string>('nodeEnv') === 'production',
+        config.get<string>('redis.caPath'),
+      ),
       // Fail fast instead of queueing forever: an OTP request must return a
       // clear error rather than hang if Redis is unreachable.
       maxRetriesPerRequest: 2,
@@ -32,11 +38,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       lazyConnect: true,
     });
 
-    this.client.on('error', (error: Error) => {
-      this.logger.error(`Redis error: ${error.message}`);
+    this.client.on('error', () => {
+      this.logger.error('Redis connection error');
     });
     if (baselineEnabled()) {
-      const send = this.client.sendCommand.bind(this.client);
+      const send = this.client.sendCommand.bind(this.client) as (
+        ...args: Parameters<Redis['sendCommand']>
+      ) => Promise<unknown>;
       this.client.sendCommand = (...args: Parameters<typeof send>) => {
         const start = performance.now();
         const command = args[0] as { name?: string };
@@ -65,12 +73,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async isReachable(): Promise<boolean> {
     try {
       return (await this.client.ping()) === 'PONG';
-    } catch (error) {
-      this.logger.error(
-        `Redis reachability check failed: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
+    } catch {
+      this.logger.error('Redis reachability check failed');
       return false;
     }
   }

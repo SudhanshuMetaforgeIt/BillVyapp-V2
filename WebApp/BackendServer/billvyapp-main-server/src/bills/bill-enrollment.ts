@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { assertUnchangedLoginIdentifiers } from '../auth/login-identifier-policy';
 import type { Prisma } from '../generated/prisma/client';
 import {
   ENROLLMENT_PLAN_SELECT,
@@ -75,9 +76,16 @@ export async function completeChosenEnrollment(
     enrollmentDetails?: Prisma.JsonValue | null;
     membershipFee?: { toString(): string } | string | number;
     total: { toString(): string };
+    paidAmount?: { toString(): string } | string;
+    status?: string;
   },
 ) {
   if (!bill.enrollmentPlanId) return null;
+  if (
+    bill.status !== 'COMPLETED' ||
+    Number(bill.paidAmount ?? 0) < Number(bill.total)
+  )
+    return null;
   await tx.$queryRaw`SELECT id FROM membership_plans WHERE id = ${bill.enrollmentPlanId} FOR UPDATE`;
   const fee = Number(bill.membershipFee ?? 0);
   const plan = await requireEnrollmentPlan(
@@ -103,12 +111,16 @@ export async function completeChosenEnrollment(
         select: {
           isActive: true,
           phone: true,
+          email: true,
         },
       },
     },
   });
   if (!customer.user.isActive)
     throw new BadRequestException('Customer is inactive');
+  assertUnchangedLoginIdentifiers(customer.user, {
+    email: details.email?.trim() || undefined,
+  });
   if (details.whatsappSameAsBilling && !customer.user.phone)
     throw new BadRequestException(
       'Customer has no billing number; enter a WhatsApp number',
@@ -129,11 +141,6 @@ export async function completeChosenEnrollment(
         : {}),
     },
   });
-  if (details.email?.trim())
-    await tx.user.update({
-      where: { id: customer.userId },
-      data: { email: details.email.trim() },
-    });
   if (details.address?.trim()) {
     const address = await tx.customerAddress.findFirst({
       where: { customerId: customer.id, isDefault: true },

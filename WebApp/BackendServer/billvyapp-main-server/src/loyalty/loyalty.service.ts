@@ -1,11 +1,19 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import type { Prisma } from '../generated/prisma/client';
+import {
+  requireRequestKey,
+  financialRequestHash,
+  assertSameFinancialRequest,
+} from '../common/security/financial-integrity';
 import { LoyaltyTransactionType } from '../common/enums/loyalty-transaction-type.enum';
 import { RoleCode } from '../common/enums/role.enum';
+import { assertFinancialAuthority } from '../common/security/access-policy';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -21,6 +29,7 @@ import { LoyaltyBalanceQueryDto } from './dto/loyalty-balance-query.dto';
 import { LoyaltyQueryDto } from './dto/loyalty-query.dto';
 
 const LOYALTY_SELECT = {
+  requestHash: true,
   id: true,
   customerId: true,
   salonId: true,
@@ -125,7 +134,10 @@ export class LoyaltyService {
     const customerId = await this.resolveCustomerId(user, query.customerId);
 
     const aggregate = await this.prisma.loyaltyTransaction.aggregate({
-      where: { customerId },
+      where: {
+        customerId,
+        ...(user.role === RoleCode.CUSTOMER ? {} : this.scope.salonScope(user)),
+      },
       _sum: { points: true },
     });
 
@@ -157,32 +169,62 @@ export class LoyaltyService {
     dto: CreateLoyaltyTransactionDto,
     ctx: RequestContext,
   ): Promise<LoyaltyTransactionRecord> {
+    assertFinancialAuthority(actor);
+    const idempotencyKey = requireRequestKey(dto.idempotencyKey);
+    const salonId = dto.salonId ?? actor.salonId;
+    if (!salonId && actor.role !== RoleCode.SUPER_ADMIN)
+      throw new ForbiddenException(
+        'A salon is required for loyalty adjustments',
+      );
     await this.scope.assertCustomerAccess(actor, dto.customerId);
     await this.requireActiveCustomer(dto.customerId);
 
-    if (dto.salonId) {
-      await this.scope.assertSalonAccess(actor, dto.salonId);
-      await this.requireActiveSalon(dto.salonId);
+    if (salonId) {
+      await this.scope.assertSalonAccess(actor, salonId);
+      await this.requireActiveSalon(salonId);
     }
 
     this.assertPointsSign(dto.transactionType, dto.points);
-
-    if (dto.transactionType === LoyaltyTransactionType.REDEEMED) {
-      await this.assertSufficientBalance(dto.customerId, dto.points);
-    }
-
-    const created = await this.prisma.loyaltyTransaction.create({
-      data: {
-        customerId: dto.customerId,
-        salonId: dto.salonId ?? null,
-        points: dto.points,
-        transactionType: dto.transactionType,
-        referenceType: trimOrNull(dto.referenceType) ?? null,
-        referenceId: dto.referenceId ?? null,
-        description: trimOrNull(dto.description) ?? null,
-      },
-      select: LOYALTY_SELECT,
+    const requestHash = financialRequestHash({
+      actor: actor.userId,
+      ...dto,
+      salonId: salonId ?? null,
     });
+    const created = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM customers WHERE id = ${dto.customerId} FOR UPDATE`;
+        const retry = await tx.loyaltyTransaction.findFirst({
+          where: { customerId: dto.customerId, idempotencyKey },
+          select: LOYALTY_SELECT,
+        });
+        if (retry) {
+          assertSameFinancialRequest(retry.requestHash, requestHash);
+          return retry;
+        }
+        if (dto.points < 0)
+          await this.assertSufficientBalance(
+            dto.customerId,
+            dto.points,
+            salonId ?? null,
+            tx,
+          );
+        return tx.loyaltyTransaction.create({
+          data: {
+            idempotencyKey,
+            requestHash,
+            customerId: dto.customerId,
+            salonId: salonId ?? null,
+            points: dto.points,
+            transactionType: dto.transactionType,
+            referenceType: trimOrNull(dto.referenceType) ?? null,
+            referenceId: dto.referenceId ?? null,
+            description: trimOrNull(dto.description) ?? null,
+          },
+          select: LOYALTY_SELECT,
+        });
+      },
+      { isolationLevel: 'ReadCommitted' },
+    );
 
     await this.audit.record({
       userId: actor.userId,
@@ -231,10 +273,20 @@ export class LoyaltyService {
     await this.scope.assertCustomerAccess(user, record.customerId);
     if (record.salonId) {
       await this.scope.assertSalonAccess(user, record.salonId);
+    } else if (user.role !== RoleCode.SUPER_ADMIN) {
+      throw new ForbiddenException('Loyalty transaction outside your scope');
     }
   }
 
   private assertPointsSign(type: LoyaltyTransactionType, points: number): void {
+    if (
+      !Number.isInteger(points) ||
+      Math.abs(points) > 2_147_483_647 ||
+      !Object.values(LoyaltyTransactionType).includes(type)
+    )
+      throw new BadRequestException(
+        'Invalid loyalty points or transaction type',
+      );
     if (type === LoyaltyTransactionType.REDEEMED && points >= 0) {
       throw new BadRequestException('REDEEMED transactions require points < 0');
     }
@@ -256,9 +308,11 @@ export class LoyaltyService {
   private async assertSufficientBalance(
     customerId: string,
     points: number,
+    salonId: string | null,
+    tx: Prisma.TransactionClient,
   ): Promise<void> {
-    const aggregate = await this.prisma.loyaltyTransaction.aggregate({
-      where: { customerId },
+    const aggregate = await tx.loyaltyTransaction.aggregate({
+      where: { customerId, salonId },
       _sum: { points: true },
     });
     const balance = aggregate._sum.points ?? 0;

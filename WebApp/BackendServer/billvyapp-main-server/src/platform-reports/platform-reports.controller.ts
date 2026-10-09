@@ -27,6 +27,7 @@ import { RoleCode } from '../common/enums/role.enum';
 import { requestContext } from '../common/http/request-context';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import { GeneratePlatformReportDto } from './dto/generate-platform-report.dto';
+import { Throttle } from '@nestjs/throttler';
 import { ListPlatformReportsQueryDto } from './dto/list-platform-reports-query.dto';
 import { PaginatedPlatformReportsDto } from './dto/paginated-platform-reports.dto';
 import { PlatformReportResponseDto } from './dto/platform-report-response.dto';
@@ -47,6 +48,7 @@ export class PlatformReportsController {
   ) {}
 
   @Get()
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'List generated platform reports' })
   @ApiResponse({ status: 200, type: PaginatedPlatformReportsDto })
   list(
@@ -67,6 +69,7 @@ export class PlatformReportsController {
   }
 
   @Get('filter-options')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({
     summary: 'Read reporting franchise and salon filter options',
   })
@@ -78,6 +81,7 @@ export class PlatformReportsController {
   }
 
   @Post('generate')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Generate a platform report snapshot',
     description:
@@ -94,6 +98,7 @@ export class PlatformReportsController {
   }
 
   @Get(':id')
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Get a platform report by id' })
   @ApiResponse({ status: 200, type: PlatformReportResponseDto })
   @ApiResponse({ status: 404, description: 'Platform report not found' })
@@ -105,6 +110,7 @@ export class PlatformReportsController {
   }
 
   @Get(':id/download')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Download a platform report as Excel',
     description:

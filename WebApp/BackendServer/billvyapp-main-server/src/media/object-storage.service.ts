@@ -47,6 +47,7 @@ export class ObjectStorageService implements ObjectStorageProvider {
   createUploadUrl(params: {
     storageKey: string;
     mimeType: string;
+    fileSize?: number;
   }): Promise<PresignedUpload> {
     return this.active.createUploadUrl(params);
   }

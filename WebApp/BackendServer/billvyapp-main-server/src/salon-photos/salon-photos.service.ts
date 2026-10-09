@@ -19,6 +19,7 @@ import { UpdateSalonPhotoDto } from './dto/update-salon-photo.dto';
 import { UploadSalonPhotoDto } from './dto/upload-salon-photo.dto';
 import type { Prisma } from '../generated/prisma/client';
 import type { StoredSalonImage } from './storage/salon-image-storage.types';
+import { sanitizeImage } from '../media/image-sanitization';
 
 const PHOTO_SELECT = {
   id: true,
@@ -118,7 +119,11 @@ export class SalonPhotosService {
     const image = await this.storage.uploadImage({
       salonId,
       fileName: trimRequired(dto.fileName),
-      bytes: Buffer.concat(chunks),
+      bytes: await sanitizeImage(
+        Buffer.concat(chunks),
+        mimeType,
+        10 * 1024 * 1024,
+      ),
       mimeType,
     });
     // Provider verification decodes the image; never persist caller-supplied URLs.

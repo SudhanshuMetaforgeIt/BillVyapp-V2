@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef } from 'react';
 import toast from 'react-hot-toast';
 
 import { useCurrentUser } from '@/hooks/use-current-user';
@@ -28,11 +29,17 @@ export function useSettleWalkInBill(onSuccess?: () => void) {
   const queryClient = useQueryClient();
   const user = useCurrentUser();
   const canComplete = can(user, 'bills.status');
+  const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
   return useMutation({
-    mutationFn: (input: SettleWalkInInput) =>
-      settleWalkInBill(input, { canComplete }),
+    mutationFn: (input: SettleWalkInInput) => {
+      const fingerprint = JSON.stringify(input);
+      if (attempt.current?.fingerprint !== fingerprint)
+        attempt.current = { fingerprint, key: crypto.randomUUID() };
+      return settleWalkInBill({ ...input, idempotencyKey: attempt.current.key }, { canComplete });
+    },
     onSuccess: (result) => {
+      attempt.current = null;
       const number = result.bill.billNumber;
       if (result.outcome === 'price-changed') {
         toast.error(`Bill ${number} ${result.bill.status === 'DRAFT' ? 'saved as a draft' : 'completed'} with updated membership pricing. Confirm the amount and record payment from Bills.`);

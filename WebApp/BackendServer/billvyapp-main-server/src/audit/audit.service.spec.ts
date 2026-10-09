@@ -1,3 +1,5 @@
+/* Jest asymmetric matchers deliberately return any in expectation fixtures. */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
@@ -72,5 +74,24 @@ describe('AuditService.purgeExpired', () => {
 
     expect(prisma.platformSettings.findUnique).not.toHaveBeenCalled();
     expect(result.retentionDays).toBe(7);
+  });
+
+  it('masks nested credentials before writing an audit record', async () => {
+    await service.record({
+      action: 'TEST_CONFIG',
+      entityType: 'Config',
+      oldData: { passwordHash: 'private-hash' },
+      newData: {
+        nested: [
+          {
+            api_key: 'private-key',
+            endpoint: 'https://user:password@example.test',
+          },
+        ],
+      },
+    });
+    const persisted = JSON.stringify(prisma.auditLog.create.mock.calls);
+    expect(persisted).not.toMatch(/private-hash|private-key|user:password/);
+    expect(persisted).toContain('REDACTED');
   });
 });

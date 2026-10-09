@@ -51,6 +51,7 @@ export class FranchisesController {
   }
 
   @Post()
+  @Roles(RoleCode.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a franchise' })
   @ApiResponse({ status: 201, type: FranchiseResponseDto })
   @ApiResponse({ status: 409, description: 'Franchise code already exists' })

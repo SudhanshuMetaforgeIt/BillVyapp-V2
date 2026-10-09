@@ -62,7 +62,7 @@ export const CAPABILITIES = {
   'membershipPlans.read': ALL,
   'membershipPlans.write': MANAGEMENT,
   'memberships.read': ALL,
-  'memberships.create': ALL,
+  'memberships.create': [ 'SUPER_ADMIN', 'ADMIN', 'MANAGER' ],
   'memberships.write': MANAGEMENT,
 
   'loyalty.read': ALL,

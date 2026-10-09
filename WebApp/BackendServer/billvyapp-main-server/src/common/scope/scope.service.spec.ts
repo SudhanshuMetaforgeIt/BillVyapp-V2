@@ -209,17 +209,13 @@ describe('ScopeService', () => {
       ).toThrow(ForbiddenException);
     });
     it.each([RoleCode.MANAGER, RoleCode.STAFF])(
-      '%s stays within the franchise directory',
+      '%s stays within the assigned salon directory',
       (role) => {
         expect(
           scope.customerTableScope(
             identity({ role, franchiseId: 'franchise-a', salonId: 'salon-a' }),
           ),
-        ).toEqual(
-          scope.customerTableScope(
-            identity({ role: RoleCode.ADMIN, franchiseId: 'franchise-a' }),
-          ),
-        );
+        ).toEqual(scope.customerSalonAssociation('salon-a'));
       },
     );
   });

@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsEnum,
   IsInt,
@@ -7,10 +8,17 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Matches,
 } from 'class-validator';
 import { LoyaltyTransactionType } from '../../common/enums/loyalty-transaction-type.enum';
 
 export class CreateLoyaltyTransactionDto {
+  @ApiProperty({
+    description: 'Stable key reused for retries of this adjustment',
+  })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:_-]{7,190}$/)
+  idempotencyKey?: string;
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   customerId: string;
@@ -30,7 +38,7 @@ export class CreateLoyaltyTransactionDto {
     description:
       'Signed points delta. REDEEMED requires points < 0; EARNED/BONUS require points > 0; ADJUSTED may be either.',
   })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   points: number;
 

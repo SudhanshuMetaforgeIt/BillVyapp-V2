@@ -7,6 +7,7 @@ import { Reflector } from '@nestjs/core';
 import type { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { isPublicPermission, permissionKey } from '../security/access-policy';
 
 /**
  * Registered globally in AppModule: every route requires a valid access token
@@ -24,7 +25,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       context.getClass(),
     ]);
 
-    if (isPublic) {
+    if (isPublic && isPublicPermission(permissionKey(context))) {
       return true;
     }
 

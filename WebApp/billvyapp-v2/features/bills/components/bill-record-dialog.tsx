@@ -2,7 +2,7 @@
 
 import { getBusinessRegion } from '@/lib/business-region';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { Download } from 'lucide-react';
 
@@ -70,10 +70,10 @@ function downloadBillInvoice(bill: Bill) {
         `<tr>
           <td>${item.description ?? item.itemType}</td>
           <td style="text-align:right">${item.quantity}</td>
-          <td style="text-align:right">${formatCurrency(item.unitPrice)}</td>
-          <td style="text-align:right">${formatCurrency(item.membershipDiscount ?? 0)}</td>
-          <td style="text-align:right">${formatCurrency(item.taxAmount)}</td>
-          <td style="text-align:right">${formatCurrency(item.total)}</td>
+          <td style="text-align:right">${formatCurrency(item.unitPrice, bill.currency)}</td>
+          <td style="text-align:right">${formatCurrency(item.membershipDiscount ?? 0, bill.currency)}</td>
+          <td style="text-align:right">${formatCurrency(item.taxAmount, bill.currency)}</td>
+          <td style="text-align:right">${formatCurrency(item.total, bill.currency)}</td>
         </tr>`,
     )
     .join('');
@@ -104,14 +104,14 @@ function downloadBillInvoice(bill: Bill) {
     <tbody>${rows}</tbody>
   </table>
   <div class="totals">
-    ${bill.enrollmentPlanId ? `<div><span>Membership enrollment: ${escapeHtml(bill.enrollmentPlanName ?? 'Membership')}</span><span>${formatCurrency(bill.membershipFee ?? 0)}</span></div>` : ''}
-    <div><span>Subtotal</span><span>${formatCurrency(bill.subtotal)}</span></div>
-    <div><span>Discount</span><span>${formatCurrency(bill.discount)}</span></div>
-    <div><span>Tax</span><span>${formatCurrency(bill.tax)}</span></div>
-    <div><span>Round off</span><span>${formatCurrency(bill.roundOff)}</span></div>
-    <div class="grand"><span>Total</span><span>${formatCurrency(bill.total)}</span></div>
-    <div><span>Paid</span><span>${formatCurrency(bill.paidAmount)}</span></div>
-    <div><span>Due</span><span>${formatCurrency(bill.dueAmount)}</span></div>
+    ${bill.enrollmentPlanId ? `<div><span>Membership enrollment: ${escapeHtml(bill.enrollmentPlanName ?? 'Membership')}</span><span>${formatCurrency(bill.membershipFee ?? 0, bill.currency)}</span></div>` : ''}
+    <div><span>Subtotal</span><span>${formatCurrency(bill.subtotal, bill.currency)}</span></div>
+    <div><span>Discount</span><span>${formatCurrency(bill.discount, bill.currency)}</span></div>
+    <div><span>Tax</span><span>${formatCurrency(bill.tax, bill.currency)}</span></div>
+    <div><span>Round off</span><span>${formatCurrency(bill.roundOff, bill.currency)}</span></div>
+    <div class="grand"><span>Total</span><span>${formatCurrency(bill.total, bill.currency)}</span></div>
+    <div><span>Paid</span><span>${formatCurrency(bill.paidAmount, bill.currency)}</span></div>
+    <div><span>Due</span><span>${formatCurrency(bill.dueAmount, bill.currency)}</span></div>
   </div>
   <script>window.onload=function(){window.print();}</script>
 </body></html>`;
@@ -246,16 +246,16 @@ export function BillRecordDialog({
                     </td>
                     <td className="py-1.5 text-right">{item.quantity}</td>
                     <td className="py-1.5 text-right">
-                      {formatCurrency(item.unitPrice)}
+                      {formatCurrency(item.unitPrice, b.currency)}
                     </td>
                     <td className="py-1.5 text-right">
-                      {formatCurrency(item.membershipDiscount ?? 0)}
+                      {formatCurrency(item.membershipDiscount ?? 0, b.currency)}
                     </td>
                     <td className="py-1.5 text-right">
-                      {formatCurrency(item.taxAmount)}
+                      {formatCurrency(item.taxAmount, b.currency)}
                     </td>
                     <td className="py-1.5 text-right font-medium">
-                      {formatCurrency(item.total)}
+                      {formatCurrency(item.total, b.currency)}
                     </td>
                   </tr>
                 ))}
@@ -286,27 +286,27 @@ export function BillRecordDialog({
                   Membership fee ({b.enrollmentPlanName})
                 </dt>
                 <dd className="text-right">
-                  {formatCurrency(b.membershipFee ?? 0)}
+                  {formatCurrency(b.membershipFee ?? 0, b.currency)}
                 </dd>
               </>
             )}
             <dt className="text-text-secondary">Subtotal</dt>
-            <dd className="text-right">{formatCurrency(b.subtotal)}</dd>
+            <dd className="text-right">{formatCurrency(b.subtotal, b.currency)}</dd>
             <dt className="text-text-secondary">Discount</dt>
-            <dd className="text-right">{formatCurrency(b.discount)}</dd>
+            <dd className="text-right">{formatCurrency(b.discount, b.currency)}</dd>
             <dt className="text-text-secondary">Tax</dt>
-            <dd className="text-right">{formatCurrency(b.tax)}</dd>
+            <dd className="text-right">{formatCurrency(b.tax, b.currency)}</dd>
             <dt className="text-text-secondary">Round off</dt>
-            <dd className="text-right">{formatCurrency(b.roundOff)}</dd>
+            <dd className="text-right">{formatCurrency(b.roundOff, b.currency)}</dd>
             <dt className="font-semibold">Total</dt>
             <dd className="text-right font-semibold">
-              {formatCurrency(b.total)}
+              {formatCurrency(b.total, b.currency)}
             </dd>
             <dt className="text-text-secondary">Paid</dt>
-            <dd className="text-right">{formatCurrency(b.paidAmount)}</dd>
+            <dd className="text-right">{formatCurrency(b.paidAmount, b.currency)}</dd>
             <dt className="text-text-secondary">Due</dt>
             <dd className="text-right font-semibold">
-              {formatCurrency(b.dueAmount)}
+              {formatCurrency(b.dueAmount, b.currency)}
             </dd>
           </dl>
 
@@ -331,7 +331,7 @@ export function BillRecordDialog({
                         label={p.status}
                         tone={p.status === 'SUCCESS' ? 'success' : 'neutral'}
                       />
-                      {formatCurrency(p.amount)}
+                      {formatCurrency(p.amount, b.currency)}
                     </span>
                   </li>
                 ))}
@@ -387,16 +387,21 @@ function CounterPaymentForm({ bill }: { bill: Bill }) {
   const [amount, setAmount] = useState(String(Number(bill.dueAmount)));
   const [method, setMethod] = useState<PaymentMethod>('CASH');
   const [reference, setReference] = useState('');
+  const paymentInput = useMemo(() => ({
+    idempotencyKey: crypto.randomUUID(),
+    billId: bill.id,
+    currency: bill.currency,
+    amount: Number(amount),
+    paymentMethod: method,
+    transactionReference: reference.trim() || null,
+  }), [bill.id, bill.currency, amount, method, reference]);
 
   const record = useMutation<Payment, ApiError, void>({
     mutationFn: () =>
-      recordCounterPayment({
-        billId: bill.id,
-        amount: Number(amount),
-        paymentMethod: method,
-        transactionReference: reference.trim() || null,
-      }),
+      recordCounterPayment(paymentInput),
     onSuccess: () => {
+      setAmount('');
+      setReference('');
       toast.success('Payment recorded');
       void invalidateAfter(queryClient, 'payments');
     },

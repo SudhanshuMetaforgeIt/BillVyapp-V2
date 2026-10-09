@@ -1,6 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { SecurityStateService } from './security-state.service';
+
+type SessionParams = {
+  sessionId: string;
+  userId: string;
+  refreshToken: string;
+  expiresAt: Date;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+};
 
 /**
  * Owns the `user_sessions` table.
@@ -12,7 +22,10 @@ import { PrismaService } from '../prisma/prisma.service';
  */
 @Injectable()
 export class SessionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly security: SecurityStateService,
+  ) {}
 
   static digest(token: string): string {
     return createHash('sha256').update(token).digest('hex');
@@ -26,6 +39,7 @@ export class SessionService {
     ipAddress?: string | null;
     userAgent?: string | null;
   }): Promise<void> {
+    await this.security.openSession(params.sessionId);
     await this.prisma.userSession.create({
       data: {
         id: params.sessionId,
@@ -55,21 +69,60 @@ export class SessionService {
     if (session.revokedAt) return null;
     if (session.expiresAt.getTime() <= Date.now()) return null;
     if (session.tokenHash !== SessionService.digest(refreshToken)) return null;
+    if (!(await this.security.touchSession(sessionId))) return null;
 
     return session;
   }
 
-  async isActive(sessionId: string): Promise<boolean> {
+  async isActive(sessionId: string, userId: string): Promise<boolean> {
     const session = await this.prisma.userSession.findUnique({
       where: { id: sessionId },
-      select: { revokedAt: true, expiresAt: true },
+      select: { userId: true, revokedAt: true, expiresAt: true },
     });
 
     return (
       !!session &&
+      session.userId === userId &&
       session.revokedAt === null &&
-      session.expiresAt.getTime() > Date.now()
+      session.expiresAt.getTime() > Date.now() &&
+      (await this.security.touchSession(sessionId))
     );
+  }
+
+  async rotate(
+    oldId: string,
+    oldToken: string,
+    params: SessionParams,
+  ): Promise<void> {
+    await this.security.openSession(params.sessionId, oldId);
+    await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.userSession.updateMany({
+        where: {
+          id: oldId,
+          userId: params.userId,
+          tokenHash: SessionService.digest(oldToken),
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { revokedAt: new Date() },
+      });
+      if (consumed.count !== 1)
+        throw new UnauthorizedException('Invalid refresh token');
+      await tx.userSession.create({
+        data: {
+          id: params.sessionId,
+          userId: params.userId,
+          tokenHash: SessionService.digest(params.refreshToken),
+          expiresAt: params.expiresAt,
+          ipAddress: params.ipAddress ?? null,
+          userAgent: params.userAgent?.slice(0, 512) ?? null,
+        },
+      });
+    });
+  }
+
+  async recentlyAuthenticated(id: string): Promise<boolean> {
+    return this.security.recentlyAuthenticated(id);
   }
 
   async revoke(sessionId: string): Promise<void> {

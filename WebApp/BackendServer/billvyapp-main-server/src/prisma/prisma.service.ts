@@ -8,6 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../generated/prisma/client';
 import { profiledAdapter } from '../common/performance/profiled-adapter';
+import {
+  assertRuntimeGrants,
+  databaseSecurity,
+  DatabaseSecurityOptions,
+} from './database-security';
 
 /**
  * The single database entry point for the whole application.
@@ -24,11 +29,15 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor(config: ConfigService) {
+  constructor(private readonly config: ConfigService) {
     super({
       adapter: profiledAdapter(
         new PrismaMariaDb(
-          buildMariaPoolConfig(config.getOrThrow<string>('database.url')),
+          buildMariaPoolConfig(config.getOrThrow<string>('database.url'), {
+            production: config.get<string>('nodeEnv') === 'production',
+            tlsMode: config.get<string>('database.tlsMode'),
+            caPath: config.get<string>('database.caPath'),
+          }),
         ),
       ),
     });
@@ -42,6 +51,16 @@ export class PrismaService
         'MySQL is not reachable. Check DATABASE_URL and that MySQL is running.',
       );
     }
+    if (this.config?.get<string>('nodeEnv') === 'production') {
+      const rows = await this.$queryRaw<Record<string, string>[]>`SHOW GRANTS`;
+      const database = new URL(
+        this.config.getOrThrow<string>('database.url'),
+      ).pathname.slice(1);
+      assertRuntimeGrants(
+        rows.flatMap((row) => Object.values(row)),
+        database,
+      );
+    }
 
     // Belt-and-suspenders: assert session TZ for the lifecycle connection.
     // Pool connections already receive timezone:'Z' from buildMariaPoolConfig.
@@ -53,11 +72,9 @@ export class PrismaService
       this.logger.log(
         `Prisma connected to MySQL (session time_zone=${rows[0]?.tz ?? 'unknown'})`,
       );
-    } catch (error) {
+    } catch {
       this.logger.warn(
-        `Prisma connected but could not assert UTC session time_zone: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
+        'Prisma connected but could not assert UTC session time_zone',
       );
     }
   }
@@ -75,11 +92,8 @@ export class PrismaService
     try {
       await this.$queryRaw`SELECT 1`;
       return true;
-    } catch (error) {
-      this.logger.error(
-        'Database reachability check failed',
-        error instanceof Error ? error.stack : undefined,
-      );
+    } catch {
+      this.logger.error('Database reachability check failed');
       return false;
     }
   }
@@ -90,8 +104,11 @@ export class PrismaService
  * `timezone: 'Z'` forces connector + session UTC on every pooled connection.
  * Historical DATETIME values are not rewritten by this setting.
  */
-export function buildMariaPoolConfig(databaseUrl: string) {
-  const url = new URL(databaseUrl);
+export function buildMariaPoolConfig(
+  databaseUrl: string,
+  options: DatabaseSecurityOptions = {},
+) {
+  const { url, loopback, ssl } = databaseSecurity(databaseUrl, options);
   const host =
     url.hostname === 'localhost' || url.hostname === '::1'
       ? '127.0.0.1'
@@ -106,7 +123,8 @@ export function buildMariaPoolConfig(databaseUrl: string) {
     connectionLimit: 10,
     acquireTimeout: 8_000,
     connectTimeout: 5_000,
-    allowPublicKeyRetrieval: true,
+    allowPublicKeyRetrieval: !options.production && loopback && !ssl,
+    ...(ssl ? { ssl } : {}),
     resetAfterUse: true,
     timezone: 'Z' as const,
   };

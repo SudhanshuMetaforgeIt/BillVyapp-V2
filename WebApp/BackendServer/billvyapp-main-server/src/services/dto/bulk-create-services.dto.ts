@@ -1,3 +1,4 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -28,13 +29,13 @@ export class BulkServiceItemDto {
   category: string;
 
   @ApiPropertyOptional({ example: 500 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
 
   @ApiPropertyOptional({ example: 30 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   durationMinutes: number;

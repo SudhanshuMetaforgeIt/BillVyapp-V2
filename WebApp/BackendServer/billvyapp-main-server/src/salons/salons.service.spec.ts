@@ -94,6 +94,36 @@ describe('SalonsService', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  it('denies a different salon before consulting a warm cache', async () => {
+    const actualScope = new ScopeService(prisma as never);
+    const cache = {
+      wrap: jest
+        .fn()
+        .mockResolvedValue({ id: 'salon-b', privateData: 'cached' }),
+    };
+    const cachedService = new SalonsService(
+      prisma as never,
+      actualScope,
+      audit as never,
+      config as never,
+      {} as never,
+      cache as never,
+    );
+    await expect(
+      cachedService.findOne(
+        {
+          ...actor,
+          role: RoleCode.STAFF,
+          salonId: 'salon-a',
+          franchiseId: 'fr-a',
+        },
+        'salon-b',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(cache.wrap).not.toHaveBeenCalled();
+    expect(prisma.salon.findFirst).not.toHaveBeenCalled();
+  });
+
   it('loads only scoped picker IDs and names without photo relations', async () => {
     scope.salonTableScope.mockReturnValue({ franchiseId: 'fr-1' });
     prisma.salon.findMany.mockResolvedValue([{ id: 'salon-1', name: 'CP' }]);
@@ -131,8 +161,9 @@ describe('SalonsService', () => {
         key === 'geocoding.provider' ? 'opencage' : 'test-key',
       );
       prisma.salon.findFirst.mockResolvedValue(salon());
-      prisma.salon.update.mockImplementation(({ data }) =>
-        Promise.resolve(salon(data)),
+      prisma.salon.update.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve(salon(data)),
       );
     }
 
@@ -289,8 +320,9 @@ describe('SalonsService', () => {
             : '',
       );
       prisma.salon.findFirst.mockResolvedValue(salon());
-      prisma.salon.update.mockImplementation(({ data }) =>
-        Promise.resolve(salon(data)),
+      prisma.salon.update.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve(salon(data)),
       );
     }
 
@@ -560,8 +592,9 @@ describe('SalonsService', () => {
     const manager = { ...actor, role: RoleCode.MANAGER, salonId: 'salon-1' };
     scope.salonTableScope.mockReturnValue({ id: 'salon-1' });
     prisma.salon.findFirst.mockResolvedValue(salon());
-    prisma.salon.update.mockImplementation(({ data }) =>
-      Promise.resolve(salon(data)),
+    prisma.salon.update.mockImplementation(
+      ({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve(salon(data)),
     );
 
     const result = await service.updateLocation(
@@ -590,7 +623,10 @@ describe('SalonsService', () => {
       expect.objectContaining({
         action: 'SALON_LOCATION_UPDATED',
         salonId: 'salon-1',
-        newData: expect.objectContaining({ source: 'MANUAL_PIN' }),
+        newData: expect.objectContaining({ source: 'MANUAL_PIN' }) as Record<
+          string,
+          unknown
+        >,
       }),
     );
   });
@@ -625,7 +661,10 @@ describe('SalonsService', () => {
 
     expect(prisma.salon.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ isActive: true }),
+        where: expect.objectContaining({ isActive: true }) as Record<
+          string,
+          unknown
+        >,
       }),
     );
   });
@@ -638,7 +677,10 @@ describe('SalonsService', () => {
     );
     expect(prisma.salon.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: 'salon-1', isActive: true }),
+        where: expect.objectContaining({
+          id: 'salon-1',
+          isActive: true,
+        }) as Record<string, unknown>,
       }),
     );
   });
@@ -649,7 +691,10 @@ describe('SalonsService', () => {
 
     await service.list(actor, { page: 1, limit: 20 });
 
-    const where = prisma.salon.findMany.mock.calls[0][0].where;
+    const calls = prisma.salon.findMany.mock.calls as [
+      { where: Record<string, unknown> },
+    ][];
+    const where = calls[0][0].where;
     expect(where).not.toHaveProperty('isActive');
   });
 });
@@ -657,7 +702,10 @@ describe('SalonsService', () => {
 describe('SalonsController authorization', () => {
   const proto = SalonsController.prototype;
   const rolesOf = (handler: keyof SalonsController) =>
-    Reflect.getMetadata(ROLES_KEY, proto[handler]);
+    Reflect.getMetadata(
+      ROLES_KEY,
+      Object.getOwnPropertyDescriptor(proto, handler)?.value as object,
+    ) as RoleCode[];
 
   it('allows every authenticated role to read salons (scope applied in the service)', () => {
     const read = [

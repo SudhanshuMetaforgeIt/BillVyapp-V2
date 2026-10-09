@@ -1,10 +1,11 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import {
   ApiProperty,
   ApiPropertyOptional,
   OmitType,
   PartialType,
 } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsBoolean,
   IsEnum,
@@ -41,7 +42,7 @@ export class CreateExpenseDto {
 
   @ApiProperty({ format: 'uuid' }) @IsUUID() categoryId: string;
   @ApiProperty({ example: 25000, minimum: 0.01, maximum: 9999999999.99 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
   @Max(9999999999.99)

@@ -135,7 +135,7 @@ describe('MembershipPlansService', () => {
     });
     prisma.$transaction.mockImplementation((ops: unknown) =>
       typeof ops === 'function'
-        ? ops(prisma)
+        ? (ops as (tx: typeof prisma) => Promise<unknown>)(prisma)
         : Promise.all(ops as Promise<unknown>[]),
     );
     service = new MembershipPlansService(
@@ -247,6 +247,7 @@ describe('MembershipPlansService', () => {
 describe('MembershipsService', () => {
   const prisma = {
     membership: {
+      findFirst: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
@@ -254,9 +255,10 @@ describe('MembershipsService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
-    membershipPlan: { findUnique: jest.fn() },
+    membershipPlan: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
     customer: { findUnique: jest.fn() },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
   };
   const scope = {
     salonScope: jest.fn().mockReturnValue({}),
@@ -267,6 +269,59 @@ describe('MembershipsService', () => {
   };
   const audit = { record: jest.fn() };
   let service: MembershipsService;
+
+  it('rejects paid direct enrollment before issuing an entitlement', async () => {
+    prisma.membershipPlan.findUniqueOrThrow.mockResolvedValue({
+      ...planRow(),
+      price: '100.00',
+      enrollmentThreshold: null,
+    });
+    await expect(
+      service.create(
+        manager,
+        {
+          customerId: 'cust-1',
+          membershipPlanId: 'plan-1',
+          idempotencyKey: 'paid-direct-request',
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('activated after full payment');
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+  });
+  it('rejects direct enrollment when the free plan still requires qualification', async () => {
+    prisma.membershipPlan.findUniqueOrThrow.mockResolvedValue({
+      ...planRow(),
+      price: '0.00',
+      enrollmentThreshold: '100.00',
+    });
+    await expect(
+      service.create(
+        manager,
+        {
+          customerId: 'cust-1',
+          membershipPlanId: 'plan-1',
+          idempotencyKey: 'qualified-direct-request',
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('qualifying bill');
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+  });
+  it('rejects staff manual grants even for a free plan', async () => {
+    await expect(
+      service.create(
+        staff,
+        {
+          customerId: 'cust-1',
+          membershipPlanId: 'plan-1',
+          idempotencyKey: 'staff-free-request',
+        },
+        ctx,
+      ),
+    ).rejects.toThrow();
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+  });
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -292,10 +347,17 @@ describe('MembershipsService', () => {
     });
     prisma.$transaction.mockImplementation((ops: unknown) =>
       typeof ops === 'function'
-        ? ops(prisma)
+        ? (ops as (tx: typeof prisma) => Promise<unknown>)(prisma)
         : Promise.all(ops as Promise<unknown>[]),
     );
     prisma.membership.findUniqueOrThrow.mockResolvedValue(membershipRow());
+    prisma.membershipPlan.findUniqueOrThrow.mockResolvedValue({
+      ...planRow(),
+      price: '0.00',
+      enrollmentThreshold: null,
+      salon: { franchise: { code: 'STARR' } },
+      eligibleServices: [],
+    });
     service = new MembershipsService(
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
@@ -353,12 +415,13 @@ describe('MembershipsService', () => {
     expect(prisma.membership.update).not.toHaveBeenCalled();
   });
 
-  it('creates a membership with computed endDate', async () => {
+  it('creates an approved free membership with computed endDate', async () => {
     prisma.membership.create.mockResolvedValue(membershipRow());
 
     const result = await service.create(
-      staff,
+      manager,
       {
+        idempotencyKey: 'test-request-0001',
         customerId: 'cust-1',
         membershipPlanId: 'plan-1',
         startDate: '2099-01-15',
@@ -405,24 +468,26 @@ describe('MembershipsService', () => {
     });
     await expect(
       service.update(manager, 'mem-1', { membershipPlanId: 'other-plan' }, ctx),
-    ).rejects.toThrow('must remain in the bill salon');
+    ).rejects.toThrow('requires a new settled bill');
     expect(prisma.membership.update).not.toHaveBeenCalled();
   });
 
-  it('forces CUSTOMER create to own customer id', async () => {
+  it('rejects customer membership activation before any writes', async () => {
     prisma.membership.create.mockResolvedValue(membershipRow());
 
-    await service.create(
-      customer,
-      { membershipPlanId: 'plan-1', startDate: '2099-01-15' },
-      ctx,
-    );
-
-    expect(scope.requireOwnCustomerId).toHaveBeenCalledWith(customer);
-    const createArg = firstMockArg<{ data: { customerId: string } }>(
-      prisma.membership.create,
-    );
-    expect(createArg.data.customerId).toBe('cust-1');
+    await expect(
+      service.create(
+        customer,
+        {
+          idempotencyKey: 'test-request-0001',
+          membershipPlanId: 'plan-1',
+          startDate: '2099-01-15',
+        },
+        ctx,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.membership.create).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('rejects inactive plans', async () => {
@@ -436,8 +501,9 @@ describe('MembershipsService', () => {
 
     await expect(
       service.create(
-        staff,
+        manager,
         {
+          idempotencyKey: 'test-request-0001',
           customerId: 'cust-1',
           membershipPlanId: 'plan-1',
           startDate: '2099-01-15',
@@ -448,6 +514,11 @@ describe('MembershipsService', () => {
   });
 
   it('allows PENDING to ACTIVE and rejects terminal transitions', async () => {
+    prisma.membershipPlan.findUnique.mockResolvedValue({
+      ...planRow(),
+      price: '0.00',
+      enrollmentThreshold: null,
+    });
     prisma.membership.findUnique.mockResolvedValue(
       membershipRow({ status: MembershipStatus.PENDING }),
     );
@@ -530,6 +601,7 @@ describe('CreateMembershipPlanDto validation', () => {
 describe('CreateMembershipDto validation', () => {
   function dto(overrides: Record<string, unknown> = {}) {
     return Object.assign(new CreateMembershipDto(), {
+      idempotencyKey: 'test-request-0001',
       customerId: '11111111-1111-4111-8111-111111111111',
       membershipPlanId: '22222222-2222-4222-8222-222222222222',
       startDate: '2099-01-15',
@@ -566,9 +638,12 @@ describe('MembershipsController authorization', () => {
     );
   });
 
-  it('allows STAFF and CUSTOMER to create memberships', () => {
+  it('allows business issuance and denies customer creation', () => {
     expect(handlerRoles(MembershipsController, 'create')).toEqual(
-      expect.arrayContaining([RoleCode.STAFF, RoleCode.CUSTOMER]),
+      expect.arrayContaining([RoleCode.MANAGER]),
+    );
+    expect(handlerRoles(MembershipsController, 'create')).not.toContain(
+      RoleCode.CUSTOMER,
     );
   });
 });

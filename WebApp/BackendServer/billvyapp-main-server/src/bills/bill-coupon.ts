@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client';
+import { moneyCents } from '../common/security/financial-integrity';
 
 type CouponClient = Pick<Prisma.TransactionClient, 'membership'>;
 /** Identity and plan-configured pricing; never parse the human-readable benefits text. */
@@ -25,6 +26,9 @@ export async function requireBillCoupon(
       endDate: true,
       status: true,
       planSnapshot: true,
+      qualifyingBill: {
+        select: { status: true, total: true, paidAmount: true },
+      },
       customer: {
         select: {
           id: true,
@@ -33,6 +37,8 @@ export async function requireBillCoupon(
       },
       membershipPlan: {
         select: {
+          price: true,
+          enrollmentThreshold: true,
           couponUsageLimit: true,
           termsAndConditions: true,
           benefitType: true,
@@ -62,11 +68,35 @@ export async function requireBillCoupon(
     );
   }
   const terms = member.planSnapshot as {
+    price?: string;
+    enrollmentThreshold?: string | null;
     name?: string;
     termsAndConditions?: string | null;
     benefits?: string | null;
     eligibleServices?: { id: string; name: string }[];
   } | null;
+  if (member.qualifyingBill) {
+    if (
+      member.qualifyingBill.status !== 'COMPLETED' ||
+      moneyCents(member.qualifyingBill.paidAmount, 'qualifying bill paid') <
+        moneyCents(member.qualifyingBill.total, 'qualifying bill total')
+    )
+      throw new BadRequestException(
+        'Membership qualifying bill is not fully settled',
+      );
+  } else if (
+    moneyCents(
+      terms?.price ?? member.membershipPlan.price,
+      'membership price',
+    ) > 0 ||
+    (terms && 'enrollmentThreshold' in terms
+      ? terms.enrollmentThreshold
+      : member.membershipPlan.enrollmentThreshold) != null
+  ) {
+    throw new BadRequestException(
+      'Membership payment or qualification evidence is missing; review enrollment with the salon',
+    );
+  }
   return {
     couponUsageLimit: member.membershipPlan.couponUsageLimit ?? null,
     termsAndConditions:

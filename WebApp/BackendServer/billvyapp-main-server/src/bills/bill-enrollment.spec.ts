@@ -6,6 +6,8 @@ import {
 import type { Prisma } from '../generated/prisma/client';
 
 const base = {
+  status: 'COMPLETED',
+  paidAmount: '600.00',
   id: 'bill',
   salonId: 'salon',
   customerId: 'customer',
@@ -16,7 +18,11 @@ const base = {
 };
 function setup() {
   const tx = {
-    salon:{findUnique:jest.fn().mockResolvedValue({franchise:{preferences:{phoneCountry:'IN'}}})},
+    salon: {
+      findUnique: jest.fn().mockResolvedValue({
+        franchise: { preferences: { phoneCountry: 'IN' } },
+      }),
+    },
     $queryRaw: jest.fn().mockResolvedValue([]),
     membershipPlan: {
       findFirst: jest.fn().mockResolvedValue({
@@ -31,7 +37,11 @@ function setup() {
       findUniqueOrThrow: jest.fn().mockResolvedValue({
         id: 'customer',
         userId: 'user',
-        user: { phone: '9876543210', isActive: true },
+        user: {
+          phone: '9876543210',
+          email: 'person@example.com',
+          isActive: true,
+        },
       }),
       update: jest.fn(),
     },
@@ -54,6 +64,33 @@ function setup() {
   return { tx, client: tx as unknown as Prisma.TransactionClient };
 }
 describe('Customer consent for billing enrollment', () => {
+  it('defers activation and profile changes until a completed bill is fully paid', async () => {
+    const { tx, client } = setup();
+    expect(
+      await completeChosenEnrollment(client, { ...base, paidAmount: '599.99' }),
+    ).toBeNull();
+    expect(
+      await completeChosenEnrollment(client, { ...base, status: 'DRAFT' }),
+    ).toBeNull();
+    expect(tx.membership.create).not.toHaveBeenCalled();
+    expect(tx.customer.update).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+  it('rejects an unverified login identifier change before writing customer data', async () => {
+    const { tx, client } = setup();
+    await expect(
+      completeChosenEnrollment(client, {
+        ...base,
+        enrollmentDetails: {
+          ...base.enrollmentDetails,
+          email: 'attacker@example.com',
+        },
+      }),
+    ).rejects.toThrow('ownership');
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.customer.update).not.toHaveBeenCalled();
+    expect(tx.membership.create).not.toHaveBeenCalled();
+  });
   it('does nothing without a selected plan', async () => {
     const { tx, client } = setup();
     expect(
@@ -136,10 +173,7 @@ describe('Customer consent for billing enrollment', () => {
         dateOfBirth: new Date('2000-01-01'),
       },
     });
-    expect(firstArg(tx.user.update)).toEqual({
-      where: { id: 'user' },
-      data: { email: 'person@example.com' },
-    });
+    expect(tx.user.update).not.toHaveBeenCalled();
     expect(firstArg(tx.customerAddress.create)).toEqual({
       data: {
         customerId: 'customer',

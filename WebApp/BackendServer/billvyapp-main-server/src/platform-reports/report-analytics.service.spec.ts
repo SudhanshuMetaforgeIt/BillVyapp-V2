@@ -97,6 +97,14 @@ describe('Reporting aggregates', () => {
     expect(Reflect.getMetadata(ROLES_KEY, PlatformReportsController)).toEqual([
       RoleCode.SUPER_ADMIN,
     ]));
+
+  it('rejects excessive grouped rows rather than silently truncating the export', async () => {
+    raw.mockResolvedValue(
+      Array.from({ length: 50001 }, () => ({ totalRevenue: 1 })),
+    );
+    await expect(service.query(actor, query, true)).rejects.toThrow('50,000');
+    expect(raw.mock.calls[0][0].sql).toMatch(/LIMIT 50001$/);
+  });
   it('uses successful payment revenue, all attempts and zero-safe ratios', async () => {
     const result = await service.query(actor, query);
     expect(result.summary).toMatchObject({
@@ -257,7 +265,7 @@ describe('Reporting aggregates', () => {
   it('captures complete export groups with database ownership and actual daily buckets', async () => {
     await service.query(actor, { ...query, interval: 'month' }, true);
     const queries = raw.mock.calls.map(([s]) => s);
-    expect(queries.every((s) => !s.sql.includes('LIMIT 50'))).toBe(true);
+    expect(queries.every((s) => !/\bLIMIT 50\b/.test(s.sql))).toBe(true);
     expect(
       queries.some(
         (s) =>

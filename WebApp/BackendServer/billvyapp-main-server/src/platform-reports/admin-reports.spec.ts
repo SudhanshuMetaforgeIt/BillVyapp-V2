@@ -45,7 +45,7 @@ const bill: ReportBill = {
   id: 'bill',
   billNumber: 'B-001',
   date: '2026-10-01',
-  branchId: 'branch',
+  branchId: '11111111-1111-4111-8111-111111111111',
   branch: 'Branch One',
   customerId: 'customer',
   customer: 'Customer One',
@@ -58,7 +58,9 @@ const bill: ReportBill = {
   paymentStatus: 'PARTIAL',
   paymentMethods: 'UPI',
 };
-const branches = [{ id: 'branch', name: 'Branch One' }];
+const branches = [
+  { id: '11111111-1111-4111-8111-111111111111', name: 'Branch One' },
+];
 function fixture(bills = [bill]): AdminReportSnapshot {
   const a = aggregateAdminBills(bills, branches, 'day');
   return {
@@ -317,6 +319,7 @@ describe('Franchise report authorization and snapshots', () => {
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   };
   const service = new AdminReportsService(
@@ -328,7 +331,7 @@ describe('Franchise report authorization and snapshots', () => {
   const query = {
     dateFrom: '2026-10-01',
     dateTo: '2026-10-04',
-    branchId: 'branch',
+    branchId: '11111111-1111-4111-8111-111111111111',
   };
   beforeEach(() => {
     jest.clearAllMocks();
@@ -340,7 +343,7 @@ describe('Franchise report authorization and snapshots', () => {
     tx.bill.findMany.mockResolvedValue([
       {
         ...bill,
-        salonId: 'branch',
+        salonId: '11111111-1111-4111-8111-111111111111',
         billDate: new Date('2026-10-01'),
         paidAmount: 1000,
         salon: { name: 'Branch One' },
@@ -393,7 +396,7 @@ describe('Franchise report authorization and snapshots', () => {
       ).where.salon,
     ).toEqual({
       franchiseId: 'franchise',
-      id: 'branch',
+      id: '11111111-1111-4111-8111-111111111111',
     });
     expect(
       (
@@ -407,7 +410,14 @@ describe('Franchise report authorization and snapshots', () => {
     });
     expect(tx.customer.count).toHaveBeenCalledWith({
       where: {
-        bills: { some: { salon: { franchiseId: 'franchise', id: 'branch' } } },
+        bills: {
+          some: {
+            salon: {
+              franchiseId: 'franchise',
+              id: '11111111-1111-4111-8111-111111111111',
+            },
+          },
+        },
       },
     });
     expect(s.stats.totalRevenue).toBe(dashboard.stats.totalRevenue);
@@ -555,20 +565,65 @@ describe('Franchise report authorization and snapshots', () => {
       }),
     );
   });
+  it.each([
+    { franchiseId: 'another-franchise' },
+    { isActive: false },
+    { role: { code: RoleCode.STAFF, isActive: true } },
+  ])(
+    'rejects stale report actors without computing or publishing %j',
+    async (change) => {
+      (
+        prisma.platformReport as unknown as { findUnique: jest.Mock }
+      ).findUnique = jest.fn().mockResolvedValue({
+        id: 'report-bg',
+        franchiseId: actor.franchiseId,
+        generatedById: actor.userId,
+        snapshot: { kind: 'FRANCHISE_OVERVIEW', ...query },
+      });
+      (prisma as unknown as { user: { findUnique: jest.Mock } }).user = {
+        findUnique: jest.fn().mockResolvedValue({
+          id: actor.userId,
+          email: actor.email,
+          franchiseId: actor.franchiseId,
+          isActive: true,
+          role: { code: RoleCode.ADMIN, isActive: true },
+          ...change,
+        }),
+      };
+      await expect(
+        service.processBackgroundAdminReport({
+          reportId: 'report-bg',
+          actorUserId: actor.userId,
+          franchiseId: actor.franchiseId!,
+          query,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.platformReport.update).not.toHaveBeenCalled();
+      expect(tx.bill.findMany).not.toHaveBeenCalled();
+    },
+  );
   it('processes background admin report and updates status to Ready', async () => {
     (prisma.platformReport as unknown as { findUnique: jest.Mock }).findUnique =
       jest.fn().mockResolvedValue({
         id: 'report-bg',
-        snapshot: { status: 'Generating' },
+        franchiseId: actor.franchiseId,
+        generatedById: actor.userId,
+        snapshot: {
+          status: 'Generating',
+          kind: 'FRANCHISE_OVERVIEW',
+          ...query,
+        },
       });
     (prisma as unknown as { user: { findUnique: jest.Mock } }).user = {
       findUnique: jest.fn().mockResolvedValue({
         id: actor.userId,
         email: actor.email,
         franchiseId: actor.franchiseId,
+        isActive: true,
+        role: { code: RoleCode.ADMIN, isActive: true },
       }),
     };
-    prisma.platformReport.update.mockResolvedValue({});
+    prisma.platformReport.updateMany.mockResolvedValue({ count: 1 });
 
     await service.processBackgroundAdminReport({
       reportId: 'report-bg',
@@ -577,11 +632,14 @@ describe('Franchise report authorization and snapshots', () => {
       query,
     });
 
-    expect(prisma.platformReport.update).toHaveBeenCalledWith(
+    expect(prisma.platformReport.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'report-bg' },
+        where: expect.objectContaining({ id: 'report-bg' }) as unknown,
         data: {
-          snapshot: expect.objectContaining({ status: 'Ready' }),
+          snapshot: expect.objectContaining({ status: 'Ready' }) as Record<
+            string,
+            unknown
+          >,
         },
       }),
     );

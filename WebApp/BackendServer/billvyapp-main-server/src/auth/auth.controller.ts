@@ -64,7 +64,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Staff/admin login with email and password',
     description:
-      'Authenticates SUPER_ADMIN, ADMIN, MANAGER and STAFF. CUSTOMER accounts must use the OTP flow. Refresh token is set as an HttpOnly cookie.',
+      'Authenticates an existing active account with its password. Refresh token is set as an HttpOnly cookie.',
   })
   @ApiResponse({ status: 200, type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -85,9 +85,10 @@ export class AuthController {
   @ApiOperation({
     summary: 'Public customer self-registration',
     description:
-      'Always creates a CUSTOMER account. Role, franchise and salon cannot be supplied by the client; ValidationPipe rejects unknown fields and the service assigns CUSTOMER server-side. Refresh token is set as an HttpOnly cookie.',
+      'Unavailable until account ownership verification is integrated. Returns OWNERSHIP_VERIFICATION_REQUIRED without creating an account or issuing credentials.',
   })
   @ApiResponse({ status: 201, type: AuthResponseDto })
+  @ApiResponse({ status: 403, description: 'Ownership verification required' })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({
     status: 409,
@@ -220,7 +221,8 @@ export class AuthController {
       this.refreshMaxAgeMs(),
       this.cookieSecure(),
     );
-    const { refreshToken: _refreshToken, ...publicResult } = result;
+    const { refreshToken, ...publicResult } = result;
+    void refreshToken;
     return publicResult;
   }
 
@@ -228,7 +230,7 @@ export class AuthController {
     req: Request,
     bodyToken?: string,
   ): string | undefined {
-    const fromCookie = req.cookies?.[REFRESH_COOKIE_NAME];
+    const fromCookie: unknown = req.cookies?.[REFRESH_COOKIE_NAME];
     if (typeof fromCookie === 'string' && fromCookie.length > 0) {
       return fromCookie;
     }
@@ -251,7 +253,7 @@ export class AuthController {
     const match = /^(\d+)([smhd])$/i.exec(duration.trim());
     if (!match) return 7 * 24 * 60 * 60 * 1000;
     const amount = Number(match[1]);
-    const unit = match[2]!.toLowerCase();
+    const unit = match[2].toLowerCase();
     const multipliers: Record<string, number> = {
       s: 1000,
       m: 60_000,

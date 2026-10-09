@@ -8,6 +8,7 @@ describe('RedisOtpStore', () => {
     del: jest.fn(),
     incr: jest.fn(),
     expire: jest.fn(),
+    eval: jest.fn(),
   };
   let store: RedisOtpStore;
 
@@ -27,10 +28,14 @@ describe('RedisOtpStore', () => {
   });
 
   it('increments otp:attempts:{phone} and sets TTL on first increment', async () => {
-    client.incr.mockResolvedValue(1);
-    await store.incrementAttempts('9876543210', 300);
-    expect(client.incr).toHaveBeenCalledWith('otp:attempts:9876543210');
-    expect(client.expire).toHaveBeenCalledWith('otp:attempts:9876543210', 300);
+    client.eval.mockResolvedValue(1);
+    await expect(store.incrementAttempts('9876543210', 300)).resolves.toBe(1);
+    expect(client.eval).toHaveBeenCalledWith(
+      expect.stringContaining('INCR'),
+      1,
+      'otp:attempts:9876543210',
+      300,
+    );
   });
 
   it('claims otp:resend:{phone} with NX', async () => {

@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsBoolean,
   IsEnum,
@@ -14,7 +15,9 @@ import {
 import { SalonPhotoType } from '../../generated/prisma/enums';
 
 export class CreateSalonPhotoDto {
-  @ApiProperty({ description: 'Storage key returned by the upload-url endpoint' })
+  @ApiProperty({
+    description: 'Storage key returned by the upload-url endpoint',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(512)
@@ -35,7 +38,7 @@ export class CreateSalonPhotoDto {
 
   @ApiPropertyOptional({ default: 0, minimum: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(0)
   @Max(10000)

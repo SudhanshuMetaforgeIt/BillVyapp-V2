@@ -1,3 +1,4 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -22,27 +23,27 @@ export class PurchaseItemInputDto {
   productId: string;
 
   @ApiProperty({ example: 10, minimum: 1 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
   quantity: number;
 
   @ApiProperty({ example: 150.5, minimum: 0 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   unitCost: number;
 
   @ApiPropertyOptional({ example: 0, minimum: 0, default: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   discount?: number;
 
   @ApiPropertyOptional({ example: 0, minimum: 0, default: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   tax?: number;
@@ -88,7 +89,7 @@ export class CreatePurchaseDto {
       'Header-level discount. Defaults to the sum of line discounts when omitted.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   discount?: number;
@@ -100,7 +101,7 @@ export class CreatePurchaseDto {
       'Header-level tax. Defaults to the sum of line taxes when omitted.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   tax?: number;

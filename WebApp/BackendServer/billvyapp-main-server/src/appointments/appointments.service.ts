@@ -211,6 +211,7 @@ export class AppointmentsService {
     }
 
     const customerId = await this.resolveCustomerId(actor, dto.customerId);
+    await this.scope.assertCustomerAccess(actor, customerId);
     await this.requireActiveCustomer(customerId);
 
     const appointmentStaffId = await this.normalizeStaffId(
@@ -314,6 +315,7 @@ export class AppointmentsService {
     let customerId = existing.customerId;
     if (dto.customerId !== undefined) {
       customerId = dto.customerId;
+      await this.scope.assertCustomerAccess(actor, customerId);
       await this.requireActiveCustomer(customerId);
     }
 

@@ -11,6 +11,7 @@ import { OTP_SENDER, OTP_STORE } from './otp/otp.contracts';
 import { OtpService } from './otp/otp.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
+import { SecurityStateService } from './security-state.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -30,6 +31,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     AuthService,
     PasswordService,
     SessionService,
+    SecurityStateService,
     OtpService,
     JwtStrategy,
     { provide: OTP_STORE, useClass: RedisOtpStore },

@@ -50,7 +50,7 @@ describe('BillDocumentsService', () => {
   const audit = { record: jest.fn() };
   const storage = {
     createDownloadUrl: jest.fn().mockResolvedValue({
-      storageKey: 'salons/salon-a1/file.pdf',
+      storageKey: 'verified/salon-a1/file.pdf',
       downloadUrl: 'https://example.com/file.pdf',
       expiresInSeconds: 900,
     }),
@@ -63,7 +63,7 @@ describe('BillDocumentsService', () => {
     scope.assertOwnCustomerAccess.mockResolvedValue(undefined);
     audit.record.mockResolvedValue(undefined);
     storage.createDownloadUrl.mockResolvedValue({
-      storageKey: 'salons/salon-a1/file.pdf',
+      storageKey: 'verified/salon-a1/file.pdf',
       downloadUrl: 'https://example.com/file.pdf',
       expiresInSeconds: 900,
     });
@@ -78,6 +78,51 @@ describe('BillDocumentsService', () => {
     );
   });
 
+  it.each([RoleCode.ADMIN, RoleCode.MANAGER, RoleCode.STAFF])(
+    'denies private null-salon media to another %s',
+    async (role) => {
+      prisma.bill.findUnique.mockResolvedValue({
+        id: 'bill-1',
+        salonId: 'salon-a1',
+        customerId: 'cust-1',
+      });
+      prisma.mediaFile.findUnique.mockResolvedValue({
+        id: 'media-b',
+        salonId: null,
+        uploadedBy: 'other-tenant-user',
+      });
+      await expect(
+        service.create(
+          { ...manager, role },
+          'bill-1',
+          { mediaFileId: 'media-b' },
+          ctx,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.billDocument.create).not.toHaveBeenCalled();
+    },
+  );
+  it('rejects attaching a document from another salon even if an admin can access both', async () => {
+    prisma.bill.findUnique.mockResolvedValue({
+      id: 'bill-1',
+      salonId: 'salon-a1',
+      customerId: 'cust-1',
+    });
+    prisma.mediaFile.findUnique.mockResolvedValue({
+      id: 'media-b',
+      salonId: 'salon-a2',
+      uploadedBy: 'mgr-1',
+    });
+    await expect(
+      service.create(
+        { ...manager, role: RoleCode.ADMIN },
+        'bill-1',
+        { mediaFileId: 'media-b' },
+        ctx,
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.billDocument.create).not.toHaveBeenCalled();
+  });
   it('scopes staff list through assertSalonAccess', async () => {
     prisma.bill.findUnique.mockResolvedValue({
       id: 'bill-1',
@@ -91,6 +136,33 @@ describe('BillDocumentsService', () => {
 
     expect(scope.assertSalonAccess).toHaveBeenCalledWith(manager, 'salon-a1');
     expect(scope.assertOwnCustomerAccess).not.toHaveBeenCalled();
+  });
+
+  it('does not disclose legacy direct file URLs through list or detail', async () => {
+    prisma.bill.findUnique.mockResolvedValue({
+      id: 'bill-1',
+      salonId: 'salon-a1',
+      customerId: 'cust-1',
+    });
+    const document = {
+      id: 'doc-1',
+      billId: 'bill-1',
+      storageKey: 'legacy/key',
+      fileUrl: 'https://legacy.example/private.pdf',
+    };
+    prisma.billDocument.findMany.mockResolvedValue([document]);
+    prisma.billDocument.count.mockResolvedValue(1);
+    prisma.billDocument.findFirst.mockResolvedValue(document);
+    expect(JSON.stringify(await service.list(manager, 'bill-1'))).not.toContain(
+      'legacy.example',
+    );
+    expect(
+      (await service.findOne(manager, 'bill-1', 'doc-1')).fileUrl,
+    ).toBeNull();
+    await expect(
+      service.createDownloadUrl(manager, 'bill-1', 'doc-1'),
+    ).rejects.toThrow('Confirm');
+    expect(storage.createDownloadUrl).not.toHaveBeenCalled();
   });
 
   it('scopes customer access via assertOwnCustomerAccess', async () => {
@@ -142,7 +214,7 @@ describe('BillDocumentsService', () => {
     });
     prisma.mediaFile.findUnique.mockResolvedValue({
       id: 'media-1',
-      storageKey: 'salons/salon-a1/file.pdf',
+      storageKey: 'verified/salon-a1/file.pdf',
       originalFileName: 'file.pdf',
       mimeType: 'application/pdf',
       fileSize: 1024,
@@ -152,7 +224,7 @@ describe('BillDocumentsService', () => {
     prisma.billDocument.create.mockResolvedValue({
       id: 'doc-1',
       billId: 'bill-1',
-      storageKey: 'salons/salon-a1/file.pdf',
+      storageKey: 'verified/salon-a1/file.pdf',
       fileName: 'file.pdf',
       fileUrl: null,
       mimeType: 'application/pdf',

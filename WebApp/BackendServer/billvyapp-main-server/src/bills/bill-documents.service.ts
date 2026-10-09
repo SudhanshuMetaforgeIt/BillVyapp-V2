@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,7 +14,6 @@ import {
   PaginatedResult,
 } from '../common/pagination/pagination';
 import { ScopeService } from '../common/scope/scope.service';
-import { trimOrNull } from '../common/strings';
 import { ObjectStorageService } from '../media/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBillDocumentDto } from './dto/create-bill-document.dto';
@@ -78,7 +78,12 @@ export class BillDocumentsService {
       this.prisma.billDocument.count({ where }),
     ]);
 
-    return paginated(rows, total, pagination.page, pagination.limit);
+    return paginated(
+      rows.map((row) => ({ ...row, fileUrl: null })),
+      total,
+      pagination.page,
+      pagination.limit,
+    );
   }
 
   async findOne(
@@ -94,9 +99,17 @@ export class BillDocumentsService {
     user: AuthenticatedUser,
     billId: string,
     id: string,
-  ): Promise<{ storageKey: string; downloadUrl: string; expiresInSeconds: number }> {
+  ): Promise<{
+    storageKey: string;
+    downloadUrl: string;
+    expiresInSeconds: number;
+  }> {
     await this.requireBillAccess(user, billId);
     const document = await this.requireDocument(billId, id);
+    if (!document.storageKey.startsWith('verified/'))
+      throw new BadRequestException(
+        'Confirm and validate the attachment before downloading',
+      );
     const download = await this.storage.createDownloadUrl(document.storageKey);
     return {
       storageKey: download.storageKey,
@@ -113,6 +126,13 @@ export class BillDocumentsService {
   ): Promise<BillDocumentRecord> {
     const bill = await this.requireBillAccess(actor, billId);
     const media = await this.requireMediaAccess(actor, dto.mediaFileId);
+    if (media.salonId && media.salonId !== bill.salonId) {
+      throw new ForbiddenException('Document belongs to a different salon');
+    }
+    if (!media.storageKey.startsWith('verified/'))
+      throw new BadRequestException(
+        'Confirm and validate the attachment before attaching it',
+      );
 
     const created = await this.prisma.billDocument.create({
       data: {
@@ -121,7 +141,7 @@ export class BillDocumentsService {
         fileName: media.originalFileName,
         mimeType: media.mimeType,
         fileSize: media.fileSize,
-        fileUrl: trimOrNull(dto.fileUrl) ?? null,
+        fileUrl: null,
       },
       select: DOCUMENT_SELECT,
     });
@@ -209,7 +229,8 @@ export class BillDocumentsService {
       throw new NotFoundException('Bill document not found');
     }
 
-    return document;
+    // All private downloads must pass through the authorized signed-download route.
+    return { ...document, fileUrl: null };
   }
 
   private async requireMediaAccess(
@@ -243,7 +264,9 @@ export class BillDocumentsService {
     }
 
     if (media.entityType?.startsWith('ProfilePhoto')) {
-      throw new ForbiddenException('Profile images cannot be attached as private documents');
+      throw new ForbiddenException(
+        'Profile images cannot be attached as private documents',
+      );
     }
 
     if (user.role === RoleCode.CUSTOMER) {
@@ -256,7 +279,7 @@ export class BillDocumentsService {
     if (media.salonId) {
       await this.scope.assertSalonAccess(user, media.salonId);
     } else if (
-      (user.role === RoleCode.MANAGER || user.role === RoleCode.STAFF) &&
+      user.role !== RoleCode.SUPER_ADMIN &&
       media.uploadedBy !== user.userId
     ) {
       throw new ForbiddenException('Media file outside your scope');

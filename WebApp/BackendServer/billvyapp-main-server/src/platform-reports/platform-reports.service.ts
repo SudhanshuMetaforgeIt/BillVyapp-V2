@@ -1,3 +1,13 @@
+import { boundedWorkbook } from './bounded-workbook';
+import {
+  SAFE_JOB_OPTIONS,
+  validateJobQuery,
+} from '../common/security/job-validation';
+import {
+  claimReport,
+  reportClaimWhere,
+  assertReportDeadline,
+} from './report-job-security';
 import {
   BadRequestException,
   ForbiddenException,
@@ -41,7 +51,7 @@ import {
   type PlatformReportTypeApi,
 } from './dto/generate-platform-report.dto';
 import { ListPlatformReportsQueryDto } from './dto/list-platform-reports-query.dto';
-import { buildPlatformWorkbook } from './platform-report-workbook';
+
 import { XLSX_CONTENT_TYPE } from './admin-report-workbook';
 
 const REPORT_SELECT = {
@@ -306,7 +316,7 @@ export class PlatformReportsService {
     };
 
     // Verify XLSX generation before marking the persisted snapshot ready.
-    await buildPlatformWorkbook({
+    await boundedWorkbook('platform', {
       name,
       typeLabel: TYPE_LABELS[type],
       dateFrom: dto.dateFrom,
@@ -426,8 +436,8 @@ export class PlatformReportsService {
         },
         {
           jobId: `platform-report-${created.id}`,
-          removeOnComplete: true,
-          removeOnFail: false,
+          ...SAFE_JOB_OPTIONS,
+          backoff: { type: 'fixed', delay: 600_000 },
         },
       );
     }
@@ -459,7 +469,13 @@ export class PlatformReportsService {
   ): Promise<void> {
     const report = await this.prisma.platformReport.findUnique({
       where: { id: payload.reportId },
-      select: { id: true, snapshot: true },
+      select: {
+        id: true,
+        snapshot: true,
+        franchiseId: true,
+        generatedById: true,
+        type: true,
+      },
     });
     if (!report) {
       this.logger.warn(
@@ -474,22 +490,51 @@ export class PlatformReportsService {
         email: true,
         franchiseId: true,
         salonId: true,
-        role: { select: { code: true } },
+        isActive: true,
+        role: { select: { code: true, isActive: true } },
       },
     });
 
+    const initial = report.snapshot as Record<string, unknown>;
+    if (
+      !actor?.isActive ||
+      !actor.role.isActive ||
+      (actor.role.code as RoleCode) !== RoleCode.SUPER_ADMIN ||
+      report.generatedById !== payload.actorUserId ||
+      !initial ||
+      initial.kind === 'FRANCHISE_OVERVIEW' ||
+      TYPE_TO_DB[payload.dto.type] !== report.type ||
+      (initial.franchiseId ?? null) !== (report.franchiseId ?? null)
+    ) {
+      throw new ForbiddenException(
+        'Report ownership or actor authorization has changed',
+      );
+    }
     const authUser: AuthenticatedUser = {
       userId: payload.actorUserId,
       email: actor?.email ?? '',
-      role: actor?.role?.code as RoleCode,
+      role: RoleCode.SUPER_ADMIN,
       franchiseId: actor?.franchiseId ?? null,
       salonId: actor?.salonId ?? null,
       sessionId: null,
     };
 
+    const processingToken = await claimReport(this.prisma, report.id, initial);
+    if (!processingToken) return;
+    const startedAt = Date.now();
     try {
       this.assertAccess(authUser);
-      const dto = payload.dto as GeneratePlatformReportDto;
+      const dto = {
+        ...payload.dto,
+        dateFrom: initial.dateFrom,
+        dateTo: initial.dateTo,
+        franchiseId: initial.franchiseId ?? undefined,
+        salonId: initial.salonId ?? undefined,
+        interval: initial.interval,
+        salonSort: initial.salonSort,
+        serviceSort: initial.serviceSort,
+      } as GeneratePlatformReportDto;
+      await validateJobQuery(dto, GeneratePlatformReportDto);
       const analytics = await this.analytics.query(authUser, dto, true);
       const metrics = analytics.summary;
       const franchiseName = analytics.scope.franchiseName;
@@ -517,7 +562,7 @@ export class PlatformReportsService {
         analytics,
       };
 
-      await buildPlatformWorkbook({
+      await boundedWorkbook('platform', {
         name: `${TYPE_LABELS[dto.type]} Report — ${dto.dateFrom} to ${dto.dateTo}`,
         typeLabel: TYPE_LABELS[dto.type],
         dateFrom: dto.dateFrom,
@@ -527,21 +572,37 @@ export class PlatformReportsService {
         franchiseName,
         snapshot,
       } as PlatformReportRecord);
-      await this.prisma.platformReport.update({
-        where: { id: payload.reportId },
+      const currentActor = await this.prisma.user.findUnique({
+        where: { id: payload.actorUserId },
+        select: {
+          isActive: true,
+          role: { select: { code: true, isActive: true } },
+        },
+      });
+      if (
+        !currentActor?.isActive ||
+        !currentActor.role.isActive ||
+        (currentActor.role.code as RoleCode) !== RoleCode.SUPER_ADMIN
+      ) {
+        throw new ForbiddenException(
+          'Report actor authorization changed during generation',
+        );
+      }
+      assertReportDeadline(startedAt);
+      await this.prisma.platformReport.updateMany({
+        where: reportClaimWhere(payload.reportId, processingToken),
         data: {
           description,
           snapshot: snapshot as Prisma.InputJsonValue,
         },
       });
-    } catch (error) {
+    } catch {
       this.logger.error(
-        `Failed to generate background platform report ${payload.reportId}: ${(error as Error).message}`,
-        (error as Error).stack,
+        `Failed to generate background platform report ${payload.reportId}`,
       );
       const current = (report.snapshot as Record<string, unknown>) ?? {};
-      await this.prisma.platformReport.update({
-        where: { id: payload.reportId },
+      await this.prisma.platformReport.updateMany({
+        where: reportClaimWhere(payload.reportId, processingToken),
         data: {
           snapshot: {
             ...current,
@@ -549,7 +610,7 @@ export class PlatformReportsService {
           },
         },
       });
-      throw error;
+      throw new Error('Platform report generation failed');
     }
   }
 
@@ -575,7 +636,7 @@ export class PlatformReportsService {
         'Report generation failed. Please regenerate',
       );
     }
-    const body = await buildPlatformWorkbook(record);
+    const body = await boundedWorkbook('platform', record);
     return {
       fileName: `${record.typeLabel}_Report_${record.dateFrom}_to_${record.dateTo}.xlsx`,
       contentType: XLSX_CONTENT_TYPE,

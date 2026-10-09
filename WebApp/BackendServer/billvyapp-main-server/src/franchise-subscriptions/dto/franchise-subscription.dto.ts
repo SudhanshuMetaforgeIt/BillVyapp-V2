@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsIn,
@@ -8,6 +7,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  Matches,
   ValidateIf,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto';
@@ -17,6 +17,12 @@ import {
 } from '../../platform-plans/dto/create-platform-plan.dto';
 
 export class EnrollFranchiseSubscriptionDto {
+  @ApiProperty({
+    description: 'Stable key reused for retries of this enrollment',
+  })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:_-]{7,190}$/)
+  idempotencyKey?: string;
   @ApiProperty()
   @IsUUID()
   franchiseId: string;
@@ -34,8 +40,10 @@ export class EnrollFranchiseSubscriptionDto {
       'Required for custom cycle; optional otherwise (defaults applied server-side).',
     example: '2026-09-30',
   })
-  @ValidateIf((o: EnrollFranchiseSubscriptionDto) => o.billingCycle === 'custom')
-  @IsDateString()
+  @ValidateIf(
+    (o: EnrollFranchiseSubscriptionDto) => o.billingCycle === 'custom',
+  )
+  @IsDateString({ strict: true })
   startsAt?: string;
 
   @ApiPropertyOptional({
@@ -43,8 +51,10 @@ export class EnrollFranchiseSubscriptionDto {
       'Required for custom cycle; optional otherwise (defaults applied server-side).',
     example: '2027-09-30',
   })
-  @ValidateIf((o: EnrollFranchiseSubscriptionDto) => o.billingCycle === 'custom')
-  @IsDateString()
+  @ValidateIf(
+    (o: EnrollFranchiseSubscriptionDto) => o.billingCycle === 'custom',
+  )
+  @IsDateString({ strict: true })
   endsAt?: string;
 
   @ApiPropertyOptional({ nullable: true })
@@ -93,7 +103,9 @@ export class PaginatedFranchiseSubscriptionsDto {
 }
 
 export class RequestSubscriptionDto {
-  @ApiPropertyOptional({ example: 'Please enroll our franchise on Pro yearly.' })
+  @ApiPropertyOptional({
+    example: 'Please enroll our franchise on Pro yearly.',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()

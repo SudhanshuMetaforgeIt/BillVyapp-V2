@@ -1,6 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  Matches,
+} from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto';
 
 export const SEARCH_TYPES = [
@@ -32,8 +38,12 @@ export class SearchQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsString()
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
+  )
+  @MaxLength(100)
+  @Matches(
+    /^(customers|bills|appointments|services|products|salons)(\s*,\s*(customers|bills|appointments|services|products|salons))*$/,
   )
   types?: string;
 }

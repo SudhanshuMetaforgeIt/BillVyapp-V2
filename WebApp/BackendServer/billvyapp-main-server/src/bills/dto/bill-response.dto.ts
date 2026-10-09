@@ -47,6 +47,7 @@ export class BillCustomerDto {
 }
 
 export class BillResponseDto {
+  @ApiProperty({ enum: ['INR', 'USD'] }) currency: string;
   @ApiPropertyOptional({ nullable: true }) enrollmentPlanId?: string | null;
   @ApiPropertyOptional({ nullable: true }) enrollmentPlanName?: string | null;
   @ApiPropertyOptional({ nullable: true }) enrolledCouponCode?: string | null;

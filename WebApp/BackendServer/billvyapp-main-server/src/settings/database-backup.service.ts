@@ -10,7 +10,14 @@ import { ConfigService } from '@nestjs/config';
 import { spawn } from 'child_process';
 import { createHash, randomUUID } from 'crypto';
 import { createReadStream, createWriteStream, promises as fs } from 'fs';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
+import { databaseSecurity } from '../prisma/database-security';
+import {
+  backupKey,
+  encryptBackup,
+  decryptBackup,
+  isEncryptedBackup,
+} from './backup-encryption';
 import { pipeline } from 'stream/promises';
 import { AuditService } from '../audit/audit.service';
 import type { RequestContext } from '../common/http/request-context';
@@ -163,7 +170,26 @@ export class DatabaseBackupService {
   }
 
   private database() {
-    const url = new URL(this.config.getOrThrow<string>('database.url'));
+    const appUrl = this.config.getOrThrow<string>('database.url');
+    const configured = this.config.get<string>('database.backupUrl');
+    if (this.production() && !configured)
+      throw new ServiceUnavailableException(
+        'Dedicated backup database credentials are required',
+      );
+    const url = new URL(configured ?? appUrl);
+    const application = new URL(appUrl);
+    if (
+      url.hostname !== application.hostname ||
+      url.port !== application.port ||
+      url.pathname !== application.pathname
+    )
+      throw new ServiceUnavailableException(
+        'Backup must target the application database',
+      );
+    if (this.production() && url.username === application.username)
+      throw new ServiceUnavailableException(
+        'Backup credentials must be separate from runtime credentials',
+      );
     const name = decodeURIComponent(url.pathname.slice(1));
     if (!/^[A-Za-z0-9_-]+$/.test(name))
       throw new ServiceUnavailableException(
@@ -173,31 +199,65 @@ export class DatabaseBackupService {
   }
 
   private async directory() {
-    const dir = join(
-      process.env.STORAGE_LOCAL_ROOT ?? './storage',
-      'backups',
-      'database',
+    const configured = this.config.get<string>('database.backupRoot');
+    if (this.production() && !configured)
+      throw new ServiceUnavailableException(
+        'A private backup directory is required',
+      );
+    const dir = configured
+      ? resolve(configured)
+      : join(
+          process.env.STORAGE_LOCAL_ROOT ?? './storage',
+          'backups',
+          'database',
+        );
+    const mediaRoot = resolve(
+      this.config.get<string>('storage.localRoot') ??
+        process.env.STORAGE_LOCAL_ROOT ??
+        './storage',
     );
+    if (
+      this.production() &&
+      (dir === mediaRoot || dir.startsWith(mediaRoot + sep))
+    )
+      throw new ServiceUnavailableException(
+        'Backups must be outside the media directory',
+      );
     await fs.mkdir(dir, { recursive: true, mode: 0o700 });
     return dir;
   }
 
   private connectionArgs() {
     const { url } = this.database();
+    const tls = databaseSecurity(url.toString(), {
+      production: this.production(),
+      tlsMode: this.config.get<string>('database.tlsMode'),
+      caPath: this.config.get<string>('database.caPath'),
+    });
     return [
       '--protocol=TCP',
       `--host=${url.hostname}`,
       `--port=${url.port || '3306'}`,
       `--user=${decodeURIComponent(url.username)}`,
       '--default-character-set=utf8mb4',
+      ...(tls.tlsRequired
+        ? [
+            '--ssl-mode=VERIFY_IDENTITY',
+            ...(this.config.get<string>('database.caPath')
+              ? [`--ssl-ca=${this.config.get<string>('database.caPath')}`]
+              : []),
+          ]
+        : []),
     ];
   }
 
   private async snapshot(createdBy: string): Promise<BackupManifest> {
+    const key = this.encryptionKey();
     const dir = await this.directory();
     const id = randomUUID();
     const temporary = join(dir, `${id}.partial`);
     const destination = join(dir, `${id}.sql`);
+    const encrypted = join(dir, `${id}.encrypted`);
     try {
       await this.runTool(
         'mysqldump',
@@ -218,6 +278,12 @@ export class DatabaseBackupService {
       );
       const stat = await fs.stat(temporary);
       if (!stat.size) throw new Error('Empty database dump');
+      if (key) {
+        await encryptBackup(temporary, encrypted, key);
+        await fs.rm(temporary);
+        await fs.rename(encrypted, temporary);
+      }
+      const published = await fs.stat(temporary);
       const manifest: BackupManifest = {
         formatVersion: 1,
         kind: 'mysql-database',
@@ -225,7 +291,7 @@ export class DatabaseBackupService {
         database: this.database().name,
         createdAt: new Date().toISOString(),
         createdBy,
-        sizeBytes: stat.size,
+        sizeBytes: published.size,
         sha256: await this.digest(temporary),
       };
       await fs.rename(temporary, destination);
@@ -239,6 +305,7 @@ export class DatabaseBackupService {
     } catch {
       await fs.rm(temporary, { force: true });
       await fs.rm(destination, { force: true });
+      await fs.rm(encrypted, { force: true });
       throw new ServiceUnavailableException(
         'Could not create a database backup. Check MySQL client tools, database permissions and available storage.',
       );
@@ -274,6 +341,7 @@ export class DatabaseBackupService {
   }
 
   private async verifyFile(path: string, manifest: BackupManifest) {
+    const temporary = join(await this.directory(), `${randomUUID()}.verify`);
     try {
       const stat = await fs.stat(path);
       if (
@@ -281,10 +349,20 @@ export class DatabaseBackupService {
         (await this.digest(path)) !== manifest.sha256
       )
         throw new Error('Checksum mismatch');
+      const encrypted = await isEncryptedBackup(path);
+      if (this.production() && !encrypted)
+        throw new Error('Unencrypted backup');
+      if (encrypted) {
+        const key = this.encryptionKey();
+        if (!key) throw new Error('Missing backup key');
+        await decryptBackup(path, temporary, key);
+      }
     } catch {
       throw new BadRequestException(
         'Backup file is missing or corrupt. No database changes were made.',
       );
+    } finally {
+      await fs.rm(temporary, { force: true });
     }
   }
 
@@ -295,12 +373,42 @@ export class DatabaseBackupService {
     return hash.digest('hex');
   }
 
-  private importDatabase(path: string) {
-    return this.runTool(
-      'mysql',
-      [...this.connectionArgs(), '--binary-mode=1', this.database().name],
-      { input: path },
+  private async importDatabase(path: string) {
+    const encrypted = await isEncryptedBackup(path);
+    const key = this.encryptionKey();
+    if (this.production() && !encrypted)
+      throw new BadRequestException(
+        'Production restores require an encrypted backup',
+      );
+    const temporary = join(await this.directory(), `${randomUUID()}.restore`);
+    try {
+      if (encrypted) {
+        if (!key)
+          throw new BadRequestException('Backup encryption key is unavailable');
+        await decryptBackup(path, temporary, key);
+      }
+      await this.runTool(
+        'mysql',
+        [...this.connectionArgs(), '--binary-mode=1', this.database().name],
+        { input: encrypted ? temporary : path },
+      );
+    } finally {
+      await fs.rm(temporary, { force: true });
+    }
+  }
+
+  private production() {
+    return this.config.get<string>('nodeEnv') === 'production';
+  }
+  private encryptionKey() {
+    const key = backupKey(
+      this.config.get<string>('database.backupEncryptionKey'),
     );
+    if (this.production() && !key)
+      throw new ServiceUnavailableException(
+        'Backup encryption is required in production',
+      );
+    return key;
   }
 
   /** Stream SQL rather than buffering large databases. Credentials never enter command arguments. */
@@ -383,17 +491,23 @@ export class DatabaseBackupService {
   }
 
   private async clearCaches() {
-    let cursor = '0';
-    do {
-      const [next, keys] = await this.redis.client.scan(
-        cursor,
-        'MATCH',
-        'cache:*',
-        'COUNT',
-        200,
-      );
-      cursor = next;
-      if (keys.length) await this.redis.client.del(...keys);
-    } while (cursor !== '0');
+    // Pending requests cannot refill the restored database's cache generation.
+    await this.redis.client.incr('cache-epoch:global');
+    // Restoring older session rows must never revive credentials or OTP challenges.
+    // Login lockout counters remain intact.
+    for (const pattern of ['cache:*', 'security:session:*', 'otp:login:*']) {
+      let cursor = '0';
+      do {
+        const [next, keys] = await this.redis.client.scan(
+          cursor,
+          'MATCH',
+          pattern,
+          'COUNT',
+          200,
+        );
+        cursor = next;
+        if (keys.length) await this.redis.client.del(...keys);
+      } while (cursor !== '0');
+    }
   }
 }

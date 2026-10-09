@@ -145,7 +145,7 @@ export type MembershipsPageData = {
   memberMeta: PaginationMeta;
   planMeta: PaginationMeta;
   metrics: import("@/features/dashboard/services/dashboard.service").DashboardMetric[];
-  planOptions: Array<{ id: string; name: string; isActive?: boolean }>;
+  planOptions: Array<{ id: string; name: string; isActive?: boolean; manualEnrollmentAllowed?: boolean }>;
   customerOptions: Array<{ id: string; name: string; phone: string }>;
   popularPlans: PopularPlanRow[];
   monthSummary: MonthSummary;

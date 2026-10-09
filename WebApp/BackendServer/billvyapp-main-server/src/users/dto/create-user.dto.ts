@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsEmail,
   IsNotEmpty,
@@ -75,7 +76,7 @@ export class CreateUserDto {
     description: 'Monthly salary in INR. Set by Admin when creating staff.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   salary?: number | null;

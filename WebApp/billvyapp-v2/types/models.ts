@@ -425,6 +425,7 @@ export interface BillPaymentSummary {
 }
 
 export interface Bill {
+  currency?: 'INR' | 'USD';
   enrolledCouponCode?: string | null;
   membershipFee?: Decimal; enrollmentPlanId?: string | null; enrollmentPlanName?: string | null;
   couponCode?: string | null;
@@ -472,6 +473,7 @@ export interface BillDocument {
 }
 
 export interface Payment {
+  currency?: 'INR' | 'USD';
   id: string;
   billId: string;
   amount: Decimal;

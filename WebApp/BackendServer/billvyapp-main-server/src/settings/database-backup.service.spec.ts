@@ -47,9 +47,11 @@ describe('Full database backups', () => {
     del: jest.fn(),
     eval: jest.fn(),
     scan: jest.fn(),
+    incr: jest.fn().mockResolvedValue(1),
   };
   const audit = { record: jest.fn() };
   let service: TestBackups;
+  let configuration: ConfigService;
   let directory: string;
   let previousRoot: string | undefined;
   beforeEach(async () => {
@@ -59,10 +61,11 @@ describe('Full database backups', () => {
     previousRoot = process.env.STORAGE_LOCAL_ROOT;
     directory = await fs.mkdtemp(join(tmpdir(), 'billvy-backup-test-'));
     process.env.STORAGE_LOCAL_ROOT = directory;
+    configuration = new ConfigService({
+      database: { url: 'mysql://user:secret@localhost:3306/test_db' },
+    });
     service = new TestBackups(
-      new ConfigService({
-        database: { url: 'mysql://user:secret@localhost:3306/test_db' },
-      }),
+      configuration,
       audit as unknown as AuditService,
       { client } as unknown as RedisService,
     );
@@ -152,6 +155,20 @@ describe('Full database backups', () => {
       'mysql',
     ]);
     expect(result.message).toContain('Full database restored');
+    expect(client.scan).toHaveBeenCalledWith(
+      '0',
+      'MATCH',
+      'security:session:*',
+      'COUNT',
+      200,
+    );
+    expect(client.scan).toHaveBeenCalledWith(
+      '0',
+      'MATCH',
+      'otp:login:*',
+      'COUNT',
+      200,
+    );
     expect(client.del).toHaveBeenCalledWith('cache:test');
     expect(client.del).toHaveBeenCalledWith(DATABASE_RESTORE_KEY);
     expect(await service.listBackups()).toHaveLength(2);
@@ -219,5 +236,58 @@ describe('Full database backups', () => {
       service.createBackup({ ...actor, role: RoleCode.ADMIN }, ctx),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(client.set).not.toHaveBeenCalled();
+  });
+  it('publishes encrypted SQL and decrypts only the verified restore input', async () => {
+    configuration.set(
+      'database.backupEncryptionKey',
+      Buffer.alloc(32, 7).toString('base64'),
+    );
+    const backup = await service.createBackup(actor, ctx);
+    const published = join(directory, 'backups/database', `${backup.id}.sql`);
+    expect((await fs.readFile(published)).toString()).not.toContain(
+      'CREATE TABLE',
+    );
+    let restoredSql = '';
+    service.tool.mockImplementation(async (_tool, _args, files) => {
+      if (files.output)
+        await fs.writeFile(files.output, '-- synthetic recovery SQL');
+      if (files.input) restoredSql = await fs.readFile(files.input, 'utf8');
+    });
+    await service.restoreBackup(
+      actor,
+      { confirm: true, confirmationPhrase: 'RESTORE', backupId: backup.id },
+      ctx,
+    );
+    expect(restoredSql).toContain('CREATE TABLE bills');
+    expect(
+      (await fs.readdir(join(directory, 'backups/database'))).filter((name) =>
+        /\.(restore|verify|partial|encrypted)$/.test(name),
+      ),
+    ).toEqual([]);
+  });
+  it('rejects a wrong encryption key before changing maintenance state or running database tools', async () => {
+    configuration.set(
+      'database.backupEncryptionKey',
+      Buffer.alloc(32, 7).toString('base64'),
+    );
+    const backup = await service.createBackup(actor, ctx);
+    configuration.set(
+      'database.backupEncryptionKey',
+      Buffer.alloc(32, 8).toString('base64'),
+    );
+    service.tool.mockClear();
+    client.set.mockClear();
+    await expect(
+      service.restoreBackup(
+        actor,
+        { confirm: true, confirmationPhrase: 'RESTORE', backupId: backup.id },
+        ctx,
+      ),
+    ).rejects.toThrow('corrupt');
+    expect(service.tool).not.toHaveBeenCalled();
+    expect(client.set).not.toHaveBeenCalledWith(
+      DATABASE_RESTORE_KEY,
+      expect.anything(),
+    );
   });
 });

@@ -5,6 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { assertPermission } from '../common/security/access-policy';
+import {
+  requireRequestKey,
+  financialRequestHash,
+  assertSameFinancialRequest,
+} from '../common/security/financial-integrity';
 import { BusinessTimezoneService } from '../common/datetime/business-timezone.service';
 import {
   calendarDateInTimeZone,
@@ -35,6 +41,7 @@ import {
 } from './dto/franchise-subscription.dto';
 
 const SUB_SELECT = {
+  requestHash: true,
   id: true,
   franchiseId: true,
   platformPlanId: true,
@@ -188,9 +195,7 @@ export class FranchiseSubscriptionsService {
     return row ? await this.toResponse(row) : null;
   }
 
-  async countActiveBusinessesByPlan(
-    platformPlanId: string,
-  ): Promise<number> {
+  async countActiveBusinessesByPlan(platformPlanId: string): Promise<number> {
     const today = await this.businessTodayUtc();
     const groups = await this.prisma.franchiseSubscription.groupBy({
       by: ['franchiseId'],
@@ -208,6 +213,7 @@ export class FranchiseSubscriptionsService {
     _user: AuthenticatedUser,
     query: ListFranchiseSubscriptionsQueryDto,
   ): Promise<PaginatedResult<FranchiseSubscriptionRecord>> {
+    assertPermission(_user, 'FranchiseSubscriptionsController.list');
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const where: Prisma.FranchiseSubscriptionWhereInput = {
       ...(query.franchiseId ? { franchiseId: query.franchiseId } : {}),
@@ -247,6 +253,9 @@ export class FranchiseSubscriptionsService {
     dto: EnrollFranchiseSubscriptionDto,
     ctx: RequestContext,
   ): Promise<FranchiseSubscriptionRecord> {
+    assertPermission(actor, 'FranchiseSubscriptionsController.enroll');
+    const idempotencyKey = requireRequestKey(dto.idempotencyKey);
+    const requestHash = financialRequestHash({ actor: actor.userId, ...dto });
     const franchise = await this.prisma.franchise.findUnique({
       where: { id: dto.franchiseId },
       select: { id: true, name: true, isActive: true },
@@ -254,6 +263,8 @@ export class FranchiseSubscriptionsService {
     if (!franchise) {
       throw new NotFoundException('Franchise not found');
     }
+    if (!franchise.isActive)
+      throw new BadRequestException('Cannot enroll an inactive franchise');
 
     const plan = await this.prisma.platformPlan.findUnique({
       where: { id: dto.platformPlanId },
@@ -271,26 +282,53 @@ export class FranchiseSubscriptionsService {
       throw new BadRequestException('endsAt must be on or after startsAt');
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      await tx.franchiseSubscription.updateMany({
-        where: { franchiseId: franchise.id, status: 'ACTIVE' },
-        data: { status: 'CANCELLED' },
-      });
+    let replay = false;
+    const created = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM franchises WHERE id = ${franchise.id} FOR UPDATE`;
+        const retry = await tx.franchiseSubscription.findFirst({
+          where: { franchiseId: franchise.id, idempotencyKey },
+          select: SUB_SELECT,
+        });
+        if (retry) {
+          assertSameFinancialRequest(retry.requestHash, requestHash);
+          replay = true;
+          return retry;
+        }
+        await tx.$queryRaw`SELECT id FROM platform_plans WHERE id = ${plan.id} FOR UPDATE`;
+        const currentPlan = await tx.platformPlan.findUnique({
+          where: { id: plan.id },
+          select: { isActive: true },
+        });
+        const currentFranchise = await tx.franchise.findUnique({
+          where: { id: franchise.id },
+          select: { isActive: true },
+        });
+        if (!currentPlan?.isActive || !currentFranchise?.isActive)
+          throw new BadRequestException('Franchise or plan became inactive');
+        await tx.franchiseSubscription.updateMany({
+          where: { franchiseId: franchise.id, status: 'ACTIVE' },
+          data: { status: 'CANCELLED' },
+        });
 
-      return tx.franchiseSubscription.create({
-        data: {
-          franchiseId: franchise.id,
-          platformPlanId: plan.id,
-          billingCycle: BILLING_TO_DB[dto.billingCycle],
-          status: 'ACTIVE',
-          startsAt,
-          endsAt,
-          notes: trimOrNull(dto.notes ?? null),
-        },
-        select: SUB_SELECT,
-      });
-    });
-
+        return tx.franchiseSubscription.create({
+          data: {
+            idempotencyKey,
+            requestHash,
+            franchiseId: franchise.id,
+            platformPlanId: plan.id,
+            billingCycle: BILLING_TO_DB[dto.billingCycle],
+            status: 'ACTIVE',
+            startsAt,
+            endsAt,
+            notes: trimOrNull(dto.notes ?? null),
+          },
+          select: SUB_SELECT,
+        });
+      },
+      { isolationLevel: 'ReadCommitted' },
+    );
+    if (replay) return this.toResponse(created);
     await this.audit.record({
       userId: actor.userId,
       action: 'FRANCHISE_SUBSCRIPTION_ENROLLED',
@@ -327,6 +365,7 @@ export class FranchiseSubscriptionsService {
     id: string,
     ctx: RequestContext,
   ): Promise<FranchiseSubscriptionRecord> {
+    assertPermission(actor, 'FranchiseSubscriptionsController.cancel');
     const existing = await this.prisma.franchiseSubscription.findUnique({
       where: { id },
       select: SUB_SELECT,
@@ -377,10 +416,14 @@ export class FranchiseSubscriptionsService {
       actor.role !== RoleCode.MANAGER &&
       actor.role !== RoleCode.STAFF
     ) {
-      throw new ForbiddenException('Only franchise users can request a subscription');
+      throw new ForbiddenException(
+        'Only franchise users can request a subscription',
+      );
     }
     if (!actor.franchiseId) {
-      throw new BadRequestException('No franchise associated with this account');
+      throw new BadRequestException(
+        'No franchise associated with this account',
+      );
     }
 
     const franchise = await this.prisma.franchise.findUnique({
@@ -440,7 +483,8 @@ export class FranchiseSubscriptionsService {
     });
 
     return {
-      message: 'Subscription request submitted. Super Admin will review it shortly.',
+      message:
+        'Subscription request submitted. Super Admin will review it shortly.',
       ticketId: ticket.id,
     };
   }
@@ -469,10 +513,7 @@ export class FranchiseSubscriptionsService {
     const endsAt = dto.endsAt
       ? parseDateOnly(dto.endsAt, 'endsAt')
       : parseDateOnlyUtc(
-          addMonthsDateOnly(
-            startLabel,
-            dto.billingCycle === 'yearly' ? 12 : 1,
-          ),
+          addMonthsDateOnly(startLabel, dto.billingCycle === 'yearly' ? 12 : 1),
         );
 
     return { startsAt, endsAt };

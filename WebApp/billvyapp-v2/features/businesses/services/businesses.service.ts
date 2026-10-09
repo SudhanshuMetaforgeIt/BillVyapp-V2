@@ -1,4 +1,5 @@
 import { api } from '@/services/api-client';
+import { financialRequest } from '@/lib/financial-request';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
   BusinessesListParams,
@@ -270,7 +271,7 @@ export async function enrollBusinessPlan(
 ): Promise<FranchiseSubscriptionApi> {
   return api.post<FranchiseSubscriptionApi>(
     '/franchise-subscriptions',
-    payload,
+    financialRequest(payload),
   );
 }
 

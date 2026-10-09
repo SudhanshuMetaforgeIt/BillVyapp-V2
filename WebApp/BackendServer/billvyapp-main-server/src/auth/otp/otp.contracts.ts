@@ -14,6 +14,7 @@ export interface OtpStore {
   saveHash(phone: string, codeHash: string, ttlSeconds: number): Promise<void>;
   getHash(phone: string): Promise<string | null>;
   deleteHash(phone: string): Promise<void>;
+  consumeHash(phone: string, expectedHash: string): Promise<boolean>;
 
   getAttempts(phone: string): Promise<number>;
   incrementAttempts(phone: string, ttlSeconds: number): Promise<number>;
@@ -27,6 +28,8 @@ export interface OtpStore {
 }
 
 export interface OtpSender {
+  /** True only when a real delivery provider or explicit local development mode is ready. */
+  isAvailable(): boolean;
   /**
    * Delivers the code out-of-band.
    * Implementations must not log the code unless development OTP mode is on

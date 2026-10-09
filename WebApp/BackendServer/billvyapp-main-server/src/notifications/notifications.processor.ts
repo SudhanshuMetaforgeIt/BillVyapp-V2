@@ -7,8 +7,16 @@ import {
 } from './notification.constants';
 import { NotificationsService } from './notifications.service';
 import { recordBaseline } from '../common/performance/baseline';
+import {
+  assertJobObject,
+  assertJobId,
+} from '../common/security/job-validation';
 
-@Processor(NOTIFICATION_QUEUE)
+@Processor(NOTIFICATION_QUEUE, {
+  concurrency: 2,
+  limiter: { max: 10, duration: 1000 },
+  maxStalledCount: 1,
+})
 export class NotificationsProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationsProcessor.name);
 
@@ -17,9 +25,9 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   async process(job: Job<NotificationJobPayload>): Promise<void> {
-    this.logger.debug(
-      `Dispatching notification ${job.data.notificationId} (job ${job.id})`,
-    );
+    if (job.name !== 'dispatch') throw new Error('Unknown notification job');
+    assertJobObject(job.data, ['notificationId']);
+    assertJobId(job.data.notificationId);
     const start = performance.now();
     recordBaseline(
       `queue:${NOTIFICATION_QUEUE}:waitMs`,

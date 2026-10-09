@@ -26,6 +26,7 @@ export interface ObjectStorageProvider {
   createUploadUrl(params: {
     storageKey: string;
     mimeType: string;
+    fileSize?: number;
   }): Promise<PresignedUpload>;
 
   createDownloadUrl(storageKey: string): Promise<PresignedDownload>;

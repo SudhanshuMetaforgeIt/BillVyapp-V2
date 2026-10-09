@@ -1,4 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  moneyCents,
+  centsString,
+  lineTaxCents,
+} from '../common/security/financial-integrity';
 
 export type BenefitConfiguration = {
   couponUsageLimit?: number | null;
@@ -60,9 +65,12 @@ export function priceMembershipLines<
   const eligible = new Set(config.eligibleServices.map((s) => s.id));
   let remaining = Math.max(0, (config.freeServiceLimit ?? 0) - usedUnits);
   return lines.map((line) => {
+    if (!Number.isInteger(line.quantity) || line.quantity < 1)
+      throw new BadRequestException('Invalid membership line quantity');
     const originalCents =
-      Math.round(Number(line.unitPrice) * 100) * line.quantity;
-    const manualCents = Math.round(Number(line.discount) * 100);
+      moneyCents(line.unitPrice, 'membership unit price') * line.quantity;
+    centsString(originalCents);
+    const manualCents = moneyCents(line.discount, 'membership line discount');
     const baseCents = originalCents - manualCents;
     if (baseCents < 0)
       throw new BadRequestException('Line discount exceeds line amount');
@@ -83,18 +91,25 @@ export function priceMembershipLines<
         visitServices.add(line.serviceId);
         if (!config.freeServicesPerVisit) remaining -= membershipUnits;
         // Spread an existing line discount evenly across its quantity.
-        benefitCents = Math.round(
-          (baseCents * membershipUnits) / line.quantity,
+        benefitCents = Number(
+          (BigInt(baseCents) * BigInt(membershipUnits) * 2n +
+            BigInt(line.quantity)) /
+            (BigInt(line.quantity) * 2n),
         );
       } else {
-        benefitCents = Math.round(
-          (baseCents * Number(config.discountPercentage)) / 100,
+        benefitCents = lineTaxCents(
+          baseCents,
+          Number(config.discountPercentage),
         );
         membershipUnits = benefitCents > 0 ? line.quantity : 0;
       }
     }
     const lineNet = (baseCents - benefitCents) / 100;
-    const taxAmountNum = Math.round(lineNet * Number(line.taxRate)) / 100;
+    const taxAmountNum =
+      lineTaxCents(baseCents - benefitCents, Number(line.taxRate)) / 100;
+    centsString(
+      baseCents - benefitCents + moneyCents(taxAmountNum, 'membership tax'),
+    );
     return {
       ...line,
       membershipDiscount: (benefitCents / 100).toFixed(2),

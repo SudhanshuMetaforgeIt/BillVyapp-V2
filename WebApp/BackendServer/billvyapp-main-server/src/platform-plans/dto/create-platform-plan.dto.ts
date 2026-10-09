@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsBoolean,
   IsIn,
@@ -35,7 +36,8 @@ export class CreatePlatformPlanDto {
 
   @ApiProperty({
     example: false,
-    description: 'When true, priceMonthly must be omitted/null (contact sales).',
+    description:
+      'When true, priceMonthly must be omitted/null (contact sales).',
   })
   @IsBoolean()
   isCustom: boolean;
@@ -47,7 +49,7 @@ export class CreatePlatformPlanDto {
     description: 'Required when isCustom is false; must be null when isCustom.',
   })
   @ValidateIf((o: CreatePlatformPlanDto) => !o.isCustom)
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   priceMonthly?: number | null;
@@ -58,7 +60,8 @@ export class CreatePlatformPlanDto {
 
   @ApiPropertyOptional({
     example: 'professional',
-    description: 'UI icon key (basic, professional, premium, enterprise, custom)',
+    description:
+      'UI icon key (basic, professional, premium, enterprise, custom)',
   })
   @IsOptional()
   @IsString()

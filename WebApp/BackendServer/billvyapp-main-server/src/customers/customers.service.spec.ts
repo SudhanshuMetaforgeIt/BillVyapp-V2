@@ -117,7 +117,8 @@ function customerRow(overrides: Record<string, unknown> = {}) {
 
 describe('CustomersService', () => {
   const prisma = {
-    franchise: {findUnique:jest.fn()},
+    userSession: { updateMany: jest.fn() },
+    franchise: { findUnique: jest.fn() },
     customer: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -148,7 +149,9 @@ describe('CustomersService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    prisma.franchise.findUnique.mockResolvedValue({preferences:{phoneCountry:'IN'}});
+    prisma.franchise.findUnique.mockResolvedValue({
+      preferences: { phoneCountry: 'IN' },
+    });
     scope.salonScope.mockReturnValue({});
     scope.customerTableScope.mockReturnValue({});
     scope.customerSalonAssociation.mockReturnValue({
@@ -295,7 +298,7 @@ describe('CustomersService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('links an existing CUSTOMER user that has no customer row', async () => {
+  it('rejects unverified linking of an existing CUSTOMER without a profile', async () => {
     prisma.user.findUnique.mockImplementation(
       ({ where }: { where: { phone?: string; email?: string } }) => {
         if (where.phone) {
@@ -312,11 +315,50 @@ describe('CustomersService', () => {
     prisma.user.update.mockResolvedValue({ id: 'user-a' });
     prisma.customer.create.mockResolvedValue(customerRow());
 
-    const result = await service.create(superAdmin, createDto, ctx);
+    await expect(service.create(superAdmin, createDto, ctx)).rejects.toThrow(
+      'verified ownership',
+    );
 
     expect(prisma.user.create).not.toHaveBeenCalled();
-    expect(prisma.user.update).toHaveBeenCalled();
-    expect(result.id).toBe('cust-1');
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.customer.create).not.toHaveBeenCalled();
+  });
+
+  it.each([superAdmin, admin, manager, staff, customerActor])(
+    'blocks login email and phone changes for role $role',
+    async (actor) => {
+      prisma.customer.findUnique.mockResolvedValue(customerRow());
+      for (const dto of [
+        { email: 'attacker@example.com' },
+        { phone: '9123456789' },
+      ]) {
+        await expect(service.update(actor, 'cust-1', dto, ctx)).rejects.toThrow(
+          'ownership verification',
+        );
+      }
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.customer.update).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('allows unchanged identity fields while updating non-login profile details', async () => {
+    prisma.customer.findUnique.mockResolvedValue(customerRow());
+    prisma.customer.update.mockResolvedValue(customerRow());
+    await service.update(
+      customerActor,
+      'cust-1',
+      {
+        email: ' RIYA.KAPOOR@EXAMPLE.COM ',
+        phone: '9876543210',
+        firstName: 'Ria',
+      },
+      ctx,
+    );
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-a' },
+      data: { firstName: 'Ria' },
+    });
   });
 
   it('rejects linking a staff account phone', async () => {

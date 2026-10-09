@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment -- Jest asymmetric fixture matchers */
 import {
   BadRequestException,
   ForbiddenException,
@@ -253,7 +254,12 @@ describe('SalonPhotosService', () => {
       manager,
       'salon-1',
       { fileName: 'new.png', mimeType: 'image/png', replaceId: 'photo-1' },
-      Readable.from([Buffer.from('image')]),
+      Readable.from([
+        Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC',
+          'base64',
+        ),
+      ]),
       'image/png',
       context,
     );
@@ -278,7 +284,12 @@ describe('SalonPhotosService', () => {
         admin,
         'salon-1',
         { fileName: 'new.png', mimeType: 'image/png', replaceId: 'photo-1' },
-        Readable.from([Buffer.from('image')]),
+        Readable.from([
+          Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC',
+            'base64',
+          ),
+        ]),
         'image/png',
         context,
       ),
@@ -295,7 +306,10 @@ describe('SalonPhotosService', () => {
           ? Buffer.alloc(10 * 1024 * 1024 + 1)
           : kind === 'empty'
             ? Buffer.alloc(0)
-            : Buffer.from('image');
+            : Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC',
+                'base64',
+              );
       await expect(
         service.upload(
           admin,
@@ -383,7 +397,12 @@ describe('SalonPhotosService', () => {
             manager,
             'salon-1',
             { fileName: 'x.png', mimeType: 'image/png' },
-            Readable.from([Buffer.from('image')]),
+            Readable.from([
+              Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC',
+                'base64',
+              ),
+            ]),
             'image/png',
             context,
           ),

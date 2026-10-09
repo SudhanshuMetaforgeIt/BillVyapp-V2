@@ -2,6 +2,7 @@ import { maskPhone as internationalMaskPhone } from '@/lib/phone';
 import { isValid, parseISO, addDays, isBefore, isAfter } from 'date-fns';
 
 import { api } from '@/services/api-client';
+import { financialRequest } from '@/lib/financial-request';
 import {
   businessCalendarDateOfInstant,
   businessMonthBounds,
@@ -323,6 +324,7 @@ export async function fetchMembershipsPage(
     id: plan.id,
     name: plan.name,
     isActive: plan.isActive,
+    manualEnrollmentAllowed: Number(plan.price) === 0 && plan.enrollmentThreshold == null,
   }));
 
   const customerOptions = [...customerById.values()].map((customer) => ({
@@ -470,7 +472,7 @@ export async function fetchMembershipsPage(
 }
 
 export async function createMembership(payload: CreateMembershipPayload) {
-  return api.post<MembershipApiItem>('/memberships', payload);
+  return api.post<MembershipApiItem>('/memberships', financialRequest(payload));
 }
 
 export async function updateMembership(id: string, payload: import('../types/memberships.types').UpdateMembershipPayload) {

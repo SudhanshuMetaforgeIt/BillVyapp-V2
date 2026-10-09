@@ -57,7 +57,7 @@ export class ServiceCategoriesService {
     user: AuthenticatedUser,
     query: ServiceCategoryQueryDto,
   ): Promise<PaginatedResult<ServiceCategoryRecord>> {
-    const { page, limit, skip } = normalizePagination(query.page, query.limit);
+    const { page, limit } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
 
     if (query.salonId && user.role !== RoleCode.CUSTOMER) {
@@ -87,11 +87,12 @@ export class ServiceCategoriesService {
             search,
             isActive: query.isActive,
             role: user.role,
+            permissionScope: this.cache.permissionScope(user),
           })}`
         : null;
 
     if (cacheKey && this.cache) {
-      return this.cache.wrap(cacheKey, 1800, () =>
+      return this.cache.wrap(cacheKey, 300, () =>
         this.fetchList(where, page, limit),
       );
     }

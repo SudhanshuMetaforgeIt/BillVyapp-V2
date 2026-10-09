@@ -82,7 +82,7 @@ describe('invalidation map', () => {
     expect(keyHasPath(scoped, ['notifications'])).toBe(false);
   });
 
-  it('invalidates dependent bill data but leaves documents, memberships and settings alone', async () => {
+  it('invalidates bill-linked membership entitlements and leaves documents and settings alone', async () => {
     const client = new QueryClient();
     const keys = {
       bills: [...scopeKey(admin), 'bills', 'list'],
@@ -95,10 +95,10 @@ describe('invalidation map', () => {
     };
     Object.values(keys).forEach((key) => client.setQueryData(key, {}));
     await invalidateAfter(client, 'bills');
-    for (const name of ['bills', 'payments', 'customers', 'dashboard'] as const) {
+    for (const name of ['bills', 'payments', 'customers', 'memberships', 'dashboard'] as const) {
       expect(client.getQueryState(keys[name])?.isInvalidated).toBe(true);
     }
-    for (const name of ['documents', 'memberships', 'settings'] as const) {
+    for (const name of ['documents', 'settings'] as const) {
       expect(client.getQueryState(keys[name])?.isInvalidated).toBe(false);
     }
     client.clear();

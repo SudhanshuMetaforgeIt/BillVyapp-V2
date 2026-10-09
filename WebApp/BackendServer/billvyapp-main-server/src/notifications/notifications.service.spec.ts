@@ -90,6 +90,7 @@ describe('NotificationsService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     salon: { findFirst: jest.fn(), findUnique: jest.fn() },
     user: { findMany: jest.fn() },
@@ -127,6 +128,17 @@ describe('NotificationsService', () => {
     );
   });
 
+  it.each([RoleCode.ADMIN, RoleCode.MANAGER, RoleCode.STAFF])(
+    "denies another recipient's null-salon notification to %s",
+    async (role) => {
+      prisma.notification.findUnique.mockResolvedValue(
+        notificationRow({ salonId: null, userId: 'other-tenant-user' }),
+      );
+      await expect(
+        service.findOne({ ...manager, role }, 'n-1'),
+      ).rejects.toThrow(ForbiddenException);
+    },
+  );
   it('creates a notification and enqueues a BullMQ job', async () => {
     prisma.notification.create.mockResolvedValue(
       notificationRow({ status: 'PENDING' }),
@@ -182,7 +194,7 @@ describe('NotificationsService', () => {
         data: expect.objectContaining({
           status: 'SENT',
           provider: 'logging',
-        }),
+        }) as Record<string, unknown>,
       }),
     );
   });
@@ -221,7 +233,7 @@ describe('NotificationsService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           notificationType: 'SUBSCRIPTION_PURCHASED',
-        }),
+        }) as Record<string, unknown>,
       }),
     );
   });
@@ -260,14 +272,14 @@ describe('NotificationsService', () => {
 
   it('processDispatch marks queued rows as SENT', async () => {
     prisma.notification.findUnique.mockResolvedValue(notificationRow());
-    prisma.notification.update.mockResolvedValue(
+    prisma.notification.updateMany.mockResolvedValue(
       notificationRow({ status: 'SENT' }),
     );
 
     await service.processDispatch('n-1');
 
     const updateArg = (
-      prisma.notification.update.mock.calls as unknown as Array<
+      prisma.notification.updateMany.mock.calls as unknown as Array<
         [{ data: Record<string, unknown> }]
       >
     )[0][0];
@@ -275,6 +287,25 @@ describe('NotificationsService', () => {
       status: 'SENT',
       provider: 'logging',
     });
+  });
+
+  it.each(['SENT', 'FAILED', 'CANCELLED', 'DELIVERED', 'READ'])(
+    'duplicate dispatch leaves terminal %s unchanged',
+    async (status) => {
+      prisma.notification.findUnique.mockResolvedValue(
+        notificationRow({ status }),
+      );
+      await service.processDispatch('n-1');
+      expect(prisma.notification.updateMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects an early notification and conditionally updates only due queue records', async () => {
+    prisma.notification.findUnique.mockResolvedValue(
+      notificationRow({ scheduledAt: new Date(Date.now() + 60000) }),
+    );
+    await expect(service.processDispatch('n-1')).rejects.toThrow('due');
+    expect(prisma.notification.updateMany).not.toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,6 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+
 import {
   IsIn,
   IsInt,
@@ -28,7 +29,7 @@ export class AdjustInventoryDto {
     description:
       'Signed delta applied to quantityOnHand. Resulting on-hand must not be negative.',
   })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @NotEquals(0, { message: 'quantity must be a non-zero signed integer' })
   quantity: number;

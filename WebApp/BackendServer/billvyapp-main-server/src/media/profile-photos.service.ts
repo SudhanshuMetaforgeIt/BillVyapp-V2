@@ -20,6 +20,7 @@ import {
   PROFILE_IMAGE_MIME_TYPES,
 } from './profile-photo.dto';
 import { validateProfileImage } from './profile-image-validation';
+import { sanitizeImage } from './image-sanitization';
 
 const UPLOAD_LIFETIME_SECONDS = 900;
 
@@ -104,6 +105,11 @@ export class ProfilePhotosService {
     if (bytes.length !== media.fileSize)
       throw new BadRequestException('Image size does not match');
     validateProfileImage(bytes, media.mimeType);
+    const sanitized = await sanitizeImage(
+      bytes,
+      media.mimeType,
+      PROFILE_IMAGE_MAX_BYTES,
+    );
     const claimed = await this.prisma.mediaFile.updateMany({
       where: {
         id: mediaId,
@@ -118,12 +124,12 @@ export class ProfilePhotosService {
       await this.storage.uploadImage(
         media.storageProvider,
         media.storageKey,
-        bytes,
+        sanitized,
         media.mimeType,
       );
       await this.prisma.mediaFile.update({
         where: { id: mediaId },
-        data: { entityType: 'ProfilePhotoReady', fileSize: bytes.length },
+        data: { entityType: 'ProfilePhotoReady', fileSize: sanitized.length },
       });
     } catch (error) {
       // Never publish a partially uploaded asset. A fresh initialization can retry.

@@ -1,4 +1,10 @@
-import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt } from 'node:crypto';
 import { PasswordService } from '../password.service';
@@ -14,11 +20,19 @@ export class OtpService {
     private readonly config: ConfigService,
   ) {}
 
+  private assertDeliveryAvailable(): void {
+    if (!this.sender.isAvailable())
+      throw new ServiceUnavailableException(
+        'Account verification is not available yet',
+      );
+  }
+
   /**
    * Claims the per-phone resend slot. Must be called for every send-otp
    * request, including unknown numbers, so HTTP 429 cannot enumerate accounts.
    */
   async consumeResendSlot(phone: string): Promise<void> {
+    this.assertDeliveryAvailable();
     const ttl = this.config.get<number>('otp.resendSeconds', 60);
     const acquired = await this.store.acquireResendSlot(phone, ttl);
     if (!acquired) {
@@ -36,6 +50,7 @@ export class OtpService {
    * optionally include it as `devOtp` in non-production.
    */
   async issue(phone: string): Promise<string> {
+    this.assertDeliveryAvailable();
     const length = this.config.get<number>('otp.length', 6);
     const ttl = this.config.get<number>('otp.expirySeconds', 300);
     const code = this.generateCode(length);
@@ -55,12 +70,12 @@ export class OtpService {
    * Throws HttpException 429 when the attempt budget is spent.
    */
   async verify(phone: string, code: string): Promise<boolean> {
+    this.assertDeliveryAvailable();
     const maxAttempts = this.config.get<number>('otp.maxAttempts', 5);
     const ttl = this.config.get<number>('otp.expirySeconds', 300);
 
     const attempts = await this.store.getAttempts(phone);
     if (attempts >= maxAttempts) {
-      await this.store.deleteHash(phone);
       throw new HttpException(
         'Too many verification attempts',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -72,12 +87,19 @@ export class OtpService {
       return false;
     }
 
+    const next = await this.store.incrementAttempts(phone, ttl);
+    if (next > maxAttempts) {
+      throw new HttpException(
+        'Too many verification attempts',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const matches = await this.passwords.verify(storedHash, code);
 
     if (!matches) {
-      const next = await this.store.incrementAttempts(phone, ttl);
       if (next >= maxAttempts) {
-        await this.store.deleteHash(phone);
+        await this.store.consumeHash(phone, storedHash);
         throw new HttpException(
           'Too many verification attempts',
           HttpStatus.TOO_MANY_REQUESTS,
@@ -86,9 +108,7 @@ export class OtpService {
       return false;
     }
 
-    await this.store.deleteHash(phone);
-    await this.store.resetAttempts(phone);
-    return true;
+    return this.store.consumeHash(phone, storedHash);
   }
 
   private generateCode(length: number): string {

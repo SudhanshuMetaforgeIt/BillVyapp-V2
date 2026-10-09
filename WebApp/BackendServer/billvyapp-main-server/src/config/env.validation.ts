@@ -11,6 +11,9 @@ import {
   MinLength,
   validateSync,
 } from 'class-validator';
+import { allowedBrowserOrigins } from '../common/security/browser-origin-policy';
+import { databaseSecurity } from '../prisma/database-security';
+import { redisConnectionOptions } from '../redis/redis-security';
 
 /**
  * Fail-fast validation of the process environment. The application refuses to
@@ -20,6 +23,12 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   DATABASE_URL: string;
+  @IsOptional() @IsIn(['required', 'disabled']) DATABASE_TLS_MODE?: string;
+  @IsOptional() @IsString() DATABASE_TLS_CA_PATH?: string;
+  @IsOptional() @IsString() DATABASE_BACKUP_URL?: string;
+  @IsOptional() @IsString() DATABASE_BACKUP_ROOT?: string;
+  @IsOptional() @IsString() DATABASE_BACKUP_ENCRYPTION_KEY?: string;
+  @IsOptional() @IsString() UPLOAD_CLAMSCAN_PATH?: string;
 
   @IsString()
   @MinLength(32, {
@@ -69,6 +78,8 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   REDIS_URL?: string;
+
+  @IsOptional() @IsString() REDIS_TLS_CA_PATH?: string;
 
   @IsOptional()
   @IsString()
@@ -202,5 +213,43 @@ export function validateEnv(config: Record<string, unknown>) {
     );
   }
 
+  const duration = (value: string) => {
+    const match = /^(\d+)([smhd])$/i.exec(value.trim());
+    if (!match) return NaN;
+    return (
+      Number(match[1]) *
+      ({ s: 1, m: 60, h: 3600, d: 86400 }[match[2].toLowerCase()] ?? NaN)
+    );
+  };
+  const accessSeconds = duration(validated.JWT_ACCESS_EXPIRES_IN);
+  const refreshSeconds = duration(validated.JWT_REFRESH_EXPIRES_IN);
+  if (
+    !Number.isFinite(accessSeconds) ||
+    accessSeconds < 60 ||
+    accessSeconds > 3600 ||
+    !Number.isFinite(refreshSeconds) ||
+    refreshSeconds < 60 ||
+    refreshSeconds > 30 * 86400
+  ) {
+    throw new Error(
+      'JWT expiry must use s/m/h/d: access 1 minute–1 hour, refresh 1 minute–30 days',
+    );
+  }
+  if (validated.NODE_ENV === 'production') {
+    allowedBrowserOrigins(validated.CORS_ORIGIN ?? '*', true);
+    if (validated.DEV_OTP_ENABLED)
+      throw new Error('Development OTP mode is forbidden in production');
+  }
+
+  databaseSecurity(validated.DATABASE_URL, {
+    production: validated.NODE_ENV === 'production',
+    tlsMode: validated.DATABASE_TLS_MODE,
+    caPath: validated.DATABASE_TLS_CA_PATH,
+  });
+  redisConnectionOptions(
+    validated.REDIS_URL ?? 'redis://localhost:6379',
+    validated.NODE_ENV === 'production',
+    validated.REDIS_TLS_CA_PATH,
+  );
   return validated;
 }

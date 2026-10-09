@@ -112,11 +112,12 @@ export class ServicesService {
             categoryId: query.categoryId,
             isActive: query.isActive,
             role: user.role,
+            permissionScope: this.cache.permissionScope(user),
           })}`
         : null;
 
     if (cacheKey && this.cache) {
-      return this.cache.wrap(cacheKey, 1800, () =>
+      return this.cache.wrap(cacheKey, 300, () =>
         this.fetchList(where, page, limit, skip),
       );
     }
@@ -267,7 +268,7 @@ export class ServicesService {
       } catch (error: unknown) {
         const message =
           error && typeof error === 'object' && 'message' in error
-            ? String((error as { message: unknown }).message)
+            ? String(error.message)
             : 'Failed to create service';
         failed.push({
           row: rowNumber,

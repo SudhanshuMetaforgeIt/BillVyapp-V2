@@ -166,6 +166,7 @@ describe('AppointmentsService', () => {
   const scope = {
     salonScope: jest.fn().mockReturnValue({}),
     assertSalonAccess: jest.fn(),
+    assertCustomerAccess: jest.fn(),
     requireOwnCustomerId: jest.fn(),
     assertOwnCustomerAccess: jest.fn(),
   };

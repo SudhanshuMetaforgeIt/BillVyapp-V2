@@ -1,7 +1,9 @@
+import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEmail,
@@ -51,9 +53,10 @@ export class CreateBillItemDto {
   description?: string | null;
 
   @ApiProperty({ example: 1, minimum: 1 })
-  @Type(() => Number)
+  @StrictNumber()
   @IsInt()
   @Min(1)
+  @Max(2147483647)
   quantity: number;
 
   @ApiPropertyOptional({
@@ -63,14 +66,14 @@ export class CreateBillItemDto {
       'Snapshot from Service.price / Product.sellingPrice when omitted',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   unitPrice?: number;
 
   @ApiPropertyOptional({ example: 0, minimum: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   discount?: number;
@@ -82,7 +85,7 @@ export class CreateBillItemDto {
     description: 'Snapshot from catalog taxRate when omitted',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   @Max(100)
@@ -111,6 +114,14 @@ export class BillEnrollmentDetailsDto {
 }
 
 export class CreateBillDto {
+  @ApiProperty({
+    description: 'Stable key reused for retries of the same bill request',
+    minLength: 8,
+    maxLength: 191,
+  })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:_-]{7,190}$/)
+  idempotencyKey?: string;
   @ApiPropertyOptional({ nullable: true, format: 'uuid' })
   @IsOptional()
   @IsUUID()
@@ -169,7 +180,7 @@ export class CreateBillDto {
 
   @ApiPropertyOptional({ example: 0, minimum: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   discount?: number;
@@ -180,14 +191,14 @@ export class CreateBillDto {
     description: 'Bill-level tax; defaults to sum of line taxAmounts',
   })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   tax?: number;
 
   @ApiPropertyOptional({ example: 0 })
   @IsOptional()
-  @Type(() => Number)
+  @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })
   roundOff?: number;
 
@@ -199,6 +210,7 @@ export class CreateBillDto {
   @ApiProperty({ type: [CreateBillItemDto], minItems: 1 })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(1000)
   @ValidateNested({ each: true })
   @Type(() => CreateBillItemDto)
   items: CreateBillItemDto[];

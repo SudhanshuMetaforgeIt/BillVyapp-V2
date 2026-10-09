@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { assertPermission } from '../common/security/access-policy';
 import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
@@ -118,6 +119,7 @@ export class FranchisesService {
     ctx: RequestContext,
   ): Promise<FranchiseRecord> {
     const code = trimRequired(dto.code).toUpperCase();
+    assertPermission(user, 'FranchisesController.create');
 
     try {
       const created = await this.prisma.franchise.create({

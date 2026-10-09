@@ -1,11 +1,11 @@
-'use client';
-import { Input } from '@/components/ui/input';
-import dynamic from 'next/dynamic';
+"use client";
+import { Input } from "@/components/ui/input";
+import dynamic from "next/dynamic";
 
-import { SelectInput } from '@/components/data/form-fields';
+import { SelectInput } from "@/components/data/form-fields";
 const ProfilePhotoEditor = dynamic(
   () =>
-    import('@/features/profile/components/profile-photo-editor').then(
+    import("@/features/profile/components/profile-photo-editor").then(
       (module) => module.ProfilePhotoEditor,
     ),
   {
@@ -19,9 +19,9 @@ const ProfilePhotoEditor = dynamic(
   },
 );
 
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { Home, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { Home, MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
 
 import type {
   AddressType,
@@ -29,14 +29,14 @@ import type {
   CustomerAddress,
   CustomerAddressInput,
   Gender,
-} from '@/types/models';
+} from "@/types/models";
 import {
   useDeleteAddress,
   useMyAddresses,
   useMyCustomer,
   useSaveAddress,
   useUpdateMyCustomer,
-} from '../hooks/use-customer-portal';
+} from "../hooks/use-customer-portal";
 import {
   CustomerCard,
   CustomerError,
@@ -48,19 +48,19 @@ import {
   customerInput,
   customerOutlineButton,
   customerPrimaryButton,
-} from './customer-ui';
+} from "./customer-ui";
 
 const GENDERS: { value: Gender; label: string }[] = [
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'MALE', label: 'Male' },
-  { value: 'OTHER', label: 'Other' },
-  { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
+  { value: "FEMALE", label: "Female" },
+  { value: "MALE", label: "Male" },
+  { value: "OTHER", label: "Other" },
+  { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
 ];
 
 const ADDRESS_TYPES: { value: AddressType; label: string }[] = [
-  { value: 'HOME', label: 'Home' },
-  { value: 'WORK', label: 'Work' },
-  { value: 'OTHER', label: 'Other' },
+  { value: "HOME", label: "Home" },
+  { value: "WORK", label: "Work" },
+  { value: "OTHER", label: "Other" },
 ];
 
 function PersonalForm({ customer }: { customer: Customer }) {
@@ -70,8 +70,8 @@ function PersonalForm({ customer }: { customer: Customer }) {
     lastName: customer.lastName,
     email: customer.email,
     phone: customer.phone,
-    dateOfBirth: customer.dateOfBirth?.slice(0, 10) ?? '',
-    gender: customer.gender ?? '',
+    dateOfBirth: customer.dateOfBirth?.slice(0, 10) ?? "",
+    gender: customer.gender ?? "",
   });
   const set =
     (key: keyof typeof form) =>
@@ -84,12 +84,10 @@ function PersonalForm({ customer }: { customer: Customer }) {
       {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim(),
         dateOfBirth: form.dateOfBirth || undefined,
         gender: (form.gender || undefined) as Gender | undefined,
       },
-      { onSuccess: () => toast.success('Profile updated') },
+      { onSuccess: () => toast.success("Profile updated") },
     );
   };
 
@@ -103,12 +101,19 @@ function PersonalForm({ customer }: { customer: Customer }) {
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
+          <p
+            id="cp-identity-note"
+            className="text-xs text-[#8C8375] sm:col-span-2"
+          >
+            Email and phone changes require ownership verification and are
+            currently unavailable.
+          </p>
           <CustomerField label="First name" htmlFor="cp-first">
             <input
               id="cp-first"
               className={customerInput}
               value={form.firstName}
-              onChange={set('firstName')}
+              onChange={set("firstName")}
               required
               maxLength={100}
             />
@@ -118,7 +123,7 @@ function PersonalForm({ customer }: { customer: Customer }) {
               id="cp-last"
               className={customerInput}
               value={form.lastName}
-              onChange={set('lastName')}
+              onChange={set("lastName")}
               required
               maxLength={100}
             />
@@ -129,8 +134,8 @@ function PersonalForm({ customer }: { customer: Customer }) {
               type="email"
               className={customerInput}
               value={form.email}
-              onChange={set('email')}
-              required
+              readOnly
+              aria-describedby="cp-identity-note"
             />
           </CustomerField>
           <CustomerField label="Phone" htmlFor="cp-phone">
@@ -139,8 +144,8 @@ function PersonalForm({ customer }: { customer: Customer }) {
               type="tel"
               className={customerInput}
               value={form.phone}
-              onChange={set('phone')}
-              required
+              readOnly
+              aria-describedby="cp-identity-note"
             />
           </CustomerField>
           <CustomerField label="Date of birth" htmlFor="cp-dob">
@@ -149,7 +154,7 @@ function PersonalForm({ customer }: { customer: Customer }) {
               type="date"
               className={customerInput}
               value={form.dateOfBirth}
-              onChange={set('dateOfBirth')}
+              onChange={set("dateOfBirth")}
             />
           </CustomerField>
           <CustomerField label="Gender" htmlFor="cp-gender">
@@ -157,7 +162,7 @@ function PersonalForm({ customer }: { customer: Customer }) {
               id="cp-gender"
               className={customerInput}
               value={form.gender}
-              onChange={set('gender')}
+              onChange={set("gender")}
             >
               <option value="">Not specified</option>
               {GENDERS.map((g) => (
@@ -175,7 +180,7 @@ function PersonalForm({ customer }: { customer: Customer }) {
             className={customerPrimaryButton}
             disabled={update.isPending}
           >
-            {update.isPending ? 'Saving…' : 'Save changes'}
+            {update.isPending ? "Saving…" : "Save changes"}
           </button>
         </div>
       </form>
@@ -184,13 +189,13 @@ function PersonalForm({ customer }: { customer: Customer }) {
 }
 
 const EMPTY_ADDRESS: CustomerAddressInput = {
-  addressType: 'HOME',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  country: '',
-  postalCode: '',
+  addressType: "HOME",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  country: "",
+  postalCode: "",
   isDefault: false,
 };
 
@@ -209,11 +214,11 @@ function AddressForm({
       ? {
           addressType: address.addressType,
           addressLine1: address.addressLine1,
-          addressLine2: address.addressLine2 ?? '',
-          city: address.city ?? '',
-          state: address.state ?? '',
-          country: address.country ?? '',
-          postalCode: address.postalCode ?? '',
+          addressLine2: address.addressLine2 ?? "",
+          city: address.city ?? "",
+          state: address.state ?? "",
+          country: address.country ?? "",
+          postalCode: address.postalCode ?? "",
           isDefault: address.isDefault,
         }
       : EMPTY_ADDRESS,
@@ -243,7 +248,7 @@ function AddressForm({
       },
       {
         onSuccess: () => {
-          toast.success(address ? 'Address updated' : 'Address added');
+          toast.success(address ? "Address updated" : "Address added");
           onDone();
         },
       },
@@ -261,7 +266,7 @@ function AddressForm({
             id="addr-type"
             className={customerInput}
             value={form.addressType}
-            onChange={set('addressType')}
+            onChange={set("addressType")}
           >
             {ADDRESS_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -274,8 +279,8 @@ function AddressForm({
           <input
             id="addr-postal"
             className={customerInput}
-            value={form.postalCode ?? ''}
-            onChange={set('postalCode')}
+            value={form.postalCode ?? ""}
+            onChange={set("postalCode")}
           />
         </CustomerField>
         <div className="sm:col-span-2">
@@ -284,7 +289,7 @@ function AddressForm({
               id="addr-line1"
               className={customerInput}
               value={form.addressLine1}
-              onChange={set('addressLine1')}
+              onChange={set("addressLine1")}
               required
             />
           </CustomerField>
@@ -294,8 +299,8 @@ function AddressForm({
             <input
               id="addr-line2"
               className={customerInput}
-              value={form.addressLine2 ?? ''}
-              onChange={set('addressLine2')}
+              value={form.addressLine2 ?? ""}
+              onChange={set("addressLine2")}
             />
           </CustomerField>
         </div>
@@ -303,24 +308,24 @@ function AddressForm({
           <input
             id="addr-city"
             className={customerInput}
-            value={form.city ?? ''}
-            onChange={set('city')}
+            value={form.city ?? ""}
+            onChange={set("city")}
           />
         </CustomerField>
         <CustomerField label="State" htmlFor="addr-state">
           <input
             id="addr-state"
             className={customerInput}
-            value={form.state ?? ''}
-            onChange={set('state')}
+            value={form.state ?? ""}
+            onChange={set("state")}
           />
         </CustomerField>
         <CustomerField label="Country" htmlFor="addr-country">
           <input
             id="addr-country"
             className={customerInput}
-            value={form.country ?? ''}
-            onChange={set('country')}
+            value={form.country ?? ""}
+            onChange={set("country")}
           />
         </CustomerField>
         <label className="flex items-center gap-2 self-end pb-2 text-xs font-semibold text-[#4A453E]">
@@ -350,7 +355,7 @@ function AddressForm({
           className={customerPrimaryButton}
           disabled={save.isPending}
         >
-          {save.isPending ? 'Saving…' : 'Save address'}
+          {save.isPending ? "Saving…" : "Save address"}
         </button>
       </div>
     </form>
@@ -360,7 +365,7 @@ function AddressForm({
 function AddressesSection({ customerId }: { customerId: string }) {
   const addresses = useMyAddresses(customerId);
   const remove = useDeleteAddress(customerId);
-  const [editing, setEditing] = useState<CustomerAddress | 'new' | null>(null);
+  const [editing, setEditing] = useState<CustomerAddress | "new" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const rows = addresses.data?.data ?? [];
 
@@ -372,7 +377,7 @@ function AddressesSection({ customerId }: { customerId: string }) {
           <button
             type="button"
             className={customerOutlineButton}
-            onClick={() => setEditing('new')}
+            onClick={() => setEditing("new")}
           >
             <Plus className="size-3.5" />
             Add address
@@ -380,7 +385,7 @@ function AddressesSection({ customerId }: { customerId: string }) {
         ) : null}
       </div>
 
-      {editing === 'new' ? (
+      {editing === "new" ? (
         <AddressForm
           customerId={customerId}
           address={null}
@@ -395,12 +400,12 @@ function AddressesSection({ customerId }: { customerId: string }) {
           error={addresses.error}
           onRetry={() => void addresses.refetch()}
         />
-      ) : rows.length === 0 && editing !== 'new' ? (
+      ) : rows.length === 0 && editing !== "new" ? (
         <p className="text-xs text-[#7D766C]">No saved addresses.</p>
       ) : (
         <ul className="space-y-3">
           {rows.map((a) =>
-            editing !== null && editing !== 'new' && editing.id === a.id ? (
+            editing !== null && editing !== "new" && editing.id === a.id ? (
               <li key={a.id}>
                 <AddressForm
                   customerId={customerId}
@@ -414,7 +419,7 @@ function AddressesSection({ customerId }: { customerId: string }) {
                 className="flex items-start justify-between gap-3 rounded-xl border border-[#F0EAE1] p-3"
               >
                 <div className="flex gap-2">
-                  {a.addressType === 'HOME' ? (
+                  {a.addressType === "HOME" ? (
                     <Home className="mt-0.5 size-4 text-[#FF7B00]" />
                   ) : (
                     <MapPin className="mt-0.5 size-4 text-[#FF7B00]" />
@@ -432,12 +437,12 @@ function AddressesSection({ customerId }: { customerId: string }) {
                     <p>
                       {[a.addressLine1, a.addressLine2]
                         .filter(Boolean)
-                        .join(', ')}
+                        .join(", ")}
                     </p>
                     <p>
                       {[a.city, a.state, a.postalCode, a.country]
                         .filter(Boolean)
-                        .join(', ')}
+                        .join(", ")}
                     </p>
                   </div>
                 </div>
@@ -459,7 +464,7 @@ function AddressesSection({ customerId }: { customerId: string }) {
                         onClick={() =>
                           remove.mutate(a.id, {
                             onSuccess: () => {
-                              toast.success('Address removed');
+                              toast.success("Address removed");
                               setConfirmDelete(null);
                             },
                           })
@@ -528,8 +533,8 @@ function SetDefaultButton({
             },
           },
           {
-            onSuccess: () => toast.success('Default address updated'),
-            onError: () => toast.error('Could not update the default address'),
+            onSuccess: () => toast.success("Default address updated"),
+            onError: () => toast.error("Could not update the default address"),
           },
         )
       }

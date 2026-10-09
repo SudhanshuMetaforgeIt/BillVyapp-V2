@@ -1,4 +1,5 @@
 import { api } from '@/services/api-client';
+import { financialRequest } from '@/lib/financial-request';
 import type {
   Bill,
   BillPaymentStatus,
@@ -66,11 +67,13 @@ export const BILL_NEXT_STATUSES: Record<BillStatus, BillStatus[]> = {
  * backend validates the amount against the bill's due amount.
  */
 export function recordCounterPayment(input: {
+  idempotencyKey?: string;
+  currency?: string;
   billId: string;
   amount: number;
   paymentMethod: PaymentMethod;
   transactionReference?: string | null;
   notes?: string | null;
 }) {
-  return api.post<Payment>('/payments', { ...input, status: 'SUCCESS' });
+  return api.post<Payment>('/payments', { ...financialRequest(input), source: 'MANUAL', status: 'SUCCESS' });
 }

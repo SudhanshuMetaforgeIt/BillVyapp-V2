@@ -15,8 +15,8 @@ describe('JwtAuthGuard', () => {
   it('allows public routes without a token', () => {
     reflector.getAllAndOverride.mockReturnValue(true);
     const ctx = {
-      getHandler: () => ({}),
-      getClass: () => ({}),
+      getHandler: () => ({ name: 'login' }),
+      getClass: () => ({ name: 'AuthController' }),
     } as unknown as ExecutionContext;
 
     expect(guard.canActivate(ctx)).toBe(true);

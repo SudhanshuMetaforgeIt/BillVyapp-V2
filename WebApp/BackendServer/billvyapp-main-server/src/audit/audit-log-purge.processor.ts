@@ -1,11 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { AUDIT_LOG_PURGE_QUEUE } from './audit.constants';
+import { AUDIT_LOG_PURGE_QUEUE, AUDIT_LOG_PURGE_JOB } from './audit.constants';
+import { assertJobObject } from '../common/security/job-validation';
 import { AuditService } from './audit.service';
 import { recordBaseline } from '../common/performance/baseline';
 
-@Processor(AUDIT_LOG_PURGE_QUEUE)
+@Processor(AUDIT_LOG_PURGE_QUEUE, { concurrency: 1, maxStalledCount: 1 })
 export class AuditLogPurgeProcessor extends WorkerHost {
   private readonly logger = new Logger(AuditLogPurgeProcessor.name);
 
@@ -14,7 +15,8 @@ export class AuditLogPurgeProcessor extends WorkerHost {
   }
 
   async process(job: Job): Promise<{ deleted: number; retentionDays: number }> {
-    this.logger.debug(`Running audit log purge (job ${job.id})`);
+    if (job.name !== AUDIT_LOG_PURGE_JOB) throw new Error('Unknown audit job');
+    assertJobObject(job.data, []);
     const start = performance.now();
     recordBaseline(
       `queue:${AUDIT_LOG_PURGE_QUEUE}:waitMs`,

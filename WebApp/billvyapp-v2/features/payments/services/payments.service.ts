@@ -32,8 +32,8 @@ export function updatePaymentStatus(id: string, status: PaymentStatus) {
 
 /** Mirror of PAYMENT_STATUS_TRANSITIONS; the backend enforces it. */
 export const PAYMENT_NEXT_STATUSES: Record<PaymentStatus, PaymentStatus[]> = {
-  PENDING: ['SUCCESS', 'FAILED', 'CANCELLED', 'REFUNDED'],
-  SUCCESS: ['FAILED', 'CANCELLED', 'REFUNDED'],
+  PENDING: ['SUCCESS', 'FAILED', 'CANCELLED'],
+  SUCCESS: ['REFUNDED'],
   FAILED: [],
   REFUNDED: [],
   CANCELLED: [],

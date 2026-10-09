@@ -26,6 +26,7 @@ describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
 
   const payload: JwtAccessPayload = {
+    exp: Math.floor(Date.now() / 1000) + 900,
     sub: 'user-1',
     role: RoleCode.ADMIN,
     franchiseId: 'claimed-franchise',
@@ -52,6 +53,7 @@ describe('JwtStrategy', () => {
       franchiseId: 'real-franchise',
       salonId: null,
       role: { code: RoleCode.ADMIN, isActive: true },
+      franchise: { isActive: true },
     });
     sessions.isActive.mockResolvedValue(true);
 

@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { assertPermission } from '../common/security/access-policy';
+import {
+  moneyCents,
+  centsString,
+} from '../common/security/financial-integrity';
 import type { RequestContext } from '../common/http/request-context';
 import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import {
@@ -15,7 +20,10 @@ import {
 import { isPrismaUniqueError } from '../common/prisma/prisma-errors';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
-import type { PlatformPlanBillingCycle, Prisma } from '../generated/prisma/client';
+import type {
+  PlatformPlanBillingCycle,
+  Prisma,
+} from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreatePlatformPlanDto,
@@ -173,6 +181,7 @@ export class PlatformPlansService {
     dto: CreatePlatformPlanDto,
     ctx: RequestContext,
   ): Promise<PlatformPlanRecord> {
+    assertPermission(actor, 'PlatformPlansController.create');
     const pricing = this.resolvePricing(dto.isCustom, dto.priceMonthly);
 
     try {
@@ -220,6 +229,7 @@ export class PlatformPlansService {
     dto: UpdatePlatformPlanDto,
     ctx: RequestContext,
   ): Promise<PlatformPlanRecord> {
+    assertPermission(actor, 'PlatformPlansController.update');
     const existing = await this.requirePlan(id);
 
     const nextIsCustom =
@@ -295,6 +305,7 @@ export class PlatformPlansService {
     dto: UpdateStatusDto,
     ctx: RequestContext,
   ): Promise<PlatformPlanRecord> {
+    assertPermission(actor, 'PlatformPlansController.updateStatus');
     const existing = await this.requirePlan(id);
 
     const updated = await this.prisma.platformPlan.update({
@@ -345,7 +356,7 @@ export class PlatformPlansService {
         'priceMonthly is required when isCustom is false',
       );
     }
-    return priceMonthly.toFixed(2);
+    return centsString(moneyCents(priceMonthly, 'monthly price'));
   }
 
   private resolveIconKey(
@@ -410,9 +421,7 @@ export class PlatformPlansService {
     return value.map((item) => String(item));
   }
 
-  private decimalString(
-    raw: { toString(): string } | string | number,
-  ): string {
+  private decimalString(raw: { toString(): string } | string | number): string {
     if (typeof raw === 'number') {
       return Number.isFinite(raw) ? raw.toFixed(2) : '0.00';
     }

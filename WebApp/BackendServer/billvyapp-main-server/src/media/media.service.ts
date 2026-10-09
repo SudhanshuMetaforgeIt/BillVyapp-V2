@@ -21,6 +21,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateMediaUploadDto } from './dto/create-media-upload.dto';
 import { MediaQueryDto } from './dto/media-query.dto';
 import { ObjectStorageService } from './object-storage.service';
+import { randomUUID } from 'node:crypto';
+import {
+  assertAttachmentMetadata,
+  validateAttachment,
+} from './attachment-validation';
 
 const MEDIA_SELECT = {
   id: true,
@@ -119,6 +124,7 @@ export class MediaService {
     dto: CreateMediaUploadDto,
     ctx: RequestContext,
   ): Promise<MediaUploadRecord> {
+    assertAttachmentMetadata(dto.originalFileName, dto.mimeType, dto.fileSize);
     if (dto.entityType?.startsWith('ProfilePhoto')) {
       throw new BadRequestException(
         'Profile photo uploads must use /auth/me/profile-photo',
@@ -136,6 +142,7 @@ export class MediaService {
     const upload = await this.storage.createUploadUrl({
       storageKey,
       mimeType: dto.mimeType,
+      fileSize: dto.fileSize,
     });
 
     try {
@@ -188,6 +195,10 @@ export class MediaService {
     id: string,
   ): Promise<MediaDownloadRecord> {
     const record = await this.requireAccess(user, id);
+    if (!record.storageKey.startsWith('verified/'))
+      throw new BadRequestException(
+        'Confirm and validate the attachment before downloading',
+      );
     const download = await this.storage.createDownloadUrl(record.storageKey);
     return {
       id: record.id,
@@ -203,9 +214,49 @@ export class MediaService {
     ctx: RequestContext,
   ): Promise<MediaFileRecord> {
     const record = await this.requireAccess(actor, id);
+    if (record.storageKey.startsWith('verified/')) return record;
     const exists = await this.storage.objectExists(record.storageKey);
     if (!exists) {
       throw new BadRequestException('Upload not found in object storage');
+    }
+
+    assertAttachmentMetadata(
+      record.originalFileName,
+      record.mimeType,
+      record.fileSize,
+    );
+    const bytes = await this.storage.readObject(record.storageKey);
+    if (bytes.length !== record.fileSize)
+      throw new BadRequestException('Attachment size does not match');
+    const validated = await validateAttachment(bytes, record.mimeType);
+    // Publish a new write-once key; a still-valid upload capability cannot replace it.
+    const storageKey = `verified/${record.salonId ?? 'shared'}/${randomUUID()}`;
+    await this.storage.uploadObject(storageKey, validated, record.mimeType);
+    let confirmed: MediaFileRecord;
+    try {
+      confirmed = await this.prisma.$transaction(async (tx) => {
+        const changed = await tx.mediaFile.updateMany({
+          where: { id: record.id, storageKey: record.storageKey },
+          data: { storageKey, fileSize: validated.length },
+        });
+        if (changed.count !== 1)
+          throw new ConflictException('Attachment was already confirmed');
+        // Existing documents retain their ownership and receive the validated immutable object.
+        await tx.billDocument.updateMany({
+          where: {
+            storageKey: record.storageKey,
+            bill: this.scope.salonScope(actor),
+          },
+          data: { storageKey, fileSize: validated.length, fileUrl: null },
+        });
+        return tx.mediaFile.findUniqueOrThrow({
+          where: { id: record.id },
+          select: MEDIA_SELECT,
+        });
+      });
+    } catch (error) {
+      await this.storage.deleteObject(storageKey).catch(() => undefined);
+      throw error;
     }
 
     await this.audit.record({
@@ -223,7 +274,7 @@ export class MediaService {
       userAgent: ctx.userAgent,
     });
 
-    return record;
+    return confirmed;
   }
 
   async remove(
@@ -263,11 +314,20 @@ export class MediaService {
       case RoleCode.SUPER_ADMIN:
         return {};
       case RoleCode.ADMIN:
+        if (!user.franchiseId)
+          throw new ForbiddenException(
+            'Account is not assigned to a franchise',
+          );
         return {
-          OR: [{ salonId: null }, { salon: { franchiseId: user.franchiseId } }],
+          OR: [
+            { salonId: null, uploadedBy: user.userId },
+            { salon: { franchiseId: user.franchiseId } },
+          ],
         };
       case RoleCode.MANAGER:
       case RoleCode.STAFF:
+        if (!user.salonId)
+          throw new ForbiddenException('Account is not assigned to a salon');
         return {
           OR: [
             { salonId: null, uploadedBy: user.userId },
@@ -285,6 +345,8 @@ export class MediaService {
     user: AuthenticatedUser,
     id: string,
   ): Promise<MediaFileRecord> {
+    // Apply the same fail-closed role/assignment policy as list queries.
+    this.mediaScope(user);
     const record = await this.prisma.mediaFile.findUnique({
       where: { id },
       select: MEDIA_SELECT,
@@ -308,7 +370,7 @@ export class MediaService {
     if (record.salonId) {
       await this.scope.assertSalonAccess(user, record.salonId);
     } else if (
-      (user.role === RoleCode.MANAGER || user.role === RoleCode.STAFF) &&
+      user.role !== RoleCode.SUPER_ADMIN &&
       record.uploadedBy !== user.userId
     ) {
       throw new ForbiddenException('Media file outside your scope');

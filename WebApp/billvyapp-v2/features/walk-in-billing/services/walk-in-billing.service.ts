@@ -1,4 +1,5 @@
 import { api } from '@/services/api-client';
+import { financialRequest, financialRequestKey } from '@/lib/financial-request';
 import type {
   BillRecord,
   ValidatedBillCoupon,
@@ -61,7 +62,7 @@ export async function listCustomerBills(customerId: string, limit = 5) {
 }
 
 export async function createBill(payload: CreateBillPayload) {
-  return api.post<BillRecord>('/bills', payload);
+  return api.post<BillRecord>('/bills', financialRequest(payload));
 }
 
 export async function completeBill(billId: string) {
@@ -73,7 +74,8 @@ export async function completeBill(billId: string) {
 /** Counter payment the operator has already received; the backend records it as SUCCESS. */
 export async function createPayment(payload: CreatePaymentPayload) {
   return api.post<PaymentRecord>('/payments', {
-    ...payload,
+    ...financialRequest(payload),
+    source: 'MANUAL',
     status: 'SUCCESS',
   });
 }
@@ -86,6 +88,7 @@ export type SettleOutcome = 'paid' | 'completed' | 'draft' | 'price-changed';
  */
 export async function settleWalkInBill(
   input: {
+    idempotencyKey?: string;
     enrollmentPlanId?: string | null;
     enrollmentDetails?: CreateBillPayload["enrollmentDetails"];
     expectedTotal?: number;
@@ -104,6 +107,7 @@ export async function settleWalkInBill(
   outcome: SettleOutcome;
 }> {
   const draft = await createBill({
+    idempotencyKey: `${financialRequestKey(input)}:bill`,
     enrollmentPlanId: input.enrollmentPlanId, enrollmentDetails: input.enrollmentDetails,
     couponCode: input.couponCode?.trim().toUpperCase() || undefined,
     salonId: input.salonId,
@@ -130,6 +134,8 @@ export async function settleWalkInBill(
   if ((input.couponCode || input.enrollmentPlanId) && Number.isFinite(Number(draft.total)) && Number(draft.total) !== Number(completed.total))
     return { bill: completed, payment: null, outcome: 'price-changed' };
   const payment = await createPayment({
+    ...(completed.currency ? { currency: completed.currency } : {}),
+    idempotencyKey: `${financialRequestKey(input)}:payment`,
     billId: completed.id,
     amount: dueAmount,
     paymentMethod: input.paymentMethod,

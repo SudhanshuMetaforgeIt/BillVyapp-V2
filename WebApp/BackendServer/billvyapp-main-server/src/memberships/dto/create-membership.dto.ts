@@ -1,9 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsUUID, Matches } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 
 export const MEMBERSHIP_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export class CreateMembershipDto {
+  @ApiProperty({
+    description: 'Stable key reused for retries of an approved free enrollment',
+  })
+  @IsString()
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9:_-]{7,190}$/)
+  idempotencyKey?: string;
   @ApiPropertyOptional({
     format: 'uuid',
     description:

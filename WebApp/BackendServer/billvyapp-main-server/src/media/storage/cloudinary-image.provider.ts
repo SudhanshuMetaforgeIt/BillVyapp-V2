@@ -1,4 +1,5 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { IMAGE_MAX_PIXELS, IMAGE_MAX_DIMENSION } from '../image-sanitization';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'crypto';
 import { baselineFetch } from '../../common/performance/baseline';
@@ -15,6 +16,9 @@ type CloudinaryResource = {
   bytes?: number;
   format?: string;
   original_filename?: string;
+  width?: number;
+  height?: number;
+  pages?: number;
 };
 
 /** Shared Cloudinary adapter for display imagery; never used for private documents. */
@@ -103,6 +107,20 @@ export class CloudinaryImageProvider implements SalonImageStorageProvider {
         'Invalid Cloudinary image metadata',
       );
     }
+
+    if (
+      !['jpg', 'jpeg', 'png', 'webp', 'avif'].includes(image.format) ||
+      image.bytes > 10 * 1024 * 1024 ||
+      !image.width ||
+      !image.height ||
+      image.width > IMAGE_MAX_DIMENSION ||
+      image.height > IMAGE_MAX_DIMENSION ||
+      image.width * image.height > IMAGE_MAX_PIXELS ||
+      (image.pages ?? 1) > 1
+    )
+      throw new ServiceUnavailableException(
+        'Uploaded image violates size, dimensions or format policy',
+      );
 
     return {
       storageKey,

@@ -15,6 +15,11 @@ export default () => {
 
     database: {
       url: process.env.DATABASE_URL as string,
+      tlsMode: process.env.DATABASE_TLS_MODE,
+      caPath: process.env.DATABASE_TLS_CA_PATH,
+      backupUrl: process.env.DATABASE_BACKUP_URL,
+      backupRoot: process.env.DATABASE_BACKUP_ROOT,
+      backupEncryptionKey: process.env.DATABASE_BACKUP_ENCRYPTION_KEY,
     },
 
     jwt: {
@@ -29,6 +34,7 @@ export default () => {
     },
 
     redis: {
+      caPath: process.env.REDIS_TLS_CA_PATH,
       url: process.env.REDIS_URL ?? 'redis://localhost:6379',
     },
 
