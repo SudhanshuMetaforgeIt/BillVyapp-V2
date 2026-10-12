@@ -4,6 +4,10 @@ import { Modal } from '@/components/data/modal';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { formatDateTime } from '@/lib/format';
 import type { NotificationListRow } from '../types/notifications.types';
+import { Button } from '@/components/ui/button';
+import { useCurrentUser } from '@/hooks/use-current-user';
+import { can } from '@/lib/capabilities';
+import { useMarkNotificationsRead } from '../hooks/use-notifications';
 
 type ViewNotificationDialogProps = {
   notification: NotificationListRow | null;
@@ -33,6 +37,9 @@ export function ViewNotificationDialog({
   notification,
   onClose,
 }: ViewNotificationDialogProps) {
+  const user = useCurrentUser();
+  const markRead = useMarkNotificationsRead();
+  const markedRead = markRead.data?.ok === 1;
   const sentLabel = notification
     ? notification.sentOn
       ? formatDateTime(notification.sentOn)
@@ -52,8 +59,8 @@ export function ViewNotificationDialog({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge
-              label={notification.statusLabel}
-              tone={statusTone(notification.status)}
+              label={markedRead ? 'Read' : notification.statusLabel}
+              tone={statusTone(markedRead ? 'READ' : notification.status)}
             />
             <StatusBadge
               label={notification.channelLabel}
@@ -79,6 +86,11 @@ export function ViewNotificationDialog({
               </dd>
             </div>
           </dl>
+          {notification.status === 'DELIVERED' && notification.userId === user?.id && can(user, 'notifications.write') && (
+            <Button type="button" disabled={markRead.isPending || markedRead} onClick={() => markRead.mutate([notification.id])}>
+              {markedRead ? 'Marked as read' : markRead.isPending ? 'Marking…' : 'Mark as read'}
+            </Button>
+          )}
 
           <div>
             <p className="text-xs font-medium text-text-secondary">Message</p>

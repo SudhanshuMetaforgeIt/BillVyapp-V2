@@ -15,6 +15,7 @@ import { PageTransition } from '@/components/layout/page-transition';
 import { useLikelyNextPagesPrefetch } from '@/hooks/use-likely-next-pages-prefetch';
 import { AppShellSkeleton } from '@/components/skeletons/app-shell-skeleton';
 import { MaintenanceGate } from '@/components/layout/maintenance-gate';
+import { useUnreadNotificationCount } from '@/features/notifications/hooks/use-unread-notification-count';
 
 type AppShellProps = {
   children: ReactNode;
@@ -31,7 +32,7 @@ export function AppShell({
   children,
   title,
   subtitle,
-  notificationCount = 0,
+  notificationCount,
   requiredRole,
   contentClassName,
   hidePageHeader = false,
@@ -40,6 +41,8 @@ export function AppShell({
   const pathname = usePathname();
   const user = useCurrentUser();
   const status = useAuthStatus();
+  const unreadNotifications = useUnreadNotificationCount(notificationCount === undefined);
+  const resolvedNotificationCount = notificationCount ?? unreadNotifications.data ?? 0;
   useLikelyNextPagesPrefetch();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const setSidebarOpen = useUiStore((s) => s.setSidebarOpen);
@@ -110,7 +113,7 @@ export function AppShell({
               user={user}
               title={title}
               subtitle={subtitle}
-              notificationCount={notificationCount}
+              notificationCount={resolvedNotificationCount}
               onOpenSidebar={handleOpenMobile}
               onToggleCollapsed={handleToggleCollapsed}
               sidebarCollapsed={sidebarCollapsed}
@@ -118,7 +121,7 @@ export function AppShell({
           ) : (
             <AppHeader
               user={user}
-              notificationCount={notificationCount}
+              notificationCount={resolvedNotificationCount}
               onOpenSidebar={handleOpenMobile}
               onToggleCollapsed={handleToggleCollapsed}
               sidebarCollapsed={sidebarCollapsed}
