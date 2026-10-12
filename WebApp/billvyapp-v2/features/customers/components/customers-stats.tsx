@@ -1,9 +1,10 @@
 'use client';
 
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+
 import { getBusinessRegion } from '@/lib/business-region';
 
 import {
-  IndianRupee,
   RotateCcw,
   TrendingUp,
   UserPlus,
@@ -64,7 +65,7 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
       value: formatINR(stats.totalSpentThisMonth),
       subtitle: stats.totalSpentChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
-      icon: IndianRupee,
+      icon: CurrencyIcon,
       iconBg:
         'bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400',
       hasTrendIcon: stats.totalSpentThisMonth > 0,

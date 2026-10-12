@@ -1,5 +1,7 @@
 'use client';
 
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+
 import type { LucideIcon } from 'lucide-react';
 import {
   ArrowDownRight,
@@ -16,7 +18,6 @@ import {
   Clock3,
   FolderOpen,
   Inbox,
-  IndianRupee,
   Mail,
   PauseCircle,
   Receipt,
@@ -46,7 +47,7 @@ const METRIC_ICONS: Record<string, LucideIcon> = {
   'pending-businesses': Clock3,
   'suspended-businesses': ShieldBan,
   'total-users': UserRound,
-  'revenue-month': IndianRupee,
+  'revenue-month': CurrencyIcon,
   'total-payments': Wallet,
   'successful-payments': BadgeCheck,
   'pending-payments': Clock3,
@@ -58,9 +59,9 @@ const METRIC_ICONS: Record<string, LucideIcon> = {
   'total-plans': Tags,
   'active-plans': BadgeCheck,
   'inactive-plans': PauseCircle,
-  'avg-plan-price': IndianRupee,
-  'subscription-revenue': IndianRupee,
-  'reports-total-revenue': IndianRupee,
+  'avg-plan-price': CurrencyIcon,
+  'subscription-revenue': CurrencyIcon,
+  'reports-total-revenue': CurrencyIcon,
   'reports-total-transactions': Wallet,
   'reports-total-users': Users,
   'reports-total-businesses': Building2,
@@ -73,7 +74,7 @@ const METRIC_ICONS: Record<string, LucideIcon> = {
   'support-in-progress': Clock3,
   'support-resolved': CircleCheck,
   'support-closed': CircleX,
-  'manager-today-sales': IndianRupee,
+  'manager-today-sales': CurrencyIcon,
   'manager-walk-ins': Receipt,
   'manager-appointments': CalendarDays,
   'manager-avg-bill': Wallet,

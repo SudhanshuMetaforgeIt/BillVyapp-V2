@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { can } from '@/lib/capabilities';
 import { createUuid } from '@/lib/uuid';
+import { UpiPaymentDialog } from '@/features/walk-in-billing/components/upi-payment-dialog';
 import {
   formatCurrency,
   formatDate,
@@ -384,6 +385,7 @@ export function BillRecordDialog({
 }
 
 function CounterPaymentForm({ bill }: { bill: Bill }) {
+  const [upiOpen, setUpiOpen] = useState(false);
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState(String(Number(bill.dueAmount)));
   const [method, setMethod] = useState<PaymentMethod>('CASH');
@@ -459,6 +461,8 @@ function CounterPaymentForm({ bill }: { bill: Bill }) {
         </Button>
       </div>
       <div className="sm:col-span-3">
+        {method === 'UPI' && <Button type="button" size="sm" disabled={record.isPending} onClick={() => setUpiOpen(true)}>Show UPI QR for balance due</Button>}
+        {upiOpen && <UpiPaymentDialog bill={bill} onClose={() => setUpiOpen(false)} />}
         <MutationError error={record.error} />
       </div>
     </form>

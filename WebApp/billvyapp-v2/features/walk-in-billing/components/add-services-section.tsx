@@ -42,6 +42,9 @@ type AddServicesSectionProps = {
   applyDiscount: boolean;
   onApplyDiscountChange: (value: boolean) => void;
   discountAmount: string;
+  discountMode: 'amount' | 'percentage';
+  onDiscountModeChange: (value: 'amount' | 'percentage') => void;
+  discountInvalid: boolean;
   onDiscountAmountChange: (value: string) => void;
 };
 
@@ -62,6 +65,9 @@ export function AddServicesSection({
   applyDiscount,
   onApplyDiscountChange,
   discountAmount,
+  discountMode,
+  onDiscountModeChange,
+  discountInvalid,
   onDiscountAmountChange,
 }: AddServicesSectionProps) {
   const categories = useServiceCategories(enabled, salonId);
@@ -219,7 +225,7 @@ export function AddServicesSection({
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 content-lg:grid-cols-[minmax(0,1fr)_auto_auto] content-lg:items-end">
+      <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 content-lg:grid-cols-[minmax(0,1fr)_auto] content-lg:items-end">
         <div className="space-y-1.5">
           <label
             htmlFor="stylist-name"
@@ -247,16 +253,29 @@ export function AddServicesSection({
           </div>
         </div>
 
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2 content-lg:col-span-2">
+          <div className="space-y-1.5">
+            <label htmlFor="discount-mode" className="text-xs font-medium text-text-secondary">Discount type</label>
+            <SelectInput id="discount-mode" value={discountMode} disabled={!applyDiscount} onChange={(event) => onDiscountModeChange(event.target.value as 'amount' | 'percentage')}>
+              <option value="amount">Amount ({getCurrencySymbol()})</option>
+              <option value="percentage">Percentage (%)</option>
+            </SelectInput>
+          </div>
           <div className="space-y-1.5">
             <label
               htmlFor="discount-amount"
               className="text-xs font-medium text-text-secondary"
             >
-              Discount ({getCurrencySymbol()})
+              Discount ({discountMode === 'percentage' ? '%' : getCurrencySymbol()})
             </label>
             <Input
               id="discount-amount"
+              type="number"
+              min={0}
+              max={discountMode === 'percentage' ? 100 : undefined}
+              step="0.01"
+              aria-invalid={discountInvalid}
+              aria-describedby={discountInvalid ? 'discount-error' : undefined}
               inputMode="decimal"
               value={discountAmount}
               onChange={(e) => onDiscountAmountChange(e.target.value)}
@@ -269,12 +288,14 @@ export function AddServicesSection({
             type="button"
             size="sm"
             className="mb-0.5"
-            disabled={!applyDiscount || !discountAmount.trim()}
+            disabled={!applyDiscount || !discountAmount.trim() || discountInvalid}
             onClick={() => onApplyDiscountChange(true)}
           >
             Apply
           </Button>
         </div>
+        {discountInvalid && <p id="discount-error" role="alert" className="text-xs text-danger content-lg:col-span-2">{discountMode === 'percentage' ? 'Enter a percentage between 0 and 100.' : 'Enter a valid non-negative discount amount.'}</p>}
+        {applyDiscount && discountMode === 'percentage' && <p className="text-xs text-text-secondary content-lg:col-span-2">Percentage applies to the service subtotal after membership benefits, before tax and membership fees.</p>}
       </div>
     </section>
   );

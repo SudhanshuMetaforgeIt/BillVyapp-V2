@@ -22,6 +22,11 @@ afterEach(() => {
   };
 });
 describe('Regional display', () => {
+  it('uses the stored record currency when it differs from the viewer’s business', () => {
+    expect(formatCurrency('1234.56', 'INR')).toBe('₹1,234.56');
+    region = { ...region, currency: 'INR', locale: 'en-IN' };
+    expect(formatCurrency('1234.56', 'USD')).toBe('$1,234.56');
+  });
   it('formats USD with cents and US grouping', () =>
     expect(formatCurrency('1234567.89')).toBe('$1,234,567.89'));
   it('uses millions for USD charts', () =>

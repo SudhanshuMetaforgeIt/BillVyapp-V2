@@ -80,7 +80,7 @@ export async function createPayment(payload: CreatePaymentPayload) {
   });
 }
 
-export type SettleOutcome = 'paid' | 'completed' | 'draft' | 'price-changed';
+export type SettleOutcome = 'paid' | 'completed' | 'draft' | 'price-changed' | 'awaiting-payment';
 
 /**
  * DRAFT -> COMPLETED -> payment of the backend-computed due amount.
@@ -100,7 +100,7 @@ export async function settleWalkInBill(
     items: CreateBillPayload['items'];
     paymentMethod: CreatePaymentPayload['paymentMethod'];
   },
-  { canComplete }: { canComplete: boolean },
+  { canComplete, deferPayment = false }: { canComplete: boolean; deferPayment?: boolean },
 ): Promise<{
   bill: BillRecord;
   payment: PaymentRecord | null;
@@ -133,6 +133,7 @@ export async function settleWalkInBill(
   // Require staff to confirm the new amount instead of recording a payment they did not receive.
   if ((input.couponCode || input.enrollmentPlanId) && Number.isFinite(Number(draft.total)) && Number(draft.total) !== Number(completed.total))
     return { bill: completed, payment: null, outcome: 'price-changed' };
+  if (deferPayment) return { bill: completed, payment: null, outcome: 'awaiting-payment' };
   const payment = await createPayment({
     ...(completed.currency ? { currency: completed.currency } : {}),
     idempotencyKey: `${financialRequestKey(input)}:payment`,

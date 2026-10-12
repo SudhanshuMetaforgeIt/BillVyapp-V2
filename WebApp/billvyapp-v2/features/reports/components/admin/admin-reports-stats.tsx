@@ -1,6 +1,6 @@
+import { CurrencyIcon } from '@/components/ui/currency-icon';
 import {
   FileText,
-  IndianRupee,
   Scissors,
   UserRound,
   UsersRound,
@@ -19,7 +19,7 @@ export function AdminReportsStats({
       label: 'Total Revenue',
       value: reportMoney(stats.totalRevenue),
       note: 'Collected on completed bills',
-      icon: IndianRupee,
+      icon: CurrencyIcon,
       accent: true,
     },
     {

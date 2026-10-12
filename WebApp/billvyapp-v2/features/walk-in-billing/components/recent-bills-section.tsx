@@ -101,7 +101,7 @@ export function RecentBillsSection({ customer }: RecentBillsSectionProps) {
                       {formatDate(bill.billDate)}
                     </td>
                     <td className="px-5 py-3 tabular-nums text-text">
-                      {formatCurrency(bill.total)}
+                      {formatCurrency(bill.total, bill.currency)}
                     </td>
                     <td className="px-5 py-3">
                       <span

@@ -110,6 +110,7 @@ export function PaymentMethodsCard({
               <button
                 type="button"
                 onClick={() => onChange(method.id)}
+                disabled={isPaying}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition',
                   selected
@@ -159,12 +160,12 @@ export function PaymentMethodsCard({
           ? 'Processing…'
           : zeroTotal
             ? 'Complete bill (no payment due)'
-            : 'Record payment received'}
+            : value === 'UPI' ? 'Show UPI payment QR' : 'Record payment received'}
       </Button>
       <p className="mt-2 text-center text-xs text-text-secondary">
         {zeroTotal
           ? 'Complete the visit to record membership usage.'
-          : 'Record only after the customer has paid at the counter.'}
+          : value === 'UPI' ? 'Prepare the bill, then confirm receipt after the customer pays.' : 'Record only after the customer has paid at the counter.'}
       </p>
 
       <button

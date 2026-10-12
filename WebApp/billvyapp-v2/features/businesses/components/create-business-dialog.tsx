@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SelectInput } from '@/components/data/form-fields';
 import { useCreateBusiness } from '../hooks/use-create-business';
 
 type CreateBusinessDialogProps = {
@@ -30,6 +31,7 @@ export function CreateBusinessDialog({
     setCode('');
     setEmail('');
     setPhone('');
+    setPhoneCountry('IN');
   });
 
   useEffect(() => {
@@ -119,6 +121,15 @@ export function CreateBusinessDialog({
           </div>
 
           <div>
+            <Label htmlFor="business-country">Country</Label>
+            <SelectInput id="business-country" value={phoneCountry} onChange={(event) => setPhoneCountry(event.target.value as 'IN' | 'US')} disabled={create.isPending} required>
+              <option value="IN">India</option>
+              <option value="US">United States</option>
+            </SelectInput>
+            <p className="mt-1 text-xs text-text-secondary">{phoneCountry === 'US' ? 'USD currency · +1 phone code · UPI unavailable' : 'INR currency · +91 phone code · UPI available'}</p>
+          </div>
+
+          <div>
             <Label htmlFor="business-email">Email (optional)</Label>
             <Input
               id="business-email"
@@ -136,7 +147,6 @@ export function CreateBusinessDialog({
               id="business-phone"
               type="tel"
               phoneCountry={phoneCountry}
-              onPhoneCountryChange={setPhoneCountry}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="10 local digits"

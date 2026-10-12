@@ -1,10 +1,11 @@
 'use client';
 
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+
 import Link from 'next/link';
 import {
   ArrowUpRight,
   Bell,
-  IndianRupee,
   TriangleAlert,
 } from 'lucide-react';
 
@@ -39,7 +40,7 @@ function ActivityIcon({ tone }: { tone: ActivityItem['tone'] }) {
   if (tone === 'danger' || tone === 'warning') {
     return <TriangleAlert className="size-4" aria-hidden />;
   }
-  if (tone === 'success') return <IndianRupee className="size-4" aria-hidden />;
+  if (tone === 'success') return <CurrencyIcon className="size-4" aria-hidden />;
   return <Bell className="size-4" aria-hidden />;
 }
 

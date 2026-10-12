@@ -26,7 +26,7 @@ export type SettleWalkInInput = {
   paymentMethod: WalkInPaymentMethod;
 };
 
-export function useSettleWalkInBill(onSuccess?: () => void) {
+export function useSettleWalkInBill(onSuccess?: (result: Awaited<ReturnType<typeof settleWalkInBill>>) => void) {
   const queryClient = useQueryClient();
   const user = useCurrentUser();
   const canComplete = can(user, 'bills.status');
@@ -37,7 +37,7 @@ export function useSettleWalkInBill(onSuccess?: () => void) {
       const fingerprint = JSON.stringify(input);
       if (attempt.current?.fingerprint !== fingerprint)
         attempt.current = { fingerprint, key: createUuid() };
-      return settleWalkInBill({ ...input, idempotencyKey: attempt.current.key }, { canComplete });
+      return settleWalkInBill({ ...input, idempotencyKey: attempt.current.key }, { canComplete, deferPayment: input.paymentMethod === 'UPI' });
     },
     onSuccess: (result) => {
       attempt.current = null;
@@ -48,12 +48,12 @@ export function useSettleWalkInBill(onSuccess?: () => void) {
         toast.success(`Draft bill ${number} saved`);
       } else if (result.outcome === 'completed') {
         toast.success(`Bill ${number} completed — nothing due`);
-      } else {
+      } else if (result.outcome !== 'awaiting-payment') {
         toast.success(`Bill ${number} paid`);
       }
       void queryClient.invalidateQueries({ queryKey: RECENT_BILLS_QUERY_KEY });
       void invalidateAfter(queryClient, 'bills');
-      onSuccess?.();
+      onSuccess?.(result);
     },
     onError: (error: ApiError) => {
       // A failure after the draft step leaves a real bill; refetch so it shows up.

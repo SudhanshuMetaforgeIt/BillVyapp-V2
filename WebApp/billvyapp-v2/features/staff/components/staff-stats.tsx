@@ -1,11 +1,12 @@
 'use client';
 
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+
 import { getBusinessRegion } from '@/lib/business-region';
 
 import {
   CalendarOff,
   CheckCircle2,
-  IndianRupee,
   UserMinus,
   Users,
 } from 'lucide-react';
@@ -71,7 +72,7 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
       value: formatINR(stats.totalPayrollThisMonth),
       subtitle: 'Across all branches',
       subtitleColor: 'text-stone-500 dark:text-stone-400',
-      icon: IndianRupee,
+      icon: CurrencyIcon,
       iconBg:
         'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400',
     },

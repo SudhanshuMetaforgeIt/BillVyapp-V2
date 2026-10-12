@@ -4,6 +4,24 @@ import type { ValidatedBillCoupon } from '../types/walk-in-billing.types';
 
 const line = { serviceId: 'svc', name: 'Service', quantity: 1, unitPrice: 1000, taxRate: 0 };
 const free: ValidatedBillCoupon = { couponCode: 'CLUB-7K4P9X', membershipName: 'Club', benefits: null, startDate: '2026-01-01', endDate: '2026-12-31', eligibleServices: [{ id: 'svc', name: 'Service' }], benefitType: 'FREE_SERVICES', freeServiceLimit: 5, remainingUnits: 5 };
+
+describe('Manual percentage discounts', () => {
+  it('applies a percentage to services without changing the existing tax rule', () => {
+    expect(computeBillPreview([{ ...line, taxRate: 18 }], 12.5, null, 'percentage')).toMatchObject({ subtotal: 1000, discount: 125, tax: 180, total: 1055 });
+  });
+  it('applies the percentage after membership benefits', () => {
+    const coupon = { ...free, benefitType: 'PERCENTAGE_DISCOUNT' as const, discountPercentage: 20 };
+    expect(computeBillPreview([line], 10, coupon, 'percentage')).toMatchObject({ subtotal: 800, membershipDiscount: 200, discount: 80, total: 720 });
+  });
+  it('rounds the resulting monetary discount to cents', () => {
+    expect(computeBillPreview([{ ...line, unitPrice: 333.33 }], 7.5, null, 'percentage')).toMatchObject({ discount: 25, total: 308.33 });
+  });
+  it('handles zero, full discounts and an empty cart', () => {
+    expect(computeBillPreview([line], 0, null, 'percentage').total).toBe(1000);
+    expect(computeBillPreview([line], 100, null, 'percentage').total).toBe(0);
+    expect(computeBillPreview([], 10, null, 'percentage').discount).toBe(0);
+  });
+});
 describe('Membership bill display', () => {
   it('stops benefits when the coupon visit cap is exhausted', () => {
     expect(computeBillPreview([line], 0, { ...free, couponUsageLimit: 3, usedVisits: 3, remainingVisits: 0 }).total).toBe(1000);

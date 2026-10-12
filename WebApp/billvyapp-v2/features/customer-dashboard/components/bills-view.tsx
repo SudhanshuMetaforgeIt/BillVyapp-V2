@@ -60,7 +60,7 @@ function BillDetail({ billId, onClose }: { billId: string; onClose: () => void }
                       {item.description ?? (item.itemType === 'SERVICE' ? 'Service' : 'Product')}
                       {item.quantity > 1 ? ` × ${item.quantity}` : ''}
                     </span>
-                    <span className="font-semibold">{formatCurrency(item.total)}</span>
+                    <span className="font-semibold">{formatCurrency(item.total, bill.data.currency)}</span>
                   </li>
                 ))}
               </ul>
@@ -73,20 +73,20 @@ function BillDetail({ billId, onClose }: { billId: string; onClose: () => void }
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between text-[#665E55]">
                     <dt>{label}</dt>
-                    <dd>{formatCurrency(value)}</dd>
+                    <dd>{formatCurrency(value, bill.data.currency)}</dd>
                   </div>
                 ))}
                 <div className="flex justify-between pt-1 text-sm font-extrabold text-[#1C1C1E]">
                   <dt>Total</dt>
-                  <dd>{formatCurrency(bill.data.total)}</dd>
+                  <dd>{formatCurrency(bill.data.total, bill.data.currency)}</dd>
                 </div>
                 <div className="flex justify-between text-[#15803D]">
                   <dt>Paid</dt>
-                  <dd>{formatCurrency(bill.data.paidAmount)}</dd>
+                  <dd>{formatCurrency(bill.data.paidAmount, bill.data.currency)}</dd>
                 </div>
                 <div className="flex justify-between font-semibold text-[#B45309]">
                   <dt>Due</dt>
-                  <dd>{formatCurrency(bill.data.dueAmount)}</dd>
+                  <dd>{formatCurrency(bill.data.dueAmount, bill.data.currency)}</dd>
                 </div>
               </dl>
             </CustomerCard>
@@ -102,7 +102,7 @@ function BillDetail({ billId, onClose }: { billId: string; onClose: () => void }
                       <span>
                         {PAYMENT_METHOD_LABELS[p.paymentMethod]} · {formatDate(p.paymentDate)} · {PAYMENT_STATUS_LABELS[p.status]}
                       </span>
-                      <span className="font-semibold">{formatCurrency(p.amount)}</span>
+                      <span className="font-semibold">{formatCurrency(p.amount, bill.data.currency)}</span>
                     </li>
                   ))}
                 </ul>
@@ -176,7 +176,7 @@ export function BillsView() {
                   </div>
                   <div className="flex items-center gap-3">
                     <CustomerPill {...billStatusPill(bill.status, bill.paymentStatus)} />
-                    <span className="text-sm font-extrabold text-[#1C1C1E]">{formatCurrency(bill.total)}</span>
+                    <span className="text-sm font-extrabold text-[#1C1C1E]">{formatCurrency(bill.total, bill.currency)}</span>
                   </div>
                 </button>
               </li>

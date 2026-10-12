@@ -110,6 +110,12 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.STAFF,
     RoleCode.CUSTOMER,
   ],
+  'BillUpiController.paymentQr': [
+    RoleCode.SUPER_ADMIN,
+    RoleCode.ADMIN,
+    RoleCode.MANAGER,
+    RoleCode.STAFF,
+  ],
   'BillsController.create': [
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,

@@ -90,7 +90,7 @@ describe('FranchisesService', () => {
         data: expect.objectContaining({
           phone: '+12125550123',
           preferences: { phoneCountry: 'US' },
-        }),
+        }) as unknown,
       }),
     );
   });
@@ -110,6 +110,30 @@ describe('FranchisesService', () => {
       expect.objectContaining({ action: 'FRANCHISE_CREATED' }),
     );
   });
+
+  it.each([
+    ['US', 'USD'],
+    ['IN', 'INR'],
+  ] as const)(
+    'persists country %s and its billing currency %s for new businesses',
+    async (phoneCountry, currency) => {
+      prisma.franchise.create.mockResolvedValue(
+        franchise({ preferences: { phoneCountry, currency } }),
+      );
+      await service.create(
+        actor,
+        { name: 'Business', code: 'BUSINESS', phoneCountry },
+        ctx,
+      );
+      expect(prisma.franchise.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            preferences: { phoneCountry, currency },
+          }) as unknown,
+        }),
+      );
+    },
+  );
 
   it('rejects a duplicate franchise code', async () => {
     prisma.franchise.create.mockRejectedValue({ code: 'P2002' });
@@ -173,9 +197,10 @@ describe('FranchisesService', () => {
 
     expect(result.name).toBe('West');
     expect(result.code).toBe('NORTH');
-    expect(prisma.franchise.update.mock.calls[0][0].data).not.toHaveProperty(
-      'code',
-    );
+    const updateCalls = prisma.franchise.update.mock.calls as [
+      { data: unknown },
+    ][];
+    expect(updateCalls[0][0].data).not.toHaveProperty('code');
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'FRANCHISE_UPDATED' }),
     );
