@@ -19,6 +19,15 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 describe('Billing membership coupon', () => {
+  it('prepares an authoritative unpaid bill for QR display without recording a payment', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 'bill', total: '500.00' });
+    vi.mocked(api.patch).mockResolvedValueOnce({ id: 'bill', total: '500.00', dueAmount: '500.00', currency: 'INR' });
+    const result = await settleWalkInBill({ ...input, couponCode: undefined }, { canComplete: true, deferPayment: true });
+    expect(result.outcome).toBe('awaiting-payment');
+    expect(result.payment).toBeNull();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).not.toHaveBeenCalledWith('/payments', expect.anything());
+  });
   it('validates code with selected customer and salon without supplying a monetary benefit', async () => {
     const coupon = {
       couponCode: 'CLUB-123',

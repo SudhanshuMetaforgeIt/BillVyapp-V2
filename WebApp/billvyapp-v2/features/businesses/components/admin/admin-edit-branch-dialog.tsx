@@ -13,6 +13,7 @@ import {
 } from '@/features/salons/services/salons.service';
 import { api } from '@/services/api-client';
 import { invalidateAfter } from '@/lib/query-invalidation';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import type { AdminBranchItem } from '../../types/admin-my-business.types';
 
 type AdminEditBranchDialogProps = {
@@ -26,6 +27,8 @@ export function AdminEditBranchDialog({
   onClose,
   branch,
 }: AdminEditBranchDialogProps) {
+  const user = useCurrentUser();
+  const supportsUpi = user?.phoneCountry !== 'US' && user?.currency !== 'USD';
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,8 @@ export function AdminEditBranchDialog({
   const [code, setCode] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [upiRecord, setUpiRecord] = useState<{ id: string; value: string } | null>(null);
+  const upiId = upiRecord?.id === branch?.id ? upiRecord?.value : undefined;
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -49,6 +54,7 @@ export function AdminEditBranchDialog({
         setCode(salon.code);
         setPhone(salon.phone ?? '');
         setEmail(salon.email ?? '');
+        setUpiRecord({ id: salon.id, value: salon.upiId ?? '' });
         setAddressLine1(salon.addressLine1);
         setCity(salon.city);
         setState(salon.state);
@@ -56,6 +62,7 @@ export function AdminEditBranchDialog({
         setError(null);
       } catch {
         if (cancelled) return;
+        setUpiRecord(null);
         setName(branch.name);
         setCode(branch.code);
         setError(
@@ -80,6 +87,7 @@ export function AdminEditBranchDialog({
         code: code.trim().toUpperCase(),
         phone: phone.trim() || null,
         email: email.trim() || null,
+        ...(supportsUpi && upiId !== undefined ? { upiId: upiId.trim() || null } : {}),
         addressLine1: addressLine1.trim(),
         city: city.trim(),
         state: state.trim(),
@@ -140,6 +148,10 @@ export function AdminEditBranchDialog({
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {supportsUpi && <label className="block text-xs font-semibold text-text">Shop UPI ID (optional)
+            <Input value={upiId ?? ''} disabled={upiId === undefined} onChange={(e) => setUpiRecord({ id: branch.id, value: e.target.value })} maxLength={255} placeholder="shop@bank" autoCapitalize="none" pattern="[a-zA-Z0-9._-]{2,190}@[a-zA-Z][a-zA-Z0-9.-]{1,63}" className="mt-1" />
+            <span className="mt-1 block font-normal text-text-secondary">UPI payments go to this account. Clear the field to disable this shop’s QR.</span>
+          </label>}
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-text">

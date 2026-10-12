@@ -135,7 +135,7 @@ export function BusinessesTable({
                             {row.name}
                           </p>
                           <p className="break-words text-xs text-text-secondary">
-                            {row.code}
+                            {row.code} · {row.phoneCountry === 'US' ? 'United States' : 'India'}
                           </p>
                         </div>
                       </div>
@@ -191,7 +191,7 @@ export function BusinessesTable({
                         {row.name}
                       </p>
                       <p className="break-words text-xs text-text-secondary">
-                        {row.code}
+                        {row.code} · {row.phoneCountry === 'US' ? 'United States' : 'India'}
                       </p>
                     </div>
                   </div>

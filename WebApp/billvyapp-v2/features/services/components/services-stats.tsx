@@ -1,8 +1,10 @@
 'use client';
 
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+
 import { formatCurrency } from '@/lib/format';
 
-import { Ban, CheckCircle2, IndianRupee, Scissors } from 'lucide-react';
+import { Ban, CheckCircle2, Scissors } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -78,7 +80,7 @@ export function ServicesStats({ stats, isLoading }: ServicesStatsProps) {
       value: formatCurrency(stats.averagePrice),
       subtext: 'Across all services',
       subtextClass: 'text-text-secondary',
-      icon: IndianRupee,
+      icon: CurrencyIcon,
       iconClass: 'bg-amber-100/80 text-amber-700',
     },
   ];

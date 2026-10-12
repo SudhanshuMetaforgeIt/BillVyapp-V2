@@ -41,6 +41,7 @@ export interface Franchise {
 }
 
 export interface Salon {
+  upiId?: string | null;
   id: string;
   franchiseId: string;
   franchise?: {

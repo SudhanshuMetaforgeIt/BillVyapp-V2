@@ -129,7 +129,10 @@ export class FranchisesService {
           phone: dto.phone?.trim()
             ? normalizePhone(dto.phone, dto.phoneCountry ?? 'IN')
             : null,
-          preferences: { phoneCountry: dto.phoneCountry ?? 'IN' },
+          preferences: {
+            phoneCountry: dto.phoneCountry ?? 'IN',
+            currency: dto.phoneCountry === 'US' ? 'USD' : 'INR',
+          },
           email: trimOrNull(dto.email) ?? null,
         },
         select: FRANCHISE_SELECT,

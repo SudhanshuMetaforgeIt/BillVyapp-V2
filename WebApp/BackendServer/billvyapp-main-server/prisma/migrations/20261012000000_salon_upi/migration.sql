@@ -1,0 +1,1 @@
+ALTER TABLE `salons` ADD COLUMN `upiId` VARCHAR(255) NULL;

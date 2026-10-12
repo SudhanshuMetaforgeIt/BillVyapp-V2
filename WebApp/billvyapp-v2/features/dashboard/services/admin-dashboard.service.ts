@@ -1,9 +1,8 @@
+import { CurrencyIcon } from '@/components/ui/currency-icon';
 import {
   BadgeCheck,
   Building2,
   CalendarDays,
-  CircleDollarSign,
-  IndianRupee,
   Package,
   Receipt,
   Star,
@@ -19,7 +18,7 @@ import {
   calendarDateInTimeZone,
   getBusinessTimezone,
 } from '@/lib/business-timezone';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatCurrency } from '@/lib/format';
 import { api } from '@/services/api-client';
 import { ROUTES } from '@/constants/routes';
 import type { Bill, Customer, Paginated, Payment, Salon } from '@/types/models';
@@ -52,7 +51,7 @@ export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
   { id: 'add-branch', label: 'Add New Branch', href: ROUTES.dashboard.admin.businesses, icon: Store },
   { id: 'create-bill', label: 'Create Bill', href: ROUTES.dashboard.admin.walkInBilling, icon: Receipt },
   { id: 'add-customer', label: 'Add Customer', href: ROUTES.dashboard.admin.customers, icon: UserRound },
-  { id: 'collect-payment', label: 'Collect Payment', href: ROUTES.dashboard.admin.bills, icon: CircleDollarSign },
+  { id: 'collect-payment', label: 'Collect Payment', href: ROUTES.dashboard.admin.bills, icon: CurrencyIcon },
   { id: 'view-reports', label: 'View Reports', href: ROUTES.dashboard.admin.reports, icon: Receipt },
   {
     id: 'manage-business',
@@ -65,7 +64,6 @@ export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
 
 const SAMPLE = 100;
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -264,12 +262,12 @@ export async function fetchAdminDashboard(
       id: 'revenue-month',
       label: 'Collected This Month',
       rawValue: monthRevenue,
-      displayValue: inr(monthRevenue),
+      displayValue: formatCurrency(monthRevenue),
       changePercent: null,
       comparisonLabel: isPartial(monthPaymentsScoped)
         ? partialLabel(SAMPLE)
         : 'successful payments',
-      icon: IndianRupee,
+      icon: CurrencyIcon,
       iconTone: 'orange',
     },
     {
@@ -331,7 +329,7 @@ export async function fetchAdminDashboard(
     {
       id: 'pending-collection',
       label: pendingPartial ? 'Pending Collection (partial)' : 'Pending Collection',
-      value: inr(pendingCollection),
+      value: formatCurrency(pendingCollection),
       tone: 'danger',
       icon: Wallet,
     },
@@ -372,8 +370,8 @@ export async function fetchAdminDashboard(
       label: isPartial(todayPaymentsScoped)
         ? "Today's Collections (partial)"
         : "Today's Collections",
-      displayValue: inr(todaySales),
-      icon: IndianRupee,
+      displayValue: formatCurrency(todaySales),
+      icon: CurrencyIcon,
       iconTone: 'orange',
     },
     {
@@ -393,7 +391,7 @@ export async function fetchAdminDashboard(
     {
       id: 'pending-collection',
       label: pendingPartial ? 'Pending Collection (partial)' : 'Pending Collection',
-      displayValue: inr(pendingCollection),
+      displayValue: formatCurrency(pendingCollection),
       icon: Wallet,
       iconTone: 'danger',
     },

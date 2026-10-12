@@ -8,6 +8,7 @@ export class SalonFranchiseSummaryDto {
 }
 
 export class SalonResponseDto {
+  @ApiPropertyOptional({ nullable: true }) upiId: string | null;
   @ApiProperty() id: string;
   @ApiProperty() franchiseId: string;
   @ApiProperty({ type: SalonFranchiseSummaryDto })
@@ -29,5 +30,6 @@ export class SalonResponseDto {
   @ApiProperty() isActive: boolean;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
-  @ApiProperty({ type: [SalonPhotoResponseDto] }) photos: SalonPhotoResponseDto[];
+  @ApiProperty({ type: [SalonPhotoResponseDto] })
+  photos: SalonPhotoResponseDto[];
 }

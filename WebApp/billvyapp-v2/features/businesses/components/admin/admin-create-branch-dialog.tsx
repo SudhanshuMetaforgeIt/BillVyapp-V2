@@ -22,6 +22,7 @@ export function AdminCreateBranchDialog({
   onClose,
 }: AdminCreateBranchDialogProps) {
   const user = useCurrentUser();
+  const supportsUpi = user?.phoneCountry !== 'US' && user?.currency !== 'USD';
   const queryClient = useQueryClient();
 
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,7 @@ export function AdminCreateBranchDialog({
   const [code, setCode] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -57,6 +59,7 @@ export function AdminCreateBranchDialog({
         code: code.trim().toUpperCase(),
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
+        ...(supportsUpi ? { upiId: upiId.trim() || undefined } : {}),
         addressLine1: addressLine1.trim(),
         city: city.trim(),
         state: state.trim(),
@@ -96,6 +99,7 @@ export function AdminCreateBranchDialog({
       setCode('');
       setPhone('');
       setEmail('');
+      setUpiId('');
       setAddressLine1('');
       setCity('');
       setState('');
@@ -138,6 +142,10 @@ export function AdminCreateBranchDialog({
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {supportsUpi && <label className="block text-xs font-semibold text-text">Shop UPI ID (optional)
+            <input value={upiId} onChange={(e) => setUpiId(e.target.value)} maxLength={255} placeholder="shop@bank" autoCapitalize="none" pattern="[a-zA-Z0-9._-]{2,190}@[a-zA-Z][a-zA-Z0-9.-]{1,63}" className="mt-1 w-full rounded-xl border border-border bg-ivory-soft px-3 py-2 text-sm" />
+            <span className="mt-1 block font-normal text-text-secondary">UPI payments for this shop go to this account. Check the ID carefully.</span>
+          </label>}
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-text">

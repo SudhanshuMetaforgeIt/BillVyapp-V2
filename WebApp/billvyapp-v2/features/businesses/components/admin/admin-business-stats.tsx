@@ -1,8 +1,10 @@
 'use client';
 
+import { CurrencyIcon } from '@/components/ui/currency-icon';
+
 import { formatCurrency } from '@/lib/format';
 
-import { CheckCircle2, Clock, IndianRupee, Store, Users } from 'lucide-react';
+import { CheckCircle2, Clock, Store, Users } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -92,7 +94,7 @@ export function AdminBusinessStatsCards({
         ? `Partial — latest 100 payments`
         : 'successful payments',
       subtextClass: 'text-emerald font-medium',
-      icon: IndianRupee,
+      icon: CurrencyIcon,
       iconClass: 'bg-amber-100/80 text-amber-700',
     },
   ];

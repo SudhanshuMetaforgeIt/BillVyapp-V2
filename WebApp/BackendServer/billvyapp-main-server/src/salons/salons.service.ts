@@ -1,4 +1,6 @@
 import { normalizeFranchisePhone } from '../common/phone';
+import { normalizeUpiId } from '../common/upi';
+import { ForbiddenException } from '@nestjs/common';
 import {
   BadRequestException,
   ConflictException,
@@ -32,6 +34,7 @@ import { SalonImageStorageService } from '../salon-photos/salon-image-storage.se
 import { baselineFetch } from '../common/performance/baseline';
 
 const SALON_SELECT = {
+  upiId: true,
   id: true,
   franchiseId: true,
   name: true,
@@ -195,6 +198,7 @@ export class SalonsService {
     ctx: RequestContext,
   ) {
     await this.requireActiveFranchise(dto.franchiseId);
+    this.assertUpiEditor(user, dto.upiId);
     this.scope.assertFranchiseAccess(user, dto.franchiseId);
 
     try {
@@ -219,6 +223,7 @@ export class SalonsService {
         newData: {
           name: created.name,
           code: created.code,
+          upiId: created.upiId,
           franchiseId: created.franchiseId,
         },
         ipAddress: ctx.ipAddress,
@@ -242,6 +247,7 @@ export class SalonsService {
     dto: UpdateSalonDto,
     ctx: RequestContext,
   ) {
+    this.assertUpiEditor(user, dto.upiId);
     const existing = await this.prisma.salon.findFirst({
       where: { id, ...this.scope.salonTableScope(user) },
       select: SALON_SELECT,
@@ -275,8 +281,16 @@ export class SalonsService {
         action: 'SALON_UPDATED',
         entityType: 'Salon',
         entityId: updated.id,
-        oldData: { name: existing.name, code: existing.code },
-        newData: { name: updated.name, code: updated.code },
+        oldData: {
+          name: existing.name,
+          code: existing.code,
+          upiId: existing.upiId,
+        },
+        newData: {
+          name: updated.name,
+          code: updated.code,
+          upiId: updated.upiId,
+        },
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,
       });
@@ -680,6 +694,7 @@ export class SalonsService {
 
   private toCreateData(dto: CreateSalonDto) {
     return {
+      upiId: normalizeUpiId(dto.upiId),
       franchiseId: dto.franchiseId,
       name: trimRequired(dto.name),
       code: trimRequired(dto.code),
@@ -700,6 +715,7 @@ export class SalonsService {
 
   private toUpdateData(dto: UpdateSalonDto) {
     const data: Record<string, unknown> = {};
+    if (dto.upiId !== undefined) data.upiId = normalizeUpiId(dto.upiId);
 
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
     if (dto.code !== undefined) data.code = trimRequired(dto.code);
@@ -727,6 +743,16 @@ export class SalonsService {
     }
 
     return data;
+  }
+
+  private assertUpiEditor(user: AuthenticatedUser, upiId: unknown): void {
+    if (
+      upiId !== undefined &&
+      ![RoleCode.SUPER_ADMIN, RoleCode.ADMIN].includes(user.role)
+    )
+      throw new ForbiddenException(
+        'Only the franchise owner or platform administrator can change the UPI ID',
+      );
   }
 
   private toResponse(row: {

@@ -1,4 +1,6 @@
 import { StrictNumber } from '../../common/transformers/strict-number';
+import { Transform } from 'class-transformer';
+import { UPI_ID_PATTERN } from '../../common/upi';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import {
@@ -11,9 +13,20 @@ import {
   Max,
   MaxLength,
   Min,
+  Matches,
 } from 'class-validator';
 
 export class CreateSalonDto {
+  @ApiPropertyOptional({ nullable: true, example: 'shop@bank' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() || null : value,
+  )
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @Matches(UPI_ID_PATTERN)
+  upiId?: string | null;
+
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   franchiseId: string;

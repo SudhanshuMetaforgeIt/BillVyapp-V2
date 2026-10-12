@@ -17,6 +17,7 @@ export function computeBillPreview(
   lines: CartLine[],
   billDiscount = 0,
   coupon: ValidatedBillCoupon | null = null,
+  discountMode: 'amount' | 'percentage' = 'amount',
 ): BillPreview {
   const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
 
@@ -62,7 +63,12 @@ export function computeBillPreview(
     tax = roundMoney(tax + lineTax);
   }
 
-  const discount = roundMoney(Math.max(0, Math.min(billDiscount, subtotal)));
+  const requestedDiscount = Number.isFinite(billDiscount)
+    ? discountMode === 'percentage'
+      ? subtotal * Math.max(0, Math.min(billDiscount, 100)) / 100
+      : billDiscount
+    : 0;
+  const discount = roundMoney(Math.max(0, Math.min(requestedDiscount, subtotal)));
   const total = roundMoney(Math.max(0, subtotal - discount + tax));
 
   return {

@@ -44,6 +44,8 @@ function CreateCustomerDialog(
 import { CustomerDetailsSection } from './customer-details-section';
 import { getBusinessRegion } from '@/lib/business-region';
 import { PaymentMethodsCard } from './payment-methods-card';
+import { UpiPaymentDialog } from './upi-payment-dialog';
+import type { BillRecord } from '../types/walk-in-billing.types';
 import { RecentBillsSection } from './recent-bills-section';
 
 function toCartLine(service: SalonService): CartLine {
@@ -57,6 +59,7 @@ function toCartLine(service: SalonService): CartLine {
 }
 
 export function WalkInBillingPageView() {
+  const [upiBill, setUpiBill] = useState<BillRecord | null>(null);
   const user = useCurrentUser();
   const [chosenSalonId, setChosenSalonId] = useState('');
   const pinnedSalonId = user?.salonId ?? null;
@@ -74,6 +77,7 @@ export function WalkInBillingPageView() {
   const [coupon, setCoupon] = useState<ValidatedBillCoupon | null>(null);
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountAmount, setDiscountAmount] = useState('');
+  const [discountMode, setDiscountMode] = useState<'amount' | 'percentage'>('amount');
   const [paymentMethod, setPaymentMethod] = useState<WalkInPaymentMethod>(
     getBusinessRegion().currency === 'USD' ? 'CARD' : 'UPI',
   );
@@ -81,10 +85,14 @@ export function WalkInBillingPageView() {
   const discountValue = applyDiscount
     ? Math.max(0, Number(discountAmount) || 0)
     : 0;
+  const discountInvalid = applyDiscount && (
+    !Number.isFinite(Number(discountAmount)) || Number(discountAmount) < 0 ||
+    (discountMode === 'percentage' && Number(discountAmount) > 100)
+  );
 
   const preview = useMemo(
-    () => computeBillPreview(cart, discountValue, coupon),
-    [cart, discountValue, coupon],
+    () => computeBillPreview(cart, discountValue, coupon, discountMode),
+    [cart, discountValue, coupon, discountMode],
   );
 
   const cartFingerprint = useMemo(
@@ -129,12 +137,14 @@ export function WalkInBillingPageView() {
     setStylistName('');
     setApplyDiscount(false);
     setDiscountAmount('');
+    setDiscountMode('amount');
     setPaymentMethod(getBusinessRegion().currency === 'USD' ? 'CARD' : 'UPI');
     setCoupon(null);
     setCouponValidating(false);
   }, []);
 
-  const settle = useSettleWalkInBill(() => {
+  const settle = useSettleWalkInBill((result) => {
+    if (result.outcome === 'awaiting-payment') setUpiBill(result.bill);
     resetForm();
   });
 
@@ -174,6 +184,7 @@ export function WalkInBillingPageView() {
     preview.total >= 0 &&
     !settle.isPending &&
     !isCouponValidating &&
+    !discountInvalid &&
     (!choice || choice.valid) &&
     (!choice?.plan || !choice.pending);
 
@@ -258,6 +269,9 @@ export function WalkInBillingPageView() {
           applyDiscount={applyDiscount}
           onApplyDiscountChange={setApplyDiscount}
           discountAmount={discountAmount}
+          discountMode={discountMode}
+          onDiscountModeChange={(mode) => { setDiscountMode(mode); setDiscountAmount(''); }}
+          discountInvalid={discountInvalid}
           onDiscountAmountChange={setDiscountAmount}
         />
 
@@ -356,6 +370,7 @@ export function WalkInBillingPageView() {
           setPhoneQuery(created.phone);
         }}
       />
+      {upiBill && <UpiPaymentDialog key={upiBill.id} bill={upiBill} onClose={() => setUpiBill(null)} />}
     </div>
   );
 }
