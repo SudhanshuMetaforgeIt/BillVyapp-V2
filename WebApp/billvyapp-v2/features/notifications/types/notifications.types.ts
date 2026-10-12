@@ -44,6 +44,7 @@ export type NotificationApiItem = {
 };
 
 export type NotificationListRow = {
+  userId?: string | null;
   id: string;
   title: string;
   message: string;

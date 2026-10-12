@@ -89,13 +89,13 @@ export function AppHeader({
             className="relative inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-charcoal shadow-sm transition hover:border-champagne/50 hover:bg-champagne-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             aria-label={
               badge
-                ? `Notifications, ${badge} unread`
+                ? `Notifications, ${notificationCount} unread`
                 : 'Notifications'
             }
           >
             <Bell className="size-5" />
             {badge ? (
-              <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+              <span aria-live="polite" aria-atomic="true" className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
                 {badge}
               </span>
             ) : null}

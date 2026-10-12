@@ -47,6 +47,7 @@ function mapRow(row: NotificationApiItem): NotificationListRow {
 
   return {
     id: row.id,
+    userId: row.userId,
     title,
     message: row.message,
     notificationType: row.notificationType,
