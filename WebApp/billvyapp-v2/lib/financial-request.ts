@@ -1,3 +1,5 @@
+import { createUuid } from './uuid';
+
 const requestKeys = new WeakMap<object, string>();
 
 /** Retrying the same submission keeps its identity; a new submission gets a new key. */
@@ -6,7 +8,7 @@ export function financialRequestKey(input: object): string {
   if (explicit) return explicit;
   let key = requestKeys.get(input);
   if (!key) {
-    key = crypto.randomUUID();
+    key = createUuid();
     requestKeys.set(input, key);
   }
   return key;

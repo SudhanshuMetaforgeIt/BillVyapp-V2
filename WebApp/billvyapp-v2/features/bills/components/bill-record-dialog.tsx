@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { can } from '@/lib/capabilities';
+import { createUuid } from '@/lib/uuid';
 import {
   formatCurrency,
   formatDate,
@@ -388,7 +389,7 @@ function CounterPaymentForm({ bill }: { bill: Bill }) {
   const [method, setMethod] = useState<PaymentMethod>('CASH');
   const [reference, setReference] = useState('');
   const paymentInput = useMemo(() => ({
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: createUuid(),
     billId: bill.id,
     currency: bill.currency,
     amount: Number(amount),

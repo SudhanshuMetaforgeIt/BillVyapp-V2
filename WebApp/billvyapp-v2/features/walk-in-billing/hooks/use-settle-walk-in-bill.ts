@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { can } from '@/lib/capabilities';
+import { createUuid } from '@/lib/uuid';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
 import { settleWalkInBill } from '../services/walk-in-billing.service';
@@ -35,7 +36,7 @@ export function useSettleWalkInBill(onSuccess?: () => void) {
     mutationFn: (input: SettleWalkInInput) => {
       const fingerprint = JSON.stringify(input);
       if (attempt.current?.fingerprint !== fingerprint)
-        attempt.current = { fingerprint, key: crypto.randomUUID() };
+        attempt.current = { fingerprint, key: createUuid() };
       return settleWalkInBill({ ...input, idempotencyKey: attempt.current.key }, { canComplete });
     },
     onSuccess: (result) => {

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
 import { describeApiError } from "@/lib/api-errors";
+import { createUuid } from "@/lib/uuid";
 
 import { invalidateAfter } from "@/lib/query-invalidation";
 import { useAuthStore } from "@/stores/auth.store";
@@ -134,7 +135,7 @@ export function UploadPhotosDialog({
       try {
         validateSalonPhoto(file);
         valid.push({
-          id: crypto.randomUUID(),
+          id: createUuid(),
           file,
           status: "queued",
           progress: 0,
