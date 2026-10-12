@@ -15,6 +15,10 @@ import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 
+jest.mock('./product-usage', () => ({
+  ...jest.requireActual('./product-usage'),
+  syncLowStock: jest.fn(),
+}));
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
@@ -95,6 +99,7 @@ function movementRow(overrides: Record<string, unknown> = {}) {
 
 describe('InventoryService', () => {
   const prisma = {
+    $queryRaw: jest.fn(),
     inventory: {
       findMany: jest.fn(),
       count: jest.fn(),

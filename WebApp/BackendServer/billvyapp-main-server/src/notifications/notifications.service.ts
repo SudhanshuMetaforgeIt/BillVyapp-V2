@@ -124,6 +124,18 @@ export class NotificationsService {
 
     const where = {
       ...this.salonScopeFilter(user),
+      ...(user.role !== RoleCode.SUPER_ADMIN
+        ? {
+            AND: [
+              {
+                OR: [
+                  { channel: { not: NotificationChannel.IN_APP } },
+                  { userId: user.userId },
+                ],
+              },
+            ],
+          }
+        : {}),
       ...(query.salonId ? { salonId: query.salonId } : {}),
       ...(customerId ? { customerId } : {}),
       ...(query.userId ? { userId: query.userId } : {}),
@@ -161,6 +173,10 @@ export class NotificationsService {
     dto: CreateNotificationDto,
     ctx: RequestContext,
   ): Promise<NotificationRecord> {
+    if (dto.channel === NotificationChannel.IN_APP)
+      throw new BadRequestException(
+        'In-app stock alerts are generated internally',
+      );
     const salonId = dto.salonId ?? actor.salonId ?? null;
     if (salonId) {
       await this.scope.assertSalonAccess(actor, salonId);
@@ -693,6 +709,13 @@ export class NotificationsService {
     if (!record) {
       throw new NotFoundException('Notification not found');
     }
+
+    if (
+      (record.channel as NotificationChannel) === NotificationChannel.IN_APP &&
+      user.role !== RoleCode.SUPER_ADMIN &&
+      record.userId !== user.userId
+    )
+      throw new ForbiddenException('Notification belongs to another recipient');
 
     if (user.role === RoleCode.CUSTOMER) {
       const ownId = await this.scope.requireOwnCustomerId(user);

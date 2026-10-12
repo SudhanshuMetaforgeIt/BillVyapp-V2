@@ -77,6 +77,7 @@ export function NotificationsFilters({
           <option value="all">All Channels</option>
           <option value="EMAIL">Email</option>
           <option value="SMS">SMS</option>
+          <option value="IN_APP">In app</option>
           <option value="WHATSAPP">WhatsApp</option>
         </SelectInput>
 

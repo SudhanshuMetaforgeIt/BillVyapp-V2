@@ -89,9 +89,10 @@ describe('LoyaltyService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       aggregate: jest.fn(),
+      groupBy: jest.fn(),
     },
     customer: { findUnique: jest.fn() },
-    salon: { findUnique: jest.fn() },
+    salon: { findUnique: jest.fn(), findMany: jest.fn() },
     $transaction: jest.fn(),
     $queryRaw: jest.fn(),
   };
@@ -107,6 +108,8 @@ describe('LoyaltyService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.loyaltyTransaction.groupBy.mockResolvedValue([]);
+    prisma.salon.findMany.mockResolvedValue([]);
     scope.salonScope.mockReturnValue({});
     scope.assertSalonAccess.mockResolvedValue(undefined);
     scope.assertCustomerAccess.mockResolvedValue(undefined);
@@ -247,6 +250,57 @@ describe('LoyaltyService', () => {
       prisma.loyaltyTransaction.aggregate,
     );
     expect(aggregateArg.where.customerId).toBe('cust-1');
+  });
+
+  it('shows distinct franchise wallets and pools points across their shops', async () => {
+    prisma.loyaltyTransaction.groupBy.mockResolvedValue([
+      { salonId: 'a1', _sum: { points: 40 } },
+      { salonId: 'a2', _sum: { points: 60 } },
+      { salonId: 'b1', _sum: { points: 20 } },
+    ]);
+    prisma.salon.findMany.mockResolvedValue([
+      {
+        id: 'a1',
+        franchiseId: 'fr-a',
+        franchise: {
+          name: 'India franchise',
+          preferences: { currency: 'INR' },
+        },
+      },
+      {
+        id: 'a2',
+        franchiseId: 'fr-a',
+        franchise: {
+          name: 'India franchise',
+          preferences: { currency: 'INR' },
+        },
+      },
+      {
+        id: 'b1',
+        franchiseId: 'fr-b',
+        franchise: { name: 'US franchise', preferences: { currency: 'USD' } },
+      },
+    ]);
+    const result = await service.balance(customer, {
+      customerId: 'foreign-customer',
+    });
+    expect(result.wallets).toEqual([
+      expect.objectContaining({
+        franchiseId: 'fr-a',
+        balance: 100,
+        currency: 'INR',
+      }),
+      expect.objectContaining({
+        franchiseId: 'fr-b',
+        balance: 20,
+        currency: 'USD',
+      }),
+    ]);
+    expect(
+      firstMockArg<{ where: { customerId: string } }>(
+        prisma.loyaltyTransaction.groupBy,
+      ).where.customerId,
+    ).toBe('cust-1');
   });
 
   it('scopes CUSTOMER list to own transactions', async () => {

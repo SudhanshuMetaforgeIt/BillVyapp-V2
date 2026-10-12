@@ -27,6 +27,8 @@ export class BillItemResponseDto {
 export class BillPaymentSummaryDto {
   @ApiProperty() id: string;
   @ApiProperty({ example: '500.00' }) amount: string;
+  @ApiPropertyOptional({ nullable: true, example: 'LOYALTY' })
+  provider: string | null;
   @ApiProperty({ enum: PaymentMethod }) paymentMethod: PaymentMethod;
   @ApiProperty({ enum: PaymentStatus }) status: PaymentStatus;
   @ApiProperty() paymentDate: Date;

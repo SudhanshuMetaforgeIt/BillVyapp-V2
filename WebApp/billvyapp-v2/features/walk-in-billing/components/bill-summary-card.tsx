@@ -5,9 +5,10 @@ import type { BillPreview } from '../types/walk-in-billing.types';
 
 type BillSummaryCardProps = {
   preview: BillPreview;
+  loyaltyPoints?: number;
 };
 
-export function BillSummaryCard({ preview }: BillSummaryCardProps) {
+export function BillSummaryCard({ preview, loyaltyPoints = 0 }: BillSummaryCardProps) {
   return (
     <section className="app-surface-card p-5">
       <h2 className="mb-4 text-base font-semibold text-text">Bill Summary</h2>
@@ -54,10 +55,11 @@ export function BillSummaryCard({ preview }: BillSummaryCardProps) {
             {formatCurrency(preview.tax)}
           </dd>
         </div>
+        {loyaltyPoints > 0 && <div className="flex justify-between text-emerald"><dt>Loyalty points ({loyaltyPoints})</dt><dd>−{formatCurrency(loyaltyPoints)}</dd></div>}
         <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3">
-          <dt className="text-base font-semibold text-text">Total Amount</dt>
+          <dt className="text-base font-semibold text-text">{loyaltyPoints > 0 ? 'Remaining to pay' : 'Total Amount'}</dt>
           <dd className="text-xl font-bold tabular-nums text-text">
-            {formatCurrency(preview.total)}
+            {formatCurrency(Math.max(0, preview.total - loyaltyPoints))}
           </dd>
         </div>
         <div className="flex items-center justify-between gap-3">

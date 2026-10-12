@@ -320,6 +320,7 @@ export interface InventoryRecord {
 }
 
 export type StockMovementType =
+  | 'CONSUMPTION'
   | 'PURCHASE'
   | 'SALE'
   | 'RETURN'
@@ -329,6 +330,7 @@ export type StockMovementType =
   | 'TRANSFER_OUT';
 
 export interface StockMovement {
+  consumptionDetails?: Array<{ serviceName?: string; serviceId: string; serviceQuantity: number; packagesUsed: number; packageSize: number; measurementUnit: string }>;
   id: string;
   salonId: string;
   productId: string;
@@ -420,6 +422,7 @@ export interface BillItem {
 export interface BillPaymentSummary {
   id: string;
   amount: Decimal;
+  provider?: string | null;
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
   paymentDate: IsoDate;
@@ -533,6 +536,7 @@ export interface LoyaltyTransaction {
 }
 
 export interface LoyaltyBalance {
+  wallets?: Array<{ franchiseId: string; franchiseName: string; balance: number; currency: string; minimumRedeemPoints: number; enabled: boolean }>;
   customerId: string;
   balance: number;
 }

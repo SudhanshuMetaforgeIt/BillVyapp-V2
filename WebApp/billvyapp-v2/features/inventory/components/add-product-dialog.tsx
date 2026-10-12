@@ -2,7 +2,7 @@
 
 import { SelectInput } from '@/components/data/form-fields';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { FolderPlus, Plus, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,11 @@ export function AddProductDialog({
   const [sellingPrice, setSellingPrice] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [reorderLevel, setReorderLevel] = useState('5');
+  const [measurementUnit, setMeasurementUnit] = useState<"PCS" | "ML" | "G">("PCS");
+  const [packageSize, setPackageSize] = useState("1");
   const [unit, setUnit] = useState('PCS');
+  const [createdCategory, setCreatedCategory] = useState<{ id: string; name: string } | null>(null);
+  const availableCategories = useMemo(() => createdCategory && !categoryOptions.some((c) => c.id === createdCategory.id) ? [...categoryOptions, createdCategory] : categoryOptions, [createdCategory, categoryOptions]);
   const [createCatOpen, setCreateCatOpen] = useState(false);
 
   const create = useCreateProduct(() => {
@@ -44,14 +48,17 @@ export function AddProductDialog({
     setCostPrice('');
     setReorderLevel('5');
     setUnit('PCS');
+    setMeasurementUnit('PCS'); setPackageSize('1');
   });
 
   useEffect(() => {
     if (!open) return;
-    if (categoryOptions.length > 0 && (!categoryId || !categoryOptions.some((c) => c.id === categoryId))) {
-      setCategoryId(categoryOptions[0]?.id ?? '');
+    if (availableCategories.length > 0 && (!categoryId || !availableCategories.some((c) => c.id === categoryId))) {
+    // Existing dialog/filter synchronization keeps persisted form selections current.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCategoryId(availableCategories[0]?.id ?? '');
     }
-  }, [open, categoryOptions, categoryId]);
+  }, [open, availableCategories, categoryId]);
 
   useEffect(() => {
     if (!open) return;
@@ -78,7 +85,7 @@ export function AddProductDialog({
     price >= 0 &&
     (cost === undefined || (Number.isFinite(cost) && cost >= 0)) &&
     Number.isInteger(reorder) &&
-    reorder >= 0;
+    reorder >= 0 && Number.isFinite(Number(packageSize)) && Number(packageSize) >= 0.001 && Number(packageSize) <= 1000000 && (measurementUnit !== 'PCS' || Number.isInteger(Number(packageSize)));
 
   return (
     <div
@@ -94,7 +101,7 @@ export function AddProductDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card w-full max-w-md p-5 shadow-xl"
+        className="app-surface-card w-full max-w-md max-h-[90vh] overflow-y-auto p-5 shadow-xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -116,7 +123,7 @@ export function AddProductDialog({
           </button>
         </div>
 
-        {categoryOptions.length === 0 ? (
+        {availableCategories.length === 0 ? (
           <div className="space-y-4 rounded-xl border border-dashed border-border bg-ivory-soft/60 p-6 text-center">
             <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-champagne-light text-champagne">
               <FolderPlus className="size-5" />
@@ -141,6 +148,7 @@ export function AddProductDialog({
             className="space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
+              event.stopPropagation();
               if (!canSubmit || create.isPending) return;
               create.mutate({
                 salonId,
@@ -150,10 +158,16 @@ export function AddProductDialog({
                 sellingPrice: price,
                 costPrice: cost,
                 reorderLevel: reorder,
+                measurementUnit, packageSize: Number(packageSize),
                 unit: unit.trim() || 'PCS',
               });
             }}
           >
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">Measurement unit<SelectInput value={measurementUnit} onChange={(e) => setMeasurementUnit(e.target.value as 'PCS' | 'ML' | 'G')}><option value="PCS">Pieces</option><option value="ML">Millilitres (ml)</option><option value="G">Grams (g)</option></SelectInput></label>
+              <label className="text-sm">Size per package<Input type="number" min="0.001" max="1000000" step="0.001" value={packageSize} onChange={(e) => setPackageSize(e.target.value)} /></label>
+            </div>
+            <p className="text-xs text-text-secondary">Enter stock and reorder levels in packages. Example: one 1,000 ml bottle = one package.</p>
             <div className="space-y-1.5">
               <Label htmlFor="inv-product-name">Name</Label>
               <Input
@@ -197,7 +211,7 @@ export function AddProductDialog({
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
               >
-                {categoryOptions.map((cat) => (
+                {availableCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
@@ -227,7 +241,7 @@ export function AddProductDialog({
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="inv-product-reorder">Reorder level</Label>
+              <Label htmlFor="inv-product-reorder">Reorder level (packages)</Label>
               <Input
                 id="inv-product-reorder"
                 inputMode="numeric"
@@ -258,6 +272,7 @@ export function AddProductDialog({
         onOpenChange={setCreateCatOpen}
         salonId={salonId}
         onSuccess={(category) => {
+          setCreatedCategory(category);
           setCategoryId(category.id);
         }}
       />

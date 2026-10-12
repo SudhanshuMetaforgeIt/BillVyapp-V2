@@ -15,6 +15,7 @@ export type ServicesTab = 'services' | 'categories';
 export type ServiceStatusFilter = 'all' | 'active' | 'inactive';
 
 export type ServiceApiItem = {
+  productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   id: string;
   salonId: string;
   categoryId: string;
@@ -78,6 +79,7 @@ export type ServicesPageData = {
 };
 
 export type CreateServicePayload = {
+  productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   salonId: string;
   categoryId: string;
   name: string;

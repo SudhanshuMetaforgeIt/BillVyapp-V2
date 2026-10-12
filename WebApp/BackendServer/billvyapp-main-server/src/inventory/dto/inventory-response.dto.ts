@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class InventoryResponseDto {
+  @ApiPropertyOptional() measurementUnit?: string;
+  @ApiPropertyOptional() packageSize?: number;
   @ApiProperty() id: string;
   @ApiProperty() salonId: string;
   @ApiProperty() productId: string;

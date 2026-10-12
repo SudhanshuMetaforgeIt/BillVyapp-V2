@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { syncLowStock } from './product-usage';
 import { AuditService } from '../audit/audit.service';
 import {
   ADJUSTABLE_MOVEMENT_TYPES,
@@ -21,6 +22,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AdjustInventoryDto } from './dto/adjust-inventory.dto';
 import { InventoryQueryDto } from './dto/inventory-query.dto';
 import { StockMovementQueryDto } from './dto/stock-movement-query.dto';
+import { ConsumptionQueryDto } from './dto/consumption-query.dto';
+import { assertPermission } from '../common/security/access-policy';
 
 const INVENTORY_SELECT = {
   id: true,
@@ -40,11 +43,14 @@ const INVENTORY_SELECT = {
       name: true,
       sku: true,
       reorderLevel: true,
+      measurementUnit: true,
+      packageSize: true,
     },
   },
 } as const;
 
 const MOVEMENT_SELECT = {
+  consumptionDetails: true,
   id: true,
   salonId: true,
   productId: true,
@@ -60,13 +66,14 @@ const MOVEMENT_SELECT = {
   product: { select: { id: true, name: true } },
 } as const;
 
+type StockDecimal = { toString(): string } | number;
 type InventoryRow = {
   id: string;
   salonId: string;
   productId: string;
-  quantityOnHand: number;
-  reservedQuantity: number;
-  availableQuantity: number;
+  quantityOnHand: StockDecimal;
+  reservedQuantity: StockDecimal;
+  availableQuantity: StockDecimal;
   averageCost: { toString(): string } | string | number;
   lastPurchasePrice: { toString(): string } | string | number | null;
   lastStockedAt: Date | null;
@@ -77,19 +84,22 @@ type InventoryRow = {
     name: string;
     sku: string;
     reorderLevel: number;
+    measurementUnit?: string;
+    packageSize?: StockDecimal;
   };
 };
 
 type MovementRow = {
+  consumptionDetails?: unknown;
   id: string;
   salonId: string;
   productId: string;
   movementType: string;
-  quantity: number;
+  quantity: StockDecimal;
   referenceType: string | null;
   referenceId: string | null;
   unitCost: { toString(): string } | string | number | null;
-  balanceAfter: number;
+  balanceAfter: StockDecimal;
   notes: string | null;
   createdBy: string | null;
   createdAt: Date;
@@ -102,6 +112,8 @@ export type InventoryRecord = {
   productId: string;
   productName: string;
   productSku: string;
+  measurementUnit?: string;
+  packageSize?: number;
   reorderLevel: number;
   quantityOnHand: number;
   reservedQuantity: number;
@@ -114,6 +126,7 @@ export type InventoryRecord = {
 };
 
 export type StockMovementRecord = {
+  consumptionDetails?: unknown;
   id: string;
   salonId: string;
   productId: string;
@@ -166,7 +179,7 @@ export class InventoryService {
         take: 1000,
       });
       const low = candidates.filter(
-        (row) => row.quantityOnHand <= row.product.reorderLevel,
+        (row) => Number(row.quantityOnHand) <= row.product.reorderLevel,
       );
       return paginated(
         low
@@ -201,6 +214,108 @@ export class InventoryService {
     const record = await this.requireInventory(id);
     await this.scope.assertSalonAccess(user, record.salonId);
     return this.toInventoryResponse(record);
+  }
+
+  async consumption(user: AuthenticatedUser, query: ConsumptionQueryDto) {
+    assertPermission(user, 'InventoryController.consumption');
+    if (query.salonId) await this.scope.assertSalonAccess(user, query.salonId);
+    const from = new Date(`${query.dateFrom}T00:00:00.000Z`);
+    const to = new Date(`${query.dateTo}T00:00:00.000Z`);
+    if (
+      !Number.isFinite(from.getTime()) ||
+      !Number.isFinite(to.getTime()) ||
+      from.toISOString().slice(0, 10) !== query.dateFrom ||
+      to.toISOString().slice(0, 10) !== query.dateTo ||
+      to < from ||
+      to.getTime() - from.getTime() >= 93 * 86400000
+    )
+      throw new BadRequestException(
+        'Choose a valid report range of at most 93 days',
+      );
+    const rows = await this.prisma.stockMovement.findMany({
+      where: {
+        AND: [
+          this.scope.salonScope(user),
+          {
+            movementType: 'CONSUMPTION',
+            ...(query.salonId ? { salonId: query.salonId } : {}),
+            ...(query.productId ? { productId: query.productId } : {}),
+            createdAt: { gte: from, lt: new Date(to.getTime() + 86400000) },
+          },
+        ],
+      },
+      take: 10001,
+      orderBy: { createdAt: 'asc' },
+      select: {
+        salonId: true,
+        productId: true,
+        quantity: true,
+        unitCost: true,
+        referenceId: true,
+        product: {
+          select: { name: true, measurementUnit: true, packageSize: true },
+        },
+        salon: {
+          select: { name: true, franchise: { select: { preferences: true } } },
+        },
+      },
+    });
+    if (rows.length > 10000)
+      throw new BadRequestException(
+        'Report exceeds 10,000 stock entries. Choose a smaller date range.',
+      );
+    const totals = new Map<
+      string,
+      {
+        salonId: string;
+        salonName: string;
+        productId: string;
+        productName: string;
+        measurementUnit: string;
+        packages: number;
+        quantityUsed: number;
+        estimatedCost: number;
+        currency: string;
+        bills: Set<string>;
+      }
+    >();
+    for (const row of rows) {
+      const key = `${row.salonId}:${row.productId}`;
+      const preferences = row.salon.franchise.preferences as {
+        currency?: string;
+      } | null;
+      const current = totals.get(key) ?? {
+        salonId: row.salonId,
+        salonName: row.salon.name,
+        productId: row.productId,
+        productName: row.product.name,
+        measurementUnit: row.product.measurementUnit,
+        packages: 0,
+        quantityUsed: 0,
+        estimatedCost: 0,
+        currency: preferences?.currency === 'USD' ? 'USD' : 'INR',
+        bills: new Set<string>(),
+      };
+      current.packages += Number(row.quantity);
+      current.quantityUsed +=
+        Number(row.quantity) * Number(row.product.packageSize);
+      current.estimatedCost += Number(row.quantity) * Number(row.unitCost ?? 0);
+      if (row.referenceId) current.bills.add(row.referenceId);
+      totals.set(key, current);
+    }
+    return {
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+      timeZone: 'UTC',
+      entries: rows.length,
+      rows: [...totals.values()].map(({ bills, ...row }) => ({
+        ...row,
+        packages: Number(row.packages.toFixed(6)),
+        quantityUsed: Number(row.quantityUsed.toFixed(3)),
+        estimatedCost: Number(row.estimatedCost.toFixed(2)),
+        billCount: bills.size,
+      })),
+    };
   }
 
   async listMovements(
@@ -272,15 +387,20 @@ export class InventoryService {
 
     if (dto.quantity === 0) {
       throw new BadRequestException(
-        'quantity must be a non-zero signed integer',
+        'quantity must be a non-zero signed quantity',
       );
     }
 
     await this.requireActiveSalon(dto.salonId);
     await this.scope.assertSalonAccess(actor, dto.salonId);
-    await this.requireProductInSalon(dto.productId, dto.salonId);
+    const openingCost = await this.requireProductInSalon(
+      dto.productId,
+      dto.salonId,
+    );
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${dto.productId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM inventory WHERE salonId = ${dto.salonId} AND productId = ${dto.productId} FOR UPDATE`;
       const existing = await tx.inventory.findUnique({
         where: {
           salonId_productId: {
@@ -291,9 +411,9 @@ export class InventoryService {
         select: INVENTORY_SELECT,
       });
 
-      const prevOnHand = existing?.quantityOnHand ?? 0;
-      const prevReserved = existing?.reservedQuantity ?? 0;
-      const newOnHand = prevOnHand + dto.quantity;
+      const prevOnHand = Number(existing?.quantityOnHand ?? 0);
+      const prevReserved = Number(existing?.reservedQuantity ?? 0);
+      const newOnHand = Number((prevOnHand + dto.quantity).toFixed(6));
 
       if (newOnHand < 0) {
         throw new BadRequestException(
@@ -327,7 +447,7 @@ export class InventoryService {
             quantityOnHand: newOnHand,
             reservedQuantity: 0,
             availableQuantity: newAvailable,
-            averageCost: '0.00',
+            averageCost: openingCost,
           },
           select: INVENTORY_SELECT,
         });
@@ -347,6 +467,7 @@ export class InventoryService {
         },
       });
 
+      await syncLowStock(tx, inventoryRow.id);
       return inventoryRow;
     });
 
@@ -360,8 +481,8 @@ export class InventoryService {
         productId: updated.productId,
         quantity: dto.quantity,
         movementType: dto.movementType,
-        quantityOnHand: updated.quantityOnHand,
-        availableQuantity: updated.availableQuantity,
+        quantityOnHand: Number(updated.quantityOnHand),
+        availableQuantity: Number(updated.availableQuantity),
       },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
@@ -400,10 +521,10 @@ export class InventoryService {
   private async requireProductInSalon(
     productId: string,
     salonId: string,
-  ): Promise<void> {
+  ): Promise<string> {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
-      select: { id: true, salonId: true, isActive: true },
+      select: { id: true, salonId: true, isActive: true, costPrice: true },
     });
 
     if (!product) {
@@ -417,6 +538,7 @@ export class InventoryService {
     if (!product.isActive) {
       throw new BadRequestException('Product is inactive');
     }
+    return this.decimalString(product.costPrice ?? 0);
   }
 
   private decimalString(
@@ -435,9 +557,11 @@ export class InventoryService {
       productName: row.product.name,
       productSku: row.product.sku,
       reorderLevel: row.product.reorderLevel,
-      quantityOnHand: row.quantityOnHand,
-      reservedQuantity: row.reservedQuantity,
-      availableQuantity: row.availableQuantity,
+      measurementUnit: row.product.measurementUnit ?? 'PCS',
+      packageSize: Number(row.product.packageSize ?? 1),
+      quantityOnHand: Number(row.quantityOnHand),
+      reservedQuantity: Number(row.reservedQuantity),
+      availableQuantity: Number(row.availableQuantity),
       averageCost: this.decimalString(row.averageCost),
       lastPurchasePrice:
         row.lastPurchasePrice === null || row.lastPurchasePrice === undefined
@@ -454,16 +578,17 @@ export class InventoryService {
       id: row.id,
       salonId: row.salonId,
       productId: row.productId,
+      consumptionDetails: row.consumptionDetails ?? null,
       productName: row.product.name,
       movementType: row.movementType as StockMovementType,
-      quantity: row.quantity,
+      quantity: Number(row.quantity),
       referenceType: row.referenceType,
       referenceId: row.referenceId,
       unitCost:
         row.unitCost === null || row.unitCost === undefined
           ? null
           : this.decimalString(row.unitCost),
-      balanceAfter: row.balanceAfter,
+      balanceAfter: Number(row.balanceAfter),
       notes: row.notes,
       createdBy: row.createdBy,
       createdAt: row.createdAt,

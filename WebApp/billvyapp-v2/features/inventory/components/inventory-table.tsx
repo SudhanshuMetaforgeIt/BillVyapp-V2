@@ -111,7 +111,7 @@ export function InventoryTable({
                       {row.categoryLabel}
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-text">
-                      {row.quantityOnHand}
+                      {row.quantityOnHand}<span className="block text-xs font-normal text-text-secondary">{row.stockLabel}</span>
                     </td>
                     <td className="px-4 py-3.5 text-text">
                       {row.availableQuantity}

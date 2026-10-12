@@ -43,6 +43,7 @@ type NotificationsTableProps = {
 const CHANNEL_ICONS: Record<NotificationChannel, LucideIcon> = {
   EMAIL: Mail,
   SMS: Smartphone,
+  IN_APP: MessageSquare,
   WHATSAPP: MessageSquare,
 };
 

@@ -1,4 +1,5 @@
 'use client';
+import { ConsumptionReport } from "./consumption-report";
 import dynamic from 'next/dynamic';
 
 import {
@@ -55,6 +56,8 @@ export function InventoryPageView() {
   const [presetRow, setPresetRow] = useState<InventoryListRow | null>(null);
 
   useEffect(() => {
+    // Existing dialog/filter synchronization keeps persisted form selections current.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
   }, [deferredSearch, stockStatus, categoryId]);
 
@@ -140,7 +143,8 @@ export function InventoryPageView() {
             }
           />
 
-          <InventoryTable
+          <ConsumptionReport salonId={salonId} />
+        <InventoryTable
             rows={data?.rows ?? []}
             meta={data?.meta ?? emptyMeta}
             isLoading={query.isLoading && !data}

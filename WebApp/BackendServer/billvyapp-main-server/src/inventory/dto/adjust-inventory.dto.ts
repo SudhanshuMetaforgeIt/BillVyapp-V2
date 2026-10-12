@@ -3,11 +3,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import {
   IsIn,
-  IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  Min,
+  Max,
   NotEquals,
 } from 'class-validator';
 import {
@@ -30,8 +32,10 @@ export class AdjustInventoryDto {
       'Signed delta applied to quantityOnHand. Resulting on-hand must not be negative.',
   })
   @StrictNumber()
-  @IsInt()
-  @NotEquals(0, { message: 'quantity must be a non-zero signed integer' })
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @Min(-1000000)
+  @Max(1000000)
+  @NotEquals(0, { message: 'quantity must be a non-zero signed quantity' })
   quantity: number;
 
   @ApiProperty({

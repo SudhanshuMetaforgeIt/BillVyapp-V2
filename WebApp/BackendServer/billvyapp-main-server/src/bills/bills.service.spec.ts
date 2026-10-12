@@ -21,6 +21,10 @@ import { BillsController } from './bills.controller';
 import { BillsService } from './bills.service';
 import { CreateBillDto } from './dto/create-bill.dto';
 
+jest.mock('../inventory/product-usage', () => ({
+  ...jest.requireActual('../inventory/product-usage'),
+  syncLowStock: jest.fn(),
+}));
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
@@ -1166,6 +1170,7 @@ describe('BillsService', () => {
           {
             id: 'pay-1',
             amount: '100.00',
+            provider: 'LOYALTY',
             paymentMethod: PaymentMethod.CASH,
             status: PaymentStatus.SUCCESS,
             paymentDate: new Date(),
@@ -1178,6 +1183,16 @@ describe('BillsService', () => {
 
     expect(result.payments).toHaveLength(1);
     expect(result.payments[0].amount).toBe('100.00');
+    expect(result.payments[0].provider).toBe('LOYALTY');
+    expect(prisma.bill.findUnique).toHaveBeenCalledWith(
+      objectContaining({
+        select: objectContaining({
+          payments: objectContaining({
+            select: objectContaining({ provider: true }),
+          }),
+        }),
+      }),
+    );
   });
 
   it('returns 404 for a missing bill', async () => {

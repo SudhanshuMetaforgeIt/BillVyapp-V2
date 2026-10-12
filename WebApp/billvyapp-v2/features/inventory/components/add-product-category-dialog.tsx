@@ -36,6 +36,8 @@ export function AddProductCategoryDialog({
 
   useEffect(() => {
     if (!open) {
+      // Reset the existing category dialog when its parent closes it.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName('');
       setDescription('');
     }
@@ -104,6 +106,7 @@ export function AddProductCategoryDialog({
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
+            event.stopPropagation();
             if (!canSubmit) return;
             create.mutate({
               salonId,

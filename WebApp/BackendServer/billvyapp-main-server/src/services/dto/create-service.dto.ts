@@ -1,8 +1,13 @@
+import { Type } from 'class-transformer';
+import { ProductRecipeDto } from './product-recipe.dto';
 import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import {
   IsInt,
+  IsArray,
+  ArrayMaxSize,
+  ValidateNested,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -14,6 +19,13 @@ import {
 } from 'class-validator';
 
 export class CreateServiceDto {
+  @ApiPropertyOptional({ type: [ProductRecipeDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ProductRecipeDto)
+  productRecipe?: ProductRecipeDto[];
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   salonId: string;

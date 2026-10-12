@@ -3,6 +3,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 import {
   IsInt,
+  IsIn,
+  ValidateIf,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -14,6 +16,17 @@ import {
 } from 'class-validator';
 
 export class CreateProductDto {
+  @ApiPropertyOptional({ enum: ['PCS', 'ML', 'G'] })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsIn(['PCS', 'ML', 'G'])
+  measurementUnit?: string;
+  @ApiPropertyOptional({ default: 1 })
+  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @StrictNumber()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Max(1000000)
+  packageSize?: number;
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   salonId: string;

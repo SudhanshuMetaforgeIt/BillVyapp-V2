@@ -1,5 +1,6 @@
 'use client';
 
+import { ProductRecipeEditor, validProductRecipe, type ProductRecipe } from "./product-recipe-editor";
 import { SelectInput } from '@/components/data/form-fields';
 import { createPortal } from 'react-dom';
 
@@ -28,6 +29,7 @@ export function AddServiceDialog({
   editingService,
 }: AddServiceDialogProps) {
   const titleId = useId();
+  const [productRecipe, setProductRecipe] = useState<ProductRecipe[]>(editingService?.productRecipe ?? []);
   const [name, setName] = useState(editingService?.name ?? '');
   const [description, setDescription] = useState(editingService?.description ?? '');
   const [categoryId, setCategoryId] = useState(editingService?.categoryId ?? categoryOptions[0]?.id ?? '');
@@ -72,7 +74,7 @@ export function AddServiceDialog({
     duration >= 1 &&
     Number.isFinite(tax) &&
     tax >= 0 &&
-    tax <= 100;
+    tax <= 100 && validProductRecipe(productRecipe);
 
   return createPortal(
     <div
@@ -88,7 +90,7 @@ export function AddServiceDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="app-surface-card w-full max-w-md p-5 shadow-xl"
+        className="app-surface-card w-full max-w-xl max-h-[90vh] overflow-y-auto p-5 shadow-xl"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -127,11 +129,13 @@ export function AddServiceDialog({
                 price: priceNum,
                 durationMinutes: duration,
                 taxRate: tax,
+                productRecipe,
               };
               if (editingService) update.mutate({ id: editingService.id, payload });
               else create.mutate({ salonId, ...payload });
             }}
           >
+            <ProductRecipeEditor salonId={salonId} value={productRecipe} onChange={setProductRecipe} disabled={busy} />
             <div className="space-y-1.5">
               <Label htmlFor="svc-name">Name</Label>
               <Input

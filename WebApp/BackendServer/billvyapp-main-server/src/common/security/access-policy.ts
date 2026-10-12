@@ -7,6 +7,20 @@ import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 export const ACCESS_POLICY: Readonly<
   Record<string, readonly RoleCode[] | null>
 > = {
+  'LoyaltyProgramController.settings': [RoleCode.ADMIN],
+  'LoyaltyProgramController.update': [RoleCode.ADMIN],
+  'LoyaltyProgramController.quote': [
+    RoleCode.SUPER_ADMIN,
+    RoleCode.ADMIN,
+    RoleCode.MANAGER,
+    RoleCode.STAFF,
+  ],
+  'PaymentsController.redeemLoyalty': [
+    RoleCode.SUPER_ADMIN,
+    RoleCode.ADMIN,
+    RoleCode.MANAGER,
+    RoleCode.STAFF,
+  ],
   'AppController.getHello': [
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
@@ -305,6 +319,12 @@ export const ACCESS_POLICY: Readonly<
   'FranchisesController.updateStatus': [RoleCode.SUPER_ADMIN, RoleCode.ADMIN],
   'HealthController.check': null,
   'InventoryController.list': [
+    RoleCode.SUPER_ADMIN,
+    RoleCode.ADMIN,
+    RoleCode.MANAGER,
+    RoleCode.STAFF,
+  ],
+  'InventoryController.consumption': [
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,

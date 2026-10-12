@@ -1,0 +1,7 @@
+ALTER TABLE `products` ADD COLUMN `measurementUnit` VARCHAR(3) NOT NULL DEFAULT 'PCS', ADD COLUMN `packageSize` DECIMAL(12,3) NOT NULL DEFAULT 1;
+ALTER TABLE `services` ADD COLUMN `productRecipe` JSON NULL;
+ALTER TABLE `bill_items` ADD COLUMN `productUsage` JSON NULL;
+ALTER TABLE `inventory` MODIFY `quantityOnHand` DECIMAL(18,6) NOT NULL DEFAULT 0, MODIFY `reservedQuantity` DECIMAL(18,6) NOT NULL DEFAULT 0, MODIFY `availableQuantity` DECIMAL(18,6) NOT NULL DEFAULT 0, ADD COLUMN `lowStockNotified` BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE `stock_movements` MODIFY `quantity` DECIMAL(18,6) NOT NULL, MODIFY `balanceAfter` DECIMAL(18,6) NOT NULL, MODIFY `movementType` ENUM('PURCHASE','SALE','RETURN','ADJUSTMENT','DAMAGE','TRANSFER_IN','TRANSFER_OUT','CONSUMPTION') NOT NULL, ADD COLUMN `eventKey` VARCHAR(191) NULL, ADD COLUMN `consumptionDetails` JSON NULL;
+CREATE UNIQUE INDEX `stock_movements_eventKey_key` ON `stock_movements` (`eventKey`);
+ALTER TABLE `notifications` MODIFY `channel` ENUM('WHATSAPP','EMAIL','SMS','IN_APP') NOT NULL;

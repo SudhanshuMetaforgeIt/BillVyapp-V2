@@ -43,7 +43,7 @@ function LoyaltySection() {
           <Award className="size-5" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-[#7D766C]">Loyalty points</p>
+          <p className="text-xs font-semibold text-[#7D766C]">Total loyalty points</p>
           {balance.isLoading ? (
             <p className="text-sm text-[#8C8375]">Loading…</p>
           ) : balance.isError ? (
@@ -55,6 +55,8 @@ function LoyaltySection() {
           )}
         </div>
       </div>
+
+      {balance.data?.wallets?.length ? <div className="space-y-2"><p className="text-xs text-[#7D766C]">Each franchise has a separate wallet. Use points at any shop in that franchise.</p>{balance.data.wallets.map(wallet => <div key={wallet.franchiseId} className="rounded-xl border border-border p-3 text-sm"><p className="font-semibold">{wallet.franchiseName}</p><p>{wallet.balance} points · 1 point = {formatCurrency(1, wallet.currency)}</p><p className="text-xs text-[#7D766C]">{wallet.enabled ? `Minimum balance to redeem: ${wallet.minimumRedeemPoints} points` : 'Redemption is currently disabled'}</p></div>)}</div> : null}
 
       <div>
         <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#8C8375]">History</h3>

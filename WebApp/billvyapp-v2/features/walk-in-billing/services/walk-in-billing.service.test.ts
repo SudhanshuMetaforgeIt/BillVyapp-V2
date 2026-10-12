@@ -5,7 +5,7 @@ import {
   validateBillCoupon,
 } from './walk-in-billing.service';
 vi.mock('@/services/api-client', () => ({
-  api: { post: vi.fn(), patch: vi.fn() },
+  api: { post: vi.fn(), patch: vi.fn(), get: vi.fn() },
 }));
 const input = {
   salonId: 'salon',
@@ -19,6 +19,16 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 describe('Billing membership coupon', () => {
+  it('applies points before requesting the remaining UPI amount', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 'bill', total: '100.00' }).mockResolvedValueOnce({ id: 'credit' });
+    vi.mocked(api.patch).mockResolvedValueOnce({ id: 'bill', total: '100.00', dueAmount: '100.00' });
+    vi.mocked(api.get).mockResolvedValueOnce({ id: 'bill', total: '100.00', dueAmount: '70.00' });
+    const result = await settleWalkInBill({ ...input, couponCode: undefined, loyaltyPoints: 30 }, { canComplete: true, deferPayment: true });
+    expect(api.post).toHaveBeenNthCalledWith(2, '/payments/loyalty/bill', expect.objectContaining({ points: 30, idempotencyKey: expect.stringContaining(':loyalty') }));
+    expect(result.bill.dueAmount).toBe('70.00');
+    expect(result.outcome).toBe('awaiting-payment');
+    expect(api.post).not.toHaveBeenCalledWith('/payments', expect.anything());
+  });
   it('prepares an authoritative unpaid bill for QR display without recording a payment', async () => {
     vi.mocked(api.post).mockResolvedValueOnce({ id: 'bill', total: '500.00' });
     vi.mocked(api.patch).mockResolvedValueOnce({ id: 'bill', total: '500.00', dueAmount: '500.00', currency: 'INR' });

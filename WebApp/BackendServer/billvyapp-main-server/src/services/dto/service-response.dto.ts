@@ -1,6 +1,9 @@
+import { ProductRecipeDto } from './product-recipe.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ServiceResponseDto {
+  @ApiPropertyOptional({ type: [ProductRecipeDto] })
+  productRecipe?: ProductRecipeDto[];
   @ApiProperty() id: string;
   @ApiProperty() salonId: string;
   @ApiProperty() categoryId: string;

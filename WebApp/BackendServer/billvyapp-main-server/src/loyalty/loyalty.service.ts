@@ -27,6 +27,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateLoyaltyTransactionDto } from './dto/create-loyalty-transaction.dto';
 import { LoyaltyBalanceQueryDto } from './dto/loyalty-balance-query.dto';
 import { LoyaltyQueryDto } from './dto/loyalty-query.dto';
+import { franchiseRegion } from '../common/regional';
+import { loyaltyPolicy } from './loyalty-program';
 
 const LOYALTY_SELECT = {
   requestHash: true,
@@ -68,6 +70,14 @@ export type LoyaltyTransactionRecord = {
 export type LoyaltyBalanceRecord = {
   customerId: string;
   balance: number;
+  wallets?: Array<{
+    franchiseId: string;
+    franchiseName: string;
+    balance: number;
+    currency: string;
+    minimumRedeemPoints: number;
+    enabled: boolean;
+  }>;
 };
 
 @Injectable()
@@ -141,10 +151,53 @@ export class LoyaltyService {
       _sum: { points: true },
     });
 
-    return {
+    const result: LoyaltyBalanceRecord = {
       customerId,
       balance: aggregate._sum.points ?? 0,
     };
+    if (user.role === RoleCode.CUSTOMER) {
+      const groups = await this.prisma.loyaltyTransaction.groupBy({
+        by: ['salonId'],
+        where: { customerId, salonId: { not: null } },
+        _sum: { points: true },
+        orderBy: { salonId: 'asc' },
+        take: 1001,
+      });
+      if (groups.length > 1000)
+        throw new BadRequestException(
+          'Too many loyalty wallets; contact support',
+        );
+      const salons = groups.length
+        ? await this.prisma.salon.findMany({
+            where: { id: { in: groups.map((group) => group.salonId!) } },
+            select: {
+              id: true,
+              franchiseId: true,
+              franchise: { select: { name: true, preferences: true } },
+            },
+          })
+        : [];
+      const wallets = new Map<
+        string,
+        NonNullable<LoyaltyBalanceRecord['wallets']>[number]
+      >();
+      for (const salon of salons) {
+        const policy = loyaltyPolicy(salon.franchise.preferences);
+        const wallet = wallets.get(salon.franchiseId) ?? {
+          franchiseId: salon.franchiseId,
+          franchiseName: salon.franchise.name,
+          balance: 0,
+          currency: franchiseRegion(salon.franchise.preferences).currency,
+          minimumRedeemPoints: policy.minimumRedeemPoints,
+          enabled: policy.enabled,
+        };
+        wallet.balance +=
+          groups.find((group) => group.salonId === salon.id)?._sum.points ?? 0;
+        wallets.set(salon.franchiseId, wallet);
+      }
+      if (wallets.size) result.wallets = [...wallets.values()];
+    }
+    return result;
   }
 
   async findOne(
@@ -170,6 +223,13 @@ export class LoyaltyService {
     ctx: RequestContext,
   ): Promise<LoyaltyTransactionRecord> {
     assertFinancialAuthority(actor);
+    if (
+      dto.referenceType?.toLowerCase() === 'billloyalty' ||
+      dto.idempotencyKey?.toLowerCase().startsWith('loyalty:')
+    )
+      throw new BadRequestException(
+        'Automatic loyalty references are reserved',
+      );
     const idempotencyKey = requireRequestKey(dto.idempotencyKey);
     const salonId = dto.salonId ?? actor.salonId;
     if (!salonId && actor.role !== RoleCode.SUPER_ADMIN)

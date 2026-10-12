@@ -1,4 +1,5 @@
 import { api } from '@/services/api-client';
+import { redeemLoyalty } from '@/features/loyalty/loyalty.service';
 import { financialRequest, financialRequestKey } from '@/lib/financial-request';
 import type {
   BillRecord,
@@ -88,6 +89,7 @@ export type SettleOutcome = 'paid' | 'completed' | 'draft' | 'price-changed' | '
  */
 export async function settleWalkInBill(
   input: {
+    loyaltyPoints?: number;
     idempotencyKey?: string;
     enrollmentPlanId?: string | null;
     enrollmentDetails?: CreateBillPayload["enrollmentDetails"];
@@ -123,8 +125,8 @@ export async function settleWalkInBill(
     return { bill: draft, payment: null, outcome: 'draft' };
   }
 
-  const completed = await completeBill(draft.id);
-  const dueAmount = Number(completed.dueAmount);
+  let completed = await completeBill(draft.id);
+  let dueAmount = Number(completed.dueAmount);
   if (!Number.isFinite(dueAmount) || dueAmount <= 0) {
     return { bill: completed, payment: null, outcome: 'completed' };
   }
@@ -133,6 +135,12 @@ export async function settleWalkInBill(
   // Require staff to confirm the new amount instead of recording a payment they did not receive.
   if ((input.couponCode || input.enrollmentPlanId) && Number.isFinite(Number(draft.total)) && Number(draft.total) !== Number(completed.total))
     return { bill: completed, payment: null, outcome: 'price-changed' };
+  if (input.loyaltyPoints && input.loyaltyPoints > 0) {
+    await redeemLoyalty(completed.id, input.loyaltyPoints, `${financialRequestKey(input)}:loyalty`);
+    completed = await api.get<BillRecord>(`/bills/${completed.id}`);
+    dueAmount = Number(completed.dueAmount);
+    if (dueAmount <= 0) return { bill: completed, payment: null, outcome: 'completed' };
+  }
   if (deferPayment) return { bill: completed, payment: null, outcome: 'awaiting-payment' };
   const payment = await createPayment({
     ...(completed.currency ? { currency: completed.currency } : {}),

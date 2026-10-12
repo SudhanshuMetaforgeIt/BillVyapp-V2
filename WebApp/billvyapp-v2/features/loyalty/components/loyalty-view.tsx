@@ -20,6 +20,7 @@ import { invalidateAfter } from '@/lib/query-invalidation';
 import { cn } from '@/lib/utils';
 import type { ApiError } from '@/types/api.types';
 import type { LoyaltyTransaction, LoyaltyTransactionType } from '@/types/models';
+import { LoyaltySettingsCard } from './loyalty-settings-card';
 import {
   createLoyaltyTransaction,
   getLoyaltyBalance,
@@ -204,7 +205,7 @@ function AdjustDialog({ customer, onClose }: { customer: WalkInCustomer; onClose
   );
 }
 
-export function LoyaltyView() {
+export function LoyaltyView({ showProgramSettings = false }: { showProgramSettings?: boolean }) {
   const user = useCurrentUser();
   const [page, setPage] = useState(1);
   const [customer, setCustomer] = useState<WalkInCustomer | null>(null);
@@ -240,6 +241,8 @@ export function LoyaltyView() {
           ) : null
         }
       />
+
+      {showProgramSettings ? <LoyaltySettingsCard /> : null}
 
       {customer ? (
         <div className="app-surface-card flex items-center justify-between p-4">

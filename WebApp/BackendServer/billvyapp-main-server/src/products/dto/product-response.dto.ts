@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ProductResponseDto {
+  @ApiProperty({ enum: ['PCS', 'ML', 'G'] }) measurementUnit: string;
+  @ApiProperty({ example: 1000 }) packageSize: number;
   @ApiProperty() id: string;
   @ApiProperty() salonId: string;
   @ApiProperty() categoryId: string;

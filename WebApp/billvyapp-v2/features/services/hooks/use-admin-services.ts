@@ -73,6 +73,7 @@ export function useUpdateService() {
       categoryId?: string;
       name?: string;
       description?: string;
+      productRecipe?: import("../utils/product-recipe").ProductRecipe[];
       durationMinutes?: number;
       price?: number;
     }) => updateService(id, payload),

@@ -20,6 +20,10 @@ import {
 import { PurchasesController } from './purchases.controller';
 import { PurchasesService } from './purchases.service';
 
+jest.mock('../inventory/product-usage', () => ({
+  ...jest.requireActual('../inventory/product-usage'),
+  syncLowStock: jest.fn(),
+}));
 jest.mock('../prisma/prisma.service', () => ({
   PrismaService: class PrismaService {},
 }));
@@ -97,6 +101,7 @@ function purchaseRow(overrides: Record<string, unknown> = {}) {
 
 describe('PurchasesService', () => {
   const prisma = {
+    $queryRaw: jest.fn(),
     purchase: {
       findMany: jest.fn(),
       count: jest.fn(),

@@ -29,6 +29,7 @@ import { PaginatedInventoryDto } from './dto/paginated-inventory.dto';
 import { PaginatedStockMovementsDto } from './dto/paginated-stock-movements.dto';
 import { StockMovementQueryDto } from './dto/stock-movement-query.dto';
 import { InventoryService } from './inventory.service';
+import { ConsumptionQueryDto } from './dto/consumption-query.dto';
 
 const INVENTORY_READ_ROLES = [
   RoleCode.SUPER_ADMIN,
@@ -50,6 +51,16 @@ const INVENTORY_WRITE_ROLES = [
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
+
+  @Get('consumption')
+  @Roles(...INVENTORY_READ_ROLES)
+  @ApiOperation({ summary: 'Product consumption report (maximum 93 days)' })
+  consumption(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ConsumptionQueryDto,
+  ) {
+    return this.inventoryService.consumption(user, query);
+  }
 
   @Get()
   @Roles(...INVENTORY_READ_ROLES)

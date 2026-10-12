@@ -30,6 +30,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.
 import { BillQueryDto } from './dto/bill-query.dto';
 import { BillResponseDto } from './dto/bill-response.dto';
 import { CreateBillDto } from './dto/create-bill.dto';
+import { MembershipOffersDto } from './dto/membership-offers.dto';
 import { PaginatedBillsDto } from './dto/paginated-bills.dto';
 import { UpdateBillDto } from './dto/update-bill.dto';
 import { UpdateBillStatusDto } from './dto/update-bill-status.dto';
@@ -113,7 +114,7 @@ export class BillsController {
   })
   membershipOffers(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateBillDto,
+    @Body() dto: MembershipOffersDto,
   ) {
     return this.billsService.membershipOffers(user, dto);
   }

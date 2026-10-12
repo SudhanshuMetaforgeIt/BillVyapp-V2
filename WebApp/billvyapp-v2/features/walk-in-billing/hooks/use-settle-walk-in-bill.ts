@@ -14,6 +14,7 @@ import type { WalkInPaymentMethod } from '../types/walk-in-billing.types';
 import { RECENT_BILLS_QUERY_KEY } from './use-recent-bills';
 
 export type SettleWalkInInput = {
+  loyaltyPoints?: number;
   enrollmentPlanId?: string | null;
   enrollmentDetails?: import("../types/walk-in-billing.types").EnrollmentDetails;
   expectedTotal?: number;

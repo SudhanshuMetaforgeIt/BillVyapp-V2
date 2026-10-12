@@ -5,6 +5,12 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import {
+  snapshotProductUsage,
+  readRecipe,
+  ProductRecipe,
+} from '../inventory/product-usage';
+import { Prisma } from '../generated/prisma/client';
 import { CacheService } from '../redis/cache.service';
 import { AuditService } from '../audit/audit.service';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
@@ -26,6 +32,7 @@ import { ServiceQueryDto } from './dto/service-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 
 const SERVICE_SELECT = {
+  productRecipe: true,
   id: true,
   salonId: true,
   categoryId: true,
@@ -40,6 +47,7 @@ const SERVICE_SELECT = {
 } as const;
 
 type ServiceRow = {
+  productRecipe?: unknown;
   id: string;
   salonId: string;
   categoryId: string;
@@ -54,6 +62,7 @@ type ServiceRow = {
 };
 
 export type ServiceRecord = {
+  productRecipe?: ProductRecipe[];
   id: string;
   salonId: string;
   categoryId: string;
@@ -118,11 +127,11 @@ export class ServicesService {
 
     if (cacheKey && this.cache) {
       return this.cache.wrap(cacheKey, 300, () =>
-        this.fetchList(where, page, limit, skip),
+        this.fetchList(where, page, limit, skip, user),
       );
     }
 
-    return this.fetchList(where, page, limit, skip);
+    return this.fetchList(where, page, limit, skip, user);
   }
 
   private async fetchList(
@@ -130,6 +139,7 @@ export class ServicesService {
     page: number,
     limit: number,
     skip: number,
+    user: AuthenticatedUser,
   ): Promise<PaginatedResult<ServiceRecord>> {
     const [rows, total] = await Promise.all([
       this.prisma.service.findMany({
@@ -143,7 +153,7 @@ export class ServicesService {
     ]);
 
     return paginated(
-      rows.map((row) => this.toResponse(row)),
+      rows.map((row) => this.toResponse(row, user)),
       total,
       page,
       limit,
@@ -161,7 +171,7 @@ export class ServicesService {
     }
 
     await this.assertReadable(user, record);
-    return this.toResponse(record);
+    return this.toResponse(record, user);
   }
 
   async create(
@@ -173,9 +183,11 @@ export class ServicesService {
     await this.scope.assertSalonAccess(actor, dto.salonId);
     await this.requireCategoryInSalon(dto.categoryId, dto.salonId);
 
+    await snapshotProductUsage(this.prisma, dto.salonId, dto.productRecipe);
     try {
       const created = await this.prisma.service.create({
         data: {
+          productRecipe: readRecipe(dto.productRecipe),
           salonId: dto.salonId,
           categoryId: dto.categoryId,
           name: trimRequired(dto.name),
@@ -296,7 +308,14 @@ export class ServicesService {
       await this.requireCategoryInSalon(dto.categoryId, existing.salonId);
     }
 
+    if (dto.productRecipe !== undefined)
+      await snapshotProductUsage(
+        this.prisma,
+        existing.salonId,
+        dto.productRecipe,
+      );
     const data: {
+      productRecipe?: Prisma.InputJsonValue;
       categoryId?: string;
       name?: string;
       description?: string | null;
@@ -305,6 +324,8 @@ export class ServicesService {
       taxRate?: string;
     } = {};
 
+    if (dto.productRecipe !== undefined)
+      data.productRecipe = readRecipe(dto.productRecipe);
     if (dto.categoryId !== undefined) data.categoryId = dto.categoryId;
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
     if (dto.description !== undefined) {
@@ -456,8 +477,11 @@ export class ServicesService {
     }
   }
 
-  private toResponse(row: ServiceRow): ServiceRecord {
+  private toResponse(row: ServiceRow, user?: AuthenticatedUser): ServiceRecord {
     return {
+      ...(user?.role !== RoleCode.CUSTOMER
+        ? { productRecipe: readRecipe(row.productRecipe) }
+        : {}),
       id: row.id,
       salonId: row.salonId,
       categoryId: row.categoryId,

@@ -13,6 +13,7 @@ export const NOTIFICATION_STATUS_LABELS: Record<NotificationStatus, string> = {
 export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {
   EMAIL: 'Email',
   SMS: 'SMS',
+  IN_APP: "In app",
   WHATSAPP: 'WhatsApp',
 };
 

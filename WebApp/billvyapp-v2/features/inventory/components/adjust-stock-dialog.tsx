@@ -43,6 +43,8 @@ export function AdjustStockDialog({
 
   useEffect(() => {
     if (!open) return;
+    // Existing dialog/filter synchronization keeps persisted form selections current.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProductId(presetRow?.productId ?? productOptions[0]?.id ?? '');
     setQuantity('1');
     setMovementType('ADJUSTMENT');
@@ -62,12 +64,12 @@ export function AdjustStockDialog({
 
   if (!open) return null;
 
-  const qty = Number.parseInt(quantity, 10);
+  const qty = Number(quantity);
   const canSubmit =
     Boolean(salonId) &&
     Boolean(productId) &&
-    Number.isInteger(qty) &&
-    qty !== 0;
+    Number.isFinite(qty) && quantity.trim().length > 0 &&
+    qty !== 0 && Math.abs(qty) <= 1000000;
 
   return (
     <div
@@ -91,7 +93,7 @@ export function AdjustStockDialog({
               Adjust Stock
             </h2>
             <p className="mt-1 text-sm text-text-secondary">
-              Use a signed quantity (e.g. +10 or -2). Creates inventory if needed.
+              Use package quantities: +5 adds five packages, -0.05 removes 5% of a package. Creates inventory if needed.
             </p>
           </div>
           <button
@@ -141,10 +143,10 @@ export function AdjustStockDialog({
 
           <div className="grid gap-3 panel-md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-adjust-qty">Quantity delta</Label>
+              <Label htmlFor="inv-adjust-qty">Quantity delta (packages)</Label>
               <Input
                 id="inv-adjust-qty"
-                inputMode="numeric"
+                type="number" step="0.000001" inputMode="decimal"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="e.g. 10 or -2"

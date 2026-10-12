@@ -44,6 +44,7 @@ function mapRow(
     id: row.id,
     salonId: row.salonId,
     productId: row.productId,
+    stockLabel: `${Number((row.quantityOnHand * Number(row.packageSize ?? 1)).toFixed(3))} ${row.measurementUnit ?? "PCS"} / ${row.quantityOnHand} packages`,
     productName: row.productName,
     productSku: row.productSku,
     categoryLabel: categoryByProductId.get(row.productId) ?? '—',
