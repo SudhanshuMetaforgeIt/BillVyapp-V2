@@ -3,6 +3,7 @@
  * validate without importing the generated Prisma client.
  */
 export enum StockMovementType {
+  CONSUMPTION = 'CONSUMPTION',
   PURCHASE = 'PURCHASE',
   SALE = 'SALE',
   RETURN = 'RETURN',

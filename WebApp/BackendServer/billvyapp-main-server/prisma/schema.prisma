@@ -86,6 +86,7 @@ enum PurchaseStatus {
 }
 
 enum StockMovementType {
+  CONSUMPTION
   PURCHASE
   SALE
   RETURN
@@ -149,6 +150,7 @@ enum LoyaltyTransactionType {
 }
 
 enum NotificationChannel {
+  IN_APP
   WHATSAPP
   EMAIL
   SMS
@@ -515,6 +517,7 @@ model ServiceCategory {
 }
 
 model Service {
+  productRecipe Json?
   id              String   @id @default(uuid()) @db.VarChar(36)
   salonId         String   @db.VarChar(36)
   categoryId      String   @db.VarChar(36)
@@ -623,6 +626,8 @@ model ProductCategory {
 }
 
 model Product {
+  measurementUnit String @default("PCS") @db.VarChar(3)
+  packageSize Decimal @default(1) @db.Decimal(12, 3)
   id           String   @id @default(uuid()) @db.VarChar(36)
   salonId      String   @db.VarChar(36)
   categoryId   String   @db.VarChar(36)
@@ -778,9 +783,10 @@ model Inventory {
   id                String    @id @default(uuid()) @db.VarChar(36)
   salonId           String    @db.VarChar(36)
   productId         String    @db.VarChar(36)
-  quantityOnHand    Int       @default(0)
-  reservedQuantity  Int       @default(0)
-  availableQuantity Int       @default(0)
+  quantityOnHand    Decimal   @default(0) @db.Decimal(18, 6)
+  reservedQuantity  Decimal   @default(0) @db.Decimal(18, 6)
+  availableQuantity Decimal   @default(0) @db.Decimal(18, 6)
+  lowStockNotified Boolean @default(false)
   averageCost       Decimal   @default(0) @db.Decimal(12, 2)
   lastPurchasePrice Decimal?  @db.Decimal(12, 2)
   lastStockedAt     DateTime?
@@ -798,16 +804,18 @@ model Inventory {
 
 /// Append-only stock ledger. Rows are never mutated, hence no updatedAt.
 model StockMovement {
+  eventKey String? @unique @db.VarChar(191)
+  consumptionDetails Json?
   id            String            @id @default(uuid()) @db.VarChar(36)
   salonId       String            @db.VarChar(36)
   productId     String            @db.VarChar(36)
   movementType  StockMovementType
-  quantity      Int
+  quantity      Decimal @db.Decimal(18, 6)
   /// Polymorphic pointer to the originating document (e.g. "PURCHASE", "BILL").
   referenceType String?           @db.VarChar(50)
   referenceId   String?           @db.VarChar(36)
   unitCost      Decimal?          @db.Decimal(12, 2)
-  balanceAfter  Int
+  balanceAfter  Decimal @db.Decimal(18, 6)
   notes         String?           @db.Text
   createdBy     String?           @db.VarChar(36)
   createdAt     DateTime          @default(now())
@@ -831,6 +839,7 @@ model StockMovement {
 
 /// Invoice document. The table is deliberately named "bills" (not invoices).
 model Bill {
+  loyaltyPolicy Json?
   currency           String            @default("INR") @db.VarChar(3)
   idempotencyKey     String?           @db.VarChar(191)
   requestHash        String?           @db.VarChar(64)
@@ -889,6 +898,7 @@ model Bill {
 /// A bill line is either a SERVICE or a PRODUCT — exactly one of
 /// serviceId / productId is populated, so both columns are nullable.
 model BillItem {
+  productUsage Json?
   linePosition         Int                   @default(0)
   membershipBenefit    Boolean               @default(false)
   membershipDiscount   Decimal               @default(0) @db.Decimal(12, 2)

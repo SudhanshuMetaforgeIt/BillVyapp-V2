@@ -6,7 +6,7 @@ import type {
 
 export type { DashboardMetric, PaginationMeta, PaginatedResponse };
 
-export type NotificationChannel = 'WHATSAPP' | 'EMAIL' | 'SMS';
+export type NotificationChannel = 'WHATSAPP' | 'EMAIL' | 'SMS' | 'IN_APP';
 
 export type NotificationStatus =
   | 'PENDING'

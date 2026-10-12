@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { syncLowStock } from '../inventory/product-usage';
+import type { Prisma } from '../generated/prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import {
@@ -415,6 +417,17 @@ export class PurchasesService {
     const applyStock = next === PurchaseStatus.RECEIVED;
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM purchases WHERE id = ${existing.id} FOR UPDATE`;
+      const locked = await tx.purchase.findUnique({
+        where: { id: existing.id },
+        select: PURCHASE_SELECT,
+      });
+      if (!locked) throw new NotFoundException('Purchase not found');
+      if ((locked.status as PurchaseStatus) === next) return locked;
+      if ((locked.status as PurchaseStatus) !== current)
+        throw new BadRequestException(
+          'Purchase status changed; reload and retry',
+        );
       if (applyStock) {
         await this.applyPurchaseToInventory(tx, existing, actor.userId);
       }
@@ -443,11 +456,12 @@ export class PurchasesService {
 
   private async applyPurchaseToInventory(
     tx: {
+      $queryRaw: PrismaService['$queryRaw'];
       inventory: {
         findUnique: (args: unknown) => Promise<{
           id: string;
-          quantityOnHand: number;
-          reservedQuantity: number;
+          quantityOnHand: { toString(): string } | number;
+          reservedQuantity: { toString(): string } | number;
           averageCost: { toString(): string } | string | number;
         } | null>;
         create: (args: unknown) => Promise<unknown>;
@@ -462,10 +476,14 @@ export class PurchasesService {
   ): Promise<void> {
     const now = new Date();
 
-    for (const item of purchase.items) {
+    for (const item of [...purchase.items].sort((a, b) =>
+      a.productId.localeCompare(b.productId),
+    )) {
       const unitCost = Number(this.decimalString(item.unitCost));
       const qty = item.quantity;
 
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${item.productId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM inventory WHERE salonId = ${purchase.salonId} AND productId = ${item.productId} FOR UPDATE`;
       const existing = await tx.inventory.findUnique({
         where: {
           salonId_productId: {
@@ -481,8 +499,8 @@ export class PurchasesService {
         },
       });
 
-      const prevOnHand = existing?.quantityOnHand ?? 0;
-      const prevReserved = existing?.reservedQuantity ?? 0;
+      const prevOnHand = Number(existing?.quantityOnHand ?? 0);
+      const prevReserved = Number(existing?.reservedQuantity ?? 0);
       const prevAvg = existing
         ? Number(this.decimalString(existing.averageCost))
         : 0;
@@ -519,6 +537,25 @@ export class PurchasesService {
         });
       }
 
+      const stocked = await tx.inventory.findUnique({
+        where: {
+          salonId_productId: {
+            salonId: purchase.salonId,
+            productId: item.productId,
+          },
+        },
+        select: {
+          id: true,
+          quantityOnHand: true,
+          reservedQuantity: true,
+          averageCost: true,
+        },
+      });
+      if (stocked)
+        await syncLowStock(
+          tx as unknown as Prisma.TransactionClient,
+          stocked.id,
+        );
       await tx.stockMovement.create({
         data: {
           salonId: purchase.salonId,

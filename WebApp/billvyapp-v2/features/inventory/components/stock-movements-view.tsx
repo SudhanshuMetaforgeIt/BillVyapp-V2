@@ -1,5 +1,6 @@
 'use client';
 
+import { ConsumptionReport } from "./consumption-report";
 import { useState } from 'react';
 
 import { DataTable, type Column } from '@/components/data/data-table';
@@ -15,6 +16,7 @@ import { listStockMovements, type StockMovementQuery } from '../services/stock-m
 const PAGE_SIZE = 20;
 
 const TYPE_LABEL: Record<StockMovementType, string> = {
+  CONSUMPTION: "Service consumption",
   PURCHASE: 'Purchase',
   SALE: 'Sale',
   RETURN: 'Return',
@@ -30,10 +32,10 @@ const COLUMNS: Column<StockMovement>[] = [
   { id: 'type', header: 'Type', cell: (m) => TYPE_LABEL[m.movementType] },
   {
     id: 'qty',
-    header: 'Qty',
+    header: 'Qty (packages)',
     cell: (m) => (
-      <span className={cn('font-semibold tabular-nums', m.quantity < 0 ? 'text-danger' : 'text-emerald')}>
-        {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
+      <span className={cn('font-semibold tabular-nums', m.quantity < 0 || ['SALE', 'CONSUMPTION'].includes(m.movementType) ? 'text-danger' : 'text-emerald')}>
+        {['SALE', 'CONSUMPTION'].includes(m.movementType) ? `-${Math.abs(m.quantity)}` : m.quantity > 0 ? `+${m.quantity}` : m.quantity}
       </span>
     ),
   },
@@ -46,7 +48,7 @@ const COLUMNS: Column<StockMovement>[] = [
   {
     id: 'ref',
     header: 'Reference',
-    cell: (m) => <span className="text-xs text-text-secondary">{m.referenceType ?? m.notes ?? '—'}</span>,
+    cell: (m) => <span className="text-xs text-text-secondary">{m.notes ?? m.referenceType ?? '—'}{m.consumptionDetails?.map((detail, i) => <span key={i} className="block">{detail.serviceName ?? 'Service'} × {detail.serviceQuantity}: {Number((detail.packagesUsed * detail.packageSize).toFixed(3))} {detail.measurementUnit}</span>)}</span>,
   },
 ];
 
@@ -72,6 +74,7 @@ export function StockMovementsView() {
         title="Stock movements"
         description="Ledger of every stock change: purchases received, sales, adjustments and damage."
       />
+      <ConsumptionReport salonId={user?.salonId ?? (salonId || undefined)} />
       <DataTable
         columns={COLUMNS}
         query={movements}

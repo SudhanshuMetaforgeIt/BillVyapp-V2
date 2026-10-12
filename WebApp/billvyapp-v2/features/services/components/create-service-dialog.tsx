@@ -2,6 +2,7 @@
 
 import { getCurrencySymbol } from '@/lib/business-region';
 
+import { ProductRecipeEditor, validProductRecipe, type ProductRecipe } from "./product-recipe-editor";
 import { SelectInput } from '@/components/data/form-fields';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -33,6 +34,7 @@ type CreateServiceDialogProps = {
       price: number;
       durationMinutes: number;
       description?: string;
+      productRecipe?: ProductRecipe[];
     },
   ) => Promise<void>;
 };
@@ -58,6 +60,7 @@ export function CreateServiceDialog({
   const [name, setName] = useState('');
   const [price, setPrice] = useState('500');
   const [durationMinutes, setDurationMinutes] = useState('30');
+  const [productRecipe, setProductRecipe] = useState<ProductRecipe[]>([]);
   const [description, setDescription] = useState('');
 
   const [newCategoryMode, setNewCategoryMode] = useState(false);
@@ -66,11 +69,14 @@ export function CreateServiceDialog({
   useEffect(() => {
     if (!isOpen) return;
     if (editingService) {
+    // Existing dialog/filter synchronization keeps persisted form selections current.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
       setSalonId(editingService.salonId);
       setCategoryId(editingService.categoryId);
       setName(editingService.name);
       setPrice(String(editingService.price));
       setDurationMinutes(String(editingService.durationMinutes));
+      setProductRecipe(editingService.productRecipe ?? []);
       setDescription(editingService.description ?? '');
       setNewCategoryMode(false);
       setNewCategoryName('');
@@ -86,6 +92,7 @@ export function CreateServiceDialog({
     setName('');
     setPrice('500');
     setDurationMinutes('30');
+    setProductRecipe([]);
     setDescription('');
     setNewCategoryMode(false);
     setNewCategoryName('');
@@ -106,6 +113,8 @@ export function CreateServiceDialog({
       salonCategories.length > 0 &&
       !salonCategories.some((c) => c.id === categoryId)
     ) {
+    // Existing dialog/filter synchronization keeps persisted form selections current.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
       setCategoryId(salonCategories[0].id);
     }
   }, [isOpen, isEdit, salonCategories, categoryId]);
@@ -121,6 +130,7 @@ export function CreateServiceDialog({
       return;
     }
 
+    if (!validProductRecipe(productRecipe)) { setError("Check product usage quantities and selected products."); return; }
     const parsedDuration = Number.parseInt(durationMinutes, 10);
     const parsedPrice = Number(price);
     if (!Number.isInteger(parsedDuration) || parsedDuration < 1) {
@@ -158,6 +168,7 @@ export function CreateServiceDialog({
           name: name.trim(),
           price: parsedPrice,
           durationMinutes: parsedDuration,
+          productRecipe,
           description: description.trim() || undefined,
         });
       } else {
@@ -167,6 +178,7 @@ export function CreateServiceDialog({
           name: name.trim(),
           price: parsedPrice,
           durationMinutes: parsedDuration,
+          productRecipe,
           description: description.trim() || undefined,
         });
       }
@@ -185,7 +197,7 @@ export function CreateServiceDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="app-dialog relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-xl animate-in fade-in zoom-in-95">
+      <div className="app-dialog relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div>
             <h3 className="text-lg font-bold text-text">
@@ -213,6 +225,7 @@ export function CreateServiceDialog({
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            <ProductRecipeEditor key={salonId} salonId={salonId} value={productRecipe} onChange={setProductRecipe} disabled={loading} />
           <div>
             <label className="block text-xs font-semibold text-text">
               Branch / Location *
@@ -224,7 +237,7 @@ export function CreateServiceDialog({
                 value={salonId}
                 disabled={isEdit}
                 onChange={(e) => {
-                  setSalonId(e.target.value);
+                  setSalonId(e.target.value); setProductRecipe([]);
                   setCategoryId('');
                 }}
               >

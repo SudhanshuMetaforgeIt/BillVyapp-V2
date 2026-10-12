@@ -1,5 +1,9 @@
 'use client';
 import dynamic from 'next/dynamic';
+import { Input } from '@/components/ui/input';
+import { useScopedQuery } from '@/hooks/use-scoped-query';
+import { getLoyaltyQuote } from '@/features/loyalty/loyalty.service';
+import { formatCurrency } from '@/lib/format';
 
 import { CouponCodeCard } from './coupon-code-card';
 
@@ -67,6 +71,8 @@ export function WalkInBillingPageView() {
 
   const [phoneQuery, setPhoneQuery] = useState('');
   const [customer, setCustomer] = useState<WalkInCustomer | null>(null);
+  const [loyaltyInput, setLoyaltyInput] = useState('');
+  const loyalty = useScopedQuery(['loyalty-quote', salonId, customer?.id], () => getLoyaltyQuote(salonId!, customer!.id), { enabled: Boolean(salonId && customer), staleTime: 0 });
   const [createOpen, setCreateOpen] = useState(false);
 
   const [serviceSearch, setServiceSearch] = useState('');
@@ -103,11 +109,7 @@ export function WalkInBillingPageView() {
     [cart],
   );
 
-  const offerKey = useMemo(
-    () =>
-      `${salonId}:${customer?.id}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`,
-    [salonId, customer?.id, cartFingerprint, preview.total, coupon?.couponCode],
-  );
+  const offerKey = `${salonId}:${customer?.id}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`;
 
   const [enrollment, setEnrollment] = useState<
     (EnrollmentChoice & { key: string }) | null
@@ -128,6 +130,7 @@ export function WalkInBillingPageView() {
   }, [preview, choice?.plan?.price]);
 
   const resetForm = useCallback(() => {
+    setLoyaltyInput('');
     setEnrollment(null);
     setPhoneQuery('');
     setCustomer(null);
@@ -177,7 +180,10 @@ export function WalkInBillingPageView() {
     setCart((prev) => prev.filter((line) => line.serviceId !== serviceId));
   }, []);
 
+  const loyaltyPoints = Number(loyaltyInput || 0);
+  const loyaltyInvalid = !Number.isSafeInteger(loyaltyPoints) || loyaltyPoints < 0 || (loyaltyPoints > 0 && (!loyalty.data?.canRedeem || loyalty.isFetching || loyaltyPoints > loyalty.data.balance || loyaltyPoints > Math.floor(payablePreview.total)));
   const canPay =
+    !loyaltyInvalid &&
     Boolean(salonId) &&
     Boolean(customer) &&
     cart.length > 0 &&
@@ -220,6 +226,7 @@ export function WalkInBillingPageView() {
                 setCoupon(null);
                 setCouponValidating(false);
                 setChosenSalonId(id);
+                setLoyaltyInput('');
                 setCart([]);
                 setCategoryId('');
               }}
@@ -238,12 +245,14 @@ export function WalkInBillingPageView() {
           onPhoneQueryChange={setPhoneQuery}
           selected={customer}
           onSelect={(selected) => {
+            setLoyaltyInput('');
             setCoupon(null);
             setCouponValidating(false);
             setCustomer(selected);
             setPhoneQuery(selected.phone);
           }}
           onClear={() => {
+            setLoyaltyInput('');
             setCoupon(null);
             setCouponValidating(false);
             setCustomer(null);
@@ -279,7 +288,15 @@ export function WalkInBillingPageView() {
       </div>
 
       <div className="space-y-5 xl:sticky xl:top-4">
-        <BillSummaryCard preview={payablePreview} />
+        <BillSummaryCard preview={payablePreview} loyaltyPoints={!loyaltyInvalid ? loyaltyPoints : 0} />
+        {customer && salonId && <section className="app-surface-card space-y-2 p-5"><h2 className="font-semibold">Loyalty points</h2>
+          {loyalty.isLoading ? <p role="status">Checking points…</p> : loyalty.isError ? <p className="text-sm">Points could not be loaded. You can pay without points.</p> : loyalty.data?.enabled ? <>
+            <p className="text-sm">Balance: {loyalty.data.balance} points · 1 point = {formatCurrency(1)}</p>
+            <p className="text-xs text-text-secondary">Minimum balance to redeem: {loyalty.data.minimumRedeemPoints}. Use at any shop in this franchise.</p>
+            <label className="block text-sm">Points to use<Input type="number" min="0" max={Math.min(loyalty.data.balance, Math.floor(payablePreview.total))} step="1" value={loyaltyInput} disabled={!loyalty.data.canRedeem || settle.isPending} onChange={(event) => setLoyaltyInput(event.target.value)} placeholder="0" /></label>
+            {loyaltyInvalid && <p role="alert" className="text-sm text-danger">Choose whole points within your eligible balance and amount due.</p>}
+          </> : <p className="text-sm text-text-secondary">This franchise has not enabled loyalty.</p>}
+        </section>}
         {customer && salonId && cart.length > 0 && (
           <MembershipEnrollmentCard
             key={offerKey}
@@ -313,12 +330,13 @@ export function WalkInBillingPageView() {
           onChange={setPaymentMethod}
           canPay={canPay}
           canCollect={can(user, 'bills.status')}
-          zeroTotal={payablePreview.total === 0}
+          zeroTotal={payablePreview.total - (!loyaltyInvalid ? loyaltyPoints : 0) === 0}
           isPaying={settle.isPending}
           onReset={resetForm}
           onPay={() => {
             if (!canPay || !customer || !salonId || cart.length === 0) return;
             settle.mutate({
+              loyaltyPoints: loyaltyPoints || undefined,
               expectedTotal: payablePreview.total,
               enrollmentPlanId: choice?.plan?.id ?? null,
               enrollmentDetails: choice?.plan
@@ -364,6 +382,7 @@ export function WalkInBillingPageView() {
         onOpenChange={setCreateOpen}
         initialPhone={phoneQuery}
         onCreated={(created) => {
+          setLoyaltyInput('');
           setCoupon(null);
           setCouponValidating(false);
           setCustomer(created);

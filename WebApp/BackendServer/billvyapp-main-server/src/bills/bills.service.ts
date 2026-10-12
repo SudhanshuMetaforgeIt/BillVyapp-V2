@@ -1,4 +1,12 @@
+import {
+  readRecipe,
+  materializeProductUsage,
+  consumeServiceProducts,
+  syncLowStock,
+  ProductUsage,
+} from '../inventory/product-usage';
 import { measureBaseline } from '../common/performance/baseline';
+import { synchronizeBillLoyalty } from '../loyalty/loyalty-program';
 import {
   moneyCents,
   centsString,
@@ -60,6 +68,7 @@ import { trimOrNull } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillQueryDto } from './dto/bill-query.dto';
 import { CreateBillDto, CreateBillItemDto } from './dto/create-bill.dto';
+import { MembershipOffersDto } from './dto/membership-offers.dto';
 import { UpdateBillDto } from './dto/update-bill.dto';
 import { UpdateBillStatusDto } from './dto/update-bill-status.dto';
 
@@ -67,10 +76,12 @@ import { UpdateBillStatusDto } from './dto/update-bill-status.dto';
 type TxClient = {
   inventory: PrismaService['inventory'];
   stockMovement: PrismaService['stockMovement'];
+  $queryRaw: PrismaService['$queryRaw'];
   bill: PrismaService['bill'];
   billItem: PrismaService['billItem'];
 };
 const BILL_ITEM_SELECT = {
+  productUsage: true,
   membershipDiscount: true,
   membershipUnits: true,
   membershipBenefit: true,
@@ -90,6 +101,7 @@ const BILL_ITEM_SELECT = {
 const BILL_PAYMENT_SUMMARY_SELECT = {
   id: true,
   amount: true,
+  provider: true,
   paymentMethod: true,
   status: true,
   paymentDate: true,
@@ -160,6 +172,7 @@ const BILL_SELECT = {
 type Decimalish = { toString(): string } | string | number;
 
 type BillItemRow = {
+  productUsage?: unknown;
   membershipDiscount?: Decimalish;
   membershipUnits?: number;
   membershipBenefit?: boolean;
@@ -179,6 +192,7 @@ type BillItemRow = {
 type BillPaymentSummaryRow = {
   id: string;
   amount: Decimalish;
+  provider?: string | null;
   paymentMethod: string;
   status: string;
   paymentDate: Date;
@@ -280,6 +294,7 @@ export type BillRecord = {
   payments: Array<{
     id: string;
     amount: string;
+    provider: string | null;
     paymentMethod: PaymentMethod;
     status: PaymentStatus;
     paymentDate: Date;
@@ -289,6 +304,7 @@ export type BillRecord = {
 };
 
 type ComputedLine = {
+  productUsage?: ProductUsage[];
   membershipDiscount?: string;
   membershipUnits?: number;
   membershipBenefit?: boolean;
@@ -307,6 +323,7 @@ type ComputedLine = {
 };
 
 type CatalogService = {
+  productRecipe?: unknown;
   id: string;
   salonId: string;
   name: string;
@@ -462,7 +479,7 @@ export class BillsService {
     };
   }
 
-  async membershipOffers(actor: AuthenticatedUser, dto: CreateBillDto) {
+  async membershipOffers(actor: AuthenticatedUser, dto: MembershipOffersDto) {
     assertPermission(actor, 'BillsController.membershipOffers');
     await this.scope.assertSalonAccess(actor, dto.salonId);
     const customerId = await this.resolveCustomerId(actor, dto.customerId);
@@ -618,6 +635,8 @@ export class BillsService {
                 items: {
                   create: lines.map((line, linePosition) => ({
                     linePosition,
+                    productUsage:
+                      line.productUsage as unknown as Prisma.InputJsonValue,
                     membershipDiscount: line.membershipDiscount ?? '0.00',
                     membershipUnits: line.membershipUnits ?? 0,
                     membershipBenefit: line.membershipBenefit ?? false,
@@ -796,6 +815,8 @@ export class BillsService {
                 data: lines.map((line, linePosition) => ({
                   linePosition,
                   billId: existing.id,
+                  productUsage:
+                    line.productUsage as unknown as Prisma.InputJsonValue,
                   membershipDiscount: line.membershipDiscount ?? '0.00',
                   membershipUnits: line.membershipUnits ?? 0,
                   membershipBenefit: line.membershipBenefit ?? false,
@@ -1016,6 +1037,18 @@ export class BillsService {
               select: BILL_SELECT,
             });
           }
+          const stockProductIds = new Set<string>();
+          for (const item of locked.items) {
+            if (item.productId) stockProductIds.add(item.productId);
+            if (Array.isArray(item.productUsage))
+              for (const usage of item.productUsage as ProductUsage[])
+                stockProductIds.add(usage.productId);
+          }
+          for (const productId of [...stockProductIds].sort()) {
+            await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId} FOR UPDATE`;
+            await tx.$queryRaw`SELECT id FROM inventory WHERE salonId = ${locked.salonId} AND productId = ${productId} FOR UPDATE`;
+          }
+          await consumeServiceProducts(tx, locked, actor.userId);
           const adjustments = await this.deductProductStock(
             tx,
             locked,
@@ -1041,6 +1074,12 @@ export class BillsService {
             where: { billId: locked.id, status: PaymentStatus.PENDING },
             data: { status: PaymentStatus.CANCELLED },
           });
+          await synchronizeBillLoyalty(
+            tx,
+            locked.id,
+            `bill:${locked.id}:REFUNDED`,
+            false,
+          );
         }
         if (next === BillStatus.CANCELLED)
           await tx.payment.updateMany({
@@ -1184,6 +1223,7 @@ export class BillsService {
       const productId = line.productId as string;
       const qty = line.quantity;
 
+      await tx.$queryRaw`SELECT id FROM inventory WHERE salonId = ${bill.salonId} AND productId = ${productId} FOR UPDATE`;
       const inventory = await tx.inventory.findUnique({
         where: {
           salonId_productId: {
@@ -1205,14 +1245,17 @@ export class BillsService {
         );
       }
 
-      if (inventory.availableQuantity < qty || inventory.quantityOnHand < qty) {
+      if (
+        Number(inventory.availableQuantity) < qty ||
+        Number(inventory.quantityOnHand) < qty
+      ) {
         throw new BadRequestException(
           `Insufficient stock for product ${productId}`,
         );
       }
 
-      const newOnHand = inventory.quantityOnHand - qty;
-      const newAvailable = inventory.availableQuantity - qty;
+      const newOnHand = Number(inventory.quantityOnHand) - qty;
+      const newAvailable = Number(inventory.availableQuantity) - qty;
 
       await tx.inventory.update({
         where: { id: inventory.id },
@@ -1237,10 +1280,14 @@ export class BillsService {
         },
       });
 
+      await syncLowStock(
+        tx as unknown as Prisma.TransactionClient,
+        inventory.id,
+      );
       adjustments.push({
         inventoryId: inventory.id,
-        oldOnHand: inventory.quantityOnHand,
-        oldAvailable: inventory.availableQuantity,
+        oldOnHand: Number(inventory.quantityOnHand),
+        oldAvailable: Number(inventory.availableQuantity),
         newOnHand,
         newAvailable,
       });
@@ -1332,6 +1379,7 @@ export class BillsService {
       );
       return {
         ...item,
+        productUsage: item.productUsage as ProductUsage[] | undefined,
         itemType: item.itemType as BillItemType,
         unitPrice: this.decimalString(item.unitPrice),
         discount: this.decimalString(item.discount),
@@ -1476,6 +1524,7 @@ export class BillsService {
               id: true,
               salonId: true,
               name: true,
+              productRecipe: true,
               price: true,
               taxRate: true,
               isActive: true,
@@ -1507,12 +1556,49 @@ export class BillsService {
     const serviceMap = new Map(services.map((s) => [s.id, s]));
     const productMap = new Map(products.map((p) => [p.id, p]));
 
+    const recipes = new Map(
+      services.map((service) => [
+        service.id,
+        readRecipe(service.productRecipe),
+      ]),
+    );
+    const usageProductIds = [
+      ...new Set(
+        [...recipes.values()].flatMap((rows) =>
+          rows.map((row) => row.productId),
+        ),
+      ),
+    ];
+    if (usageProductIds.length > 100)
+      throw new BadRequestException(
+        'At most 100 distinct consumable products per bill',
+      );
+    const usageProducts = usageProductIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: usageProductIds }, salonId, isActive: true },
+          select: {
+            id: true,
+            name: true,
+            measurementUnit: true,
+            packageSize: true,
+          },
+        })
+      : [];
+    const usageByService = new Map(
+      [...recipes].map(([serviceId, recipe]) => [
+        serviceId,
+        materializeProductUsage(recipe, usageProducts),
+      ]),
+    );
+    let usageEntries = 0;
+
     const lines: ComputedLine[] = [];
 
     for (const item of items) {
       let unitPrice: number;
       let taxRate: number;
       let description: string | null = trimOrNull(item.description) ?? null;
+      let productUsage: ProductUsage[] = [];
       let serviceId: string | null = null;
       let productId: string | null = null;
 
@@ -1527,6 +1613,12 @@ export class BillsService {
         if (!service.isActive) {
           throw new BadRequestException('Service is inactive');
         }
+        productUsage = usageByService.get(service.id) ?? [];
+        usageEntries += productUsage.length;
+        if (usageEntries > 1000)
+          throw new BadRequestException(
+            'At most 1000 consumable recipe entries per bill',
+          );
         serviceId = service.id;
         unitPrice =
           item.unitPrice !== undefined
@@ -1588,6 +1680,7 @@ export class BillsService {
       centsString(netCents + moneyCents(taxAmountNum, 'line tax'));
 
       lines.push({
+        productUsage,
         itemType: item.itemType,
         serviceId,
         productId,
@@ -1810,6 +1903,7 @@ export class BillsService {
       payments: (row.payments ?? []).map((payment) => ({
         id: payment.id,
         amount: this.decimalString(payment.amount),
+        provider: payment.provider ?? null,
         paymentMethod: payment.paymentMethod as PaymentMethod,
         status: payment.status as PaymentStatus,
         paymentDate: payment.paymentDate,

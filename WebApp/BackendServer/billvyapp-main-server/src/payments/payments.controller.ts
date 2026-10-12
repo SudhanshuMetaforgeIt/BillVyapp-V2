@@ -28,6 +28,7 @@ import { PaginatedPaymentsDto } from './dto/paginated-payments.dto';
 import { PaymentQueryDto } from './dto/payment-query.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
+import { RedeemLoyaltyDto } from '../loyalty/dto/loyalty-program.dto';
 import { PaymentsService } from './payments.service';
 
 const PAYMENT_ROLES = [
@@ -52,6 +53,22 @@ const PAYMENT_STATUS_ROLES = [
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
+
+  @Post('loyalty/:billId')
+  @Roles(...PAYMENT_STATUS_ROLES)
+  redeemLoyalty(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('billId', ParseUUIDPipe) billId: string,
+    @Body() dto: RedeemLoyaltyDto,
+    @Req() req: Request,
+  ) {
+    return this.paymentsService.redeemLoyalty(
+      user,
+      billId,
+      dto,
+      requestContext(req),
+    );
+  }
 
   @Get()
   @Roles(...PAYMENT_ROLES)

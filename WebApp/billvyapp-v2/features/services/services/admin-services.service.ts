@@ -18,6 +18,7 @@ type PaginatedResponse<T> = {
 };
 
 type RawService = {
+  productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   id: string;
   salonId: string;
   categoryId: string;
@@ -137,6 +138,7 @@ export async function fetchAdminServices(
     price: Number(s.price) || 0,
     durationMinutes: s.durationMinutes,
     isActive: s.isActive,
+    productRecipe: s.productRecipe,
     description: s.description,
     createdAt: s.createdAt,
   }));
@@ -193,6 +195,7 @@ export async function createService(payload: CreateServicePayload): Promise<Serv
     price: Number(res.price) || 0,
     durationMinutes: res.durationMinutes,
     isActive: res.isActive,
+    productRecipe: res.productRecipe,
     description: res.description,
     createdAt: res.createdAt,
   };
@@ -245,6 +248,7 @@ export async function updateService(
     durationMinutes?: number;
     price?: number;
     taxRate?: number;
+    productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   },
 ): Promise<ServiceItem> {
   const res = await api.patch<RawService>(`/services/${id}`, payload);
@@ -258,6 +262,7 @@ export async function updateService(
     price: Number(res.price) || 0,
     durationMinutes: res.durationMinutes,
     isActive: res.isActive,
+    productRecipe: res.productRecipe,
     description: res.description,
     createdAt: res.createdAt,
   };

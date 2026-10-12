@@ -6,6 +6,7 @@ export type ServiceStats = {
 };
 
 export type ServiceItem = {
+  productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   id: string;
   name: string;
   categoryName: string;
@@ -39,6 +40,7 @@ export type ServicesFilterState = {
 };
 
 export type CreateServicePayload = {
+  productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   salonId: string;
   categoryId: string;
   name: string;

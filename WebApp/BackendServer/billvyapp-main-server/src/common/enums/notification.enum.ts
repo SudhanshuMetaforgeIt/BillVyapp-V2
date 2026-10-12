@@ -3,6 +3,7 @@
  * importing the generated Prisma client.
  */
 export enum NotificationChannel {
+  IN_APP = 'IN_APP',
   WHATSAPP = 'WHATSAPP',
   EMAIL = 'EMAIL',
   SMS = 'SMS',

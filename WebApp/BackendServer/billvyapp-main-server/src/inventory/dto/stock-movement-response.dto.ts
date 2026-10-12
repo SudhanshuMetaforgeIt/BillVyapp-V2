@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { StockMovementType } from '../../common/enums/stock-movement-type.enum';
 
 export class StockMovementResponseDto {
+  @ApiPropertyOptional({ nullable: true }) consumptionDetails?: unknown;
   @ApiProperty() id: string;
   @ApiProperty() salonId: string;
   @ApiProperty() productId: string;

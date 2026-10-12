@@ -26,6 +26,7 @@ export type QueryDomain =
 export function keyTouchesDomain(queryKey: QueryKey, domain: QueryDomain): boolean {
   const key = featureKey(queryKey);
   if (key[0] === domain) return true;
+  if (domain === 'loyalty' && key[0] === 'loyalty-quote') return true;
   if (domain === 'customers') return key[0] === 'admin-customers' || (key[0] === 'walk-in-billing' && key[1] === 'customers');
   if (domain === 'dashboard') return key[0] === 'admin-dashboard';
   if (domain === 'bills' && (key[0] === 'admin-bills' || (key[0] === 'walk-in-billing' && key[1] === 'recent-bills'))) return true;
@@ -49,14 +50,14 @@ export const INVALIDATION_MAP: Record<QueryDomain, QueryDomain[]> = {
   customers: ['customers'],
   addresses: ['addresses'],
   appointments: ['appointments', 'dashboard'],
-  bills: ['bills', 'payments', 'customers', 'memberships', 'dashboard'],
+  bills: ['inventory', 'stock-movements', 'notifications', 'bills', 'payments', 'customers', 'memberships', 'loyalty', 'dashboard'],
   'bill-documents': ['bill-documents'],
-  payments: ['payments', 'bills', 'customers', 'memberships', 'dashboard'],
-  inventory: ['inventory', 'stock-movements', 'dashboard'],
+  payments: ['payments', 'bills', 'customers', 'memberships', 'loyalty', 'dashboard'],
+  inventory: ['inventory', 'stock-movements', 'notifications', 'dashboard'],
   'stock-movements': ['stock-movements', 'inventory'],
   products: ['products', 'inventory'],
   vendors: ['vendors'],
-  purchases: ['purchases', 'inventory', 'stock-movements'],
+  purchases: ['purchases', 'inventory', 'stock-movements', 'notifications'],
   expenses: ['expenses'],
   memberships: ['memberships', 'dashboard'],
   loyalty: ['loyalty'],

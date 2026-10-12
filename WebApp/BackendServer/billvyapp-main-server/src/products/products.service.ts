@@ -31,6 +31,8 @@ const PRODUCT_SELECT = {
   barcode: true,
   description: true,
   unit: true,
+  measurementUnit: true,
+  packageSize: true,
   costPrice: true,
   sellingPrice: true,
   taxRate: true,
@@ -49,6 +51,8 @@ type ProductRow = {
   barcode: string | null;
   description: string | null;
   unit: string;
+  measurementUnit?: string;
+  packageSize?: { toString(): string } | string | number;
   costPrice: { toString(): string } | string | number;
   sellingPrice: { toString(): string } | string | number;
   taxRate: { toString(): string } | string | number;
@@ -67,6 +71,8 @@ export type ProductRecord = {
   barcode: string | null;
   description: string | null;
   unit: string;
+  measurementUnit: string;
+  packageSize: number;
   costPrice?: string;
   sellingPrice: string;
   taxRate: string;
@@ -150,6 +156,13 @@ export class ProductsService {
     dto: CreateProductDto,
     ctx: RequestContext,
   ): Promise<ProductRecord> {
+    if (
+      (dto.measurementUnit ?? 'PCS') === 'PCS' &&
+      !Number.isInteger(dto.packageSize ?? 1)
+    )
+      throw new BadRequestException(
+        'Piece-based packages require a whole number of pieces',
+      );
     await this.requireActiveSalon(dto.salonId);
     await this.scope.assertSalonAccess(actor, dto.salonId);
     await this.requireCategoryInSalon(dto.categoryId, dto.salonId);
@@ -164,6 +177,8 @@ export class ProductsService {
           barcode: trimOrNull(dto.barcode) ?? null,
           description: trimOrNull(dto.description) ?? null,
           ...(dto.unit !== undefined ? { unit: trimRequired(dto.unit) } : {}),
+          measurementUnit: dto.measurementUnit ?? 'PCS',
+          packageSize: dto.packageSize ?? 1,
           costPrice: (dto.costPrice ?? 0).toFixed(2),
           sellingPrice: dto.sellingPrice.toFixed(2),
           taxRate: (dto.taxRate ?? 0).toFixed(2),
@@ -209,6 +224,17 @@ export class ProductsService {
       await this.requireCategoryInSalon(dto.categoryId, existing.salonId);
     }
 
+    // A package is a stable stock denomination, including saved draft recipes.
+    if (
+      (dto.packageSize !== undefined &&
+        Number(dto.packageSize) !== Number(existing.packageSize ?? 1)) ||
+      (dto.measurementUnit !== undefined &&
+        dto.measurementUnit !== (existing.measurementUnit ?? 'PCS'))
+    ) {
+      throw new BadRequestException(
+        'Package size and measurement unit cannot change after product creation. Create a new product for a different package.',
+      );
+    }
     const data: {
       categoryId?: string;
       name?: string;
@@ -216,6 +242,8 @@ export class ProductsService {
       barcode?: string | null;
       description?: string | null;
       unit?: string;
+      measurementUnit?: string;
+      packageSize?: number;
       costPrice?: string;
       sellingPrice?: string;
       taxRate?: string;
@@ -231,6 +259,9 @@ export class ProductsService {
     if (dto.description !== undefined) {
       data.description = trimOrNull(dto.description) ?? null;
     }
+    if (dto.measurementUnit !== undefined)
+      data.measurementUnit = dto.measurementUnit;
+    if (dto.packageSize !== undefined) data.packageSize = dto.packageSize;
     if (dto.unit !== undefined) data.unit = trimRequired(dto.unit);
     if (dto.costPrice !== undefined) data.costPrice = dto.costPrice.toFixed(2);
     if (dto.sellingPrice !== undefined) {
@@ -387,6 +418,8 @@ export class ProductsService {
       barcode: row.barcode,
       description: row.description,
       unit: row.unit,
+      measurementUnit: row.measurementUnit ?? 'PCS',
+      packageSize: Number(row.packageSize ?? 1),
       ...(user?.role !== RoleCode.CUSTOMER
         ? {
             costPrice: this.decimalString(row.costPrice),

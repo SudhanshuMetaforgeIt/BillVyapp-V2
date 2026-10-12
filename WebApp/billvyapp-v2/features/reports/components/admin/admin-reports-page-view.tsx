@@ -1,4 +1,5 @@
 'use client';
+import { ConsumptionReport } from '@/features/inventory/components/consumption-report';
 import { DeferredContent } from '@/components/ui/deferred-content';
 import dynamic from 'next/dynamic';
 
@@ -223,6 +224,7 @@ export function AdminReportsPageView() {
         onDownload={(report) => void handleDownloadReport(report)}
         disabled={!!downloadPhase}
       />
+      <ConsumptionReport salonId={filters.branchId === 'all' ? undefined : filters.branchId} />
       <nav
         aria-label="Related business pages"
         className="flex flex-wrap items-center gap-x-6 gap-y-3 px-1 text-xs text-text-secondary"

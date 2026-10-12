@@ -1,5 +1,10 @@
 import { measureBaseline } from '../common/performance/baseline';
 import {
+  loyaltyPolicy,
+  synchronizeBillLoyalty,
+} from '../loyalty/loyalty-program';
+import { RedeemLoyaltyDto } from '../loyalty/dto/loyalty-program.dto';
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -379,7 +384,12 @@ export class PaymentsService {
               newlyCreated = true;
 
               if (status === PaymentStatus.SUCCESS) {
-                await this.recalculateBillPayments(tx, bill.id);
+                await this.recalculateBillPayments(
+                  tx,
+                  bill.id,
+                  `payment:${payment.id}:SUCCESS`,
+                  true,
+                );
                 return tx.payment.findUniqueOrThrow({
                   where: { id: payment.id },
                   select: PAYMENT_SELECT,
@@ -484,7 +494,11 @@ export class PaymentsService {
             throw new ConflictException(
               'Payment status changed; reload and retry',
             );
-          if (locked.provider && !locked.provider.startsWith('MANUAL'))
+          if (
+            locked.provider &&
+            !locked.provider.startsWith('MANUAL') &&
+            !(locked.provider === 'LOYALTY' && next === PaymentStatus.REFUNDED)
+          )
             throw new BadRequestException(
               'Provider payment states require trusted server verification',
             );
@@ -510,7 +524,12 @@ export class PaymentsService {
             current === PaymentStatus.SUCCESS ||
             next === PaymentStatus.SUCCESS
           ) {
-            await this.recalculateBillPayments(tx, existing.billId);
+            await this.recalculateBillPayments(
+              tx,
+              existing.billId,
+              `payment:${existing.id}:${next}`,
+              next === PaymentStatus.SUCCESS,
+            );
           }
 
           return tx.payment.findUniqueOrThrow({
@@ -537,6 +556,137 @@ export class PaymentsService {
     return this.toResponse(updated);
   }
 
+  async redeemLoyalty(
+    actor: AuthenticatedUser,
+    billId: string,
+    dto: RedeemLoyaltyDto,
+    ctx: RequestContext,
+  ) {
+    this.assertPaymentWriter(actor);
+    const idempotencyKey = requireRequestKey(dto.idempotencyKey);
+    if (
+      !Number.isSafeInteger(dto.points) ||
+      dto.points < 1 ||
+      dto.points > 1_000_000
+    )
+      throw new BadRequestException('Invalid loyalty points');
+    const requestHash = financialRequestHash({
+      actor: actor.userId,
+      billId,
+      points: dto.points,
+      source: 'LOYALTY',
+    });
+    const payment = await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM bills WHERE id = ${billId} FOR UPDATE`;
+        const bill = await tx.bill.findUnique({
+          where: { id: billId },
+          select: {
+            id: true,
+            salonId: true,
+            customerId: true,
+            status: true,
+            dueAmount: true,
+            currency: true,
+            salon: {
+              select: {
+                isActive: true,
+                franchiseId: true,
+                franchise: { select: { preferences: true } },
+              },
+            },
+          },
+        });
+        if (!bill) throw new NotFoundException('Bill not found');
+        await this.assertBillPaymentAccess(actor, bill);
+        await this.scope.assertCustomerAccess(actor, bill.customerId);
+        const retry = await tx.payment.findFirst({
+          where: { billId, idempotencyKey },
+          select: PAYMENT_SELECT,
+        });
+        if (retry) {
+          assertSameFinancialRequest(retry.requestHash, requestHash);
+          return retry;
+        }
+        if (bill.status !== 'COMPLETED' || !bill.salon.isActive)
+          throw new BadRequestException(
+            'Completed bill and active shop required',
+          );
+        const policy = loyaltyPolicy(bill.salon.franchise.preferences);
+        if (!policy.enabled)
+          throw new BadRequestException(
+            'Loyalty is disabled for this franchise',
+          );
+        if (
+          dto.points * 100 >
+          moneyCents(bill.dueAmount.toString(), 'amount due')
+        )
+          throw new BadRequestException('Loyalty value exceeds bill balance');
+        await tx.$queryRaw`SELECT id FROM customers WHERE id = ${bill.customerId} FOR UPDATE`;
+        const balance = await tx.loyaltyTransaction.aggregate({
+          where: {
+            customerId: bill.customerId,
+            salon: { franchiseId: bill.salon.franchiseId },
+          },
+          _sum: { points: true },
+        });
+        const available = balance._sum.points ?? 0;
+        if (available < policy.minimumRedeemPoints || dto.points > available)
+          throw new BadRequestException(
+            'Minimum loyalty balance or sufficient points required',
+          );
+        const created = await tx.payment.create({
+          data: {
+            billId,
+            amount: dto.points.toFixed(2),
+            currency: requireCurrency(bill.currency),
+            paymentMethod: 'WALLET',
+            provider: 'LOYALTY',
+            status: 'SUCCESS',
+            idempotencyKey,
+            requestHash,
+            notes: `Redeemed ${dto.points} loyalty points (1 point = 1 ${bill.currency})`,
+          },
+          select: PAYMENT_SELECT,
+        });
+        await tx.loyaltyTransaction.create({
+          data: {
+            customerId: bill.customerId,
+            salonId: bill.salonId,
+            points: -dto.points,
+            transactionType: 'REDEEMED',
+            idempotencyKey: `loyalty:redeem:${created.id}`,
+            referenceType: 'Payment',
+            referenceId: created.id,
+            description: `Loyalty payment for bill ${billId}`,
+          },
+        });
+        await this.recalculateBillPayments(
+          tx,
+          billId,
+          `payment:${created.id}:LOYALTY`,
+          false,
+        );
+        return tx.payment.findUniqueOrThrow({
+          where: { id: created.id },
+          select: PAYMENT_SELECT,
+        });
+      },
+      { isolationLevel: 'ReadCommitted' },
+    );
+    await this.audit.record({
+      userId: actor.userId,
+      salonId: payment.bill.salonId,
+      action: 'LOYALTY_TRANSACTION_CREATED',
+      entityType: 'Payment',
+      entityId: payment.id,
+      newData: { billId, points: dto.points },
+      ipAddress: ctx.ipAddress,
+      userAgent: ctx.userAgent,
+    });
+    return this.toResponse(payment);
+  }
+
   private assertPaymentWriter(actor: AuthenticatedUser): void {
     if (
       ![
@@ -555,6 +705,8 @@ export class PaymentsService {
   private async recalculateBillPayments(
     tx: TxClient,
     billId: string,
+    eventKey: string,
+    initializeLoyalty: boolean,
   ): Promise<void> {
     const bill = await tx.bill.findUnique({
       where: { id: billId },
@@ -618,6 +770,7 @@ export class PaymentsService {
         },
         data: { status: 'CANCELLED' },
       });
+    await synchronizeBillLoyalty(tx, billId, eventKey, initializeLoyalty);
   }
 
   private derivePaymentStatus(

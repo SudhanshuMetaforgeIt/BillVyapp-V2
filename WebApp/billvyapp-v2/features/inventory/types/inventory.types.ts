@@ -13,6 +13,8 @@ export type PaginatedResponse<T> = {
 export type StockStatusFilter = 'all' | 'low' | 'out' | 'healthy';
 
 export type InventoryApiItem = {
+  measurementUnit?: "PCS" | "ML" | "G";
+  packageSize?: number;
   id: string;
   salonId: string;
   productId: string;
@@ -38,6 +40,8 @@ export type ProductApiItem = {
   barcode: string | null;
   description: string | null;
   unit: string;
+  measurementUnit?: "PCS" | "ML" | "G";
+  packageSize?: number;
   costPrice: string;
   sellingPrice: string;
   taxRate: string;
@@ -58,6 +62,7 @@ export type ProductCategoryApiItem = {
 export type StockStatus = 'out' | 'low' | 'healthy';
 
 export type InventoryListRow = {
+  stockLabel?: string;
   id: string;
   salonId: string;
   productId: string;
@@ -112,6 +117,8 @@ export type CreateProductPayload = {
   barcode?: string | null;
   description?: string | null;
   unit?: string;
+  measurementUnit?: "PCS" | "ML" | "G";
+  packageSize?: number;
   costPrice?: number;
   sellingPrice: number;
   taxRate?: number;
