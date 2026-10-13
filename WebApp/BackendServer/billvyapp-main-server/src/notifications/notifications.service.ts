@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -25,6 +26,7 @@ import {
 import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailOutboxService } from '../mail/mail-outbox.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { SAFE_JOB_OPTIONS } from '../common/security/job-validation';
 import { NotificationQueryDto } from './dto/notification-query.dto';
@@ -103,6 +105,7 @@ export class NotificationsService {
     private readonly audit: AuditService,
     @InjectQueue(NOTIFICATION_QUEUE)
     private readonly notificationQueue: Queue<NotificationJobPayload>,
+    @Optional() private readonly mail?: MailOutboxService,
   ) {}
 
   async list(
@@ -507,6 +510,8 @@ export class NotificationsService {
       data.failedAt = new Date();
       data.retryCount = existing.retryCount + 1;
     }
+    if (dto.status === NotificationStatus.QUEUED)
+      await this.mail?.retryNotification(existing.id);
     const updated = await this.prisma.notification.update({
       where: { id: existing.id },
       data,
@@ -540,8 +545,7 @@ export class NotificationsService {
   }
 
   /**
-   * Worker entry: marks a queued notification as SENT via the logging provider.
-   * Real WhatsApp/Email/SMS providers plug in here later.
+   * Stage durable email delivery. SENT is set only after Graph accepts the message.
    */
   async processDispatch(notificationId: string): Promise<void> {
     const record = await this.prisma.notification.findUnique({
@@ -566,18 +570,7 @@ export class NotificationsService {
 
     if (record.scheduledAt && record.scheduledAt.getTime() > Date.now())
       throw new BadRequestException('Notification is not due');
-    await this.prisma.notification.updateMany({
-      where: {
-        id: notificationId,
-        status: { in: [NotificationStatus.PENDING, NotificationStatus.QUEUED] },
-        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
-      },
-      data: {
-        status: NotificationStatus.SENT,
-        provider: record.provider ?? 'logging',
-        sentAt: new Date(),
-      },
-    });
+    await this.mail?.captureNotification(notificationId);
   }
 
   private async enqueueOrMarkSent(
@@ -615,9 +608,9 @@ export class NotificationsService {
       return this.prisma.notification.update({
         where: { id: notificationId },
         data: {
-          status: NotificationStatus.SENT,
-          provider: 'logging',
-          sentAt: new Date(),
+          status: NotificationStatus.PENDING,
+          errorMessage:
+            'Queue unavailable; email worker will recover this notification',
         },
         select: NOTIFICATION_SELECT,
       });

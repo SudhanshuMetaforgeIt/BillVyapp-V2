@@ -839,6 +839,7 @@ model StockMovement {
 
 /// Invoice document. The table is deliberately named "bills" (not invoices).
 model Bill {
+  emailQueuedAt DateTime?
   loyaltyPolicy Json?
   currency           String            @default("INR") @db.VarChar(3)
   idempotencyKey     String?           @db.VarChar(191)
@@ -1144,6 +1145,7 @@ model Campaign {
 /// Outbound message log across WhatsApp / Email / SMS. Kept intentionally lean
 /// so new channels and providers can be added without restructuring.
 model Notification {
+  emailDelivery EmailOutbox?
   id                String              @id @default(uuid()) @db.VarChar(36)
   salonId           String?             @db.VarChar(36)
   userId            String?             @db.VarChar(36)
@@ -1182,6 +1184,27 @@ model Notification {
   @@index([recipient])
   @@index([createdAt])
   @@map("notifications")
+}
+
+/// Durable mail delivery. UNKNOWN requires reconciliation before manual retry.
+model EmailOutbox {
+  id String @id @default(uuid()) @db.VarChar(36)
+  eventKey String @unique @db.VarChar(191)
+  notificationId String? @unique @db.VarChar(36)
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  recipient String @db.VarChar(191)
+  subject String @db.VarChar(255)
+  html String @db.LongText
+  status String @default("PENDING") @db.VarChar(20)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  claimedAt DateTime?
+  sentAt DateTime?
+  errorMessage String? @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt])
+  @@map("email_outbox")
 }
 
 // =============================================================================

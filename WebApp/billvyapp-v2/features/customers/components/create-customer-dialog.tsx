@@ -1,5 +1,4 @@
 'use client';
-import { isValidPhoneInput } from '@/lib/phone';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -7,6 +6,8 @@ import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import { FormValidationErrors } from '@/components/data/form-validation-errors';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { normalizeIndianPhone } from '@/features/walk-in-billing/lib/bill-preview';
@@ -29,7 +30,10 @@ export function CreateCustomerDialog({
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState<'' | CustomerGender>('');
 
+  const validation=useFormValidation('CreateCustomerDto',{firstName,lastName,email,phone,...(gender ? {gender} : {})});
+  const clearValidation=validation.clear;
   const create = useCreateCustomer(() => {
+    clearValidation();
     onOpenChange(false);
     setFirstName('');
     setLastName('');
@@ -42,21 +46,17 @@ export function CreateCustomerDialog({
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !create.isPending) {
-        onOpenChange(false);
+        clearValidation();
+    onOpenChange(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onOpenChange, create.isPending]);
+  }, [open, onOpenChange, create.isPending, clearValidation]);
 
   if (!open) return null;
 
   const normalizedPhone = normalizeIndianPhone(phone);
-  const canSubmit =
-    firstName.trim().length > 0 &&
-    lastName.trim().length > 0 &&
-    email.trim().length > 0 &&
-    isValidPhoneInput(normalizedPhone);
 
   return (
     <div
@@ -64,7 +64,8 @@ export function CreateCustomerDialog({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !create.isPending) {
-          onOpenChange(false);
+          clearValidation();
+    onOpenChange(false);
         }
       }}
     >
@@ -95,10 +96,11 @@ export function CreateCustomerDialog({
         </div>
 
         <form
+          noValidate
           className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!canSubmit || create.isPending) return;
+            if (create.isPending || !validation.validate()) return;
             create.mutate({
               firstName: firstName.trim(),
               lastName: lastName.trim(),
@@ -108,12 +110,13 @@ export function CreateCustomerDialog({
             });
           }}
         >
+          <FormValidationErrors messages={validation.messages} />
           <div className="grid gap-3 panel-md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="cust-first-name">First name</Label>
               <Input
                 id="cust-first-name"
-                value={firstName}
+                aria-invalid={Boolean(validation.fieldError('firstName'))} value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 autoComplete="given-name"
               />
@@ -122,7 +125,7 @@ export function CreateCustomerDialog({
               <Label htmlFor="cust-last-name">Last name</Label>
               <Input
                 id="cust-last-name"
-                value={lastName}
+                aria-invalid={Boolean(validation.fieldError('lastName'))} value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 autoComplete="family-name"
               />
@@ -133,7 +136,7 @@ export function CreateCustomerDialog({
             <Input
               id="cust-email"
               type="email"
-              value={email}
+              aria-invalid={Boolean(validation.fieldError('email'))} value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
             />
@@ -143,7 +146,7 @@ export function CreateCustomerDialog({
             <Input
               id="cust-phone"
               inputMode="numeric"
-              value={phone}
+              aria-invalid={Boolean(validation.fieldError('phone'))} value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="10 local digits"
               autoComplete="tel"
@@ -174,7 +177,7 @@ export function CreateCustomerDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSubmit || create.isPending}>
+            <Button type="submit" disabled={create.isPending}>
               {create.isPending ? 'Creating…' : 'Create customer'}
             </Button>
           </div>

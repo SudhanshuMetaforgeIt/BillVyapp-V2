@@ -8,6 +8,8 @@ import {
 import { CacheService } from '../redis/cache.service';
 import { randomUUID } from 'crypto';
 import { redactSensitive } from '../common/security/redaction';
+import { MailOutboxService } from '../mail/mail-outbox.service';
+import { GraphMailService } from '../mail/graph-mail.service';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { Prisma } from '../generated/prisma/client';
@@ -170,6 +172,8 @@ export class SettingsService {
     private readonly media: MediaService,
     private readonly redis: RedisService,
     @Optional() private readonly cache?: CacheService,
+    @Optional() private readonly mail?: MailOutboxService,
+    @Optional() private readonly graph?: GraphMailService,
   ) {}
 
   // ---------------------------------------------------------------- general
@@ -619,28 +623,25 @@ export class SettingsService {
     dto: TestEmailDto,
     ctx: RequestContext,
   ) {
-    const row = await this.ensureSettings();
-    if (!row.smtpHost || !row.smtpFromEmail) {
+    if (!this.graph?.deliveryEnabled || !this.mail) {
       throw new BadRequestException(
-        'SMTP host and from-email must be configured before sending a test.',
+        'Microsoft Graph email sending is paused or not configured.',
       );
     }
 
-    // Transport is not wired in this codebase yet. Accept + audit only —
-    // never log credentials or the password.
+    await this.mail.testEmail(dto.to.trim().toLowerCase());
     await this.audit.record({
       userId: actor.userId,
       action: 'SETTINGS_EMAIL_TEST',
       entityType: SETTINGS_ENTITY_TYPE,
       entityId: PLATFORM_SETTINGS_ID,
-      newData: { to: dto.to.trim().toLowerCase(), smtpHost: row.smtpHost },
+      newData: { to: dto.to.trim().toLowerCase(), provider: 'graph' },
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
 
     return {
-      message:
-        'Test email accepted. SMTP delivery will run once the mail transport is connected.',
+      message: 'Test email queued for Microsoft Graph delivery.',
     };
   }
 
@@ -1499,6 +1500,10 @@ export class SettingsService {
 
   private toEmail(row: SettingsRow) {
     return {
+      provider: this.graph?.enabled ? 'graph' : null,
+      providerConfigured: this.graph?.configured ?? false,
+      deliveryEnabled: this.graph?.deliveryEnabled ?? false,
+      providerFromEmail: this.graph?.sender ?? null,
       smtpHost: row.smtpHost,
       smtpPort: row.smtpPort,
       smtpUser: row.smtpUser,

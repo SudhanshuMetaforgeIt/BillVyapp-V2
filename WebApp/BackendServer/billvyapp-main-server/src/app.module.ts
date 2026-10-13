@@ -7,6 +7,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { MailModule } from './mail/mail.module';
 
 import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
@@ -73,6 +74,7 @@ import { ExpensesModule } from './expenses/expenses.module';
     }),
 
     PrismaModule,
+    MailModule,
     RedisModule,
     BullModule.forRootAsync({
       inject: [ConfigService],

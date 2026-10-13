@@ -3,6 +3,8 @@
 import { getCurrencySymbol } from '@/lib/business-region';
 
 import { SelectInput } from '@/components/data/form-fields';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import { FormValidationErrors } from '@/components/data/form-validation-errors';
 
 import { useState } from 'react';
 import { AlertCircle, Loader2, X } from 'lucide-react';
@@ -38,10 +40,13 @@ export function CreateStaffDialog({
     roles.find((r) => r.code === 'STAFF')?.id || roles[0]?.id || '',
   );
 
+  const validation=useFormValidation('CreateUserDto',{firstName,lastName:lastName.trim() || 'Staff',email,phone,password,roleId,salonId,salary});
+  const clearValidation=validation.clear;
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(!validation.validate()) return;
     if (!firstName.trim() || !email.trim() || !phone.trim()) {
       setError('First name, email, and phone number are required.');
       return;
@@ -78,6 +83,7 @@ export function CreateStaffDialog({
         salary: salaryAmount,
       });
 
+      clearValidation();
       onClose();
       // Reset form
       setFirstName('');
@@ -128,7 +134,8 @@ export function CreateStaffDialog({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form noValidate onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <FormValidationErrors messages={validation.messages} />
           {/* First & Last Name */}
           <div className="grid grid-cols-1 gap-3 panel-md:grid-cols-2">
             <div>
@@ -138,7 +145,7 @@ export function CreateStaffDialog({
               <input
                 type="text"
                 required
-                value={firstName}
+                aria-invalid={Boolean(validation.fieldError('firstName'))} value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="e.g. Amit"
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
@@ -150,7 +157,7 @@ export function CreateStaffDialog({
               </label>
               <input
                 type="text"
-                value={lastName}
+                aria-invalid={Boolean(validation.fieldError('lastName'))} value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="e.g. Kumar"
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
@@ -167,7 +174,7 @@ export function CreateStaffDialog({
               <input
                 type="email"
                 required
-                value={email}
+                aria-invalid={Boolean(validation.fieldError('email'))} value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="e.g. amit.kumar@billvy.dev"
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
@@ -180,7 +187,7 @@ export function CreateStaffDialog({
               <input
                 type="tel"
                 required
-                value={phone}
+                aria-invalid={Boolean(validation.fieldError('phone'))} value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="e.g. 9876543210"
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
@@ -196,7 +203,7 @@ export function CreateStaffDialog({
               </label>
               <SelectInput
                 className="mt-1 h-10 w-full text-sm font-medium"
-                value={roleId}
+                aria-invalid={Boolean(validation.fieldError('roleId'))} value={roleId}
                 onChange={(e) => setRoleId(e.target.value)}
                 required
               >
@@ -217,7 +224,7 @@ export function CreateStaffDialog({
               </label>
               <SelectInput
                 className="mt-1 h-10 w-full text-sm font-medium"
-                value={salonId}
+                aria-invalid={Boolean(validation.fieldError('salonId'))} value={salonId}
                 onChange={(e) => setSalonId(e.target.value)}
                 required
               >
@@ -243,7 +250,7 @@ export function CreateStaffDialog({
                 required
                 min={0}
                 step="1"
-                value={salary}
+                aria-invalid={Boolean(validation.fieldError('salary'))} value={salary}
                 onChange={(e) => setSalary(e.target.value)}
                 placeholder="e.g. 28000"
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
@@ -258,7 +265,7 @@ export function CreateStaffDialog({
               </label>
               <input
                 type="text"
-                value={password}
+                aria-invalid={Boolean(validation.fieldError('password'))} value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs text-stone-800 focus:border-amber-500 focus:outline-hidden dark:border-stone-800 dark:bg-stone-800 dark:text-stone-200"
               />

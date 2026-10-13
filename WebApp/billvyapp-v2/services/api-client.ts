@@ -9,6 +9,7 @@ import { appConfig } from '@/config/app.config';
 import { useAuthStore } from '@/stores/auth.store';
 import type { ApiError, ApiErrorBody } from '@/types/api.types';
 import type { AuthSession } from '@/types/user.types';
+import { validateRequestInput } from '@/lib/validation/request-validation';
 
 /**
  * The single Axios instance for the whole application.
@@ -62,6 +63,7 @@ function endSession(): void {
 // ------------------------------------------------------------ error normalise
 
 function toApiError(error: unknown): ApiError {
+  if (!axios.isAxiosError(error) && isApiError(error)) return error;
   if (!axios.isAxiosError(error)) {
     return { status: 0, message: 'Something went wrong. Please try again.' };
   }
@@ -147,6 +149,19 @@ function isCredentialAuthRequest(url?: string): boolean {
 }
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if(config.url) {
+    const method=(config.method ?? 'get').toUpperCase();
+    if(['POST','PATCH','PUT','DELETE'].includes(method)) config.data=validateRequestInput(method,config.url,config.data,'body');
+    const query=new URL(config.url,'http://validation.local').searchParams;
+    const suppliedParams=config.params instanceof URLSearchParams ? Object.fromEntries(config.params) : config.params as Record<string,unknown> | undefined;
+    const params={...Object.fromEntries(query),...suppliedParams};
+    const validatedParams=validateRequestInput(method,config.url,params,'query');
+    // Only DTO-backed queries are normalized; opaque signed URLs retain their encoding.
+    if(validatedParams!==params) {
+      config.params=validatedParams;
+      if(config.url.includes('?')) config.url=config.url.split('?')[0];
+    }
+  }
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

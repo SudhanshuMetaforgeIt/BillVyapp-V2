@@ -1,6 +1,8 @@
 'use client';
 
 import { SelectInput } from '@/components/data/form-fields';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import { FormValidationErrors } from '@/components/data/form-validation-errors';
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { FolderPlus, Plus, X } from 'lucide-react';
@@ -39,8 +41,11 @@ export function AddProductDialog({
   const [createdCategory, setCreatedCategory] = useState<{ id: string; name: string } | null>(null);
   const availableCategories = useMemo(() => createdCategory && !categoryOptions.some((c) => c.id === createdCategory.id) ? [...categoryOptions, createdCategory] : categoryOptions, [createdCategory, categoryOptions]);
   const [createCatOpen, setCreateCatOpen] = useState(false);
+  const validation=useFormValidation('CreateProductDto',{salonId,categoryId,name,sku,sellingPrice,costPrice:costPrice.trim()==='' ? undefined : costPrice,reorderLevel,measurementUnit,packageSize,unit});
+  const clearValidation=validation.clear;
 
   const create = useCreateProduct(() => {
+    clearValidation();
     onOpenChange(false);
     setName('');
     setSku('');
@@ -64,28 +69,19 @@ export function AddProductDialog({
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !create.isPending) {
-        onOpenChange(false);
+        clearValidation();
+    onOpenChange(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onOpenChange, create.isPending]);
+  }, [open, onOpenChange, create.isPending, clearValidation]);
 
   if (!open) return null;
 
   const price = Number(sellingPrice);
   const cost = costPrice.trim() === '' ? undefined : Number(costPrice);
-  const reorder = Number.parseInt(reorderLevel, 10);
-  const canSubmit =
-    Boolean(salonId) &&
-    Boolean(categoryId) &&
-    name.trim().length > 0 &&
-    sku.trim().length > 0 &&
-    Number.isFinite(price) &&
-    price >= 0 &&
-    (cost === undefined || (Number.isFinite(cost) && cost >= 0)) &&
-    Number.isInteger(reorder) &&
-    reorder >= 0 && Number.isFinite(Number(packageSize)) && Number(packageSize) >= 0.001 && Number(packageSize) <= 1000000 && (measurementUnit !== 'PCS' || Number.isInteger(Number(packageSize)));
+  const reorder = Number(reorderLevel);
 
   return (
     <div
@@ -93,7 +89,8 @@ export function AddProductDialog({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !create.isPending) {
-          onOpenChange(false);
+          clearValidation();
+    onOpenChange(false);
         }
       }}
     >
@@ -145,11 +142,12 @@ export function AddProductDialog({
           </div>
         ) : (
           <form
+          noValidate
             className="space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              if (!canSubmit || create.isPending) return;
+              if (create.isPending || !validation.validate()) return;
               create.mutate({
                 salonId,
                 categoryId,
@@ -163,16 +161,17 @@ export function AddProductDialog({
               });
             }}
           >
+            <FormValidationErrors messages={validation.messages} />
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">Measurement unit<SelectInput value={measurementUnit} onChange={(e) => setMeasurementUnit(e.target.value as 'PCS' | 'ML' | 'G')}><option value="PCS">Pieces</option><option value="ML">Millilitres (ml)</option><option value="G">Grams (g)</option></SelectInput></label>
-              <label className="text-sm">Size per package<Input type="number" min="0.001" max="1000000" step="0.001" value={packageSize} onChange={(e) => setPackageSize(e.target.value)} /></label>
+              <label className="text-sm">Size per package<Input type="number" min="0.001" max="1000000" step="0.001" aria-invalid={Boolean(validation.fieldError('packageSize'))} value={packageSize} onChange={(e) => setPackageSize(e.target.value)} /></label>
             </div>
             <p className="text-xs text-text-secondary">Enter stock and reorder levels in packages. Example: one 1,000 ml bottle = one package.</p>
             <div className="space-y-1.5">
               <Label htmlFor="inv-product-name">Name</Label>
               <Input
                 id="inv-product-name"
-                value={name}
+                aria-invalid={Boolean(validation.fieldError('name'))} value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
@@ -181,7 +180,7 @@ export function AddProductDialog({
                 <Label htmlFor="inv-product-sku">SKU</Label>
                 <Input
                   id="inv-product-sku"
-                  value={sku}
+                  aria-invalid={Boolean(validation.fieldError('sku'))} value={sku}
                   onChange={(e) => setSku(e.target.value)}
                 />
               </div>
@@ -224,7 +223,7 @@ export function AddProductDialog({
                 <Input
                   id="inv-product-sell"
                   inputMode="decimal"
-                  value={sellingPrice}
+                  aria-invalid={Boolean(validation.fieldError('sellingPrice'))} value={sellingPrice}
                   onChange={(e) => setSellingPrice(e.target.value)}
                   placeholder="0.00"
                 />
@@ -234,7 +233,7 @@ export function AddProductDialog({
                 <Input
                   id="inv-product-cost"
                   inputMode="decimal"
-                  value={costPrice}
+                  aria-invalid={Boolean(validation.fieldError('costPrice'))} value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value)}
                   placeholder="0.00"
                 />
@@ -245,7 +244,7 @@ export function AddProductDialog({
               <Input
                 id="inv-product-reorder"
                 inputMode="numeric"
-                value={reorderLevel}
+                aria-invalid={Boolean(validation.fieldError('reorderLevel'))} value={reorderLevel}
                 onChange={(e) => setReorderLevel(e.target.value)}
               />
             </div>
@@ -259,7 +258,7 @@ export function AddProductDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!canSubmit || create.isPending}>
+              <Button type="submit" disabled={create.isPending}>
                 {create.isPending ? 'Creating…' : 'Create product'}
               </Button>
             </div>

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "validation:generate": "node ../../scripts/generate-validation-contracts.cjs",
+    "validation:check": "node ../../scripts/generate-validation-contracts.cjs --check",
     "test": "vitest run",
     "test:watch": "vitest"
   },
