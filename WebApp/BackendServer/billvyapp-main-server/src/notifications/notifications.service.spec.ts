@@ -103,6 +103,7 @@ describe('NotificationsService', () => {
   };
   const audit = { record: jest.fn() };
   const queue = { add: jest.fn() };
+  const mail = { captureNotification: jest.fn() };
   let service: NotificationsService;
 
   beforeEach(() => {
@@ -125,6 +126,7 @@ describe('NotificationsService', () => {
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
       queue as never,
+      mail as never,
     );
   });
 
@@ -168,12 +170,12 @@ describe('NotificationsService', () => {
     );
   });
 
-  it('falls back to logging delivery when the queue is unavailable', async () => {
+  it('keeps delivery pending when the queue is unavailable', async () => {
     prisma.notification.create.mockResolvedValue(
       notificationRow({ status: 'PENDING' }),
     );
     prisma.notification.update.mockResolvedValue(
-      notificationRow({ status: 'SENT', provider: 'logging' }),
+      notificationRow({ status: 'PENDING' }),
     );
     queue.add.mockRejectedValue(new Error('Redis down'));
 
@@ -188,12 +190,12 @@ describe('NotificationsService', () => {
       ctx,
     );
 
-    expect(result.status).toBe('SENT');
+    expect(result.status).toBe('PENDING');
     expect(prisma.notification.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          status: 'SENT',
-          provider: 'logging',
+          status: 'PENDING',
+          errorMessage: expect.stringContaining('Queue unavailable') as unknown,
         }) as Record<string, unknown>,
       }),
     );
@@ -270,7 +272,7 @@ describe('NotificationsService', () => {
     );
   });
 
-  it('processDispatch marks queued rows as SENT', async () => {
+  it('processDispatch stages mail without claiming it has been sent', async () => {
     prisma.notification.findUnique.mockResolvedValue(notificationRow());
     prisma.notification.updateMany.mockResolvedValue(
       notificationRow({ status: 'SENT' }),
@@ -278,15 +280,8 @@ describe('NotificationsService', () => {
 
     await service.processDispatch('n-1');
 
-    const updateArg = (
-      prisma.notification.updateMany.mock.calls as unknown as Array<
-        [{ data: Record<string, unknown> }]
-      >
-    )[0][0];
-    expect(updateArg.data).toMatchObject({
-      status: 'SENT',
-      provider: 'logging',
-    });
+    expect(mail.captureNotification).toHaveBeenCalledWith('n-1');
+    expect(prisma.notification.updateMany).not.toHaveBeenCalled();
   });
 
   it.each(['SENT', 'FAILED', 'CANCELLED', 'DELIVERED', 'READ'])(

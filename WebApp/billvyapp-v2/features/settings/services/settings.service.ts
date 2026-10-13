@@ -34,6 +34,10 @@ export type SecuritySettings = {
 };
 
 export type EmailSettings = {
+  provider?: 'graph' | null;
+  providerConfigured?: boolean;
+  deliveryEnabled?: boolean;
+  providerFromEmail?: string | null;
   smtpHost: string | null;
   smtpPort: number | null;
   smtpUser: string | null;

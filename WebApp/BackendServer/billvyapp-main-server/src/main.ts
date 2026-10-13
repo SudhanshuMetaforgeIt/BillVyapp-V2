@@ -25,6 +25,20 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
+  app.enableShutdownHooks();
+  // PM2 uses an IPC shutdown message on Windows, where Unix signals are unavailable.
+  let closing = false;
+  process.on('message', (message: unknown) => {
+    if (message !== 'shutdown' || closing) return;
+    closing = true;
+    void app.close().then(
+      () => process.exit(0),
+      () => {
+        logger.error('Application shutdown failed');
+        process.exit(1);
+      },
+    );
+  });
   startBaseline();
   app.use(baselineMiddleware);
 
@@ -101,6 +115,7 @@ async function bootstrap() {
 
   const port = config.get<number>('port', 3000);
   await app.listen(port);
+  if (process.send) process.send('ready');
 
   logger.log(`API      -> http://localhost:${port}/api`);
   logger.log(`Swagger  -> http://localhost:${port}/api/docs`);

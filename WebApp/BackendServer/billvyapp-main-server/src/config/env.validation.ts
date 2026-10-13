@@ -10,6 +10,8 @@ import {
   Min,
   MinLength,
   validateSync,
+  isEmail,
+  isUUID,
 } from 'class-validator';
 import { allowedBrowserOrigins } from '../common/security/browser-origin-policy';
 import { databaseSecurity } from '../prisma/database-security';
@@ -194,6 +196,30 @@ class EnvironmentVariables {
 }
 
 export function validateEnv(config: Record<string, unknown>) {
+  if (
+    config.MAIL_DELIVERY_ENABLED !== undefined &&
+    !['true', 'false', ''].includes(config.MAIL_DELIVERY_ENABLED as string)
+  )
+    throw new Error('MAIL_DELIVERY_ENABLED must be true or false');
+  const mailValue = (key: string) =>
+    typeof config[key] === 'string' ? config[key] : '';
+  if (config.MAIL_PROVIDER && config.MAIL_PROVIDER !== 'graph')
+    throw new Error('MAIL_PROVIDER must be graph or left unset');
+  if (config.MAIL_PROVIDER === 'graph') {
+    const valid =
+      isUUID(mailValue('GRAPH_TENANT_ID')) &&
+      isUUID(mailValue('GRAPH_CLIENT_ID')) &&
+      typeof config.GRAPH_CLIENT_SECRET === 'string' &&
+      config.GRAPH_CLIENT_SECRET.length > 0 &&
+      isEmail(mailValue('GRAPH_FROM_EMAIL') || mailValue('MAIL_FROM_EMAIL')) &&
+      typeof config.MAIL_START_AT === 'string' &&
+      /^\d{4}-\d{2}-\d{2}T/.test(config.MAIL_START_AT) &&
+      Number.isFinite(Date.parse(config.MAIL_START_AT));
+    if (!valid)
+      throw new Error(
+        'Microsoft Graph requires valid tenant/client IDs, client secret, sender email and MAIL_START_AT',
+      );
+  }
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

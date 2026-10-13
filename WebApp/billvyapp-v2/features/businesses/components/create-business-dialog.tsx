@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectInput } from '@/components/data/form-fields';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import { FormValidationErrors } from '@/components/data/form-validation-errors';
 import { useCreateBusiness } from '../hooks/use-create-business';
 
 type CreateBusinessDialogProps = {
@@ -25,7 +27,10 @@ export function CreateBusinessDialog({
   const [phone, setPhone] = useState('');
   const [phoneCountry, setPhoneCountry] = useState<'IN' | 'US'>('IN');
 
+  const validation=useFormValidation('CreateFranchiseDto',{name,code,email:email.trim() || null,phone:phone.trim() || null,phoneCountry});
+  const clearValidation=validation.clear;
   const create = useCreateBusiness(() => {
+    clearValidation();
     onOpenChange(false);
     setName('');
     setCode('');
@@ -38,16 +43,16 @@ export function CreateBusinessDialog({
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !create.isPending) {
-        onOpenChange(false);
+        clearValidation();
+    onOpenChange(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onOpenChange, create.isPending]);
+  }, [open, onOpenChange, create.isPending, clearValidation]);
 
   if (!open) return null;
 
-  const canSubmit = name.trim().length > 0 && code.trim().length > 0;
 
   return (
     <div
@@ -55,7 +60,8 @@ export function CreateBusinessDialog({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !create.isPending) {
-          onOpenChange(false);
+          clearValidation();
+    onOpenChange(false);
         }
       }}
     >
@@ -81,10 +87,11 @@ export function CreateBusinessDialog({
         </div>
 
         <form
+          noValidate
           className="space-y-4 p-5"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!canSubmit || create.isPending) return;
+            if (create.isPending || !validation.validate()) return;
             create.mutate({
               phoneCountry,
               name,
@@ -94,11 +101,12 @@ export function CreateBusinessDialog({
             });
           }}
         >
+          <FormValidationErrors messages={validation.messages} />
           <div>
             <Label htmlFor="business-name">Business name</Label>
             <Input
               id="business-name"
-              value={name}
+              aria-invalid={Boolean(validation.fieldError('name'))} value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. North Salon Group"
               required
@@ -111,7 +119,7 @@ export function CreateBusinessDialog({
             <Label htmlFor="business-code">Code</Label>
             <Input
               id="business-code"
-              value={code}
+              aria-invalid={Boolean(validation.fieldError('code'))} value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="e.g. NORTH"
               required
@@ -134,7 +142,7 @@ export function CreateBusinessDialog({
             <Input
               id="business-email"
               type="email"
-              value={email}
+              aria-invalid={Boolean(validation.fieldError('email'))} value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="owner@business.com"
               maxLength={191}
@@ -147,7 +155,7 @@ export function CreateBusinessDialog({
               id="business-phone"
               type="tel"
               phoneCountry={phoneCountry}
-              value={phone}
+              aria-invalid={Boolean(validation.fieldError('phone'))} value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="10 local digits"
               maxLength={20}
@@ -165,7 +173,7 @@ export function CreateBusinessDialog({
             </Button>
             <Button
               type="submit"
-              disabled={!canSubmit || create.isPending}
+              disabled={create.isPending}
               className="bg-brand-orange text-white hover:bg-brand-orange-deep"
             >
               {create.isPending ? 'Creating…' : 'Create business'}

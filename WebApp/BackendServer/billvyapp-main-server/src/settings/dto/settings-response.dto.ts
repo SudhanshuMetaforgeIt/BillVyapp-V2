@@ -65,6 +65,10 @@ export class LogPurgeResponseDto {
 }
 
 export class EmailSettingsResponseDto {
+  @ApiPropertyOptional({ nullable: true }) provider: string | null;
+  @ApiProperty() providerConfigured: boolean;
+  @ApiProperty() deliveryEnabled: boolean;
+  @ApiPropertyOptional({ nullable: true }) providerFromEmail: string | null;
   @ApiPropertyOptional({ nullable: true }) smtpHost: string | null;
   @ApiPropertyOptional({ nullable: true }) smtpPort: number | null;
   @ApiPropertyOptional({ nullable: true }) smtpUser: string | null;

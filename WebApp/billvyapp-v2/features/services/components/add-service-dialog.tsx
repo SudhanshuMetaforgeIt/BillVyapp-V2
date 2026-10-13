@@ -1,7 +1,9 @@
 'use client';
 
-import { ProductRecipeEditor, validProductRecipe, type ProductRecipe } from "./product-recipe-editor";
+import { ProductRecipeEditor, type ProductRecipe } from "./product-recipe-editor";
 import { SelectInput } from '@/components/data/form-fields';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import { FormValidationErrors } from '@/components/data/form-validation-errors';
 import { createPortal } from 'react-dom';
 
 import { useEffect, useId, useState } from 'react';
@@ -37,7 +39,12 @@ export function AddServiceDialog({
   const [durationMinutes, setDurationMinutes] = useState(String(editingService?.durationMinutes ?? 30));
   const [taxRate, setTaxRate] = useState(editingService?.taxRate ?? '18');
 
+  const validation=useFormValidation(editingService ? 'UpdateServiceDto' : 'CreateServiceDto',{
+    ...(editingService ? {} : {salonId}),categoryId,name,description:description.trim() || null,price,durationMinutes,taxRate,productRecipe,
+  });
+  const clearValidation=validation.clear;
   const create = useCreateService(() => {
+    clearValidation();
     onOpenChange(false);
     setName('');
     setDescription('');
@@ -46,7 +53,7 @@ export function AddServiceDialog({
     setTaxRate('18');
   });
 
-  const update = useUpdateService(() => onOpenChange(false));
+  const update = useUpdateService(() => { clearValidation(); onOpenChange(false); });
   const busy = create.isPending || update.isPending;
 
   useEffect(() => {
@@ -56,25 +63,13 @@ export function AddServiceDialog({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onOpenChange, busy]);
+  }, [open, onOpenChange, busy, clearValidation]);
 
   if (!open) return null;
 
   const priceNum = Number(price);
   const duration = Number(durationMinutes);
   const tax = Number(taxRate);
-  const canSubmit =
-    Boolean(salonId) &&
-    Boolean(categoryId) &&
-    name.trim().length > 0 &&
-    price.trim().length > 0 &&
-    Number.isFinite(priceNum) &&
-    priceNum >= 0 &&
-    Number.isInteger(duration) &&
-    duration >= 1 &&
-    Number.isFinite(tax) &&
-    tax >= 0 &&
-    tax <= 100 && validProductRecipe(productRecipe);
 
   return createPortal(
     <div
@@ -82,7 +77,8 @@ export function AddServiceDialog({
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) {
-          onOpenChange(false);
+          clearValidation();
+    onOpenChange(false);
         }
       }}
     >
@@ -118,10 +114,11 @@ export function AddServiceDialog({
           </p>
         ) : (
           <form
+          noValidate
             className="space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
-              if (!canSubmit || busy) return;
+              if (busy || !validation.validate()) return;
               const payload = {
                 categoryId,
                 name: name.trim(),
@@ -135,12 +132,13 @@ export function AddServiceDialog({
               else create.mutate({ salonId, ...payload });
             }}
           >
+            <FormValidationErrors messages={validation.messages} />
             <ProductRecipeEditor salonId={salonId} value={productRecipe} onChange={setProductRecipe} disabled={busy} />
             <div className="space-y-1.5">
               <Label htmlFor="svc-name">Name</Label>
               <Input
                 id="svc-name"
-                value={name}
+                aria-invalid={Boolean(validation.fieldError('name'))} value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
@@ -172,7 +170,7 @@ export function AddServiceDialog({
                 <Input
                   id="svc-price"
                   inputMode="decimal"
-                  value={price}
+                  aria-invalid={Boolean(validation.fieldError('price'))} value={price}
                   onChange={(e) => setPrice(e.target.value)}
                 />
               </div>
@@ -181,7 +179,7 @@ export function AddServiceDialog({
                 <Input
                   id="svc-duration"
                   inputMode="numeric"
-                  value={durationMinutes}
+                  aria-invalid={Boolean(validation.fieldError('durationMinutes'))} value={durationMinutes}
                   onChange={(e) => setDurationMinutes(e.target.value)}
                 />
               </div>
@@ -190,7 +188,7 @@ export function AddServiceDialog({
                 <Input
                   id="svc-tax"
                   inputMode="decimal"
-                  value={taxRate}
+                  aria-invalid={Boolean(validation.fieldError('taxRate'))} value={taxRate}
                   onChange={(e) => setTaxRate(e.target.value)}
                 />
               </div>
@@ -204,7 +202,7 @@ export function AddServiceDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!canSubmit || busy}>
+              <Button type="submit" disabled={busy}>
                 {busy ? 'Saving…' : editingService ? 'Save changes' : 'Create service'}
               </Button>
             </div>

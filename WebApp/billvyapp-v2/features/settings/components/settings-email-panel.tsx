@@ -42,6 +42,8 @@ export function SettingsEmailPanel() {
   useEffect(() => {
     const data = query.data;
     if (!data) return;
+    // Synchronize the editable SMTP form when server settings are refetched.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSmtpHost(data.smtpHost ?? '');
     setSmtpPort(data.smtpPort != null ? String(data.smtpPort) : '');
     setSmtpUser(data.smtpUser ?? '');
@@ -68,7 +70,13 @@ export function SettingsEmailPanel() {
 
   return (
     <div className="space-y-6">
-      <DashboardSectionCard title="SMTP" bodyClassName="space-y-4">
+      {query.data.provider === 'graph' ? (
+        <DashboardSectionCard title="Microsoft Graph email" bodyClassName="space-y-2">
+          <p className="text-sm text-text">Sender: {query.data.providerFromEmail}</p>
+          <p className="text-sm text-text">Sending: {query.data.deliveryEnabled ? 'Enabled' : 'Paused'}</p>
+          <p className="text-sm text-text-secondary">Notifications and customer bills are sent from this mailbox. {query.data.providerConfigured ? 'Configuration is present.' : 'Configuration is incomplete.'}</p>
+        </DashboardSectionCard>
+      ) : <DashboardSectionCard title="SMTP" bodyClassName="space-y-4">
         {query.data.smtpPasswordSet ? (
           <p className="text-xs text-text-secondary">A password is already stored. Leave blank to keep it.</p>
         ) : null}
@@ -121,7 +129,7 @@ export function SettingsEmailPanel() {
             )
           }
         />
-      </DashboardSectionCard>
+      </DashboardSectionCard>}
 
       <DashboardSectionCard title="Send a test email" bodyClassName="space-y-4">
         <SettingsTextField
@@ -133,7 +141,7 @@ export function SettingsEmailPanel() {
           placeholder="you@example.com"
         />
         <SettingsSaveButton
-          disabled={test.isPending || !testTo.trim()}
+          disabled={test.isPending || !testTo.trim() || !query.data.deliveryEnabled}
           label={test.isPending ? 'Sending…' : 'Send test'}
           onClick={() =>
             test.mutate(testTo.trim(), {

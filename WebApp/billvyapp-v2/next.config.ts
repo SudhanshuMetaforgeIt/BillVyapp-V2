@@ -8,6 +8,8 @@ import type { NextConfig } from 'next';
 const backendUrl = process.env.BACKEND_URL ?? 'http://127.0.0.1:3000';
 
 const nextConfig: NextConfig = {
+  // Browser tests may run alongside the normal local development server.
+  distDir: process.env.BILLVY_PLAYWRIGHT === 'true' ? '.next-playwright' : '.next',
   // LAN hostnames for `next dev` (phones / other PCs). Without this, Next
   // returns 403 on `/_next/static` and HMR websockets fail.
   // `*` matches one hostname label (one IP octet).
