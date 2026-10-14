@@ -1,13 +1,14 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, FileText, Paperclip, Trash2 } from 'lucide-react';
-import { useRef } from 'react';
+import { Download, FileText, Paperclip, Trash2, LoaderCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { QueryErrorState } from '@/components/data/query-error-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UploadProgress } from '@/components/ui/upload-progress';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { describeApiError } from '@/lib/api-errors';
@@ -35,6 +36,7 @@ export function BillDocumentsPanel({ billId, salonId }: { billId: string; salonI
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const canWrite = can(user, 'billDocuments.write');
   // Customers can only download media they uploaded (media scope), so staff
   // uploads are listed but not downloadable for them.
@@ -45,7 +47,8 @@ export function BillDocumentsPanel({ billId, salonId }: { billId: string; salonI
   });
 
   const upload = useMutation<BillDocument, ApiError, File>({
-    mutationFn: (file) => uploadBillDocument({ billId, salonId, file }),
+    onMutate: () => { setProgress(null); },
+    mutationFn: (file) => uploadBillDocument({ billId, salonId, file, onProgress: setProgress }),
     onSuccess: (doc) => {
       toast.success(`${doc.fileName} attached`);
       void invalidateAfter(queryClient, 'bill-documents');
@@ -102,12 +105,13 @@ export function BillDocumentsPanel({ billId, salonId }: { billId: string; salonI
               disabled={upload.isPending}
               onClick={() => inputRef.current?.click()}
             >
-              <Paperclip className="size-3.5" /> {upload.isPending ? 'Uploading…' : 'Attach'}
+              {upload.isPending ? <LoaderCircle className="size-3.5 motion-safe:animate-spin" aria-hidden="true" /> : <Paperclip className="size-3.5" />} {upload.isPending ? 'Uploading…' : 'Attach'}
             </Button>
           </>
         ) : null}
       </div>
 
+      {upload.isPending ? <UploadProgress fileName={upload.variables?.name} progress={progress} /> : null}
       {docs.isLoading ? (
         <Skeleton className="h-10 w-full rounded-lg" />
       ) : docs.isError && !docs.data ? (

@@ -7,6 +7,9 @@ import { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 export const ACCESS_POLICY: Readonly<
   Record<string, readonly RoleCode[] | null>
 > = {
+  'ProcurementDocumentsController.list': [RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER],
+  'ProcurementDocumentsController.upload': [RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER],
+  'ProcurementDocumentsController.download': [RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER],
   'LoyaltyProgramController.settings': [RoleCode.ADMIN],
   'LoyaltyProgramController.update': [RoleCode.ADMIN],
   'LoyaltyProgramController.quote': [

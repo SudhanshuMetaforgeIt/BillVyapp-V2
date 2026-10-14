@@ -42,14 +42,14 @@ const CustomerTableRow = memo(function CustomerTableRow({
 }: CustomerTableRowProps) {
   return (
     <tr className="border-b border-border/60 last:border-0 hover:bg-ivory/50">
-      <td className="px-4 py-3.5 font-medium text-text">{row.customerCode}</td>
-      <td className="px-4 py-3.5">
-        <div className="flex items-center gap-2.5">
+      <td data-label="Customer ID" className="px-4 py-3.5 font-medium text-text">{row.customerCode}</td>
+      <td data-label="Customer" className="app-customer-name-column px-4 py-3.5">
+        <div className="app-customer-identity flex items-center gap-2.5">
           <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-champagne-light text-[11px] font-bold text-charcoal">
             {row.initials}
           </span>
           <div className="min-w-0">
-            <p className="truncate font-semibold text-text">{row.fullName}</p>
+            <p className="app-customer-name font-semibold text-text">{row.fullName}</p>
             <p className="truncate text-xs text-text-secondary">
               {row.genderLabel}
               {row.ageLabel !== "—" ? `, ${row.ageLabel}` : ""}
@@ -57,11 +57,11 @@ const CustomerTableRow = memo(function CustomerTableRow({
           </div>
         </div>
       </td>
-      <td className="px-4 py-3.5">
+      <td data-label="Contact" className="px-4 py-3.5">
         <p className="font-medium text-text">{row.phoneMasked}</p>
         <p className="truncate text-xs text-text-secondary">{row.email}</p>
       </td>
-      <td className="px-4 py-3.5">
+      <td data-label="Membership" className="px-4 py-3.5">
         <p className={cn("font-semibold", membershipClass(row.membershipTone))}>
           {row.membershipLabel}
         </p>
@@ -76,10 +76,10 @@ const CustomerTableRow = memo(function CustomerTableRow({
           </p>
         ) : null}
       </td>
-      <td className="px-4 py-3.5 text-text-secondary">{row.totalVisitsLabel}</td>
-      <td className="px-4 py-3.5 text-text-secondary">{row.totalSpendLabel}</td>
-      <td className="px-4 py-3.5 text-text-secondary">{row.lastVisitLabel}</td>
-      <td className="px-4 py-3.5">
+      <td data-label="Total visits" className="px-4 py-3.5 text-text-secondary">{row.totalVisitsLabel}</td>
+      <td data-label="Total spend" className="px-4 py-3.5 text-text-secondary">{row.totalSpendLabel}</td>
+      <td data-label="Last visit" className="px-4 py-3.5 text-text-secondary">{row.lastVisitLabel}</td>
+      <td data-label="Status" className="px-4 py-3.5">
         <span
           className={cn(
             "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
@@ -89,7 +89,7 @@ const CustomerTableRow = memo(function CustomerTableRow({
           {row.statusLabel}
         </span>
       </td>
-      <td className="px-4 py-3.5">
+      <td data-label="Actions" className="px-4 py-3.5">
         <div className="flex items-center gap-1">
           <RowActionsMenu name={row.fullName} actions={[{ label: 'View customer', onClick: () => onView(row) }]} />
         </div>
@@ -146,12 +146,12 @@ export const CustomersTable = memo(function CustomersTable({
         />
       ) : (
         <>
-          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-left text-sm">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll app-stacked-scroll overflow-x-auto">
+            <table className="app-responsive-table app-customers-table w-full min-w-[1080px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Customer ID</th>
-                  <th className="px-4 py-3 font-semibold">Customer Details</th>
+                  <th className="app-customer-name-column px-4 py-3 font-semibold">Customer Details</th>
                   <th className="px-4 py-3 font-semibold">Contact</th>
                   <th className="px-4 py-3 font-semibold">Membership</th>
                   <th className="px-4 py-3 font-semibold">Total Visits</th>

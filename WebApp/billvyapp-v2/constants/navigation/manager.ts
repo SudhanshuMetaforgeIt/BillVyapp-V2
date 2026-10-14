@@ -1,5 +1,4 @@
 import {
-  ArrowLeftRight,
   CalendarDays,
   FileText,
   Gift,
@@ -12,9 +11,7 @@ import {
   Receipt,
   Scissors,
   Search,
-  ShoppingCart,
   Sparkles,
-  Truck,
   Users,
 } from 'lucide-react';
 
@@ -51,9 +48,6 @@ export const MANAGER_NAVIGATION: NavSection[] = [
     label: 'Stock',
     items: [
       { id: 'inventory', label: 'Inventory', href: `${base}/inventory`, icon: Package },
-      { id: 'stock-movements', label: 'Stock Movements', href: `${base}/stock-movements`, icon: ArrowLeftRight },
-      { id: 'purchases', label: 'Purchases', href: `${base}/purchases`, icon: ShoppingCart },
-      { id: 'vendors', label: 'Vendors', href: `${base}/vendors`, icon: Truck },
     ],
   },
   {

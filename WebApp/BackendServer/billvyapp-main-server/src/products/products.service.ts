@@ -166,6 +166,10 @@ export class ProductsService {
     await this.requireActiveSalon(dto.salonId);
     await this.scope.assertSalonAccess(actor, dto.salonId);
     await this.requireCategoryInSalon(dto.categoryId, dto.salonId);
+    if (dto.vendorId) {
+      const vendor = await this.prisma.vendor.findUnique({ where: { id: dto.vendorId }, select: { isActive: true } });
+      if (!vendor?.isActive) throw new BadRequestException('Select an active vendor');
+    }
 
     try {
       const created = await this.prisma.product.create({
@@ -181,6 +185,8 @@ export class ProductsService {
           packageSize: dto.packageSize ?? 1,
           costPrice: (dto.costPrice ?? 0).toFixed(2),
           sellingPrice: dto.sellingPrice.toFixed(2),
+          inventory: { create: { salonId: dto.salonId } },
+          ...(dto.vendorId ? { vendors: { create: { vendorId: dto.vendorId, purchasePrice: (dto.costPrice ?? 0).toFixed(2), isPreferred: true } } } : {}),
           taxRate: (dto.taxRate ?? 0).toFixed(2),
           ...(dto.reorderLevel !== undefined
             ? { reorderLevel: dto.reorderLevel }

@@ -62,6 +62,7 @@ export type ProductCategoryApiItem = {
 export type StockStatus = 'out' | 'low' | 'healthy';
 
 export type InventoryListRow = {
+  productDescription?: string | null;
   stockLabel?: string;
   id: string;
   salonId: string;
@@ -110,6 +111,7 @@ export type AdjustStockPayload = {
 };
 
 export type CreateProductPayload = {
+  vendorId?: string;
   salonId: string;
   categoryId: string;
   name: string;

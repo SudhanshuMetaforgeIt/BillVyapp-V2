@@ -24,6 +24,7 @@ export async function uploadBillDocument(input: {
   billId: string;
   salonId: string;
   file: File;
+  onProgress?: (percent: number) => void;
 }): Promise<BillDocument> {
   const upload = await api.post<MediaUpload>('/media/upload-url', {
     originalFileName: input.file.name,
@@ -37,12 +38,16 @@ export async function uploadBillDocument(input: {
   try {
     await axios.put(upload.uploadUrl, input.file, {
       headers: { 'Content-Type': input.file.type || 'application/octet-stream' },
+      onUploadProgress: (event) => {
+        if (event.total) input.onProgress?.(Math.min(100, Math.round(event.loaded / event.total * 100)));
+      },
     });
   } catch {
     await api.delete<void>(`/media/${upload.id}`).catch(() => undefined);
     throw { status: 0, message: 'The file could not be uploaded to storage.' };
   }
 
+  input.onProgress?.(100);
   await api.post<MediaFile>(`/media/${upload.id}/confirm`);
   return api.post<BillDocument>(`/bills/${input.billId}/documents`, {
     mediaFileId: upload.id,

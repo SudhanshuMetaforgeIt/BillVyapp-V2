@@ -32,7 +32,7 @@ function DataTableRowInner<T>({ row, columns, onRowClick }: DataTableRowProps<T>
       onClick={onRowClick ? () => onRowClick(row) : undefined}
     >
       {columns.map((col) => (
-        <td key={col.id} className={cn('px-5 py-3 text-text', col.className)}>
+        <td key={col.id} data-label={typeof col.header === 'string' ? col.header : col.id} className={cn('px-5 py-3 text-text', col.className)}>
           {col.cell(row)}
         </td>
       ))}
@@ -81,7 +81,7 @@ export function DataTable<T>({
   return (
     <div className="app-surface-card overflow-hidden">
       {toolbar ? (
-        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-ivory-soft/50 px-5 py-3">
+        <div className="app-data-table-toolbar flex flex-wrap items-center gap-3 border-b border-border bg-ivory-soft/50 px-5 py-3">
           {toolbar}
         </div>
       ) : null}
@@ -98,8 +98,8 @@ export function DataTable<T>({
         <SectionEmptyState title={emptyTitle} message={emptyMessage} />
       ) : (
         <>
-          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll">
-            <table className="w-full min-w-[720px] text-left text-sm">
+          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll app-stacked-scroll">
+            <table className="app-responsive-table w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
                   {columns.map((col) => (

@@ -31,6 +31,7 @@ class EnvironmentVariables {
   @IsOptional() @IsString() DATABASE_BACKUP_ROOT?: string;
   @IsOptional() @IsString() DATABASE_BACKUP_ENCRYPTION_KEY?: string;
   @IsOptional() @IsString() UPLOAD_CLAMSCAN_PATH?: string;
+  @IsOptional() @IsString() UPLOAD_CLAMSCAN_DATABASE_PATH?: string;
 
   @IsString()
   @MinLength(32, {

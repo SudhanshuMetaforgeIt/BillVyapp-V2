@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CloudinaryDocumentProvider } from './cloudinary-document.provider';
+import { ProcurementDocumentsController } from './procurement-documents.controller';
+import { ProcurementDocumentsService } from './procurement-documents.service';
 import { MediaObjectsController } from './media-objects.controller';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
@@ -14,12 +17,15 @@ import {
 
 @Module({
   controllers: [
+    ProcurementDocumentsController,
     MediaController,
     MediaObjectsController,
     ProfilePhotosController,
     ProfileAvatarController,
   ],
   providers: [
+    CloudinaryDocumentProvider,
+    ProcurementDocumentsService,
     MediaService,
     ObjectStorageService,
     LocalFilesystemStorageProvider,

@@ -38,7 +38,7 @@ export function ServicesPagination({
   const pages = pageWindow(page, Math.max(totalPages, 1));
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="app-catalog-pagination flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-text-secondary">
         Showing{' '}
         <span className="font-semibold text-text">

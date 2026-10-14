@@ -125,6 +125,7 @@ describe('ProductsService', () => {
     },
     salon: { findUnique: jest.fn() },
     productCategory: { findUnique: jest.fn() },
+    vendor: { findUnique: jest.fn() },
     $transaction: jest.fn(),
   };
   const scope = {
@@ -184,6 +185,23 @@ describe('ProductsService', () => {
     await expect(
       service.create(superAdmin, createDto, ctx),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('creates equipment, a zero-stock inventory position and supplier link atomically', async () => {
+    prisma.vendor.findUnique.mockResolvedValue({ isActive: true });
+    prisma.product.create.mockResolvedValue(productRow({ name: 'Hair Dryer' }));
+    await service.create(manager, { ...createDto, name: 'Hair Dryer', vendorId: 'vendor-1', sellingPrice: 0 }, ctx);
+    expect(prisma.product.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      inventory: { create: { salonId: 'salon-a1' } },
+      vendors: { create: { vendorId: 'vendor-1', purchasePrice: '250.00', isPreferred: true } },
+      sellingPrice: '0.00',
+    }) }));
+  });
+
+  it('does not create an item for an inactive supplier', async () => {
+    prisma.vendor.findUnique.mockResolvedValue({ isActive: false });
+    await expect(service.create(manager, { ...createDto, vendorId: 'vendor-1' }, ctx)).rejects.toThrow('Select an active vendor');
+    expect(prisma.product.create).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid category', async () => {

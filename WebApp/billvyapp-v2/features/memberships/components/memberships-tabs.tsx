@@ -15,7 +15,7 @@ type MembershipsTabsProps = {
 
 export function MembershipsTabs({ value, onChange }: MembershipsTabsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 pt-2">
+    <div className="app-catalog-tabs flex flex-wrap items-center gap-1 border-b border-border px-2 pt-2">
       {TABS.map((tab) => {
         const active = value === tab.id;
         return (

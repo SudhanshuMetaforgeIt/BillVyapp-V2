@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCreateProduct } from '../hooks/use-inventory-mutations';
 import { AddProductCategoryDialog } from './add-product-category-dialog';
+import type { ProductApiItem } from '../types/inventory.types';
 
 type AddProductDialogProps = {
   open: boolean;
@@ -19,6 +20,8 @@ type AddProductDialogProps = {
   salonId: string;
   categoryOptions: Array<{ id: string; name: string }>;
   onAddCategory?: () => void;
+  vendorId?: string;
+  onSuccess?: (product: ProductApiItem) => void;
 };
 
 export function AddProductDialog({
@@ -27,10 +30,13 @@ export function AddProductDialog({
   salonId,
   categoryOptions,
   onAddCategory,
+  vendorId,
+  onSuccess,
 }: AddProductDialogProps) {
   const titleId = useId();
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
+  const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [costPrice, setCostPrice] = useState('');
@@ -44,11 +50,13 @@ export function AddProductDialog({
   const validation=useFormValidation('CreateProductDto',{salonId,categoryId,name,sku,sellingPrice,costPrice:costPrice.trim()==='' ? undefined : costPrice,reorderLevel,measurementUnit,packageSize,unit});
   const clearValidation=validation.clear;
 
-  const create = useCreateProduct(() => {
+  const create = useCreateProduct((product) => {
+    onSuccess?.(product);
     clearValidation();
     onOpenChange(false);
     setName('');
     setSku('');
+    setDescription('');
     setSellingPrice('');
     setCostPrice('');
     setReorderLevel('5');
@@ -103,10 +111,10 @@ export function AddProductDialog({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 id={titleId} className="text-lg font-semibold text-text">
-              Add Product
+              Add inventory item
             </h2>
             <p className="mt-1 text-sm text-text-secondary">
-              Creates a catalog product. Adjust stock afterward to track inventory.
+              Add products, electronics, equipment or furniture. Receive a purchase to add stock.
             </p>
           </div>
           <button
@@ -149,6 +157,8 @@ export function AddProductDialog({
               event.stopPropagation();
               if (create.isPending || !validation.validate()) return;
               create.mutate({
+                vendorId,
+                description: description.trim() || null,
                 salonId,
                 categoryId,
                 name: name.trim(),
@@ -194,6 +204,10 @@ export function AddProductDialog({
               </div>
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="inv-product-details">Item details (optional)</Label>
+              <textarea id="inv-product-details" className="min-h-20 w-full rounded-lg border border-border bg-surface p-3 text-sm" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Brand, model, colour, specifications, serial number or warranty details" />
+            </div>
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="inv-product-category">Category</Label>
                 <button
@@ -219,7 +233,7 @@ export function AddProductDialog({
             </div>
             <div className="grid gap-3 panel-md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="inv-product-sell">Selling price</Label>
+                <Label htmlFor="inv-product-sell">Selling price (0 for equipment)</Label>
                 <Input
                   id="inv-product-sell"
                   inputMode="decimal"

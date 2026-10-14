@@ -83,7 +83,7 @@ export function AdminServicesTable({
             tabIndex={0}
             role="region"
             aria-label="Scrollable table"
-            className="app-table-scroll hidden overflow-x-auto lg:block"
+            className="app-table-scroll app-admin-services-table overflow-x-auto"
           >
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border bg-ivory/70 text-xs font-semibold uppercase tracking-wider text-text-secondary">
@@ -192,7 +192,7 @@ export function AdminServicesTable({
           </div>
 
           {/* Mobile / Tablet Cards */}
-          <ul className="divide-y divide-border lg:hidden">
+          <ul className="app-admin-services-cards divide-y divide-border">
             {services.map((s) => (
               <li key={s.id} className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">

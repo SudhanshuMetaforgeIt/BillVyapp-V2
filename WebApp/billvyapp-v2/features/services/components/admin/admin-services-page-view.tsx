@@ -126,7 +126,7 @@ export function AdminServicesPageView() {
   }
 
   return (
-    <div ref={rootRef} className="space-y-6 lg:space-y-7 pb-10">
+    <div ref={rootRef} className="app-catalog-page space-y-6 lg:space-y-7 pb-10">
       <ServicesStats stats={data?.stats} isLoading={query.isLoading} />
 
       <div className="app-toolbar justify-between border-b border-border pb-3">

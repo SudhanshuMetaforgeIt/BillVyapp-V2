@@ -1,4 +1,5 @@
 'use client';
+import { InventoryNavigation } from './inventory-navigation';
 
 import { ConsumptionReport } from "./consumption-report";
 import { useState } from 'react';
@@ -69,7 +70,8 @@ export function StockMovementsView() {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="app-catalog-page space-y-5">
+      {user?.role === 'MANAGER' ? <InventoryNavigation /> : null}
       <PageHeading
         title="Stock movements"
         description="Ledger of every stock change: purchases received, sales, adjustments and damage."

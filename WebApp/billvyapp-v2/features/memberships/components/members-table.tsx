@@ -82,12 +82,12 @@ export function MembersTable({
       {selectedId && <MembershipDetails key={selectedId} id={selectedId} onClose={() => setSelectedId(null)} />}
       {editingMember && <EditMemberDialog key={editingMember.id} id={editingMember.id}
         name={editingMember.memberName} onClose={() => setEditingMember(null)} />}
-      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll app-stacked-scroll overflow-x-auto">
+        <table className="app-responsive-table app-members-table w-full min-w-[1080px] text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
             <tr>
               <th className="px-4 py-3 font-semibold">#</th>
-              <th className="px-4 py-3 font-semibold">Member Name</th>
+              <th className="app-member-name-column px-4 py-3 font-semibold">Member Name</th>
               <th className="px-4 py-3 font-semibold">Mobile</th>
               <th className="px-4 py-3 font-semibold">Membership Plan</th>
               <th className="px-4 py-3 font-semibold">Start & End Date</th>
@@ -107,27 +107,27 @@ export function MembersTable({
                 key={row.id}
                 className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
               >
-                <td className="px-4 py-3.5 text-text-secondary">
+                <td data-label="Number" className="px-4 py-3.5 text-text-secondary">
                   {row.serial}
                 </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-2.5">
+                <td data-label="Member" className="app-member-name-column px-4 py-3.5">
+                  <div className="app-member-identity flex min-w-0 items-center gap-2.5">
                     <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-champagne-light text-[11px] font-bold text-charcoal">
                       {row.initials}
                     </span>
-                    <button type="button" onClick={() => setSelectedId(row.id)} className="cursor-pointer truncate font-semibold text-emerald underline underline-offset-4" title="View membership details">
+                    <button type="button" onClick={() => setSelectedId(row.id)} className="app-member-name cursor-pointer font-semibold text-emerald underline underline-offset-4" title="View membership details">
                       {row.memberName}
                     </button>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-text">{row.phoneMasked}</td>
-                <td className="px-4 py-3.5 font-medium text-text">
+                <td data-label="Mobile" className="px-4 py-3.5 text-text">{row.phoneMasked}</td>
+                <td data-label="Membership plan" className="px-4 py-3.5 font-medium text-text">
                   {row.planName}
                 </td>
-                <td className="px-4 py-3.5 text-text-secondary">
+                <td data-label="Dates" className="px-4 py-3.5 text-text-secondary">
                   {row.dateRangeLabel}
                 </td>
-                <td className="px-4 py-3.5 text-text-secondary">
+                <td data-label="Benefits and coupon" className="px-4 py-3.5 text-text-secondary">
                   <div className="font-mono">{row.couponCode ?? "—"}</div>
                   <div>{row.includedServices || "No included services"}</div>
                   <div>
@@ -136,7 +136,7 @@ export function MembersTable({
                       : "Manual enrollment"}
                   </div>
                 </td>
-                <td className="px-4 py-3.5">
+                <td data-label="Status" className="px-4 py-3.5">
                   <span
                     className={cn(
                       "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
@@ -146,10 +146,10 @@ export function MembersTable({
                     {row.statusLabel}
                   </span>
                 </td>
-                <td className="px-4 py-3.5 font-medium text-text">
+                <td data-label="Plan price" className="px-4 py-3.5 font-medium text-text">
                   {row.planPriceLabel}
                 </td>
-                <td className="px-4 py-3.5">
+                <td data-label="Actions" className="px-4 py-3.5">
                   <div className="flex items-center gap-1">
                     <button
                       type="button"

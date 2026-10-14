@@ -107,7 +107,7 @@ export function ServicesPageView() {
 
   return (
     <>
-      <div ref={rootRef} className="space-y-6 lg:space-y-7">
+      <div ref={rootRef} className="app-catalog-page space-y-6 lg:space-y-7">
         <MetricGrid
           metrics={data?.metrics ?? []}
           isLoading={query.isLoading && !data}

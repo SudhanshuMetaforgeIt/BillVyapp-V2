@@ -8,6 +8,7 @@ import {
   SectionErrorState,
 } from '@/components/layout/section-states';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StatusSwitch } from '@/components/ui/status-switch';
 import { cn } from '@/lib/utils';
 import { useToggleCategoryStatus } from '../hooks/use-service-mutations';
 import type {
@@ -74,8 +75,8 @@ export function CategoriesTable({
 
   return (
     <>
-      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
+      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll app-stacked-scroll overflow-x-auto">
+        <table className="app-responsive-table w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
             <tr>
               <th className="px-4 py-3 font-semibold">Category</th>
@@ -92,7 +93,7 @@ export function CategoriesTable({
                 key={row.id}
                 className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
               >
-                <td className="px-4 py-3.5">
+                <td data-label="Category" className="px-4 py-3.5">
                   <div className="flex items-center gap-2.5">
                     <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-champagne-light text-charcoal">
                       <Tags className="size-4" aria-hidden />
@@ -107,8 +108,8 @@ export function CategoriesTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-text">{row.serviceCount}</td>
-                <td className="px-4 py-3.5">
+                <td data-label="Services" className="px-4 py-3.5 text-text">{row.serviceCount}</td>
+                <td data-label="Status" className="px-4 py-3.5">
                   <span
                     className={cn(
                       'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold',
@@ -120,7 +121,7 @@ export function CategoriesTable({
                     {row.statusLabel}
                   </span>
                 </td>
-                <td className="px-4 py-3.5">
+                <td data-label="Actions" className="px-4 py-3.5">
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -131,31 +132,7 @@ export function CategoriesTable({
                     >
                       <Pencil className="size-4" />
                     </button>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={row.isActive}
-                      aria-label={`Toggle ${row.name} status`}
-                      disabled={toggle.isPending}
-                      onClick={() =>
-                        toggle.mutate({
-                          id: row.id,
-                          isActive: !row.isActive,
-                          name: row.name,
-                        })
-                      }
-                      className={cn(
-                        'relative h-5 w-9 rounded-full transition',
-                        row.isActive ? 'bg-champagne' : 'bg-muted',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'absolute top-0.5 left-0.5 size-4 rounded-full bg-white transition',
-                          row.isActive && 'translate-x-4',
-                        )}
-                      />
-                    </button>
+                    <StatusSwitch checked={row.isActive} label={`Toggle ${row.name} status`} disabled={toggle.isPending} onCheckedChange={(isActive) => toggle.mutate({ id: row.id, isActive, name: row.name })} />
                     <RowActionsMenu name={row.name}
       fields={[["Description", row.description], ["Services", row.serviceCount], ["Status", row.statusLabel]]}
       actions={[{ label: row.isActive ? 'Deactivate category' : 'Activate category', disabled: toggle.isPending,

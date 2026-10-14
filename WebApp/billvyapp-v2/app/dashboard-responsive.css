@@ -104,3 +104,126 @@ body:has(.app-dashboard) *::-webkit-scrollbar {
   .app-report-table { display: block; }
   .app-report-cards { display: none; }
 }
+
+/* Catalog layouts follow the actual space left by the dashboard sidebar. */
+.app-catalog-page { container: catalog / inline-size; width: 100%; min-width: 0; max-width: 100%; }
+.app-catalog-page > *, .app-catalog-page .app-surface-card { min-width: 0; max-width: 100%; }
+.app-catalog-page .app-toolbar { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; }
+.app-catalog-page .app-toolbar > :where(div, input) { width: 100%; max-width: none; }
+.app-catalog-page .app-toolbar > .flex { justify-content: flex-end; }
+.app-catalog-page .app-toolbar :where(input, select, button) { min-width: 0; }
+.app-catalog-tabs > button { min-width: 0; white-space: normal; text-wrap: balance; }
+.app-catalog-pagination { min-width: 0; flex-wrap: wrap; }
+.app-catalog-pagination > div { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+.app-catalog-page .app-table-scroll { max-width: 100%; scrollbar-width: thin; scrollbar-color: var(--bv-champagne) transparent; }
+.app-catalog-page .app-table-scroll::-webkit-scrollbar { display: block; height: .5rem; }
+.app-catalog-page .app-table-scroll::-webkit-scrollbar-thumb { border-radius: 1rem; background: var(--bv-champagne); }
+.app-catalog-page .app-table-scroll table { table-layout: auto; }
+.app-catalog-page .app-table-scroll :where(th, td) { vertical-align: top; }
+.app-catalog-page .app-table-scroll td :where(.truncate, .font-mono) { max-width: 18rem; overflow-wrap: anywhere; white-space: normal; }
+.app-inventory-table :where(th, td):first-child { position: sticky; left: 0; z-index: 1; min-width: 12rem; max-width: 16rem; background: var(--bv-surface); box-shadow: 1px 0 0 var(--border); }
+.app-inventory-table th:first-child { z-index: 2; background: var(--bv-ivory); }
+.app-consumption-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; max-width: 32rem; }
+.app-consumption-dates label { min-width: 0; }
+.app-consumption-dates input { width: 100%; min-width: 0; }
+.app-inventory-navigation { grid-template-columns: minmax(0, 1fr); }
+.app-catalog-page .app-data-table-toolbar > * { min-width: 0; max-width: 100%; }
+.app-admin-services-table { display: none; }
+.app-admin-services-cards { display: block; }
+@container catalog (min-width: 64rem) {
+  .app-admin-services-table { display: block; }
+  .app-admin-services-cards { display: none; }
+}
+@container dashboard (min-width: 32rem) {
+  .app-inventory-navigation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container dashboard (min-width: 64rem) {
+  .app-inventory-navigation { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container catalog (max-width: 56rem) {
+  .app-catalog-page .app-data-table-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-catalog-page .app-data-table-toolbar > * { width: 100%; }
+  .app-catalog-page .app-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .app-catalog-page .app-toolbar > .flex { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); width: 100%; }
+  .app-catalog-page .app-toolbar > .flex > :where(select, button, div) { width: 100%; min-width: 0; }
+  .app-catalog-pagination { flex-direction: column; align-items: stretch; }
+  .app-catalog-pagination > div { justify-content: flex-end; }
+  .app-catalog-summary { grid-template-columns: minmax(0, 1fr); }
+}
+@container catalog (max-width: 28rem) {
+  .app-catalog-page .app-data-table-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .app-catalog-page .app-toolbar > .flex { grid-template-columns: minmax(0, 1fr); }
+  .app-catalog-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+  .app-consumption-dates { grid-template-columns: minmax(0, 1fr); }
+  .app-catalog-pagination > div { justify-content: center; }
+  .app-catalog-page .app-table-scroll :where(th, td) { padding-inline: .75rem; }
+  .app-catalog-summary :where(.flex) { flex-wrap: wrap; }
+}
+/* Viewport fallback also covers phones before container styles are resolved. */
+@media (max-width: 39.999rem) {
+  .app-catalog-page .app-data-table-toolbar { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .app-catalog-page .app-data-table-toolbar > * { width: 100%; }
+  .app-catalog-page .app-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .app-catalog-page .app-toolbar > .flex { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .app-catalog-page .app-toolbar > .flex > :where(select, button, div) { width: 100%; min-width: 0; }
+  .app-catalog-pagination { flex-direction: column; align-items: stretch; padding-inline: .75rem; }
+}
+
+/* Narrow catalog tables become labelled rows; all fields remain visible. */
+.app-members-table .app-member-name-column { width: 16rem; min-width: 16rem; }
+.app-catalog-page .app-members-table .app-member-identity { flex-wrap: nowrap; }
+.app-members-table .app-member-name { min-width: 0; text-align: left; white-space: normal; overflow-wrap: normal; word-break: normal; }
+.app-customers-table .app-customer-name-column { width: 16rem; min-width: 16rem; }
+.app-catalog-page .app-customers-table .app-customer-identity { min-width: 0; flex-wrap: nowrap; }
+.app-dashboard-content .app-customers-table .app-customer-name { min-width: 0; text-align: left; white-space: normal; overflow-wrap: normal; word-break: normal; }
+@container catalog (max-width: 56rem) {
+  .app-members-table .app-member-name-column { grid-column: 1 / -1; }
+  .app-customers-table .app-customer-name-column,
+  .app-customers-table td[data-label="Contact"],
+  .app-customers-table td[data-label="Email"] { grid-column: 1 / -1; }
+  .app-catalog-page .app-customers-table td { text-align: left; white-space: normal; }
+  .app-customers-table td[data-label="Actions"] > .flex { justify-content: flex-end; }
+  .app-catalog-page .app-stacked-scroll { overflow: visible; }
+  .app-catalog-page .app-stacked-scroll::before { content: none; }
+  .app-catalog-page .app-stacked-scroll table.app-responsive-table { display: block; position: relative; width: 100%; min-width: 0; }
+  .app-catalog-page .app-responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .app-catalog-page .app-responsive-table tbody { display: grid; gap: .75rem; min-width: 0; }
+  .app-catalog-page .app-responsive-table tbody > tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .875rem 1rem; min-width: 0; padding: 1rem; border: 1px solid var(--border); border-radius: .875rem; background: var(--bv-surface); }
+  .app-catalog-page .app-stacked-scroll table.app-responsive-table td { display: block; position: static; min-width: 0; max-width: none; width: auto; padding: 0; background: transparent; box-shadow: none; overflow-wrap: anywhere; }
+  .app-catalog-page .app-responsive-table td::before { content: attr(data-label); display: block; margin-bottom: .25rem; font-size: .6875rem; line-height: 1.4; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--bv-text-secondary); }
+  .app-catalog-page .app-responsive-table td:first-child, .app-catalog-page .app-responsive-table td[data-label="Actions"] { grid-column: 1 / -1; }
+  .app-catalog-page .app-responsive-table td[data-label="Actions"] { padding-top: .625rem; border-top: 1px solid var(--border); }
+  .app-catalog-page .app-responsive-table td :where(.truncate, .font-mono) { width: auto; max-width: 100%; white-space: normal; overflow: visible; text-overflow: clip; }
+  .app-catalog-page .app-responsive-table td > .flex { flex-wrap: wrap; }
+  .app-catalog-page :is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) tbody > tr { position: relative; isolation: isolate; }
+  .app-catalog-page .app-stacked-scroll table:is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td:first-child { padding-right: 5rem; }
+  .app-catalog-page .app-stacked-scroll table:is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td[data-label="Actions"] { position: absolute; top: .5rem; right: .5rem; z-index: 2; padding: 0; border: 0; }
+  .app-catalog-page .app-stacked-scroll table:is(.app-membership-plans-table, .app-inventory-items-table) td:first-child { padding-right: 9rem; }
+  :is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td[data-label="Actions"]::before { display: none; }
+  .app-catalog-page :is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td[data-label="Actions"] > .flex { flex-wrap: nowrap; justify-content: flex-end; }
+}
+@media (max-width: 39.999rem) {
+  .app-members-table .app-member-name-column { grid-column: 1 / -1; }
+  .app-customers-table .app-customer-name-column,
+  .app-customers-table td[data-label="Contact"],
+  .app-customers-table td[data-label="Email"] { grid-column: 1 / -1; }
+  .app-catalog-page .app-customers-table td { text-align: left; white-space: normal; }
+  .app-customers-table td[data-label="Actions"] > .flex { justify-content: flex-end; }
+  .app-catalog-page .app-stacked-scroll { overflow: visible; }
+  .app-catalog-page .app-stacked-scroll::before { content: none; }
+  .app-catalog-page .app-stacked-scroll table.app-responsive-table { display: block; position: relative; width: 100%; min-width: 0; }
+  .app-catalog-page .app-responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .app-catalog-page .app-responsive-table tbody { display: grid; gap: .75rem; min-width: 0; }
+  .app-catalog-page .app-responsive-table tbody > tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .875rem 1rem; padding: .875rem; border: 1px solid var(--border); border-radius: .875rem; background: var(--bv-surface); }
+  .app-catalog-page .app-stacked-scroll table.app-responsive-table td { display: block; position: static; min-width: 0; max-width: none; width: auto; padding: 0; background: transparent; box-shadow: none; overflow-wrap: anywhere; }
+  .app-catalog-page .app-responsive-table td::before { content: attr(data-label); display: block; margin-bottom: .25rem; font-size: .6875rem; line-height: 1.4; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--bv-text-secondary); }
+  .app-catalog-page .app-responsive-table td:first-child, .app-catalog-page .app-responsive-table td[data-label="Actions"] { grid-column: 1 / -1; }
+  .app-catalog-page .app-responsive-table td[data-label="Actions"] { padding-top: .625rem; border-top: 1px solid var(--border); }
+  .app-catalog-page .app-responsive-table td :where(.truncate, .font-mono) { max-width: 100%; white-space: normal; overflow: visible; text-overflow: clip; }
+  .app-catalog-page :is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) tbody > tr { position: relative; isolation: isolate; }
+  .app-catalog-page .app-stacked-scroll table:is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td:first-child { padding-right: 5rem; }
+  .app-catalog-page .app-stacked-scroll table:is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td[data-label="Actions"] { position: absolute; top: .5rem; right: .5rem; z-index: 2; padding: 0; border: 0; }
+  .app-catalog-page .app-stacked-scroll table:is(.app-membership-plans-table, .app-inventory-items-table) td:first-child { padding-right: 9rem; }
+  :is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td[data-label="Actions"]::before { display: none; }
+  .app-catalog-page :is(.app-customers-table, .app-members-table, .app-membership-plans-table, .app-inventory-items-table) td[data-label="Actions"] > .flex { flex-wrap: nowrap; justify-content: flex-end; }
+}

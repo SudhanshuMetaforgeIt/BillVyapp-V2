@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AllExceptionsFilter } from './all-exceptions.filter';
+import { FileScannerUnavailableException } from '../../media/file-scanner-unavailable.exception';
 jest.mock('../../generated/prisma/client', () => ({
   Prisma: {
     PrismaClientKnownRequestError: class extends Error {},
@@ -55,6 +56,14 @@ describe('Public API error confidentiality', () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     expect(send(new BadRequestException('Invalid quantity')).message).toBe(
       'Invalid quantity',
+    );
+  });
+  it('shows the fixed scanner setup error without exposing internal exception details', () => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    expect(
+      send(new FileScannerUnavailableException('NOT_CONFIGURED')).message,
+    ).toBe(
+      'PDF scanning is not configured. Please contact your administrator.',
     );
   });
   it('maps parser rejection without echoing raw request content', () => {

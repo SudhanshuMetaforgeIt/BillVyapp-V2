@@ -9,6 +9,7 @@ import {
 import { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client';
 import { safeRequestPath } from '../security/redaction';
+import { FileScannerUnavailableException } from '../../media/file-scanner-unavailable.exception';
 
 interface ApiErrorBody {
   statusCode: number;
@@ -75,6 +76,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      if (exception instanceof FileScannerUnavailableException)
+        return {
+          status,
+          message: exception.publicMessage,
+          error: this.reason(status),
+        };
       if (status >= 500)
         return {
           status,
