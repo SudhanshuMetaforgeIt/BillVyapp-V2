@@ -285,6 +285,20 @@ describe('AuthService', () => {
       );
     });
 
+    it('withholds devOtp when login response exposure is disabled', async () => {
+      config.get.mockImplementation((key: string) => {
+        if (key === 'nodeEnv') return 'development';
+        if (key === 'otp.devEnabled') return true;
+        if (key === 'otp.returnInResponse') return false;
+        return undefined;
+      });
+      prisma.user.findUnique.mockResolvedValue(customerUser());
+      otp.issue.mockResolvedValue('482913');
+      const result = await auth.sendOtp({ phone: '9876543210' }, ctx);
+      expect(otp.issue).toHaveBeenCalled();
+      expect(result.devOtp).toBeUndefined();
+    });
+
     it('never returns devOtp in production even if DEV_OTP_ENABLED is true', async () => {
       config.get.mockImplementation((key: string) => {
         if (key === 'nodeEnv') return 'production';

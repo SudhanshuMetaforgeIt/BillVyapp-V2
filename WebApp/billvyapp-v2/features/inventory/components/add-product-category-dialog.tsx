@@ -6,8 +6,17 @@ import { FolderPlus, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MutationError } from '@/components/data/form-fields';
 import { useCreateProductCategory } from '../hooks/use-inventory-mutations';
 import type { ProductCategoryApiItem } from '../types/inventory.types';
+
+const CATEGORY_SUGGESTIONS = [
+  { name: 'Furniture', description: 'Chairs, sofas, beds, stools and salon stations' },
+  { name: 'Electronics', description: 'Dryers, straighteners, trimmers, speakers and electrical devices' },
+  { name: 'Tools', description: 'Scissors, combs, brushes, bowls and reusable salon tools' },
+  { name: 'Equipment', description: 'Steamers, facial machines, wax heaters and treatment equipment' },
+  { name: 'Consumables', description: 'Products, disposable supplies and other items used during services' },
+] as const;
 
 type AddProductCategoryDialogProps = {
   open: boolean;
@@ -74,7 +83,7 @@ export function AddProductCategoryDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="app-surface-card w-full max-w-md p-5 shadow-xl sm:p-6"
+        className="app-surface-card max-h-[90svh] w-full max-w-md overflow-y-auto p-5 shadow-xl sm:p-6"
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -83,10 +92,10 @@ export function AddProductCategoryDialog({
             </div>
             <div>
               <h2 id={titleId} className="text-lg font-semibold text-text">
-                Add Product Category
+                Add Inventory Category
               </h2>
               <p id={descId} className="mt-0.5 text-xs text-text-secondary sm:text-sm">
-                Create a product category for your salon catalog.
+                Organize products, furniture, electronics, tools and supplies.
               </p>
             </div>
           </div>
@@ -115,6 +124,20 @@ export function AddProductCategoryDialog({
             });
           }}
         >
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-text-secondary">Choose a starting point, or enter your own category.</p>
+            <div className="flex flex-wrap gap-2" aria-label="Suggested inventory categories">
+              {CATEGORY_SUGGESTIONS.map((category) => (
+                <Button key={category.name} type="button" size="sm"
+                  variant={trimmedName === category.name ? 'secondary' : 'outline'}
+                  aria-pressed={trimmedName === category.name}
+                  disabled={create.isPending}
+                  onClick={() => { setName(category.name); setDescription(category.description); }}>
+                  {category.name}
+                </Button>
+              ))}
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="inv-cat-name" className="text-sm font-medium">
               Category Name <span className="text-danger">*</span>
@@ -123,7 +146,7 @@ export function AddProductCategoryDialog({
               id="inv-cat-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Hair Care, Styling, Skincare"
+              placeholder="e.g. Furniture, Electronics, Tools, Hair Care"
               autoFocus
               maxLength={191}
               required
@@ -139,11 +162,13 @@ export function AddProductCategoryDialog({
               id="inv-cat-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Shampoos, conditioners, and hair serums"
+              placeholder="Describe the items that belong to this category"
               maxLength={255}
               disabled={create.isPending}
             />
           </div>
+
+          <MutationError error={create.error} />
 
           <div className="flex items-center justify-end gap-2.5 pt-2">
             <Button

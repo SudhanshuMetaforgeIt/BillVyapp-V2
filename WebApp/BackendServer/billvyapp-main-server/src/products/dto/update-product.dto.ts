@@ -6,5 +6,5 @@ import { CreateProductDto } from './create-product.dto';
  * history that must stay attached to the original salon.
  */
 export class UpdateProductDto extends PartialType(
-  OmitType(CreateProductDto, ['salonId'] as const),
+  OmitType(CreateProductDto, ['salonId', 'vendorId'] as const),
 ) {}

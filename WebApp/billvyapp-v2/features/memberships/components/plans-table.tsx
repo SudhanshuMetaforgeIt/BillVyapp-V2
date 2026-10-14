@@ -66,8 +66,8 @@ export function PlansTable({
 
   return (
     <>
-      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
-        <table className="w-full min-w-[880px] text-left text-sm">
+      <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll app-stacked-scroll overflow-x-auto">
+        <table className="app-responsive-table app-membership-plans-table w-full min-w-[880px] text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
             <tr>
               <th className="px-4 py-3 font-semibold">Plan</th>
@@ -89,7 +89,7 @@ export function PlansTable({
                 key={row.id}
                 className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
               >
-                <td className="px-4 py-3.5">
+                <td data-label="Plan" className="px-4 py-3.5">
                   <div className="flex items-center gap-2.5">
                     <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-champagne-light text-charcoal">
                       <Tags className="size-4" aria-hidden />
@@ -104,17 +104,17 @@ export function PlansTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3.5">{row.salonName}</td>
-                <td className="px-4 py-3.5">{row.thresholdLabel}</td>
-                <td className="px-4 py-3.5">{row.servicesLabel}</td>
-                <td className="px-4 py-3.5 font-medium text-text">
+                <td data-label="Salon" className="px-4 py-3.5">{row.salonName}</td>
+                <td data-label="Threshold" className="px-4 py-3.5">{row.thresholdLabel}</td>
+                <td data-label="Services" className="px-4 py-3.5">{row.servicesLabel}</td>
+                <td data-label="Price" className="px-4 py-3.5 font-medium text-text">
                   {row.priceLabel}
                 </td>
-                <td className="px-4 py-3.5 text-text-secondary">
+                <td data-label="Duration" className="px-4 py-3.5 text-text-secondary">
                   {row.durationLabel}
                 </td>
-                <td className="px-4 py-3.5 text-text">{row.memberCount}</td>
-                <td className="px-4 py-3.5">
+                <td data-label="Members" className="px-4 py-3.5 text-text">{row.memberCount}</td>
+                <td data-label="Status" className="px-4 py-3.5">
                   <span
                     className={cn(
                       "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold",
@@ -126,7 +126,7 @@ export function PlansTable({
                     {row.statusLabel}
                   </span>
                 </td>
-                <td className="px-4 py-3.5">
+                <td data-label="Actions" className="px-4 py-3.5">
                   <div className="flex items-center gap-1">
                     <button
                       type="button"

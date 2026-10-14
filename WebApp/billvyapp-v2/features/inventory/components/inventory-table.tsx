@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { formatQuantity } from '@/lib/format';
 import type {
   InventoryListRow,
   PaginationMeta,
@@ -61,15 +62,15 @@ export function InventoryTable({
       ) : rows.length === 0 ? (
         <SectionEmptyState
           title="No inventory items found"
-          message="Add a product, then adjust stock to create an inventory row."
+          message="Add new items from Purchases. Receive the purchase to add stock to inventory."
         />
       ) : (
         <>
-          <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-left text-sm">
+          <div tabIndex={0} role="region" aria-label="Scrollable inventory table" className="app-table-scroll app-stacked-scroll app-inventory-table overflow-x-auto">
+            <table className="app-responsive-table app-inventory-items-table w-full min-w-[1080px] text-left text-sm">
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Product</th>
+                  <th className="px-4 py-3 font-semibold">Item</th>
                   <th className="px-4 py-3 font-semibold">SKU</th>
                   <th className="px-4 py-3 font-semibold">Category</th>
                   <th className="px-4 py-3 font-semibold">On Hand</th>
@@ -89,7 +90,7 @@ export function InventoryTable({
                     key={row.id}
                     className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
                   >
-                    <td className="px-4 py-3.5">
+                    <td data-label="Item" className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-champagne-light text-charcoal">
                           <Package className="size-4" aria-hidden />
@@ -98,34 +99,35 @@ export function InventoryTable({
                           <p className="truncate font-semibold text-text">
                             {row.productName}
                           </p>
+                          {row.productDescription ? <p className="max-w-64 whitespace-pre-wrap text-xs text-text-secondary">{row.productDescription}</p> : null}
                           <p className="truncate text-xs text-text-secondary">
-                            Reserved: {row.reservedQuantity}
+                            Reserved: {formatQuantity(row.reservedQuantity)}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 font-medium text-text">
+                    <td data-label="SKU" className="px-4 py-3.5 font-medium text-text">
                       {row.productSku}
                     </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
+                    <td data-label="Category" className="px-4 py-3.5 text-text-secondary">
                       {row.categoryLabel}
                     </td>
-                    <td className="px-4 py-3.5 font-semibold text-text">
-                      {row.quantityOnHand}<span className="block text-xs font-normal text-text-secondary">{row.stockLabel}</span>
+                    <td data-label="On hand" className="px-4 py-3.5 font-semibold text-text">
+                      {formatQuantity(row.quantityOnHand)}<span className="block text-xs font-normal text-text-secondary">{row.stockLabel}</span>
                     </td>
-                    <td className="px-4 py-3.5 text-text">
-                      {row.availableQuantity}
+                    <td data-label="Available" className="px-4 py-3.5 text-text">
+                      {formatQuantity(row.availableQuantity)}
                     </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
-                      {row.reorderLevel}
+                    <td data-label="Reorder at" className="px-4 py-3.5 text-text-secondary">
+                      {formatQuantity(row.reorderLevel)}
                     </td>
-                    <td className="px-4 py-3.5 text-text">
+                    <td data-label="Average cost" className="px-4 py-3.5 text-text">
                       {row.averageCostLabel}
                     </td>
-                    <td className="px-4 py-3.5 text-text-secondary">
+                    <td data-label="Last stocked" className="px-4 py-3.5 text-text-secondary">
                       {row.lastStockedLabel}
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td data-label="Status" className="px-4 py-3.5">
                       <span
                         className={cn(
                           'inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold',
@@ -135,7 +137,7 @@ export function InventoryTable({
                         {row.stockStatusLabel}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td data-label="Actions" className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
                         {onAdjustRow ? (
                           <Button
@@ -149,7 +151,7 @@ export function InventoryTable({
                           </Button>
                         ) : null}
                         <RowActionsMenu name={row.productName}
-      fields={[["SKU", row.productSku], ["Category", row.categoryLabel], ["On hand", row.quantityOnHand], ["Reserved", row.reservedQuantity], ["Available", row.availableQuantity], ["Reorder level", row.reorderLevel], ["Average cost", row.averageCostLabel], ["Last stocked", row.lastStockedLabel], ["Status", row.stockStatusLabel]]}
+      fields={[["SKU", row.productSku], ["Category", row.categoryLabel], ["On hand", formatQuantity(row.quantityOnHand)], ["Reserved", formatQuantity(row.reservedQuantity)], ["Available", formatQuantity(row.availableQuantity)], ["Reorder level", formatQuantity(row.reorderLevel)], ["Average cost", row.averageCostLabel], ["Last stocked", row.lastStockedLabel], ["Status", row.stockStatusLabel]]}
       actions={onAdjustRow ? [{ label: 'Adjust stock', onClick: () => onAdjustRow(row) }] : []} />
                       </div>
                     </td>

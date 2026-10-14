@@ -16,6 +16,10 @@ import {
 } from 'class-validator';
 
 export class CreateProductDto {
+  @ApiPropertyOptional({ format: 'uuid', description: 'Supplier for a newly created inventory item' })
+  @IsOptional()
+  @IsUUID()
+  vendorId?: string;
   @ApiPropertyOptional({ enum: ['PCS', 'ML', 'G'] })
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsIn(['PCS', 'ML', 'G'])

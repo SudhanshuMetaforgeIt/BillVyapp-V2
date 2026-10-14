@@ -5398,6 +5398,53 @@
         }
       }
     },
+    "ProcurementDocumentQueryDto": {
+      "fields": {
+        "salonId": {
+          "kind": "string",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsUUID",
+              "args": []
+            }
+          ]
+        }
+      }
+    },
+    "UploadProcurementDocumentQueryDto": {
+      "fields": {
+        "salonId": {
+          "kind": "string",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsUUID",
+              "args": []
+            }
+          ]
+        },
+        "fileName": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsString",
+              "args": []
+            },
+            {
+              "name": "MaxLength",
+              "args": [
+                255
+              ]
+            }
+          ]
+        }
+      }
+    },
     "InitializeProfilePhotoDto": {
       "fields": {
         "fileName": {
@@ -8428,6 +8475,17 @@
     },
     "CreateProductDto": {
       "fields": {
+        "vendorId": {
+          "kind": "string",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsUUID",
+              "args": []
+            }
+          ]
+        },
         "measurementUnit": {
           "kind": "enum",
           "optional": true,
@@ -14492,6 +14550,16 @@
       "method": "GET",
       "path": "/platform-reports",
       "query": "ListPlatformReportsQueryDto"
+    },
+    {
+      "method": "GET",
+      "path": "/procurement-documents/:type/:id",
+      "query": "ProcurementDocumentQueryDto"
+    },
+    {
+      "method": "POST",
+      "path": "/procurement-documents/:type/:id",
+      "query": "UploadProcurementDocumentQueryDto"
     },
     {
       "method": "GET",

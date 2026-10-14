@@ -653,7 +653,7 @@ export class AuthService {
     const nodeEnv =
       this.config.get<string>('nodeEnv') ?? process.env.NODE_ENV ?? '';
     const enabled = this.config.get<boolean>('otp.devEnabled') === true;
-    return nodeEnv !== 'production' && enabled;
+    return nodeEnv !== 'production' && enabled && this.config.get<boolean>('otp.returnInResponse') !== false;
   }
 
   /** Converts a jsonwebtoken-style duration ("15m", "7d") to milliseconds. */

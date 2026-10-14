@@ -1,13 +1,11 @@
-import {
-  BadRequestException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { Worker } from 'node:worker_threads';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { sanitizeImage } from './image-sanitization';
+import { FileScannerUnavailableException } from './file-scanner-unavailable.exception';
 
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const ATTACHMENT_MIME_TYPES = [
@@ -92,25 +90,30 @@ async function inspectPdf(bytes: Buffer): Promise<void> {
 /** Operator-configured ClamAV executable, fixed arguments, no shell, bounded execution. */
 async function scanPdf(bytes: Buffer): Promise<void> {
   const command = process.env.UPLOAD_CLAMSCAN_PATH;
-  if (!command)
-    throw new ServiceUnavailableException('PDF scanning is not configured');
+  if (!command) throw new FileScannerUnavailableException('NOT_CONFIGURED');
   const directory = await mkdtemp(join(tmpdir(), 'billvy-scan-'));
   try {
     const file = join(directory, 'attachment.pdf');
     await writeFile(file, bytes, { mode: 0o600, flag: 'wx' });
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(command, ['--no-summary', file], {
+      const databasePath = process.env.UPLOAD_CLAMSCAN_DATABASE_PATH;
+      const args = [
+        '--no-summary',
+        ...(databasePath ? ['--database', databasePath] : []),
+        file,
+      ];
+      const child = spawn(command, args, {
         shell: false,
         windowsHide: true,
         stdio: 'ignore',
       });
       const timer = setTimeout(() => {
         child.kill();
-        reject(new ServiceUnavailableException('File scanner timed out'));
+        reject(new FileScannerUnavailableException('TIMED_OUT'));
       }, 30_000);
       child.once('error', () => {
         clearTimeout(timer);
-        reject(new ServiceUnavailableException('File scanner is unavailable'));
+        reject(new FileScannerUnavailableException('UNAVAILABLE'));
       });
       child.once('close', (code) => {
         clearTimeout(timer);
@@ -119,7 +122,7 @@ async function scanPdf(bytes: Buffer): Promise<void> {
           reject(
             code === 1
               ? new BadRequestException('Unsafe attachment rejected')
-              : new ServiceUnavailableException('File scanner failed'),
+              : new FileScannerUnavailableException('FAILED'),
           );
       });
     });

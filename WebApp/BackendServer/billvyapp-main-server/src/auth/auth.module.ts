@@ -7,6 +7,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RedisOtpStore } from './otp/redis-otp.store';
 import { LoggingOtpSender } from './otp/logging-otp.sender';
+import { SparklebotOtpSender } from './otp/sparklebot-otp.sender';
+import { SparklebotService } from '../whatsapp/sparklebot.service';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 import { OTP_SENDER, OTP_STORE } from './otp/otp.contracts';
 import { OtpService } from './otp/otp.service';
 import { PasswordService } from './password.service';
@@ -16,6 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
   imports: [
+    WhatsAppModule,
     FranchiseSubscriptionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
@@ -35,7 +39,17 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     OtpService,
     JwtStrategy,
     { provide: OTP_STORE, useClass: RedisOtpStore },
-    { provide: OTP_SENDER, useClass: LoggingOtpSender },
+    LoggingOtpSender,
+    SparklebotOtpSender,
+    {
+      provide: OTP_SENDER,
+      inject: [SparklebotService, SparklebotOtpSender, LoggingOtpSender],
+      useFactory: (
+        sparklebot: SparklebotService,
+        whatsapp: SparklebotOtpSender,
+        development: LoggingOtpSender,
+      ) => (sparklebot.enabled ? whatsapp : development),
+    },
   ],
   exports: [AuthService, PasswordService, SessionService],
 })

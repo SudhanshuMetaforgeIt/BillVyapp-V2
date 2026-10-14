@@ -11,7 +11,7 @@ import {
 } from 'react';
 
 import { SectionErrorState } from '@/components/layout/section-states';
-import { MetricGrid } from '@/features/dashboard/components/metric-card';
+import { InventoryNavigation } from './inventory-navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { playDashboardEntrance, useGSAP } from '@/lib/animations';
 import { useInventory } from '../hooks/use-inventory';
@@ -22,10 +22,6 @@ import type {
 const LazyAddProductCategoryDialog = dynamic(() => import('./add-product-category-dialog').then((module) => module.AddProductCategoryDialog), { loading: () => <p role="status">Opening dialog…</p> });
 function AddProductCategoryDialog(props: import('react').ComponentProps<typeof import('./add-product-category-dialog').AddProductCategoryDialog>) {
   return props.open ? <LazyAddProductCategoryDialog {...props} /> : null;
-}
-const LazyAddProductDialog = dynamic(() => import('./add-product-dialog').then((module) => module.AddProductDialog), { loading: () => <p role="status">Opening dialog…</p> });
-function AddProductDialog(props: import('react').ComponentProps<typeof import('./add-product-dialog').AddProductDialog>) {
-  return props.open ? <LazyAddProductDialog {...props} /> : null;
 }
 const LazyAdjustStockDialog = dynamic(() => import('./adjust-stock-dialog').then((module) => module.AdjustStockDialog), { loading: () => <p role="status">Opening dialog…</p> });
 function AdjustStockDialog(props: import('react').ComponentProps<typeof import('./adjust-stock-dialog').AdjustStockDialog>) {
@@ -51,7 +47,6 @@ export function InventoryPageView() {
   const [categoryId, setCategoryId] = useState('');
   const [page, setPage] = useState(1);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [presetRow, setPresetRow] = useState<InventoryListRow | null>(null);
 
@@ -110,13 +105,8 @@ export function InventoryPageView() {
 
   return (
     <>
-      <div ref={rootRef} className="space-y-6 lg:space-y-7">
-        <MetricGrid
-          metrics={data?.metrics ?? []}
-          isLoading={query.isLoading && !data}
-          className="xl:grid-cols-4"
-          skeletonCount={4}
-        />
+      <div ref={rootRef} className="app-catalog-page space-y-6 lg:space-y-7">
+        <InventoryNavigation />
 
         <div className="space-y-4">
           <InventoryFilters
@@ -132,7 +122,6 @@ export function InventoryPageView() {
             }}
             categoryOptions={data?.categoryOptions ?? []}
             onAddCategory={canWrite ? () => setAddCategoryOpen(true) : undefined}
-            onAddProduct={canWrite ? () => setAddOpen(true) : undefined}
             onAdjustStock={
               canWrite
                 ? () => {
@@ -169,14 +158,6 @@ export function InventoryPageView() {
         open={addCategoryOpen}
         onOpenChange={setAddCategoryOpen}
         salonId={salonId}
-      />
-
-      <AddProductDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        salonId={salonId}
-        categoryOptions={data?.categoryOptions ?? []}
-        onAddCategory={canWrite ? () => setAddCategoryOpen(true) : undefined}
       />
 
       <AdjustStockDialog

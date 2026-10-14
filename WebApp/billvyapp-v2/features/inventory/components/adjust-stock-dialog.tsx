@@ -93,7 +93,7 @@ export function AdjustStockDialog({
               Adjust Stock
             </h2>
             <p className="mt-1 text-sm text-text-secondary">
-              Use package quantities: +5 adds five packages, -0.05 removes 5% of a package. Creates inventory if needed.
+              Enter a positive quantity to add stock or a negative quantity to remove stock. For example, 5 adds five packages and -2 removes two.
             </p>
           </div>
           <button
@@ -143,7 +143,7 @@ export function AdjustStockDialog({
 
           <div className="grid gap-3 panel-md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="inv-adjust-qty">Quantity delta (packages)</Label>
+              <Label htmlFor="inv-adjust-qty">Quantity (packages)</Label>
               <Input
                 id="inv-adjust-qty"
                 type="number" step="0.000001" inputMode="decimal"

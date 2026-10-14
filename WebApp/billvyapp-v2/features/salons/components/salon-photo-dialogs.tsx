@@ -1,4 +1,5 @@
 "use client";
+import { UploadProgress } from '@/components/ui/upload-progress';
 
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -242,30 +243,7 @@ export function UploadPhotosDialog({
                 )}
               </div>
               {item.status === "uploading" ? (
-                <div className="mt-2 space-y-1.5">
-                  <div
-                    role="progressbar"
-                    aria-label={`Uploading ${item.file.name}`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={item.progress}
-                    className="h-1.5 overflow-hidden rounded-full bg-muted"
-                  >
-                    <div
-                      style={{ width: `${item.progress}%` }}
-                      className="h-full rounded-full bg-champagne transition-[width] duration-300 motion-reduce:transition-none"
-                    />
-                  </div>
-                  <p
-                    className="flex items-center gap-1.5 text-xs text-text-secondary"
-                    role="status"
-                  >
-                    <LoaderCircle className="size-3 motion-safe:animate-spin" />
-                    {item.progress === 100
-                      ? "Processing and saving…"
-                      : `Uploading ${item.progress}%`}
-                  </p>
-                </div>
+                <div className="mt-2"><UploadProgress progress={item.progress} fileName={item.file.name} /></div>
               ) : null}
               {item.error ? (
                 <p role="alert" className="mt-2 text-xs text-danger">

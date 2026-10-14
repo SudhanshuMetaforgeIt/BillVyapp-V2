@@ -79,6 +79,15 @@ export function formatNumber(
     : new Intl.NumberFormat(getBusinessRegion().locale).format(amount);
 }
 
+/** Inventory display only; keep the original quantity for stock calculations. */
+export function formatQuantity(value: number): string {
+  return Number.isFinite(value)
+    ? new Intl.NumberFormat(getBusinessRegion().locale, {
+        maximumFractionDigits: 2,
+      }).format(value)
+    : '-';
+}
+
 export function formatPercentChange(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—';
   const sign = value > 0 ? '+' : '';

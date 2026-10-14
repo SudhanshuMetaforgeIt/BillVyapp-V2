@@ -19,6 +19,7 @@ type AppSidebarProps = {
 };
 
 function isActivePath(pathname: string, href: string): boolean {
+  if (href === '/dashboard/manager/inventory' && /^\/dashboard\/manager\/(stock-movements|purchases|vendors)(\/|$)/.test(pathname)) return true;
   if (pathname === href) return true;
   if (href.endsWith('/super_admin') || href.match(/\/dashboard\/[^/]+$/)) {
     return pathname === href;

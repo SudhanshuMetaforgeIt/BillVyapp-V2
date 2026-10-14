@@ -21,11 +21,17 @@ import { businessToday } from '@/lib/business-calendar';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { invalidateAfter } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
-import type { Product, Purchase, PurchaseStatus } from '@/types/models';
+import type { Product, Purchase, PurchaseStatus, Vendor } from '@/types/models';
+import { InventoryNavigation } from '@/features/inventory/components/inventory-navigation';
+import { AddProductDialog } from '@/features/inventory/components/add-product-dialog';
+import { VendorDialog } from './vendors-view';
+import { BillFileInput, PurchaseBills } from './purchase-bills';
+import { uploadPurchaseBill } from '../services/purchase-bills.service';
+import type { ProductCategoryApiItem } from '@/features/inventory/types/inventory.types';
+import { fetchAllInventoryOptions } from '@/features/inventory/services/inventory.service';
 import {
   createPurchase,
   listPurchases,
-  listVendors,
   PURCHASE_NEXT_STATUSES,
   searchProducts,
   updatePurchaseStatus,
@@ -62,11 +68,16 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
   const [notes, setNotes] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
+  const [addItem, setAddItem] = useState(false);
+  const [addVendor, setAddVendor] = useState(false);
+  const [bill, setBill] = useState<File | null>(null);
+  const [billProgress, setBillProgress] = useState<number | null>(null);
+  const [savedPurchase, setSavedPurchase] = useState<Purchase | null>(null);
   const debouncedProduct = useDebouncedValue(productSearch);
 
   const vendors = useScopedQuery(
     ['vendors', 'picker'],
-    () => listVendors({ page: 1, limit: 100, isActive: true }),
+    () => fetchAllInventoryOptions<Vendor>('/vendors', { isActive: true }),
     { capability: 'vendors.read' },
   );
   const products = useScopedQuery(
@@ -74,10 +85,13 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
     () => searchProducts(salonId, debouncedProduct),
     { enabled: Boolean(salonId) },
   );
+  const categories = useScopedQuery(['product-categories', 'purchase-picker', salonId],
+    () => fetchAllInventoryOptions<ProductCategoryApiItem>('/product-categories', { salonId, isActive: true }), { enabled: Boolean(salonId) });
 
   const create = useMutation<Purchase, ApiError, void>({
-    mutationFn: () =>
-      createPurchase({
+    onMutate: () => { setBillProgress(null); },
+    mutationFn: async () => {
+      const purchase = savedPurchase ?? await createPurchase({
         salonId,
         vendorId,
         purchaseDate,
@@ -88,7 +102,12 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
           quantity: Number(l.quantity),
           unitCost: Number(l.unitCost),
         })),
-      }),
+      });
+      setSavedPurchase(purchase);
+      void invalidateAfter(queryClient, 'purchases');
+      if (bill) await uploadPurchaseBill('purchase', purchase.id, bill, undefined, setBillProgress);
+      return purchase;
+    },
     onSuccess: (p) => {
       toast.success(`Purchase ${p.purchaseNumber} created as draft`);
       void invalidateAfter(queryClient, 'purchases');
@@ -98,12 +117,13 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
 
   const linesValid =
     lines.length > 0 &&
-    lines.every((l) => Number(l.quantity) > 0 && Number(l.unitCost) >= 0 && l.unitCost !== '');
+    lines.every((l) => Number.isSafeInteger(Number(l.quantity)) && Number(l.quantity) > 0 && Number.isFinite(Number(l.unitCost)) && Number(l.unitCost) >= 0 && l.unitCost !== '');
   const valid = Boolean(salonId && vendorId && purchaseDate) && linesValid;
 
   return (
+    <>
     <Modal
-      open
+      open={!addItem && !addVendor}
       onClose={onClose}
       busy={create.isPending}
       title="New purchase"
@@ -117,7 +137,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
           if (valid) create.mutate();
         }}
       >
-        <div className="grid gap-3 panel-md:grid-cols-2">
+        <fieldset disabled={create.isPending || Boolean(savedPurchase)} className="grid gap-3 panel-md:grid-cols-2">
           {!user?.salonId ? (
             <FormField id="purchase-salon" label="Salon">
               <SalonPicker
@@ -139,6 +159,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
                 </option>
               ))}
             </SelectInput>
+            {can(user, 'vendors.write') ? <button type="button" className="mt-1 text-xs font-semibold text-champagne hover:underline" onClick={() => setAddVendor(true)}>+ Create vendor</button> : null}
           </FormField>
           <FormField id="purchase-date" label="Purchase date">
             <Input
@@ -151,18 +172,20 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
           <FormField id="purchase-invoice" label="Vendor invoice no. (optional)">
             <Input id="purchase-invoice" value={invoice} onChange={(e) => setInvoice(e.target.value)} />
           </FormField>
-        </div>
+        </fieldset>
 
         <div className="space-y-2">
-          <FormField id="purchase-product" label="Add product">
+          <FormField id="purchase-product" label="Find inventory item">
             <Input
               id="purchase-product"
               placeholder={salonId ? 'Search products by name or SKU' : 'Select a salon first'}
-              disabled={!salonId}
+              disabled={!salonId || Boolean(savedPurchase)}
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
             />
           </FormField>
+          {can(user, 'inventory.adjust') ? <Button type="button" variant="outline" size="sm" disabled={!salonId || !vendorId || Boolean(savedPurchase)} onClick={() => setAddItem(true)}><Plus className="size-4" /> Create new item</Button> : null}
+          <p className="text-xs text-text-secondary">Choose a vendor, then add any product, equipment, electronic item or furniture with your own category.</p>
           {salonId && debouncedProduct ? (
             <ul className="max-h-36 divide-y divide-border overflow-y-auto rounded-lg border border-border">
               {(products.data?.data ?? [])
@@ -172,6 +195,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
                     <button
                       type="button"
                       className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-ivory"
+                      disabled={Boolean(savedPurchase)}
                       onClick={() => {
                         setLines((prev) => [
                           ...prev,
@@ -211,6 +235,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
                       <Input
                         aria-label={`Quantity of ${l.product.name}`}
                         type="number"
+                        disabled={Boolean(savedPurchase)}
                         min={1}
                         value={l.quantity}
                         onChange={(e) =>
@@ -224,6 +249,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
                       <Input
                         aria-label={`Unit cost of ${l.product.name}`}
                         type="number"
+                        disabled={Boolean(savedPurchase)}
                         min={0}
                         step="0.01"
                         value={l.unitCost}
@@ -239,6 +265,7 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
                         type="button"
                         size="icon-sm"
                         variant="ghost"
+                        disabled={Boolean(savedPurchase)}
                         aria-label={`Remove ${l.product.name}`}
                         onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))}
                       >
@@ -255,8 +282,10 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <FormField id="purchase-notes" label="Notes (optional)">
-          <Input id="purchase-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <Input id="purchase-notes" value={notes} disabled={Boolean(savedPurchase)} onChange={(e) => setNotes(e.target.value)} />
         </FormField>
+        {can(user, 'inventory.adjust') ? <BillFileInput file={bill} onChange={setBill} disabled={create.isPending} uploading={create.isPending && Boolean(savedPurchase && bill)} progress={billProgress} /> : null}
+        {savedPurchase && create.isError ? <p role="status" className="text-sm text-text-secondary">Purchase {savedPurchase.purchaseNumber} saved. Retry the bill upload, or remove the file to finish.</p> : null}
 
         <MutationError error={create.error} />
         <div className="flex justify-end gap-2">
@@ -264,15 +293,19 @@ function CreatePurchaseDialog({ onClose }: { onClose: () => void }) {
             Cancel
           </Button>
           <Button type="submit" disabled={!valid || create.isPending}>
-            {create.isPending ? 'Creating…' : 'Create draft'}
+            {create.isPending ? 'Saving…' : savedPurchase ? 'Finish / retry upload' : 'Create draft'}
           </Button>
         </div>
       </form>
     </Modal>
+    <AddProductDialog open={addItem} onOpenChange={setAddItem} salonId={salonId} vendorId={vendorId} categoryOptions={categories.data?.data ?? []} onSuccess={(product) => setLines((previous) => [...previous, { product, quantity: '1', unitCost: product.costPrice }])} />
+    {addVendor ? <VendorDialog vendor={null} onClose={() => setAddVendor(false)} onSuccess={(vendor) => { setVendorId(vendor.id); void vendors.refetch(); }} /> : null}
+    </>
   );
 }
 
 function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: () => void }) {
+  const user = useCurrentUser();
   return (
     <Modal
       open
@@ -312,6 +345,7 @@ function PurchaseDetail({ purchase, onClose }: { purchase: Purchase; onClose: ()
         <dd className="text-right font-semibold">{formatCurrency(Number(purchase.total))}</dd>
       </dl>
       {purchase.notes ? <p className="mt-3 text-sm text-text-secondary">{purchase.notes}</p> : null}
+      {can(user, 'inventory.adjust') ? <PurchaseBills type="purchase" id={purchase.id} salonId={purchase.salonId} /> : null}
     </Modal>
   );
 }
@@ -412,6 +446,7 @@ export function PurchasesView() {
 
   return (
     <div className="space-y-5">
+      {user?.role === 'MANAGER' ? <InventoryNavigation /> : null}
       <PageHeading
         title="Purchases"
         description="Purchase orders from vendors. Receiving a purchase posts stock to inventory."

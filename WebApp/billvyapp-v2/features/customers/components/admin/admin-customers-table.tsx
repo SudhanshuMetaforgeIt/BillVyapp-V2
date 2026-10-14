@@ -64,7 +64,7 @@ export function AdminCustomersTable({
   const endRecord = Math.min(currentPage * limit, total);
 
   return (
-    <div className="rounded-xl border border-stone-200/80 bg-white shadow-xs overflow-hidden dark:border-stone-800 dark:bg-stone-900">
+    <div className="app-catalog-page rounded-xl border border-stone-200/80 bg-white shadow-xs overflow-hidden dark:border-stone-800 dark:bg-stone-900">
       {customers.length === 0 && !loading ? (
         <div className="py-16 text-center">
           <SectionEmptyState
@@ -88,12 +88,12 @@ export function AdminCustomersTable({
             tabIndex={0}
             role="region"
             aria-label="Scrollable table"
-            className="app-table-scroll overflow-x-auto"
+            className="app-table-scroll app-stacked-scroll overflow-x-auto"
           >
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="app-responsive-table app-customers-table w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-stone-200/80 bg-stone-50/70 text-[11px] font-semibold text-stone-600 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
-                  <th className="px-4 py-3.5">Customer</th>
+                  <th className="app-customer-name-column px-4 py-3.5">Customer</th>
                   <th className="px-4 py-3.5">Mobile</th>
                   <th className="px-4 py-3.5">Email</th>
                   <th className="px-4 py-3.5">Branch</th>
@@ -115,18 +115,18 @@ export function AdminCustomersTable({
                       className="transition-colors hover:bg-stone-50/70 dark:hover:bg-stone-800/40"
                     >
                       {/* Customer Avatar & Name */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
+                      <td data-label="Customer" className="app-customer-name-column px-4 py-3.5">
+                        <div className="app-customer-identity flex items-center gap-3">
                           <div
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor}`}
                           >
                             {c.initials}
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <button
                               type="button"
                               onClick={() => onViewCustomer(c)}
-                              className="font-semibold text-stone-900 hover:text-amber-600 dark:text-white dark:hover:text-amber-400 text-left"
+                              className="app-customer-name font-semibold text-stone-900 hover:text-amber-600 dark:text-white dark:hover:text-amber-400 text-left"
                             >
                               {c.name}
                             </button>
@@ -138,37 +138,37 @@ export function AdminCustomersTable({
                       </td>
 
                       {/* Mobile */}
-                      <td className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
+                      <td data-label="Mobile" className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
                         {c.phone}
                       </td>
 
                       {/* Email */}
-                      <td className="px-4 py-3.5 text-stone-600 dark:text-stone-400 whitespace-nowrap">
+                      <td data-label="Email" className="px-4 py-3.5 text-stone-600 dark:text-stone-400 whitespace-nowrap">
                         {c.email}
                       </td>
 
                       {/* Branch */}
-                      <td className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
+                      <td data-label="Branch" className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
                         {c.branchName}
                       </td>
 
                       {/* Total Bills */}
-                      <td className="px-4 py-3.5 text-center font-semibold text-stone-800 dark:text-stone-200 whitespace-nowrap">
+                      <td data-label="Total bills" className="px-4 py-3.5 text-center font-semibold text-stone-800 dark:text-stone-200 whitespace-nowrap">
                         {c.totalBills}
                       </td>
 
                       {/* Total Spent */}
-                      <td className="px-4 py-3.5 text-right font-semibold text-stone-900 dark:text-white whitespace-nowrap">
+                      <td data-label="Total spent" className="px-4 py-3.5 text-right font-semibold text-stone-900 dark:text-white whitespace-nowrap">
                         {formatINR(c.totalSpent)}
                       </td>
 
                       {/* Last Visit */}
-                      <td className="px-4 py-3.5 text-center text-stone-600 dark:text-stone-400 whitespace-nowrap">
+                      <td data-label="Last visit" className="px-4 py-3.5 text-center text-stone-600 dark:text-stone-400 whitespace-nowrap">
                         {c.lastVisit}
                       </td>
 
                       {/* Status Badge */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <td data-label="Status" className="px-4 py-3.5 text-center whitespace-nowrap">
                         {c.isActive ? (
                           <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                             Active
@@ -181,7 +181,7 @@ export function AdminCustomersTable({
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <td data-label="Actions" className="px-4 py-3.5 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
@@ -202,7 +202,7 @@ export function AdminCustomersTable({
           </div>
 
           {/* Table Footer */}
-          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
+          <div className="app-catalog-pagination flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
             <div>
               Showing{' '}
               <span className="font-semibold text-stone-900 dark:text-white">

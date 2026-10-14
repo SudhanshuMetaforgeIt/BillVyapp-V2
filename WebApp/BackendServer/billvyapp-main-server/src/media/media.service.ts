@@ -94,6 +94,7 @@ export class MediaService {
             { NOT: { entityType: { startsWith: 'ProfilePhoto' } } },
           ],
         },
+        { OR: [{ entityType: null }, { NOT: { entityType: { startsWith: 'ProcurementBill:' } } }] },
       ],
       ...this.mediaScope(user),
       ...(query.salonId ? { salonId: query.salonId } : {}),
@@ -125,7 +126,7 @@ export class MediaService {
     ctx: RequestContext,
   ): Promise<MediaUploadRecord> {
     assertAttachmentMetadata(dto.originalFileName, dto.mimeType, dto.fileSize);
-    if (dto.entityType?.startsWith('ProfilePhoto')) {
+    if (dto.entityType?.startsWith('ProfilePhoto') || dto.entityType?.startsWith('ProcurementBill:')) {
       throw new BadRequestException(
         'Profile photo uploads must use /auth/me/profile-photo',
       );
@@ -356,7 +357,7 @@ export class MediaService {
       throw new NotFoundException('Media file not found');
     }
 
-    if (record.entityType?.startsWith('ProfilePhoto')) {
+    if (record.entityType?.startsWith('ProfilePhoto') || record.entityType?.startsWith('ProcurementBill:')) {
       throw new NotFoundException('Media file not found');
     }
 

@@ -16,9 +16,13 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
 import { describeApiError } from '@/lib/api-errors';
 import { can } from '@/lib/capabilities';
-import { invalidateAfter } from '@/lib/query-invalidation';
+import { invalidateAfter, invalidatePaths } from '@/lib/query-invalidation';
 import type { ApiError } from '@/types/api.types';
 import type { Vendor, VendorInput } from '@/types/models';
+import { InventoryNavigation } from '@/features/inventory/components/inventory-navigation';
+import { SalonPicker } from '@/features/salons/components/salon-picker';
+import { BillFileInput, PurchaseBills } from './purchase-bills';
+import { uploadPurchaseBill } from '../services/purchase-bills.service';
 import {
   createVendor,
   listVendors,
@@ -54,8 +58,13 @@ function toPayload(form: VendorInput): VendorInput {
   };
 }
 
-function VendorDialog({ vendor, onClose }: { vendor: Vendor | null; onClose: () => void }) {
+export function VendorDialog({ vendor, onClose, onSuccess }: { vendor: Vendor | null; onClose: () => void; onSuccess?: (vendor: Vendor) => void }) {
   const queryClient = useQueryClient();
+  const user = useCurrentUser();
+  const [billSalonId, setBillSalonId] = useState(user?.salonId ?? '');
+  const [bill, setBill] = useState<File | null>(null);
+  const [billProgress, setBillProgress] = useState<number | null>(null);
+  const [savedVendor, setSavedVendor] = useState<Vendor | null>(null);
   const [form, setForm] = useState<VendorInput>(
     vendor
       ? {
@@ -72,10 +81,19 @@ function VendorDialog({ vendor, onClose }: { vendor: Vendor | null; onClose: () 
   );
 
   const save = useMutation<Vendor, ApiError, VendorInput>({
-    mutationFn: (input) => (vendor ? updateVendor(vendor.id, input) : createVendor(input)),
+    onMutate: () => { setBillProgress(null); },
+    mutationFn: async (input) => {
+      const saved = savedVendor ?? await (vendor ? updateVendor(vendor.id, input) : createVendor(input));
+      setSavedVendor(saved);
+      void invalidateAfter(queryClient, 'vendors');
+      if (bill) await uploadPurchaseBill('vendor', saved.id, bill, billSalonId, setBillProgress);
+      return saved;
+    },
     onSuccess: (saved) => {
       toast.success(`${saved.name} saved`);
       void invalidateAfter(queryClient, 'vendors');
+      void invalidatePaths(queryClient, [['purchase-bills']]);
+      onSuccess?.(saved);
       onClose();
     },
   });
@@ -91,7 +109,7 @@ function VendorDialog({ vendor, onClose }: { vendor: Vendor | null; onClose: () 
     </FormField>
   );
 
-  const valid = form.name.trim().length > 0 && form.code.trim().length > 0;
+  const valid = form.name.trim().length > 0 && form.code.trim().length > 0 && (!bill || Boolean(billSalonId));
 
   return (
     <Modal open onClose={onClose} busy={save.isPending} title={vendor ? 'Edit vendor' : 'New vendor'}>
@@ -102,7 +120,7 @@ function VendorDialog({ vendor, onClose }: { vendor: Vendor | null; onClose: () 
           if (valid) save.mutate(toPayload(form));
         }}
       >
-        <div className="grid gap-3 panel-md:grid-cols-2">
+        <fieldset disabled={save.isPending || Boolean(savedVendor)} className="grid gap-3 panel-md:grid-cols-2">
           {field('name', 'Name')}
           {field('code', 'Code')}
           {field('contactPerson', 'Contact person')}
@@ -110,15 +128,18 @@ function VendorDialog({ vendor, onClose }: { vendor: Vendor | null; onClose: () 
           {field('email', 'Email', 'email')}
           {field('gstNumber', 'GST number')}
           {field('city', 'City')}
-        </div>
+        </fieldset>
         {field('notes', 'Notes')}
+        {!user?.salonId ? <FormField id="vendor-bill-salon" label="Salon for bills"><SalonPicker id="vendor-bill-salon" value={billSalonId} onChange={setBillSalonId} /></FormField> : null}
+        {vendor ? <PurchaseBills type="vendor" id={vendor.id} salonId={billSalonId} /> : <BillFileInput file={bill} onChange={setBill} disabled={save.isPending} uploading={save.isPending && Boolean(savedVendor && bill)} progress={billProgress} />}
+        {savedVendor && save.isError ? <p role="status" className="text-sm text-text-secondary">Vendor saved. Retry the bill upload, or remove the file to finish.</p> : null}
         <MutationError error={save.error} />
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" onClick={onClose} disabled={save.isPending}>
             Cancel
           </Button>
           <Button type="submit" disabled={!valid || save.isPending}>
-            {save.isPending ? 'Saving…' : 'Save vendor'}
+            {save.isPending ? 'Saving…' : savedVendor ? 'Finish / retry upload' : 'Save vendor'}
           </Button>
         </div>
       </form>
@@ -214,6 +235,7 @@ export function VendorsView() {
 
   return (
     <div className="space-y-5">
+      {user?.role === 'MANAGER' ? <InventoryNavigation /> : null}
       <PageHeading
         title="Vendors"
         description="Suppliers used for purchase orders."

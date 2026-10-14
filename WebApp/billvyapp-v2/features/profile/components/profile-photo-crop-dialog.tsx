@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type PointerEvent } from 'react';
 import { LoaderCircle, RotateCw, Undo2 } from 'lucide-react';
 import { Modal } from '@/components/data/modal';
 import { Button } from '@/components/ui/button';
+import { UploadProgress } from '@/components/ui/upload-progress';
 import { cropGeometry, DEFAULT_CROP, drawProfileCrop, exportProfileCrop, type CropAdjustment } from '../lib/profile-photo-crop';
 
 type Props = { file: File; busy: boolean; onClose: () => void; onSave: (file: File) => Promise<void> };
@@ -104,6 +105,7 @@ export function ProfilePhotoCropDialog({ file, busy, onClose, onSave }: Props) {
             <Button type="button" variant="ghost" size="sm" onClick={() => setCrop(DEFAULT_CROP)}><Undo2 className="size-3.5" />Reset</Button>
           </div>
         </fieldset>
+        {busy ? <UploadProgress fileName={file.name} message="Uploading and saving your photo…" /> : null}
         {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" disabled={locked} onClick={onClose}>Cancel</Button>

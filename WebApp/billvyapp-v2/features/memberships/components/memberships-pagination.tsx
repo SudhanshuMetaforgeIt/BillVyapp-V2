@@ -42,7 +42,7 @@ export function MembershipsPagination({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between',
+        'app-catalog-pagination flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between',
         className,
       )}
     >

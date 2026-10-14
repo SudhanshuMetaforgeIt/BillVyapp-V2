@@ -15,7 +15,7 @@ export function MembershipsSummaryCards({
 }: MembershipsSummaryCardsProps) {
   return (
     <div
-      className="grid gap-4 lg:grid-cols-2 lg:gap-5"
+      className="app-catalog-summary grid gap-4 lg:grid-cols-2 lg:gap-5"
       data-dash-animate="section"
     >
       <div className="app-surface-card p-5">
