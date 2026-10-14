@@ -91,6 +91,7 @@ export default () => {
       maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
       resendSeconds: parseInt(process.env.OTP_RESEND_SECONDS ?? '60', 10),
       devEnabled: process.env.DEV_OTP_ENABLED === 'true',
+      returnInResponse: process.env.LOGIN_OTP_RETURN_IN_RESPONSE !== 'false' && process.env.WHATSAPP_ENABLED !== 'true',
     },
 
     geocoding: {

@@ -16,6 +16,7 @@ import {
 import { allowedBrowserOrigins } from '../common/security/browser-origin-policy';
 import { databaseSecurity } from '../prisma/database-security';
 import { redisConnectionOptions } from '../redis/redis-security';
+import { sparklebotSettings } from '../whatsapp/sparklebot.config';
 
 /**
  * Fail-fast validation of the process environment. The application refuses to
@@ -197,6 +198,7 @@ class EnvironmentVariables {
 }
 
 export function validateEnv(config: Record<string, unknown>) {
+  sparklebotSettings(config);
   if (
     config.MAIL_DELIVERY_ENABLED !== undefined &&
     !['true', 'false', ''].includes(config.MAIL_DELIVERY_ENABLED as string)
