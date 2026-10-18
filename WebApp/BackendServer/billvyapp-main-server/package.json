@@ -20,7 +20,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:generate": "prisma generate",
-    "db:seed": "node --env-file=.env prisma/seed.cjs"
+    "db:seed": "node --env-file=.env prisma/seed.cjs",
+    "db:seed:super-admin": "node --env-file-if-exists=.env prisma/seed-super-admin.cjs",
+    "test:seed:super-admin": "node --test prisma/seed-super-admin.test.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1133.0",
