@@ -1,0 +1,23 @@
+{
+  "name": "billvyapp-process-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:api": "npm --prefix WebApp/BackendServer/billvyapp-main-server run build",
+    "pm2:start": "node scripts/pm2.cjs start",
+    "pm2:status": "node scripts/pm2.cjs status",
+    "pm2:restart": "node scripts/pm2.cjs restart",
+    "pm2:stop": "node scripts/pm2.cjs stop",
+    "pm2:logs": "node scripts/pm2.cjs logs",
+    "pm2:save": "node scripts/pm2.cjs save",
+    "pm2:resurrect": "node scripts/pm2.cjs resurrect"
+  },
+  "devDependencies": {
+    "pm2": "7.0.4"
+  },
+  "overrides": {
+    "basic-ftp": "6.2.3",
+    "js-yaml": "4.3.2",
+    "chokidar": "4.0.3"
+  }
+}
