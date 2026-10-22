@@ -33,6 +33,7 @@ describe("API validation integration", () => {
     await expect(
       api.post("/customers", {
         firstName: " Riya ",
+        gender: "FEMALE",
         lastName: "Sharma",
         email: "riya@example.test",
         phone: "+14155552671",

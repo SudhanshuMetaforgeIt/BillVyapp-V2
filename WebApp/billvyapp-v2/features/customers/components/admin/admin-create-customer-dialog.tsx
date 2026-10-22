@@ -29,7 +29,7 @@ export function AdminCreateCustomerDialog({
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [gender, setGender] = useState<Gender>('FEMALE');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [salonId, setSalonId] = useState(branches[0]?.id || '');
 
@@ -54,6 +54,7 @@ export function AdminCreateCustomerDialog({
       return;
     }
 
+    if (!gender) { setError('Select a gender.'); return; }
     try {
       setLoading(true);
       setError(null);
@@ -187,9 +188,11 @@ export function AdminCreateCustomerDialog({
                 value={gender}
                 onChange={(e) => setGender(e.target.value as Gender)}
               >
+                <option value="" disabled>Select gender</option>
                 <option value="FEMALE">Female</option>
                 <option value="MALE">Male</option>
                 <option value="OTHER">Other</option>
+              <option value="UNISEX">Unisex</option>
               </SelectInput>
             </div>
             <div>

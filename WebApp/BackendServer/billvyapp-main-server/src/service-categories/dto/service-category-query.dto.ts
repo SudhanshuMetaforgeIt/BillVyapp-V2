@@ -1,3 +1,5 @@
+import { Gender } from '../../common/enums/gender.enum';
+import { IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
@@ -10,6 +12,11 @@ import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto
 import { OptionalBooleanTransform } from '../../common/transformers/optional-boolean';
 
 export class ServiceCategoryQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: Gender })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
   @ApiPropertyOptional({ example: 'hair' })
   @IsOptional()
   @IsString()

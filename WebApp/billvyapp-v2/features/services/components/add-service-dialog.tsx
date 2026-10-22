@@ -1,4 +1,6 @@
 'use client';
+import { GenderSelect } from '@/components/data/gender-select';
+import type { Gender } from '@/lib/gender';
 
 import { ProductRecipeEditor, type ProductRecipe } from "./product-recipe-editor";
 import { SelectInput } from '@/components/data/form-fields';
@@ -19,7 +21,7 @@ type AddServiceDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   salonId: string;
-  categoryOptions: Array<{ id: string; name: string }>;
+  categoryOptions: Array<{ id: string; name: string; gender: import('@/lib/gender').Gender }>;
   editingService?: ServiceApiItem;
 };
 
@@ -32,21 +34,23 @@ export function AddServiceDialog({
 }: AddServiceDialogProps) {
   const titleId = useId();
   const [productRecipe, setProductRecipe] = useState<ProductRecipe[]>(editingService?.productRecipe ?? []);
+  const [gender, setGender] = useState<Gender | ''>(editingService?.gender ?? '');
   const [name, setName] = useState(editingService?.name ?? '');
   const [description, setDescription] = useState(editingService?.description ?? '');
-  const [categoryId, setCategoryId] = useState(editingService?.categoryId ?? categoryOptions[0]?.id ?? '');
+  const [categoryId, setCategoryId] = useState(editingService?.categoryId ?? '');
   const [price, setPrice] = useState(editingService?.price ?? '');
   const [durationMinutes, setDurationMinutes] = useState(String(editingService?.durationMinutes ?? 30));
   const [taxRate, setTaxRate] = useState(editingService?.taxRate ?? '18');
 
   const validation=useFormValidation(editingService ? 'UpdateServiceDto' : 'CreateServiceDto',{
-    ...(editingService ? {} : {salonId}),categoryId,name,description:description.trim() || null,price,durationMinutes,taxRate,productRecipe,
+    ...(editingService ? {} : {salonId}),gender,categoryId,name,description:description.trim() || null,price,durationMinutes,taxRate,productRecipe,
   });
   const clearValidation=validation.clear;
   const create = useCreateService(() => {
     clearValidation();
     onOpenChange(false);
     setName('');
+    setGender('');
     setDescription('');
     setPrice('');
     setDurationMinutes('30');
@@ -118,10 +122,11 @@ export function AddServiceDialog({
             className="space-y-3"
             onSubmit={(event) => {
               event.preventDefault();
-              if (busy || !validation.validate()) return;
+              if (busy || !validation.validate() || !gender) return;
               const payload = {
                 categoryId,
-                name: name.trim(),
+                gender,
+              name: name.trim(),
                 description: description.trim() || null,
                 price: priceNum,
                 durationMinutes: duration,
@@ -133,6 +138,7 @@ export function AddServiceDialog({
             }}
           >
             <FormValidationErrors messages={validation.messages} />
+            <GenderSelect value={gender} onChange={value => { setGender(value); setCategoryId(''); }} />
             <ProductRecipeEditor salonId={salonId} value={productRecipe} onChange={setProductRecipe} disabled={busy} />
             <div className="space-y-1.5">
               <Label htmlFor="svc-name">Name</Label>
@@ -157,9 +163,10 @@ export function AddServiceDialog({
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
               >
-                {categoryOptions.map((cat) => (
+                <option value="" disabled>Select category</option>
+                {categoryOptions.filter(cat => cat.gender === 'UNISEX' || cat.gender === gender).map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {cat.name}
+                    {cat.name} ({cat.gender})
                   </option>
                 ))}
               </SelectInput>

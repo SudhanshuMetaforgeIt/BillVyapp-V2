@@ -29,9 +29,9 @@ export async function createCustomer(payload: CreateCustomerPayload) {
   return api.post<WalkInCustomer>('/customers', payload);
 }
 
-export async function listServiceCategories(salonId?: string) {
+export async function listServiceCategories(salonId?: string, gender?: import('@/lib/gender').Gender) {
   return api.get<PaginatedResponse<ServiceCategory>>('/service-categories', {
-    params: { page: 1, limit: 100, isActive: true, salonId },
+    params: { page: 1, limit: 100, isActive: true, salonId, gender },
   });
 }
 
@@ -39,9 +39,12 @@ export async function listServices(params?: {
   salonId?: string;
   search?: string;
   categoryId?: string;
+  gender?: import('@/lib/gender').Gender;
 }) {
   return api.get<PaginatedResponse<SalonService>>('/services', {
     params: {
+      gender: params?.gender,
+      includeUnisex: false,
       page: 1,
       limit: 100,
       isActive: true,
@@ -97,6 +100,7 @@ export async function settleWalkInBill(
     couponCode?: string | null;
     salonId: string;
     customerId: string;
+    serviceGender: import('@/lib/gender').Gender;
     discount?: number;
     notes?: string | null;
     items: CreateBillPayload['items'];
@@ -114,6 +118,7 @@ export async function settleWalkInBill(
     couponCode: input.couponCode?.trim().toUpperCase() || undefined,
     salonId: input.salonId,
     customerId: input.customerId,
+    serviceGender: input.serviceGender,
     discount: input.discount && input.discount > 0 ? input.discount : undefined,
     notes: input.notes?.trim() ? input.notes.trim() : null,
     items: input.items,

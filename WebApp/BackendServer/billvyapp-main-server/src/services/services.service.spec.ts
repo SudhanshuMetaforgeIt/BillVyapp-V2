@@ -1,3 +1,4 @@
+import { Gender } from '../common/enums/gender.enum';
 import {
   BadRequestException,
   ConflictException,
@@ -84,6 +85,7 @@ const customer: AuthenticatedUser = {
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
 const createDto: CreateServiceDto = {
+  gender: Gender.UNISEX,
   salonId: 'salon-a1',
   categoryId: 'cat-1',
   name: 'Haircut',
@@ -94,6 +96,7 @@ const createDto: CreateServiceDto = {
 
 function serviceRow(overrides: Record<string, unknown> = {}) {
   return {
+    gender: Gender.UNISEX,
     id: 'svc-1',
     salonId: 'salon-a1',
     categoryId: 'cat-1',
@@ -139,6 +142,7 @@ describe('ServicesService', () => {
       isActive: true,
     });
     prisma.serviceCategory.findUnique.mockResolvedValue({
+      gender: Gender.UNISEX,
       id: 'cat-1',
       salonId: 'salon-a1',
     });
@@ -152,6 +156,51 @@ describe('ServicesService', () => {
     );
   });
 
+  it('filters by the selected gender plus Unisex before pagination', async () => {
+    prisma.service.findMany.mockResolvedValue([]);
+    prisma.service.count.mockResolvedValue(0);
+    await service.list(manager, { gender: Gender.MALE, page: 2, limit: 10 });
+    expect(prisma.service.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          gender: { in: [Gender.MALE, Gender.UNISEX] },
+        }),
+        skip: 10,
+      }),
+    );
+  });
+  it('keeps gender catalog groups separate with accurate pagination counts', async () => {
+    prisma.service.findMany.mockResolvedValue([]);
+    prisma.service.count.mockResolvedValue(0);
+    await service.list(manager, {
+      gender: Gender.FEMALE,
+      includeUnisex: false,
+      page: 2,
+      limit: 10,
+    });
+    expect(prisma.service.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ gender: Gender.FEMALE }),
+        skip: 10,
+      }),
+    );
+    expect(prisma.service.count).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ gender: Gender.FEMALE }),
+      }),
+    );
+  });
+  it('rejects a service assigned to an incompatible category', async () => {
+    prisma.serviceCategory.findUnique.mockResolvedValue({
+      id: 'cat-1',
+      salonId: 'salon-a1',
+      gender: Gender.FEMALE,
+    });
+    await expect(
+      service.create(manager, { ...createDto, gender: Gender.MALE }, ctx),
+    ).rejects.toThrow('Service gender must match');
+    expect(prisma.service.create).not.toHaveBeenCalled();
+  });
   it('creates a service in a valid salon and category', async () => {
     prisma.service.create.mockResolvedValue(serviceRow());
 
@@ -347,6 +396,7 @@ describe('ServicesService', () => {
 describe('CreateServiceDto validation', () => {
   function dto(overrides: Record<string, unknown> = {}) {
     return Object.assign(new CreateServiceDto(), {
+      gender: Gender.UNISEX,
       salonId: '11111111-1111-4111-8111-111111111111',
       categoryId: '22222222-2222-4222-8222-222222222222',
       name: 'Haircut',

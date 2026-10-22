@@ -9,6 +9,7 @@ import contracts from "./generated-contracts.json";
 const id = "11111111-1111-4111-8111-111111111111";
 const other = "22222222-2222-4222-8222-222222222222";
 const customer = {
+  gender: "FEMALE",
   firstName: "Riya",
   lastName: "Sharma",
   email: "riya@example.test",
@@ -25,6 +26,16 @@ const product = {
   packageSize: "1000",
 };
 describe("Shared Zod request validation", () => {
+  it.each(['MALE', 'FEMALE', 'OTHER', 'UNISEX'])('accepts required customer gender %s', gender => {
+    expect(getRequestSchema('CreateCustomerDto').safeParse({ ...customer, gender }).success).toBe(true);
+  });
+  it.each([undefined, null, '', 'INVALID', 'PREFER_NOT_TO_SAY'])('rejects missing or invalid customer gender %s', gender => {
+    expect(getRequestSchema('CreateCustomerDto').safeParse({ ...customer, gender }).success).toBe(false);
+  });
+  it('permits omitted patch gender but rejects null gender', () => {
+    expect(getRequestSchema('UpdateCustomerDto').safeParse({ firstName: 'Updated' }).success).toBe(true);
+    expect(getRequestSchema('UpdateCustomerDto').safeParse({ gender: null }).success).toBe(false);
+  });
   it("builds every generated contract without importing backend code", () => {
     for (const name of Object.keys(contracts.contracts))
       expect(getRequestSchema(name)).toBeDefined();
@@ -131,6 +142,7 @@ describe("Shared Zod request validation", () => {
     const base = {
       salonId: id,
       customerId: other,
+      serviceGender: "UNISEX",
       idempotencyKey: "bill-request-123",
       items: [{ itemType: "SERVICE", serviceId: other, quantity: 1 }],
     };
@@ -162,6 +174,7 @@ describe("Shared Zod request validation", () => {
     const base = {
       salonId: id,
       categoryId: other,
+      gender: "UNISEX",
       name: "Hairwash",
       price: "200",
       durationMinutes: "30",

@@ -31,6 +31,7 @@ import { CategoriesTable } from './categories-table';
 import { ServicesFilters } from './services-filters';
 import { ServicesTable } from './services-table';
 import { ServicesTabs } from './services-tabs';
+import { GenderBasedServices } from './gender-based-services';
 import { EditServiceDialog } from './edit-service-dialog';
 
 import { can } from '@/lib/capabilities';
@@ -148,14 +149,16 @@ export function ServicesPageView() {
               onPrimaryAction={
                 can(user, 'catalog.write')
                   ? () => {
-                      if (tab === 'services') setAddServiceOpen(true);
+                      if (tab !== 'categories') setAddServiceOpen(true);
                       else setAddCategoryOpen(true);
                     }
                   : undefined
               }
             />
 
-            {tab === 'services' ? (
+            {tab === 'gender' ? (
+              <GenderBasedServices salonId={salonId} search={deferredSearch} categoryId={categoryId} status={status} categories={data?.categoryOptions ?? []} />
+            ) : tab === 'services' ? (
               <ServicesTable
                 onEditService={can(user, 'catalog.write') ? setEditingService : undefined}
                 rows={data?.serviceRows ?? []}

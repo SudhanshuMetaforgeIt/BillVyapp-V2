@@ -1,4 +1,6 @@
 'use client';
+import { GenderSelect } from '@/components/data/gender-select';
+import type { Gender } from '@/lib/gender';
 
 import { getCurrencySymbol } from '@/lib/business-region';
 
@@ -15,7 +17,7 @@ import {
 } from '../hooks/use-admin-services';
 import type { ServiceItem } from '../types/admin-services.types';
 
-type CategoryOption = { id: string; name: string; salonId?: string };
+type CategoryOption = { id: string; name: string; salonId?: string; gender: Gender };
 
 type CreateServiceDialogProps = {
   isOpen: boolean;
@@ -29,6 +31,7 @@ type CreateServiceDialogProps = {
   onUpdate?: (
     id: string,
     payload: {
+      gender: Gender;
       categoryId: string;
       name: string;
       price: number;
@@ -57,6 +60,7 @@ export function CreateServiceDialog({
 
   const [salonId, setSalonId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [gender, setGender] = useState<Gender | ''>(editingService?.gender ?? '');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('500');
   const [durationMinutes, setDurationMinutes] = useState('30');
@@ -71,6 +75,7 @@ export function CreateServiceDialog({
     if (editingService) {
     // Existing dialog/filter synchronization keeps persisted form selections current.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+      setGender(editingService.gender);
       setSalonId(editingService.salonId);
       setCategoryId(editingService.categoryId);
       setName(editingService.name);
@@ -87,6 +92,7 @@ export function CreateServiceDialog({
       (preferredSalonId && branches.some((b) => b.id === preferredSalonId)
         ? preferredSalonId
         : branches[0]?.id) ?? '';
+    setGender('');
     setSalonId(defaultSalon);
     setCategoryId('');
     setName('');
@@ -101,11 +107,11 @@ export function CreateServiceDialog({
 
   const salonCategories = useMemo(() => {
     if (!salonId) return categories;
-    const scoped = categories.filter(
+    const scoped = categories.filter(c => c.gender === 'UNISEX' || c.gender === gender).filter(
       (c) => !c.salonId || c.salonId === salonId,
     );
-    return scoped.length > 0 ? scoped : categories.filter((c) => !c.salonId);
-  }, [categories, salonId]);
+    return scoped;
+  }, [categories, salonId, gender]);
 
   useEffect(() => {
     if (!isOpen || isEdit) return;
@@ -130,6 +136,7 @@ export function CreateServiceDialog({
       return;
     }
 
+    if (!gender) { setError('Select a gender.'); return; }
     if (!validProductRecipe(productRecipe)) { setError("Check product usage quantities and selected products."); return; }
     const parsedDuration = Number.parseInt(durationMinutes, 10);
     const parsedPrice = Number(price);
@@ -152,6 +159,7 @@ export function CreateServiceDialog({
         const createdCat = await createCategoryMutation.mutateAsync({
           salonId: salonId || branches[0].id,
           name: newCategoryName.trim(),
+          gender,
         });
         targetCategoryId = createdCat.id;
       }
@@ -165,6 +173,7 @@ export function CreateServiceDialog({
       if (isEdit && editingService && onUpdate) {
         await onUpdate(editingService.id, {
           categoryId: targetCategoryId,
+          gender,
           name: name.trim(),
           price: parsedPrice,
           durationMinutes: parsedDuration,
@@ -175,6 +184,7 @@ export function CreateServiceDialog({
         await createServiceMutation.mutateAsync({
           salonId: salonId || branches[0].id,
           categoryId: targetCategoryId,
+          gender,
           name: name.trim(),
           price: parsedPrice,
           durationMinutes: parsedDuration,
@@ -225,6 +235,7 @@ export function CreateServiceDialog({
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <GenderSelect value={gender} onChange={value => { setGender(value); setCategoryId(''); }} />
             <ProductRecipeEditor key={salonId} salonId={salonId} value={productRecipe} onChange={setProductRecipe} disabled={loading} />
           <div>
             <label className="block text-xs font-semibold text-text">
@@ -306,7 +317,7 @@ export function CreateServiceDialog({
                 {salonCategories.length > 0 ? (
                   salonCategories.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {c.name} ({c.gender})
                     </option>
                   ))
                 ) : (

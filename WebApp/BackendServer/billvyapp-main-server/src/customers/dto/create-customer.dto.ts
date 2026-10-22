@@ -39,9 +39,7 @@ export class CreateCustomerDto {
   @IsDate()
   dateOfBirth?: Date;
 
-  @ApiPropertyOptional({ enum: Gender, example: Gender.FEMALE })
-  @IsOptional()
+  @ApiProperty({ enum: Gender, example: Gender.FEMALE })
   @IsEnum(Gender)
-  gender?: Gender;
-
+  gender: Gender;
 }

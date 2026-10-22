@@ -1,4 +1,4 @@
-export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+export type Gender = import('@/lib/gender').Gender;
 
 export type CustomerStats = {
   totalCustomers: number;
@@ -34,7 +34,7 @@ export type CustomerItem = {
   totalSpent: number;
   lastVisit: string;
   isActive: boolean;
-  gender?: Gender | null;
+  gender: Gender;
   customerCode: string;
 };
 
@@ -53,7 +53,7 @@ export type CreateCustomerPayload = {
   lastName: string;
   email: string;
   phone: string;
-  gender?: Gender;
+  gender: Gender;
   dateOfBirth?: string;
   salonId?: string;
 };

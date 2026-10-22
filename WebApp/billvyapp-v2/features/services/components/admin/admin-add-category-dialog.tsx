@@ -1,4 +1,6 @@
 'use client';
+import { GenderSelect } from '@/components/data/gender-select';
+import type { Gender } from '@/lib/gender';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -23,6 +25,7 @@ export function AdminAddCategoryDialog({
 }: AdminAddCategoryDialogProps) {
   const titleId = useId();
   const [salonId, setSalonId] = useState(branches[0]?.id ?? '');
+  const [gender, setGender] = useState<Gender | ''>('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +50,7 @@ export function AdminAddCategoryDialog({
   if (!open) return null;
 
   const canSubmit =
-    Boolean(salonId) && name.trim().length > 0 && !create.isPending;
+    Boolean(gender) && Boolean(salonId) && name.trim().length > 0 && !create.isPending;
 
   return (
     <div
@@ -95,16 +98,19 @@ export function AdminAddCategoryDialog({
           className="space-y-3"
           onSubmit={async (event) => {
             event.preventDefault();
+            if (!gender) return;
             if (!canSubmit) return;
             setError(null);
             try {
               await create.mutateAsync({
                 salonId,
+                gender,
                 name: name.trim(),
                 description: description.trim() || undefined,
               });
               onOpenChange(false);
               setName('');
+              setGender('');
               setDescription('');
             } catch (err: unknown) {
               const msg =
@@ -137,6 +143,7 @@ export function AdminAddCategoryDialog({
             )}
           </div>
           <div className="space-y-1.5">
+            <GenderSelect value={gender} onChange={setGender} />
             <Label htmlFor="admin-cat-name">Name</Label>
             <Input
               id="admin-cat-name"

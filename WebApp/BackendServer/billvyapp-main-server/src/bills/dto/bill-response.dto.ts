@@ -1,3 +1,4 @@
+import { Gender } from '../../generated/prisma/enums';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   BillItemType,
@@ -49,6 +50,7 @@ export class BillCustomerDto {
 }
 
 export class BillResponseDto {
+  @ApiProperty({ enum: Gender }) serviceGender: Gender;
   @ApiProperty({ enum: ['INR', 'USD'] }) currency: string;
   @ApiPropertyOptional({ nullable: true }) enrollmentPlanId?: string | null;
   @ApiPropertyOptional({ nullable: true }) enrollmentPlanName?: string | null;

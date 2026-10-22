@@ -1,4 +1,5 @@
 'use client';
+import { genderLabel } from '@/lib/gender';
 
 import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { Pencil, Scissors } from 'lucide-react';
@@ -101,7 +102,7 @@ export function ServicesTable({
                     </span>
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-text">
-                        {row.name}
+                        {row.name} · {genderLabel(row.gender)}
                       </p>
                       <p className="truncate text-xs text-text-secondary">
                         {row.description}
@@ -133,14 +134,14 @@ export function ServicesTable({
                     <button
                       type="button"
                       className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      aria-label={`Edit ${row.name}`}
+                      aria-label={`Edit ${row.name} (${genderLabel(row.gender)})`}
                       disabled={!onEditService}
                       onClick={() => onEditService?.(row)}
                       title="Edit service"
                     >
                       <Pencil className="size-4" />
                     </button>
-                    <StatusSwitch checked={row.isActive} label={`Toggle ${row.name} status`} disabled={toggle.isPending} onCheckedChange={(isActive) => toggle.mutate({ id: row.id, isActive, name: row.name })} />
+                    <StatusSwitch checked={row.isActive} label={`Toggle ${row.name} (${genderLabel(row.gender)}) status`} disabled={toggle.isPending} onCheckedChange={(isActive) => toggle.mutate({ id: row.id, isActive, name: row.name })} />
                     <RowActionsMenu name={row.name}
       fields={[["Description", row.description], ["Category", row.categoryLabel], ["Price", row.priceLabel], ["Duration", row.durationLabel], ["Status", row.statusLabel]]}
       actions={[...(onEditService ? [{ label: 'Edit service', onClick: () => onEditService(row) }] : []), { label: row.isActive ? 'Deactivate service' : 'Activate service', disabled: toggle.isPending,

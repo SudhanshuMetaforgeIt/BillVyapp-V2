@@ -9,7 +9,7 @@ import { AddServiceDialog } from './add-service-dialog';
 
 export function EditServiceDialog({ service, categoryOptions, onClose }: {
   service: ServiceListRow;
-  categoryOptions: Array<{ id: string; name: string }>;
+  categoryOptions: Array<{ id: string; name: string; gender: import('@/lib/gender').Gender }>;
   onClose: () => void;
 }) {
   const query = useScopedQuery(['services', 'detail', service.id], () => fetchService(service.id), {
@@ -28,7 +28,7 @@ export function EditServiceDialog({ service, categoryOptions, onClose }: {
   // Retain the existing category even if it has since been deactivated.
   const options = categoryOptions.some((category) => category.id === query.data.categoryId)
     ? categoryOptions
-    : [{ id: query.data.categoryId, name: service.categoryLabel }, ...categoryOptions];
+    : [{ id: query.data.categoryId, name: service.categoryLabel, gender: query.data.gender }, ...categoryOptions];
 
   return <AddServiceDialog open salonId={query.data.salonId}
     editingService={query.data} categoryOptions={options}

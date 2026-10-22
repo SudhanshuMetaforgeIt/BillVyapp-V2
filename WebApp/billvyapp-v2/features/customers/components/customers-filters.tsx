@@ -77,7 +77,7 @@ export function CustomersFilters({
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
           <option value="OTHER">Other</option>
-          <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+              <option value="UNISEX">Unisex</option>
         </SelectInput>
 
         <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"

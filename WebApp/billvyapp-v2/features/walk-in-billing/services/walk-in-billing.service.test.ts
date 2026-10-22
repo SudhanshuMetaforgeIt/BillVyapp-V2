@@ -3,11 +3,13 @@ import { api } from '@/services/api-client';
 import {
   settleWalkInBill,
   validateBillCoupon,
+  listServices,
 } from './walk-in-billing.service';
 vi.mock('@/services/api-client', () => ({
   api: { post: vi.fn(), patch: vi.fn(), get: vi.fn() },
 }));
 const input = {
+  serviceGender: 'MALE' as const,
   salonId: 'salon',
   customerId: 'customer',
   couponCode: '  club-123  ',
@@ -17,6 +19,14 @@ const input = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+});
+
+describe('Billing gender filtering', () => {
+  it.each(['MALE', 'FEMALE', 'OTHER', 'UNISEX'] as const)('requests only %s services', async gender => {
+    vi.mocked(api.get).mockResolvedValue({ data: [], meta: { total: 0 } });
+    await listServices({ gender, salonId: 'salon', categoryId: 'category', search: 'cut' });
+    expect(api.get).toHaveBeenCalledWith('/services', { params: expect.objectContaining({ gender, includeUnisex: false, salonId: 'salon', categoryId: 'category', search: 'cut', isActive: true }) });
+  });
 });
 describe('Billing membership coupon', () => {
   it('applies points before requesting the remaining UPI amount', async () => {

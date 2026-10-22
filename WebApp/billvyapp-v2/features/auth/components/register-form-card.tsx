@@ -1,4 +1,6 @@
 'use client';
+import { GENDERS, genderLabel } from '@/lib/gender';
+import { SelectInput } from '@/components/data/form-fields';
 import { normalizePhone, type PhoneCountry } from '@/lib/phone';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -53,6 +55,7 @@ export function RegisterFormCard() {
       email: values.email.trim(),
       phone: normalizePhone(values.phone, phoneCountry),
       password: values.password,
+      gender: values.gender,
     });
   });
 
@@ -80,6 +83,15 @@ export function RegisterFormCard() {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-3.5" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="register-gender">Gender *</Label>
+              <SelectInput id="register-gender" required defaultValue="" {...register('gender')}>
+                <option value="" disabled>Select gender</option>
+                {GENDERS.map(gender => <option key={gender} value={gender}>{genderLabel(gender)}</option>)}
+              </SelectInput>
+              {errors.gender && <p role="alert" className="text-sm text-danger">Select a gender.</p>}
+            </div>
+
           <div className="grid grid-cols-1 gap-3.5 @min-[22rem]:grid-cols-2">
             <Field
               id="firstName"

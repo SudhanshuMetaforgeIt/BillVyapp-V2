@@ -7,4 +7,5 @@ import { CreateServiceDto } from './create-service.dto';
  */
 export class UpdateServiceDto extends PartialType(
   OmitType(CreateServiceDto, ['salonId'] as const),
+  { skipNullProperties: false },
 ) {}

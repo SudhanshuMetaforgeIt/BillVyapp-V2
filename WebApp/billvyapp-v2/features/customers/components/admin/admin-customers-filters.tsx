@@ -145,6 +145,7 @@ export function AdminCustomersFilters({
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
             <option value="OTHER">Other</option>
+              <option value="UNISEX">Unisex</option>
           </SelectInput>
 
         {/* Filter Button */}

@@ -96,6 +96,7 @@ function mapServiceRow(
 ): ServiceListRow {
   return {
     id: row.id,
+    gender: row.gender,
     name: row.name,
     description: row.description?.trim() || '—',
     categoryId: row.categoryId,
@@ -196,7 +197,7 @@ export async function fetchServicesPage(
 
   const categoryOptions = allCategories
     .filter((cat) => cat.isActive)
-    .map((cat) => ({ id: cat.id, name: cat.name }));
+    .map((cat) => ({ id: cat.id, gender: cat.gender, name: cat.name }));
 
   const serviceRows = servicesPage.data.map((row) =>
     mapServiceRow(row, categoryById),
@@ -206,6 +207,7 @@ export async function fetchServicesPage(
     params.tab === 'categories'
       ? categoriesPage.data.map((cat) => ({
           id: cat.id,
+    gender: cat.gender,
           name: cat.name,
           description: cat.description?.trim() || '—',
           serviceCount: serviceCounts.get(cat.id) ?? 0,

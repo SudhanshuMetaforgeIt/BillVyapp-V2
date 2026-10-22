@@ -1,3 +1,4 @@
+import { Gender } from '../../common/enums/gender.enum';
 import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
@@ -114,6 +115,10 @@ export class BillEnrollmentDetailsDto {
 }
 
 export class CreateBillDto {
+  @ApiProperty({ enum: Gender })
+  @IsEnum(Gender)
+  serviceGender: Gender;
+
   @ApiProperty({
     description: 'Stable key reused for retries of the same bill request',
     minLength: 8,

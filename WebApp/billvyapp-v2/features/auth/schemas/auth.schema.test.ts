@@ -39,6 +39,7 @@ describe('auth schemas', () => {
 
   it('rejects registration passwords that do not match', () => {
     const result = registerSchema.safeParse({
+      gender: 'FEMALE',
       firstName: 'Pat',
       lastName: 'Customer',
       email: 'pat@test.com',

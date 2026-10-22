@@ -67,7 +67,7 @@ export function CreateCustomerDialog({
 
   const normalizedPhone = normalizeIndianPhone(phone);
   const canSubmit =
-    firstName.trim().length > 0 &&
+    Boolean(gender) && firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     email.trim().length > 0 &&
     isValidPhoneInput(normalizedPhone);
@@ -112,13 +112,13 @@ export function CreateCustomerDialog({
           className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!canSubmit || create.isPending) return;
+            if (!canSubmit || create.isPending || !gender) return;
             create.mutate({
               firstName: firstName.trim(),
               lastName: lastName.trim(),
               email: email.trim(),
               phone: normalizedPhone,
-              ...(gender ? { gender } : {}),
+              gender,
             });
           }}
         >
@@ -164,10 +164,10 @@ export function CreateCustomerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="walkin-gender">Gender (optional)</Label>
+            <Label htmlFor="walkin-gender">Gender *</Label>
             <SelectInput
               className="h-10 w-full text-sm font-medium"
-              id="walkin-gender"
+              id="walkin-gender" required
               value={gender}
               onChange={(e) =>
                 setGender(e.target.value as '' | WalkInCustomerGender)
@@ -177,7 +177,7 @@ export function CreateCustomerDialog({
               <option value="MALE">Male</option>
               <option value="FEMALE">Female</option>
               <option value="OTHER">Other</option>
-              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+              <option value="UNISEX">Unisex</option>
             </SelectInput>
           </div>
 

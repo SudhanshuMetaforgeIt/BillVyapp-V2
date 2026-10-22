@@ -50,7 +50,7 @@ enum Gender {
   MALE
   FEMALE
   OTHER
-  PREFER_NOT_TO_SAY
+  UNISEX
 }
 
 enum AddressType {
@@ -456,7 +456,7 @@ model Customer {
   customerCode   String    @unique @db.VarChar(50)
   whatsappNumber String?   @db.VarChar(20)
   dateOfBirth    DateTime? @db.Date
-  gender         Gender?
+  gender         Gender
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -500,6 +500,7 @@ model CustomerAddress {
 // =============================================================================
 
 model ServiceCategory {
+  gender Gender
   id          String   @id @default(uuid()) @db.VarChar(36)
   salonId     String   @db.VarChar(36)
   name        String   @db.VarChar(191)
@@ -511,12 +512,13 @@ model ServiceCategory {
   salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   services Service[]
 
-  @@unique([salonId, name])
+  @@unique([salonId, name, gender])
   @@index([salonId, isActive])
   @@map("service_categories")
 }
 
 model Service {
+  gender Gender
   productRecipe Json?
   id              String   @id @default(uuid()) @db.VarChar(36)
   salonId         String   @db.VarChar(36)
@@ -537,7 +539,7 @@ model Service {
   billItems           BillItem[]
   membershipPlans     MembershipPlan[]
 
-  @@unique([salonId, name])
+  @@unique([salonId, name, gender])
   @@index([salonId, isActive])
   @@index([salonId, categoryId, isActive])
   @@index([categoryId])
@@ -839,6 +841,7 @@ model StockMovement {
 
 /// Invoice document. The table is deliberately named "bills" (not invoices).
 model Bill {
+  serviceGender Gender
   emailQueuedAt DateTime?
   loyaltyPolicy Json?
   currency           String            @default("INR") @db.VarChar(3)

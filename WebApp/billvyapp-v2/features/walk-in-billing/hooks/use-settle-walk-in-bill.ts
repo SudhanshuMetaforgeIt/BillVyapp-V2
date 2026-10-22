@@ -21,6 +21,7 @@ export type SettleWalkInInput = {
   couponCode?: string | null;
   salonId: string;
   customerId: string;
+  serviceGender: import('@/lib/gender').Gender;
   discount?: number;
   notes?: string | null;
   items: Array<{ itemType: 'SERVICE'; serviceId: string; quantity: number }>;

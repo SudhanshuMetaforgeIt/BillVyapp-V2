@@ -1,3 +1,5 @@
+import { Gender } from '../../common/enums/gender.enum';
+import { IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ProductRecipeDto } from './product-recipe.dto';
 import { StrictNumber } from '../../common/transformers/strict-number';
@@ -19,6 +21,10 @@ import {
 } from 'class-validator';
 
 export class CreateServiceDto {
+  @ApiProperty({ enum: Gender })
+  @IsEnum(Gender)
+  gender: Gender;
+
   @ApiPropertyOptional({ type: [ProductRecipeDto] })
   @IsOptional()
   @IsArray()

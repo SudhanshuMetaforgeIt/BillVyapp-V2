@@ -1,3 +1,5 @@
+import { Gender } from '../../common/enums/gender.enum';
+import { IsEnum } from 'class-validator';
 import { StrictNumber } from '../../common/transformers/strict-number';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -16,6 +18,9 @@ import {
 } from 'class-validator';
 
 export class BulkServiceItemDto {
+  @IsEnum(Gender)
+  gender: Gender;
+
   @ApiPropertyOptional({ example: 'Hair Cut' })
   @IsString()
   @IsNotEmpty()

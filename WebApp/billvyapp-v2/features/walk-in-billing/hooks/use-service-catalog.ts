@@ -9,26 +9,27 @@ import {
 
 export const SERVICE_CATALOG_QUERY_KEY = ['services', 'catalog'] as const;
 
-export function useServiceCategories(enabled: boolean, salonId?: string | null) {
+export function useServiceCategories(enabled: boolean, salonId?: string | null, gender?: import('@/lib/gender').Gender) {
   return useScopedQuery(
-    [...SERVICE_CATALOG_QUERY_KEY, 'categories', salonId ?? null],
-    () => listServiceCategories(salonId ?? undefined),
-    { enabled, staleTime: QUERY_FRESHNESS.catalog },
+    [...SERVICE_CATALOG_QUERY_KEY, 'categories', salonId ?? null, gender],
+    () => listServiceCategories(salonId ?? undefined, gender),
+    { enabled, staleTime: QUERY_FRESHNESS.catalog, placeholderData: undefined },
   );
 }
 
 export function useSalonServices(
   enabled: boolean,
-  params: { search: string; categoryId: string; salonId?: string | null },
+  params: { search: string; categoryId: string; salonId?: string | null; gender?: import('@/lib/gender').Gender },
 ) {
   return useScopedQuery(
-    [...SERVICE_CATALOG_QUERY_KEY, 'services', params.salonId ?? null, params.search, params.categoryId],
+    [...SERVICE_CATALOG_QUERY_KEY, 'services', 'exact-gender', params.salonId ?? null, params.search, params.categoryId, params.gender],
     () =>
       listServices({
+        gender: params.gender,
         salonId: params.salonId || undefined,
         search: params.search || undefined,
         categoryId: params.categoryId || undefined,
       }),
-    { enabled, staleTime: QUERY_FRESHNESS.catalog },
+    { enabled, staleTime: QUERY_FRESHNESS.catalog, placeholderData: undefined },
   );
 }

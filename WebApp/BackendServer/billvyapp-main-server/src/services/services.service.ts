@@ -1,3 +1,4 @@
+import { Gender } from '../generated/prisma/enums';
 import {
   BadRequestException,
   ConflictException,
@@ -33,6 +34,7 @@ import { UpdateServiceDto } from './dto/update-service.dto';
 
 const SERVICE_SELECT = {
   productRecipe: true,
+  gender: true,
   id: true,
   salonId: true,
   categoryId: true,
@@ -48,6 +50,7 @@ const SERVICE_SELECT = {
 
 type ServiceRow = {
   productRecipe?: unknown;
+  gender: Gender;
   id: string;
   salonId: string;
   categoryId: string;
@@ -63,6 +66,7 @@ type ServiceRow = {
 
 export type ServiceRecord = {
   productRecipe?: ProductRecipe[];
+  gender: Gender;
   id: string;
   salonId: string;
   categoryId: string;
@@ -100,6 +104,14 @@ export class ServicesService {
       ...this.scope.salonScope(user),
       ...this.visibilityFilter(user, query.isActive),
       ...(query.salonId ? { salonId: query.salonId } : {}),
+      ...(query.gender
+        ? {
+            gender:
+              query.includeUnisex === false
+                ? query.gender
+                : { in: [query.gender, Gender.UNISEX] },
+          }
+        : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(search
         ? {
@@ -115,10 +127,13 @@ export class ServicesService {
     const cacheKey =
       targetSalonId && this.cache
         ? `cache:catalogue:${targetSalonId}:services:${this.cache.hashQuery({
+            catalogVersion: 3,
             page,
             limit,
             search,
             categoryId: query.categoryId,
+            gender: query.gender,
+            includeUnisex: query.includeUnisex ?? true,
             isActive: query.isActive,
             role: user.role,
             permissionScope: this.cache.permissionScope(user),
@@ -181,7 +196,7 @@ export class ServicesService {
   ): Promise<ServiceRecord> {
     await this.requireActiveSalon(dto.salonId);
     await this.scope.assertSalonAccess(actor, dto.salonId);
-    await this.requireCategoryInSalon(dto.categoryId, dto.salonId);
+    await this.requireCategoryInSalon(dto.categoryId, dto.salonId, dto.gender);
 
     await snapshotProductUsage(this.prisma, dto.salonId, dto.productRecipe);
     try {
@@ -190,6 +205,7 @@ export class ServicesService {
           productRecipe: readRecipe(dto.productRecipe),
           salonId: dto.salonId,
           categoryId: dto.categoryId,
+          gender: dto.gender,
           name: trimRequired(dto.name),
           description: trimOrNull(dto.description) ?? null,
           durationMinutes: dto.durationMinutes,
@@ -206,6 +222,7 @@ export class ServicesService {
         entityType: 'Service',
         entityId: created.id,
         newData: {
+          gender: created.gender,
           name: created.name,
           salonId: created.salonId,
           categoryId: created.categoryId,
@@ -240,25 +257,29 @@ export class ServicesService {
     const categoryCache = new Map<string, string>();
     const existingCategories = await this.prisma.serviceCategory.findMany({
       where: { salonId: dto.salonId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, gender: true },
     });
     for (const cat of existingCategories) {
-      categoryCache.set(cat.name.trim().toLowerCase(), cat.id);
+      categoryCache.set(
+        `${cat.name.trim().toLowerCase()}:${cat.gender}`,
+        cat.id,
+      );
     }
 
     for (let i = 0; i < dto.services.length; i += 1) {
       const row = dto.services[i];
       const rowNumber = i + 1;
       try {
-        const categoryKey = row.category.trim().toLowerCase();
+        const categoryKey = `${row.category.trim().toLowerCase()}:${row.gender}`;
         let categoryId = categoryCache.get(categoryKey);
         if (!categoryId) {
           const newCat = await this.prisma.serviceCategory.create({
             data: {
               salonId: dto.salonId,
               name: trimRequired(row.category),
+              gender: row.gender,
             },
-            select: { id: true, name: true },
+            select: { id: true, name: true, gender: true },
           });
           categoryId = newCat.id;
           categoryCache.set(categoryKey, categoryId);
@@ -269,6 +290,7 @@ export class ServicesService {
           {
             salonId: dto.salonId,
             categoryId,
+            gender: row.gender,
             name: row.name,
             description: row.description ?? null,
             durationMinutes: row.durationMinutes,
@@ -304,8 +326,12 @@ export class ServicesService {
   ): Promise<ServiceRecord> {
     const existing = await this.requireWritable(actor, id);
 
-    if (dto.categoryId !== undefined) {
-      await this.requireCategoryInSalon(dto.categoryId, existing.salonId);
+    if (dto.categoryId !== undefined || dto.gender !== undefined) {
+      await this.requireCategoryInSalon(
+        dto.categoryId ?? existing.categoryId,
+        existing.salonId,
+        dto.gender ?? existing.gender,
+      );
     }
 
     if (dto.productRecipe !== undefined)
@@ -315,6 +341,7 @@ export class ServicesService {
         dto.productRecipe,
       );
     const data: {
+      gender?: Gender;
       productRecipe?: Prisma.InputJsonValue;
       categoryId?: string;
       name?: string;
@@ -327,6 +354,7 @@ export class ServicesService {
     if (dto.productRecipe !== undefined)
       data.productRecipe = readRecipe(dto.productRecipe);
     if (dto.categoryId !== undefined) data.categoryId = dto.categoryId;
+    if (dto.gender !== undefined) data.gender = dto.gender;
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
     if (dto.description !== undefined) {
       data.description = trimOrNull(dto.description) ?? null;
@@ -351,12 +379,14 @@ export class ServicesService {
         entityType: 'Service',
         entityId: updated.id,
         oldData: {
+          gender: existing.gender,
           name: existing.name,
           categoryId: existing.categoryId,
           durationMinutes: existing.durationMinutes,
           price: existing.price.toString(),
         },
         newData: {
+          gender: updated.gender,
           name: updated.name,
           categoryId: updated.categoryId,
           durationMinutes: updated.durationMinutes,
@@ -461,10 +491,11 @@ export class ServicesService {
   private async requireCategoryInSalon(
     categoryId: string,
     salonId: string,
+    gender: Gender,
   ): Promise<void> {
     const category = await this.prisma.serviceCategory.findUnique({
       where: { id: categoryId },
-      select: { id: true, salonId: true },
+      select: { id: true, salonId: true, gender: true },
     });
 
     if (!category) {
@@ -475,6 +506,11 @@ export class ServicesService {
         'Service category does not belong to the supplied salon',
       );
     }
+    if (category.gender !== Gender.UNISEX && category.gender !== gender) {
+      throw new BadRequestException(
+        'Service gender must match the category gender or use a Unisex category',
+      );
+    }
   }
 
   private toResponse(row: ServiceRow, user?: AuthenticatedUser): ServiceRecord {
@@ -482,6 +518,7 @@ export class ServicesService {
       ...(user?.role !== RoleCode.CUSTOMER
         ? { productRecipe: readRecipe(row.productRecipe) }
         : {}),
+      gender: row.gender,
       id: row.id,
       salonId: row.salonId,
       categoryId: row.categoryId,

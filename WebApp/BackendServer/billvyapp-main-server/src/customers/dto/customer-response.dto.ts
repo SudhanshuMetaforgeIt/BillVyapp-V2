@@ -12,7 +12,7 @@ export class CustomerResponseDto {
   @ApiPropertyOptional({ nullable: true }) profilePhoto: string | null;
   @ApiPropertyOptional({ nullable: true, type: String, format: 'date' })
   dateOfBirth: Date | null;
-  @ApiPropertyOptional({ enum: Gender, nullable: true }) gender: Gender | null;
+  @ApiProperty({ enum: Gender }) gender: Gender;
   @ApiProperty({
     description: 'Taken from the related User.isActive field',
   })

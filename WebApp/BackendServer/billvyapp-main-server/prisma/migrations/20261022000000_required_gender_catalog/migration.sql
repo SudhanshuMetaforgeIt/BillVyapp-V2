@@ -1,0 +1,16 @@
+ALTER TABLE `customers` MODIFY `gender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NULL;
+UPDATE `customers` SET `gender` = 'PREFER_NOT_TO_SAY' WHERE `gender` IS NULL;
+ALTER TABLE `customers` MODIFY `gender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NOT NULL;
+ALTER TABLE `service_categories` ADD COLUMN `gender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NULL;
+UPDATE `service_categories` SET `gender` = 'UNISEX';
+ALTER TABLE `service_categories` MODIFY `gender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NOT NULL;
+ALTER TABLE `services` ADD COLUMN `gender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NULL;
+UPDATE `services` SET `gender` = 'UNISEX';
+ALTER TABLE `services` MODIFY `gender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NOT NULL;
+ALTER TABLE `bills` ADD COLUMN `serviceGender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NULL;
+UPDATE `bills` SET `serviceGender` = 'UNISEX';
+ALTER TABLE `bills` MODIFY `serviceGender` ENUM('MALE','FEMALE','OTHER','PREFER_NOT_TO_SAY','UNISEX') NOT NULL;
+CREATE UNIQUE INDEX `service_categories_salonId_name_gender_key` ON `service_categories`(`salonId`,`name`,`gender`);
+DROP INDEX `service_categories_salonId_name_key` ON `service_categories`;
+CREATE UNIQUE INDEX `services_salonId_name_gender_key` ON `services`(`salonId`,`name`,`gender`);
+DROP INDEX `services_salonId_name_key` ON `services`;

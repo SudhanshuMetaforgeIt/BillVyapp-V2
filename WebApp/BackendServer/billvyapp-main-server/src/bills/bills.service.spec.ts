@@ -1,3 +1,4 @@
+import { Gender } from '../common/enums/gender.enum';
 import {
   BadRequestException,
   ConflictException,
@@ -94,6 +95,7 @@ const otherCustomer: AuthenticatedUser = {
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
 const createDto: CreateBillDto = {
+  serviceGender: Gender.UNISEX,
   idempotencyKey: 'test-request-0001',
   salonId: 'salon-a1',
   customerId: 'cust-1',
@@ -108,6 +110,7 @@ const createDto: CreateBillDto = {
 
 function catalogService(overrides: Record<string, unknown> = {}) {
   return {
+    gender: Gender.UNISEX,
     id: 'svc-1',
     salonId: 'salon-a1',
     name: 'Haircut',
@@ -132,6 +135,7 @@ function catalogProduct(overrides: Record<string, unknown> = {}) {
 
 function billRow(overrides: Record<string, unknown> = {}) {
   return {
+    serviceGender: Gender.UNISEX,
     id: 'bill-1',
     salonId: 'salon-a1',
     customerId: 'cust-1',
@@ -225,6 +229,48 @@ describe('BillsService', () => {
   const audit = { record: jest.fn() };
   let service: BillsService;
 
+  it('rejects services of a different gender before creating a bill', async () => {
+    prisma.service.findMany.mockResolvedValue([
+      catalogService({ gender: Gender.FEMALE }),
+    ]);
+    await expect(
+      service.create(
+        manager,
+        { ...createDto, serviceGender: Gender.MALE },
+        ctx,
+      ),
+    ).rejects.toThrow('does not match');
+    expect(prisma.bill.create).not.toHaveBeenCalled();
+  });
+  it('rejects Unisex services when Male is selected', async () => {
+    await expect(
+      service.create(
+        manager,
+        { ...createDto, serviceGender: Gender.MALE },
+        ctx,
+      ),
+    ).rejects.toThrow('does not match');
+    expect(prisma.bill.create).not.toHaveBeenCalled();
+  });
+  it('persists the selected gender when services match exactly', async () => {
+    prisma.service.findMany.mockResolvedValue([
+      catalogService({ gender: Gender.MALE }),
+    ]);
+    prisma.bill.create.mockResolvedValue(
+      billRow({ serviceGender: Gender.MALE }),
+    );
+    const result = await service.create(
+      manager,
+      { ...createDto, serviceGender: Gender.MALE },
+      ctx,
+    );
+    expect(result.serviceGender).toBe(Gender.MALE);
+    expect(prisma.bill.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ serviceGender: Gender.MALE }),
+      }),
+    );
+  });
   it('computes staff line prices and taxes from the catalog for the supplied quantity', async () => {
     prisma.bill.create.mockResolvedValue(billRow());
     await service.create(
@@ -1215,6 +1261,7 @@ describe('BillsService', () => {
 describe('CreateBillDto validation', () => {
   it('requires at least one item', async () => {
     const dto = Object.assign(new CreateBillDto(), {
+      serviceGender: Gender.UNISEX,
       idempotencyKey: 'test-request-0001',
       salonId: '11111111-1111-4111-8111-111111111111',
       customerId: '22222222-2222-4222-8222-222222222222',

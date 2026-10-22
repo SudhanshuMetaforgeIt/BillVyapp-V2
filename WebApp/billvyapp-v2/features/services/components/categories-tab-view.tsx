@@ -1,4 +1,8 @@
 'use client';
+import { useState } from 'react';
+import { EditCategoryGenderDialog } from './edit-category-gender-dialog';
+import type { ServiceCategoryItem } from '../types/admin-services.types';
+import { genderLabel } from '@/lib/gender';
 
 import { Layers, Plus } from 'lucide-react';
 
@@ -12,6 +16,7 @@ type CategoriesTabViewProps = {
 };
 
 export function CategoriesTabView({ onAddCategory }: CategoriesTabViewProps) {
+  const [editing, setEditing] = useState<ServiceCategoryItem | null>(null);
   const { data: categories = [], isLoading } = useServiceCategories();
 
   if (categories.length === 0) {
@@ -40,6 +45,7 @@ export function CategoriesTabView({ onAddCategory }: CategoriesTabViewProps) {
 
   return (
     <div className="space-y-4">
+      {editing && <EditCategoryGenderDialog key={editing.id} category={editing} onClose={() => setEditing(null)} />}
       {onAddCategory ? (
         <div className="flex justify-end">
           <Button
@@ -61,13 +67,14 @@ export function CategoriesTabView({ onAddCategory }: CategoriesTabViewProps) {
                 <span className="flex size-9 items-center justify-center rounded-lg bg-champagne-light text-charcoal">
                   <Layers className="size-4" />
                 </span>
-                <h4 className="font-bold text-text">{c.name}</h4>
+                <h4 className="font-bold text-text">{c.name} · {genderLabel(c.gender)}</h4>
               </div>
               <StatusBadge
                 label={c.isActive ? 'Active' : 'Inactive'}
                 tone={c.isActive ? 'success' : 'danger'}
               />
             </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(c)}>Edit gender</Button>
             {c.description ? (
               <p className="text-xs text-text-secondary">{c.description}</p>
             ) : null}

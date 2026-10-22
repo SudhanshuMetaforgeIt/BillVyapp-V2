@@ -1,4 +1,7 @@
 'use client';
+import { useState } from 'react';
+import { EditCategoryGenderDialog } from './edit-category-gender-dialog';
+import { genderLabel } from '@/lib/gender';
 
 import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { Pencil, Tags } from 'lucide-react';
@@ -35,6 +38,7 @@ export function CategoriesTable({
   onPageChange,
 }: CategoriesTableProps) {
   const toggle = useToggleCategoryStatus();
+  const [editing, setEditing] = useState<CategoryListRow | null>(null);
 
   if (isLoading) {
     return (
@@ -75,6 +79,7 @@ export function CategoriesTable({
 
   return (
     <>
+      {editing && <EditCategoryGenderDialog key={editing.id} category={editing} onClose={() => setEditing(null)} />}
       <div tabIndex={0} role="region" aria-label="Scrollable table" className="app-table-scroll app-stacked-scroll overflow-x-auto">
         <table className="app-responsive-table w-full min-w-[720px] text-left text-sm">
           <thead className="border-b border-border bg-ivory/80 text-xs font-semibold tracking-wide text-text-secondary uppercase">
@@ -100,7 +105,7 @@ export function CategoriesTable({
                     </span>
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-text">
-                        {row.name}
+                        {row.name} · {genderLabel(row.gender)}
                       </p>
                       <p className="truncate text-xs text-text-secondary">
                         {row.description}
@@ -126,13 +131,13 @@ export function CategoriesTable({
                     <button
                       type="button"
                       className="rounded-md p-1.5 text-text-secondary hover:bg-muted hover:text-text"
-                      disabled
-                      title="Edit coming soon"
-                      aria-label={`Edit ${row.name}`}
+                      onClick={() => setEditing(row)}
+                      title="Edit category gender"
+                      aria-label={`Edit ${row.name} (${genderLabel(row.gender)})`}
                     >
                       <Pencil className="size-4" />
                     </button>
-                    <StatusSwitch checked={row.isActive} label={`Toggle ${row.name} status`} disabled={toggle.isPending} onCheckedChange={(isActive) => toggle.mutate({ id: row.id, isActive, name: row.name })} />
+                    <StatusSwitch checked={row.isActive} label={`Toggle ${row.name} (${genderLabel(row.gender)}) status`} disabled={toggle.isPending} onCheckedChange={(isActive) => toggle.mutate({ id: row.id, isActive, name: row.name })} />
                     <RowActionsMenu name={row.name}
       fields={[["Description", row.description], ["Services", row.serviceCount], ["Status", row.statusLabel]]}
       actions={[{ label: row.isActive ? 'Deactivate category' : 'Activate category', disabled: toggle.isPending,

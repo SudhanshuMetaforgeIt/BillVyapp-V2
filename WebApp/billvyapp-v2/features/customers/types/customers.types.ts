@@ -10,11 +10,7 @@ export type PaginatedResponse<T> = {
   meta: PaginationMeta;
 };
 
-export type CustomerGender =
-  | 'MALE'
-  | 'FEMALE'
-  | 'OTHER'
-  | 'PREFER_NOT_TO_SAY';
+export type CustomerGender = import('@/lib/gender').Gender;
 
 export type CustomerStatusFilter = 'all' | 'active' | 'inactive';
 
@@ -28,8 +24,11 @@ export type CustomerApiItem = {
   phone: string;
   profilePhoto: string | null;
   dateOfBirth: string | null;
-  gender: CustomerGender | null;
+  gender: CustomerGender;
   isActive: boolean;
+  totalBills?: number;
+  totalSpent?: string | number;
+  lastVisit?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -92,6 +91,6 @@ export type CreateCustomerPayload = {
   lastName: string;
   email: string;
   phone: string;
-  gender?: CustomerGender;
+  gender: CustomerGender;
   dateOfBirth?: string;
 };

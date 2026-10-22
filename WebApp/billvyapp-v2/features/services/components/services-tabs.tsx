@@ -6,6 +6,7 @@ import type { ServicesTab } from '../types/services.types';
 const TABS: Array<{ id: ServicesTab; label: string }> = [
   { id: 'services', label: 'All Services' },
   { id: 'categories', label: 'Service Categories' },
+  { id: 'gender', label: 'Gender based' },
 ];
 
 type ServicesTabsProps = {

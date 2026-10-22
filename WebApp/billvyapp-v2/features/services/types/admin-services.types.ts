@@ -1,3 +1,4 @@
+import type { Gender } from '@/lib/gender';
 export type ServiceStats = {
   totalServices: number;
   activeServices: number;
@@ -6,6 +7,7 @@ export type ServiceStats = {
 };
 
 export type ServiceItem = {
+  gender: Gender;
   productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   id: string;
   name: string;
@@ -21,6 +23,7 @@ export type ServiceItem = {
 };
 
 export type ServiceCategoryItem = {
+  gender: Gender;
   id: string;
   name: string;
   salonId: string;
@@ -40,6 +43,7 @@ export type ServicesFilterState = {
 };
 
 export type CreateServicePayload = {
+  gender: Gender;
   productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   salonId: string;
   categoryId: string;
