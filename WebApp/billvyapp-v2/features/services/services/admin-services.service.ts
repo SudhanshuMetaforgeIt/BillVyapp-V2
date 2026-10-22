@@ -1,3 +1,4 @@
+import type { Gender } from '@/lib/gender';
 import { api } from '@/services/api-client';
 import type {
   CreateServicePayload,
@@ -18,6 +19,7 @@ type PaginatedResponse<T> = {
 };
 
 type RawService = {
+  gender: Gender;
   productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   id: string;
   salonId: string;
@@ -33,6 +35,7 @@ type RawService = {
 };
 
 type RawCategory = {
+  gender: Gender;
   id: string;
   salonId: string;
   name: string;
@@ -52,7 +55,7 @@ export type AdminServicesResult = {
   stats: ServiceStats;
   total: number;
   totalPages: number;
-  categories: { id: string; name: string; salonId: string }[];
+  categories: { id: string; name: string; salonId: string; gender: Gender }[];
   branches: { id: string; name: string }[];
 };
 
@@ -130,6 +133,7 @@ export async function fetchAdminServices(
 
   const services: ServiceItem[] = rawServices.map((s) => ({
     id: s.id,
+    gender: s.gender,
     name: s.name,
     categoryName: categoryMap.get(s.categoryId) || 'General',
     categoryId: s.categoryId,
@@ -176,6 +180,7 @@ export async function fetchAdminServices(
     totalPages: totalPages || 1,
     categories: categoriesList.map((c) => ({
       id: c.id,
+    gender: c.gender,
       name: c.name,
       salonId: c.salonId,
     })),
@@ -187,6 +192,7 @@ export async function createService(payload: CreateServicePayload): Promise<Serv
   const res = await api.post<RawService>('/services', payload);
   return {
     id: res.id,
+    gender: res.gender,
     name: res.name,
     categoryName: 'General',
     categoryId: res.categoryId,
@@ -212,6 +218,7 @@ export async function fetchServiceCategories(): Promise<ServiceCategoryItem[]> {
     });
     return (res.data || []).map((c) => ({
       id: c.id,
+    gender: c.gender,
       name: c.name,
       salonId: c.salonId,
       description: c.description,
@@ -224,6 +231,7 @@ export async function fetchServiceCategories(): Promise<ServiceCategoryItem[]> {
 }
 
 export async function createServiceCategory(data: {
+  gender: Gender;
   salonId: string;
   name: string;
   description?: string;
@@ -231,6 +239,7 @@ export async function createServiceCategory(data: {
   const res = await api.post<RawCategory>('/service-categories', data);
   return {
     id: res.id,
+    gender: res.gender,
     name: res.name,
     salonId: res.salonId,
     description: res.description,
@@ -242,6 +251,7 @@ export async function createServiceCategory(data: {
 export async function updateService(
   id: string,
   payload: {
+    gender?: Gender;
     categoryId?: string;
     name?: string;
     description?: string;
@@ -254,6 +264,7 @@ export async function updateService(
   const res = await api.patch<RawService>(`/services/${id}`, payload);
   return {
     id: res.id,
+    gender: res.gender,
     name: res.name,
     categoryName: 'General',
     categoryId: res.categoryId,
@@ -269,6 +280,7 @@ export async function updateService(
 }
 
 export type BulkServiceRow = {
+  gender: Gender;
   name: string;
   category: string;
   price: number;

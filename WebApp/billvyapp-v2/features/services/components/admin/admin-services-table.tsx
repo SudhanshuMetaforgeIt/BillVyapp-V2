@@ -1,4 +1,5 @@
 'use client';
+import { genderLabel } from '@/lib/gender';
 
 import { RowActionsMenu } from '@/components/data/row-actions-menu';
 import { getCurrencySymbol } from '@/lib/business-region';

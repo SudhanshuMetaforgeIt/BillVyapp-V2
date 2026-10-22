@@ -54,7 +54,7 @@ const GENDERS: { value: Gender; label: string }[] = [
   { value: "FEMALE", label: "Female" },
   { value: "MALE", label: "Male" },
   { value: "OTHER", label: "Other" },
-  { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
+  { value: "UNISEX", label: "Unisex" },
 ];
 
 const ADDRESS_TYPES: { value: AddressType; label: string }[] = [
@@ -85,7 +85,7 @@ function PersonalForm({ customer }: { customer: Customer }) {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         dateOfBirth: form.dateOfBirth || undefined,
-        gender: (form.gender || undefined) as Gender | undefined,
+        gender: form.gender as Gender,
       },
       { onSuccess: () => toast.success("Profile updated") },
     );
@@ -159,12 +159,12 @@ function PersonalForm({ customer }: { customer: Customer }) {
           </CustomerField>
           <CustomerField label="Gender" htmlFor="cp-gender">
             <SelectInput
-              id="cp-gender"
+              id="cp-gender" required
               className={customerInput}
               value={form.gender}
               onChange={set("gender")}
             >
-              <option value="">Not specified</option>
+              <option value="" disabled>Select gender</option>
               {GENDERS.map((g) => (
                 <option key={g.value} value={g.value}>
                   {g.label}

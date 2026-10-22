@@ -1,4 +1,5 @@
 'use client';
+import { GENDERS, type Gender } from '@/lib/gender';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -14,6 +15,7 @@ const REQUIRED_HEADERS = [
   'category',
   'price',
   'duration (minutes)',
+  'gender',
 ] as const;
 
 const OPTIONAL_HEADERS = ['description'] as const;
@@ -77,7 +79,7 @@ export function parseAndValidateServicesCsv(text: string): CsvParseResult {
     return { ok: false, reason: 'template' };
   }
 
-  // Allow optional Description as 5th column only
+  // Description is optional after the five required columns.
   if (headers.length > REQUIRED_HEADERS.length) {
     const optional = headers.slice(REQUIRED_HEADERS.length);
     const allowed = optional.every(
@@ -92,7 +94,7 @@ export function parseAndValidateServicesCsv(text: string): CsvParseResult {
   for (let i = 1; i < lines.length; i += 1) {
     const cols = parseCsvLine(lines[i]);
     if (cols.every((c) => !c)) continue;
-    if (cols.length < 4) {
+    if (cols.length < 5) {
       return { ok: false, reason: 'rows' };
     }
 
@@ -100,7 +102,9 @@ export function parseAndValidateServicesCsv(text: string): CsvParseResult {
     const category = cols[1]?.trim() ?? '';
     const price = Number(cols[2]);
     const durationMinutes = Number.parseInt(cols[3] ?? '', 10);
-    const description = cols[4]?.trim() || undefined;
+    const gender = cols[4]?.trim().toUpperCase() as Gender;
+    if (!GENDERS.includes(gender)) return { ok: false, reason: 'rows' };
+    const description = cols[5]?.trim() || undefined;
 
     if (!name || !category) {
       return { ok: false, reason: 'rows' };
@@ -112,7 +116,7 @@ export function parseAndValidateServicesCsv(text: string): CsvParseResult {
       return { ok: false, reason: 'rows' };
     }
 
-    services.push({ name, category, price, durationMinutes, description });
+    services.push({ name, category, gender, price, durationMinutes, description });
   }
 
   if (services.length === 0) {
@@ -366,7 +370,7 @@ export function BulkUploadDialog({
           <div className="rounded-xl border border-border bg-ivory/50 p-3 text-[11px] text-text-secondary">
             <p className="font-semibold text-text">Required headers (exact order):</p>
             <p className="mt-1">
-              Service Name, Category, Price, Duration (Minutes), Description
+              Service Name, Category, Price, Duration (Minutes), Gender, Description
             </p>
           </div>
         </div>

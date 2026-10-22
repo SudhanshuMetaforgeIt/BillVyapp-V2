@@ -14,7 +14,7 @@ type Terms = NonNullable<MembershipApiItem["planSnapshot"]> & { description?: st
 
 type Details = Omit<MembershipApiItem, "qualifyingBill"> & {
 
-  customer: { whatsappNumber?: string | null; addresses?: { addressLine1: string }[]; customerCode: string; dateOfBirth: string | null; gender: string | null; user: { firstName: string; lastName: string; phone: string | null; email: string | null } };
+  customer: { whatsappNumber?: string | null; addresses?: { addressLine1: string }[]; customerCode: string; dateOfBirth: string | null; gender: import('@/lib/gender').Gender; user: { firstName: string; lastName: string; phone: string | null; email: string | null } };
 
   plan: Terms;
 

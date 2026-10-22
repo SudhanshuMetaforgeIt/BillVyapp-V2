@@ -30,7 +30,7 @@ export function CreateCustomerDialog({
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState<'' | CustomerGender>('');
 
-  const validation=useFormValidation('CreateCustomerDto',{firstName,lastName,email,phone,...(gender ? {gender} : {})});
+  const validation=useFormValidation('CreateCustomerDto',{firstName,lastName,email,phone,gender});
   const clearValidation=validation.clear;
   const create = useCreateCustomer(() => {
     clearValidation();
@@ -100,13 +100,13 @@ export function CreateCustomerDialog({
           className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
-            if (create.isPending || !validation.validate()) return;
+            if (create.isPending || !validation.validate() || !gender) return;
             create.mutate({
               firstName: firstName.trim(),
               lastName: lastName.trim(),
               email: email.trim(),
               phone: normalizedPhone,
-              ...(gender ? { gender } : {}),
+              gender,
             });
           }}
         >
@@ -153,10 +153,10 @@ export function CreateCustomerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cust-gender">Gender (optional)</Label>
+            <Label htmlFor="cust-gender">Gender *</Label>
             <SelectInput
               className="h-10 w-full text-sm font-medium"
-              id="cust-gender"
+              id="cust-gender" required
               value={gender}
               onChange={(e) => setGender(e.target.value as '' | CustomerGender)}
             >
@@ -164,7 +164,7 @@ export function CreateCustomerDialog({
               <option value="MALE">Male</option>
               <option value="FEMALE">Female</option>
               <option value="OTHER">Other</option>
-              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+              <option value="UNISEX">Unisex</option>
             </SelectInput>
           </div>
 

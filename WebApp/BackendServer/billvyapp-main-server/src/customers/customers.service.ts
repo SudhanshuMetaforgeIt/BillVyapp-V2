@@ -14,7 +14,7 @@ import {
   formatBillDateApi,
 } from '../common/datetime/datetime';
 import { UpdateStatusDto } from '../common/dto/update-status.dto';
-import { Gender } from '../common/enums/gender.enum';
+import { Gender } from '../generated/prisma/enums';
 import { RoleCode } from '../common/enums/role.enum';
 import type { RequestContext } from '../common/http/request-context';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
@@ -84,7 +84,7 @@ type CustomerRow = {
   userId: string;
   customerCode: string;
   dateOfBirth: Date | null;
-  gender: string | null;
+  gender: Gender;
   createdAt: Date;
   updatedAt: Date;
   user: {
@@ -109,7 +109,7 @@ export type CustomerRecord = {
   phone: string;
   profilePhoto: string | null;
   dateOfBirth: Date | null;
-  gender: Gender | null;
+  gender: Gender;
   isActive: boolean;
   totalBills?: number;
   totalSpent?: string;
@@ -214,7 +214,7 @@ export class CustomersService {
     const lastName = trimRequired(dto.lastName);
     const profilePhoto = null;
     const dateOfBirth = dto.dateOfBirth ?? null;
-    const gender = dto.gender ?? null;
+    const gender = dto.gender;
 
     const [existingByPhone, existingByEmail, customerRole] = await Promise.all([
       this.prisma.user.findUnique({
@@ -314,7 +314,7 @@ export class CustomersService {
     } = {};
     const customerData: {
       dateOfBirth?: Date | null;
-      gender?: Gender | null;
+      gender?: Gender;
     } = {};
 
     if (dto.firstName !== undefined) {
@@ -452,7 +452,7 @@ export class CustomersService {
     phone: string;
     profilePhoto: string | null;
     dateOfBirth: Date | null;
-    gender: Gender | null;
+    gender: Gender;
   }): Promise<CustomerRow> {
     const passwordHash = await this.passwords.hash(
       // An inaccessible generated password satisfies every supported platform policy.
@@ -529,7 +529,7 @@ export class CustomersService {
       phone: row.user.phone ?? '',
       profilePhoto: row.user.profilePhoto,
       dateOfBirth: row.dateOfBirth,
-      gender: row.gender as Gender | null,
+      gender: row.gender,
       isActive: row.user.isActive,
       totalBills,
       totalSpent: totalSpentNum.toFixed(2),

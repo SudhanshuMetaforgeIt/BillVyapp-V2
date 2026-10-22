@@ -14,6 +14,7 @@ import { CreateBillDto, CreateBillItemDto } from './create-bill.dto';
  */
 export class UpdateBillDto extends PartialType(
   OmitType(CreateBillDto, ['salonId', 'items'] as const),
+  { skipNullProperties: false },
 ) {
   @ApiPropertyOptional({ type: [CreateBillItemDto], minItems: 1 })
   @IsOptional()

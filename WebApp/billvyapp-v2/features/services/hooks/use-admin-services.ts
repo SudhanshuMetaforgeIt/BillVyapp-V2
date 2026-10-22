@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_FRESHNESS } from '@/lib/query-freshness';
+import { invalidateAfter } from '@/lib/query-invalidation';
 
 import {
   createService,
@@ -43,7 +44,7 @@ export function useToggleServiceStatus() {
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       toggleServiceStatus(id, isActive),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+      void invalidateAfter(queryClient, 'services');
     },
   });
 }
@@ -54,8 +55,7 @@ export function useCreateService() {
   return useMutation({
     mutationFn: (payload: CreateServicePayload) => createService(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      void invalidateAfter(queryClient, 'services');
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'admin'] });
     },
   });
@@ -70,6 +70,7 @@ export function useUpdateService() {
       ...payload
     }: {
       id: string;
+      gender?: import('@/lib/gender').Gender;
       categoryId?: string;
       name?: string;
       description?: string;
@@ -78,8 +79,7 @@ export function useUpdateService() {
       price?: number;
     }) => updateService(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      void invalidateAfter(queryClient, 'services');
     },
   });
 }
@@ -88,11 +88,10 @@ export function useCreateServiceCategory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { salonId: string; name: string; description?: string }) =>
+    mutationFn: (data: { salonId: string; name: string; gender: import('@/lib/gender').Gender; description?: string }) =>
       createServiceCategory(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
+      void invalidateAfter(queryClient, 'services');
     },
   });
 }
@@ -107,8 +106,7 @@ export function useBulkCreateServices() {
   >({
     mutationFn: bulkCreateServices,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICES_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY });
+      void invalidateAfter(queryClient, 'services');
     },
   });
 }

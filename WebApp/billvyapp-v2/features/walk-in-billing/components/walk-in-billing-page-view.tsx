@@ -1,4 +1,5 @@
 'use client';
+import type { Gender } from '@/lib/gender';
 import dynamic from 'next/dynamic';
 import { Input } from '@/components/ui/input';
 import { useScopedQuery } from '@/hooks/use-scoped-query';
@@ -75,6 +76,7 @@ export function WalkInBillingPageView() {
   const loyalty = useScopedQuery(['loyalty-quote', salonId, customer?.id], () => getLoyaltyQuote(salonId!, customer!.id), { enabled: Boolean(salonId && customer), staleTime: 0 });
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [serviceGender, setServiceGender] = useState<Gender | ''>('');
   const [serviceSearch, setServiceSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -109,7 +111,7 @@ export function WalkInBillingPageView() {
     [cart],
   );
 
-  const offerKey = `${salonId}:${customer?.id}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`;
+  const offerKey = `${salonId}:${customer?.id}:${serviceGender}:${cartFingerprint}:${preview.total}:${coupon?.couponCode ?? ''}`;
 
   const [enrollment, setEnrollment] = useState<
     (EnrollmentChoice & { key: string }) | null
@@ -135,6 +137,7 @@ export function WalkInBillingPageView() {
     setPhoneQuery('');
     setCustomer(null);
     setServiceSearch('');
+    setServiceGender('');
     setCategoryId('');
     setCart([]);
     setStylistName('');
@@ -152,6 +155,7 @@ export function WalkInBillingPageView() {
   });
 
   const addService = useCallback((service: SalonService) => {
+    if (!serviceGender || service.gender !== serviceGender) return;
     setCart((prev) => {
       const existing = prev.find((line) => line.serviceId === service.id);
       if (existing) {
@@ -163,7 +167,7 @@ export function WalkInBillingPageView() {
       }
       return [...prev, toCartLine(service)];
     });
-  }, []);
+  }, [serviceGender]);
 
   const changeQty = useCallback((serviceId: string, quantity: number) => {
     setCart((prev) => {
@@ -186,6 +190,7 @@ export function WalkInBillingPageView() {
     !loyaltyInvalid &&
     Boolean(salonId) &&
     Boolean(customer) &&
+    Boolean(serviceGender) &&
     cart.length > 0 &&
     preview.total >= 0 &&
     !settle.isPending &&
@@ -248,6 +253,7 @@ export function WalkInBillingPageView() {
             setLoyaltyInput('');
             setCoupon(null);
             setCouponValidating(false);
+            setServiceGender(''); setCategoryId(''); setCart([]);
             setCustomer(selected);
             setPhoneQuery(selected.phone);
           }}
@@ -255,6 +261,7 @@ export function WalkInBillingPageView() {
             setLoyaltyInput('');
             setCoupon(null);
             setCouponValidating(false);
+            setServiceGender(''); setCategoryId(''); setCart([]);
             setCustomer(null);
             setPhoneQuery('');
           }}
@@ -262,6 +269,8 @@ export function WalkInBillingPageView() {
         />
 
         <AddServicesSection
+          gender={serviceGender}
+          onGenderChange={value => { setServiceGender(value); setCategoryId(''); setCart([]); }}
           enabled={Boolean(customer) && Boolean(salonId)}
           salonId={salonId ?? ''}
           search={serviceSearch}
@@ -306,6 +315,7 @@ export function WalkInBillingPageView() {
             payload={{
               salonId,
               customerId: customer.id,
+              serviceGender: serviceGender as Gender,
               couponCode: coupon?.couponCode,
               discount: preview.discount,
               items: cart.map((l) => ({
@@ -352,6 +362,7 @@ export function WalkInBillingPageView() {
                 : undefined,
               salonId,
               customerId: customer.id,
+              serviceGender: serviceGender as Gender,
               couponCode: coupon?.couponCode,
               discount: preview.discount > 0 ? preview.discount : undefined,
               notes: stylistName.trim()
@@ -385,6 +396,7 @@ export function WalkInBillingPageView() {
           setLoyaltyInput('');
           setCoupon(null);
           setCouponValidating(false);
+          setServiceGender(''); setCategoryId(''); setCart([]);
           setCustomer(created);
           setPhoneQuery(created.phone);
         }}

@@ -1,4 +1,7 @@
 'use client';
+import { GenderSelect } from '@/components/data/gender-select';
+import type { Gender } from '@/lib/gender';
+import { genderLabel } from '@/lib/gender';
 
 import { getCurrencySymbol } from '@/lib/business-region';
 
@@ -26,6 +29,8 @@ import type {
 } from '../types/walk-in-billing.types';
 
 type AddServicesSectionProps = {
+  gender: Gender | "";
+  onGenderChange: (gender: Gender | "") => void;
   enabled: boolean;
   salonId: string;
   search: string;
@@ -49,6 +54,7 @@ type AddServicesSectionProps = {
 };
 
 export function AddServicesSection({
+  gender, onGenderChange,
   enabled,
   salonId,
   search,
@@ -70,8 +76,9 @@ export function AddServicesSection({
   discountInvalid,
   onDiscountAmountChange,
 }: AddServicesSectionProps) {
-  const categories = useServiceCategories(enabled, salonId);
-  const services = useSalonServices(enabled, { search, categoryId, salonId });
+  const categories = useServiceCategories(enabled && Boolean(gender), salonId, gender || undefined);
+  const services = useSalonServices(enabled && Boolean(gender), { search, categoryId, salonId, gender: gender || undefined });
+  const matchingServices = (services.data?.data ?? []).filter(service => service.gender === gender);
 
   return (
     <section className="app-panel app-surface-card p-5">
@@ -82,7 +89,8 @@ export function AddServicesSection({
         <h2 className="text-base font-semibold text-text">Add Services</h2>
       </div>
 
-      <div className="grid gap-3 panel-md:grid-cols-2">
+      <GenderSelect id="billing-service-gender" value={gender} onChange={onGenderChange} disabled={!enabled} />
+      <div className="mt-3 grid gap-3 panel-md:grid-cols-2">
         <div className="relative">
           <Input
             value={search}
@@ -114,7 +122,7 @@ export function AddServicesSection({
       <div className="mt-4 min-h-40 rounded-xl border border-border/80">
         {!enabled ? (
           <SectionEmptyState message="Select a customer before adding services." />
-        ) : services.isLoading || categories.isLoading ? (
+        ) : !gender ? (<SectionEmptyState message="Select a gender to see services." />) : services.isLoading || categories.isLoading ? (
           <div className="space-y-2 p-4">
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
@@ -124,8 +132,8 @@ export function AddServicesSection({
             message="Could not load services."
             onRetry={() => void services.refetch()}
           />
-        ) : (services.data?.data.length ?? 0) === 0 && cart.length === 0 ? (
-          <SectionEmptyState message="No active services in the catalog yet." />
+        ) : matchingServices.length === 0 && cart.length === 0 ? (
+          <SectionEmptyState message={`No active ${genderLabel(gender).toLowerCase()} services match these filters. Set service genders on the Services page.`} />
         ) : (
           <div className="divide-y divide-border/70">
             {cart.length > 0 ? (
@@ -195,7 +203,7 @@ export function AddServicesSection({
               </ul>
             ) : null}
 
-            {(services.data?.data ?? [])
+            {matchingServices
               .filter(
                 (service) =>
                   !cart.some((line) => line.serviceId === service.id),

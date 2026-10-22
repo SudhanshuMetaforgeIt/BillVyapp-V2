@@ -1,3 +1,4 @@
+import { Gender } from '../generated/prisma/enums';
 import {
   readRecipe,
   materializeProductUsage,
@@ -131,6 +132,7 @@ const BILL_SELECT = {
   dueAmount: true,
   status: true,
   paymentStatus: true,
+  serviceGender: true,
   notes: true,
   createdBy: true,
   createdAt: true,
@@ -221,6 +223,7 @@ type BillRow = {
   dueAmount: Decimalish;
   status: string;
   paymentStatus: string;
+  serviceGender: Gender;
   notes: string | null;
   createdBy: string | null;
   createdAt: Date;
@@ -264,6 +267,7 @@ export type BillRecord = {
   dueAmount: string;
   status: BillStatus;
   paymentStatus: BillPaymentStatus;
+  serviceGender: Gender;
   notes: string | null;
   createdBy: string | null;
   salon?: {
@@ -323,6 +327,7 @@ type ComputedLine = {
 };
 
 type CatalogService = {
+  gender: Gender;
   productRecipe?: unknown;
   id: string;
   salonId: string;
@@ -484,7 +489,12 @@ export class BillsService {
     await this.scope.assertSalonAccess(actor, dto.salonId);
     const customerId = await this.resolveCustomerId(actor, dto.customerId);
     await this.scope.assertCustomerAccess(actor, customerId);
-    const lines = await this.buildLines(dto.items, dto.salonId, actor);
+    const lines = await this.buildLines(
+      dto.items,
+      dto.salonId,
+      actor,
+      dto.serviceGender,
+    );
     this.assertTotalOverrides(actor, dto, lines);
     return this.prisma.$transaction(
       async (tx) => {
@@ -566,7 +576,12 @@ export class BillsService {
     > | null;
     const currency = requireCurrency(preferences?.currency);
 
-    let lines = await this.buildLines(dto.items, salonId, actor);
+    let lines = await this.buildLines(
+      dto.items,
+      salonId,
+      actor,
+      dto.serviceGender,
+    );
     this.assertTotalOverrides(actor, dto, lines);
     let totals = this.computeBillTotals(lines, dto);
 
@@ -630,6 +645,7 @@ export class BillsService {
                 dueAmount: totals.total,
                 status: BillStatus.DRAFT,
                 paymentStatus: BillPaymentStatus.UNPAID,
+                serviceGender: dto.serviceGender,
                 notes: trimOrNull(dto.notes) ?? null,
                 createdBy: actor.userId,
                 items: {
@@ -730,8 +746,26 @@ export class BillsService {
 
     let lines: ComputedLine[];
     if (dto.items) {
-      lines = await this.buildLines(dto.items, salonId, actor);
+      lines = await this.buildLines(
+        dto.items,
+        salonId,
+        actor,
+        dto.serviceGender ?? existing.serviceGender,
+      );
     } else {
+      if (dto.serviceGender !== undefined) {
+        const ids = existing.items
+          .filter((item) => item.serviceId)
+          .map((item) => item.serviceId!);
+        const services = await this.prisma.service.findMany({
+          where: { id: { in: ids } },
+          select: { gender: true },
+        });
+        if (services.some((service) => service.gender !== dto.serviceGender))
+          throw new BadRequestException(
+            'A service does not match the selected gender',
+          );
+      }
       lines = this.unadjustedLines(existing.items);
     }
 
@@ -864,6 +898,7 @@ export class BillsService {
                   this.asNumber(totals.total) -
                     this.asNumber(existing.paidAmount),
                 ),
+                serviceGender: dto.serviceGender ?? existing.serviceGender,
                 notes:
                   dto.notes !== undefined
                     ? (trimOrNull(dto.notes) ?? null)
@@ -1470,6 +1505,7 @@ export class BillsService {
     items: CreateBillItemDto[],
     salonId: string,
     actor: AuthenticatedUser,
+    serviceGender: Gender,
   ): Promise<ComputedLine[]> {
     if (!Array.isArray(items) || items.length < 1 || items.length > 1000)
       throw new BadRequestException('Bills require between 1 and 1000 lines');
@@ -1524,6 +1560,7 @@ export class BillsService {
               id: true,
               salonId: true,
               name: true,
+              gender: true,
               productRecipe: true,
               price: true,
               taxRate: true,
@@ -1553,6 +1590,12 @@ export class BillsService {
       throw new NotFoundException('Product not found');
     }
 
+    if (serviceIds.length && !Object.values(Gender).includes(serviceGender))
+      throw new BadRequestException('Select a service gender');
+    if (services.some((service) => service.gender !== serviceGender))
+      throw new BadRequestException(
+        'A service does not match the selected gender',
+      );
     const serviceMap = new Map(services.map((s) => [s.id, s]));
     const productMap = new Map(products.map((p) => [p.id, p]));
 
@@ -1866,6 +1909,7 @@ export class BillsService {
       dueAmount: this.decimalString(row.dueAmount),
       status: row.status as BillStatus,
       paymentStatus: row.paymentStatus as BillPaymentStatus,
+      serviceGender: row.serviceGender,
       notes: row.notes,
       createdBy: row.createdBy,
       salon: row.salon

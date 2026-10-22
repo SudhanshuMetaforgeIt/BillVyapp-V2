@@ -29,7 +29,7 @@ type RawCustomer = {
   phone: string;
   profilePhoto?: string | null;
   dateOfBirth?: string | null;
-  gender?: string | null;
+  gender: import('@/lib/gender').Gender;
   isActive: boolean;
   totalBills?: number;
   totalSpent?: string | number;
@@ -318,7 +318,7 @@ export async function createCustomer(
     phone: payload.phone.trim(),
   };
 
-  if (payload.gender) body.gender = payload.gender;
+  body.gender = payload.gender;
   if (payload.dateOfBirth) body.dateOfBirth = payload.dateOfBirth;
 
   return api.post<RawCustomer>('/customers', body);

@@ -364,6 +364,7 @@ async function main() {
           data: {
             userId,
             customerCode: 'CUST-DEMO0001',
+            gender: 'OTHER',
           },
         });
         console.log(`  ✓  Customer profile created for ${u.email}`);

@@ -1,4 +1,6 @@
 'use client';
+import { GenderSelect } from '@/components/data/gender-select';
+import type { Gender } from '@/lib/gender';
 
 import { useEffect, useId, useState } from 'react';
 import { X } from 'lucide-react';
@@ -20,12 +22,14 @@ export function AddCategoryDialog({
   salonId,
 }: AddCategoryDialogProps) {
   const titleId = useId();
+  const [gender, setGender] = useState<Gender | ''>('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
   const create = useCreateServiceCategory(() => {
     onOpenChange(false);
     setName('');
+    setGender('');
     setDescription('');
   });
 
@@ -40,7 +44,7 @@ export function AddCategoryDialog({
 
   if (!open) return null;
 
-  const canSubmit = Boolean(salonId) && name.trim().length > 0;
+  const canSubmit = Boolean(gender) && Boolean(salonId) && name.trim().length > 0;
 
   return (
     <div
@@ -82,14 +86,17 @@ export function AddCategoryDialog({
           className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!gender) return;
             if (!canSubmit || create.isPending) return;
             create.mutate({
               salonId,
+              gender,
               name: name.trim(),
               description: description.trim() || null,
             });
           }}
         >
+          <GenderSelect value={gender} onChange={setGender} />
           <div className="space-y-1.5">
             <Label htmlFor="cat-name">Name</Label>
             <Input

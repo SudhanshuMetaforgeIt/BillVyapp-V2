@@ -14,14 +14,12 @@ describe('auth DTOs', () => {
       expect(await errorsFor('9876543210')).toHaveLength(0);
     });
 
-    it.each([
-      '919876543210',
-      '98765',
-      '98765432101',
-      'abcdefghij',
-    ])('rejects %s', async (phone) => {
-      expect(await errorsFor(phone)).not.toHaveLength(0);
-    });
+    it.each(['919876543210', '98765', '98765432101', 'abcdefghij'])(
+      'rejects %s',
+      async (phone) => {
+        expect(await errorsFor(phone)).not.toHaveLength(0);
+      },
+    );
   });
 
   describe('VerifyOtpDto', () => {
@@ -45,6 +43,7 @@ describe('auth DTOs', () => {
   describe('RegisterCustomerDto', () => {
     it('accepts a valid customer registration payload', async () => {
       const dto = Object.assign(new RegisterCustomerDto(), {
+        gender: 'FEMALE',
         firstName: 'Riya',
         lastName: 'Kapoor',
         email: 'riya@example.com',
@@ -56,6 +55,7 @@ describe('auth DTOs', () => {
 
     it('rejects a short password', async () => {
       const dto = Object.assign(new RegisterCustomerDto(), {
+        gender: 'FEMALE',
         firstName: 'Riya',
         lastName: 'Kapoor',
         email: 'riya@example.com',

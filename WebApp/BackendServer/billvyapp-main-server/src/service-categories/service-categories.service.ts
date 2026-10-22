@@ -1,3 +1,4 @@
+import { Gender } from '../generated/prisma/enums';
 import {
   BadRequestException,
   ConflictException,
@@ -25,6 +26,7 @@ import { ServiceCategoryQueryDto } from './dto/service-category-query.dto';
 import { UpdateServiceCategoryDto } from './dto/update-service-category.dto';
 
 const CATEGORY_SELECT = {
+  gender: true,
   id: true,
   salonId: true,
   name: true,
@@ -35,6 +37,7 @@ const CATEGORY_SELECT = {
 } as const;
 
 export type ServiceCategoryRecord = {
+  gender: Gender;
   id: string;
   salonId: string;
   name: string;
@@ -68,6 +71,9 @@ export class ServiceCategoriesService {
       ...this.scope.salonScope(user),
       ...this.visibilityFilter(user, query.isActive),
       ...(query.salonId ? { salonId: query.salonId } : {}),
+      ...(query.gender
+        ? { gender: { in: [query.gender, Gender.UNISEX] } }
+        : {}),
       ...(search
         ? {
             OR: [
@@ -82,9 +88,11 @@ export class ServiceCategoriesService {
     const cacheKey =
       targetSalonId && this.cache
         ? `cache:catalogue:${targetSalonId}:categories:${this.cache.hashQuery({
+            catalogVersion: 3,
             page,
             limit,
             search,
+            gender: query.gender,
             isActive: query.isActive,
             role: user.role,
             permissionScope: this.cache.permissionScope(user),
@@ -149,6 +157,7 @@ export class ServiceCategoriesService {
       const created = await this.prisma.serviceCategory.create({
         data: {
           salonId: dto.salonId,
+          gender: dto.gender,
           name: trimRequired(dto.name),
           description: trimOrNull(dto.description) ?? null,
         },
@@ -161,7 +170,11 @@ export class ServiceCategoriesService {
         action: 'SERVICE_CATEGORY_CREATED',
         entityType: 'ServiceCategory',
         entityId: created.id,
-        newData: { name: created.name, salonId: created.salonId },
+        newData: {
+          name: created.name,
+          salonId: created.salonId,
+          gender: created.gender,
+        },
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,
       });
@@ -181,7 +194,21 @@ export class ServiceCategoriesService {
   ): Promise<ServiceCategoryRecord> {
     const existing = await this.requireWritable(actor, id);
 
-    const data: { name?: string; description?: string | null } = {};
+    if (dto.gender !== undefined && dto.gender !== Gender.UNISEX) {
+      const incompatible = await this.prisma.service.count({
+        where: { categoryId: id, gender: { not: dto.gender } },
+      });
+      if (incompatible)
+        throw new BadRequestException(
+          'Reclassify services before changing the category gender',
+        );
+    }
+    const data: {
+      gender?: Gender;
+      name?: string;
+      description?: string | null;
+    } = {};
+    if (dto.gender !== undefined) data.gender = dto.gender;
     if (dto.name !== undefined) data.name = trimRequired(dto.name);
     if (dto.description !== undefined) {
       data.description = trimOrNull(dto.description) ?? null;
@@ -200,8 +227,8 @@ export class ServiceCategoriesService {
         action: 'SERVICE_CATEGORY_UPDATED',
         entityType: 'ServiceCategory',
         entityId: updated.id,
-        oldData: { name: existing.name },
-        newData: { name: updated.name },
+        oldData: { name: existing.name, gender: existing.gender },
+        newData: { name: updated.name, gender: updated.gender },
         ipAddress: ctx.ipAddress,
         userAgent: ctx.userAgent,
       });

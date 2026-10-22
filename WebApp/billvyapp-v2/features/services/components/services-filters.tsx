@@ -41,10 +41,10 @@ export function ServicesFilters({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={
-            tab === 'services' ? 'Search services...' : 'Search categories...'
+            tab !== 'categories' ? 'Search services...' : 'Search categories...'
           }
           className="h-10 pr-9"
-          aria-label={tab === 'services' ? 'Search services' : 'Search categories'}
+          aria-label={tab !== 'categories' ? 'Search services' : 'Search categories'}
         />
         <Search
           className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-text-secondary"
@@ -53,7 +53,7 @@ export function ServicesFilters({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {tab === 'services' ? (
+        {tab !== 'categories' ? (
           <SelectInput className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium"
             value={categoryId}
             onChange={(e) => onCategoryIdChange(e.target.value)}
@@ -87,7 +87,7 @@ export function ServicesFilters({
             onClick={onPrimaryAction}
           >
             <Plus className="size-4" />
-            {tab === 'services' ? 'Add New Service' : 'Add Category'}
+            {tab !== 'categories' ? 'Add New Service' : 'Add Category'}
           </Button>
         ) : null}
       </div>

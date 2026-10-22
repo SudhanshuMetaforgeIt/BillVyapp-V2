@@ -18,6 +18,7 @@ import { ServicesBulkBanner } from '../services-bulk-banner';
 import { AdminServicesFilters } from './admin-services-filters';
 import { AdminServicesTable } from './admin-services-table';
 import { CategoriesTabView } from '../categories-tab-view';
+import { GenderBasedServices } from '../gender-based-services';
 const LazyCreateServiceDialog = dynamic(() => import('../create-service-dialog').then((module) => module.CreateServiceDialog), { loading: () => <p role="status">Opening dialog…</p> });
 function CreateServiceDialog(props: import('react').ComponentProps<typeof import('../create-service-dialog').CreateServiceDialog>) {
   return props.isOpen ? <LazyCreateServiceDialog {...props} /> : null;
@@ -39,7 +40,7 @@ import type { BulkServiceRow } from '../../services/admin-services.service';
 export function AdminServicesPageView() {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'services' | 'categories'>('services');
+  const [activeTab, setActiveTab] = useState<'services' | 'categories' | 'gender'>('services');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
@@ -130,7 +131,7 @@ export function AdminServicesPageView() {
       <ServicesStats stats={data?.stats} isLoading={query.isLoading} />
 
       <div className="app-toolbar justify-between border-b border-border pb-3">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <button
             type="button"
             onClick={() => setActiveTab('services')}
@@ -141,7 +142,7 @@ export function AdminServicesPageView() {
             }`}
           >
             All Services
-            {activeTab === 'services' ? (
+            {activeTab !== 'categories' ? (
               <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-orange" />
             ) : null}
           </button>
@@ -160,10 +161,19 @@ export function AdminServicesPageView() {
               <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-orange" />
             ) : null}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('gender')}
+            className={`relative pb-3 text-sm font-bold transition sm:text-base ${activeTab === 'gender' ? 'text-brand-orange' : 'text-text-secondary hover:text-text'}`}
+            aria-current={activeTab === 'gender' ? 'page' : undefined}
+          >
+            Gender based
+            {activeTab === 'gender' && <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-orange" />}
+          </button>
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
-          {activeTab === 'services' ? (
+          {activeTab !== 'categories' ? (
             <>
               <Button
                 type="button"
@@ -204,7 +214,19 @@ export function AdminServicesPageView() {
         </div>
       </div>
 
-      {activeTab === 'services' ? (
+      {activeTab === 'gender' ? (
+        <>
+          <AdminServicesFilters filters={filters} onFilterChange={handleFilterChange} categories={data?.categories ?? []} branches={data?.branches ?? []} />
+          <GenderBasedServices
+            salonId={filters.branchId === 'all' ? undefined : filters.branchId}
+            search={filters.search}
+            categoryId={filters.categoryId === 'all' ? '' : filters.categoryId}
+            status={filters.status}
+            categories={data?.categories ?? []}
+            branches={data?.branches ?? []}
+          />
+        </>
+      ) : activeTab === 'services' ? (
         <>
           <ServicesBulkBanner
             onUploadClick={openBulkUpload}

@@ -1,3 +1,5 @@
+import { Gender } from '../../common/enums/gender.enum';
+import { IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
@@ -16,6 +18,9 @@ import { IsIndianMobileNumber } from '../../common/validators/indian-phone.decor
  * request body produce HTTP 400. The service always assigns CUSTOMER.
  */
 export class RegisterCustomerDto {
+  @IsEnum(Gender)
+  gender: Gender;
+
   @ApiProperty({ example: 'Riya' })
   @IsString()
   @IsNotEmpty()

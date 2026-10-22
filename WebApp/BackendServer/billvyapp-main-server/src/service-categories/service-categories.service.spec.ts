@@ -1,3 +1,4 @@
+import { Gender } from '../common/enums/gender.enum';
 import {
   BadRequestException,
   ConflictException,
@@ -83,6 +84,7 @@ const customer: AuthenticatedUser = {
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'jest' };
 
 const createDto: CreateServiceCategoryDto = {
+  gender: Gender.UNISEX,
   salonId: 'salon-a1',
   name: 'Hair',
   description: 'Hair services',

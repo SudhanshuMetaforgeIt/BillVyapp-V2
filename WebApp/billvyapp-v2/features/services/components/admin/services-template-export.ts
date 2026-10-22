@@ -1,5 +1,5 @@
 export const SERVICES_CSV_TEMPLATE =
-  'Service Name,Category,Price,Duration (Minutes),Description\n';
+  'Service Name,Category,Price,Duration (Minutes),Gender,Description\n';
 
 export function downloadServicesTemplate() {
   const csvContent = `data:text/csv;charset=utf-8,${SERVICES_CSV_TEMPLATE}`;

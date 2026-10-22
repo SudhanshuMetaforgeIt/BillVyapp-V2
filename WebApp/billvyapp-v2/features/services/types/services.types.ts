@@ -1,3 +1,4 @@
+import type { Gender } from '@/lib/gender';
 export type PaginationMeta = {
   page: number;
   limit: number;
@@ -10,11 +11,12 @@ export type PaginatedResponse<T> = {
   meta: PaginationMeta;
 };
 
-export type ServicesTab = 'services' | 'categories';
+export type ServicesTab = 'services' | 'categories' | 'gender';
 
 export type ServiceStatusFilter = 'all' | 'active' | 'inactive';
 
 export type ServiceApiItem = {
+  gender: Gender;
   productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   id: string;
   salonId: string;
@@ -30,6 +32,7 @@ export type ServiceApiItem = {
 };
 
 export type ServiceCategoryApiItem = {
+  gender: Gender;
   id: string;
   salonId: string;
   name: string;
@@ -40,6 +43,7 @@ export type ServiceCategoryApiItem = {
 };
 
 export type ServiceListRow = {
+  gender: Gender;
   id: string;
   name: string;
   description: string;
@@ -52,6 +56,7 @@ export type ServiceListRow = {
 };
 
 export type CategoryListRow = {
+  gender: Gender;
   id: string;
   name: string;
   description: string;
@@ -75,10 +80,11 @@ export type ServicesPageData = {
   serviceMeta: PaginationMeta;
   categoryMeta: PaginationMeta;
   metrics: import('@/features/dashboard/services/dashboard.service').DashboardMetric[];
-  categoryOptions: Array<{ id: string; name: string }>;
+  categoryOptions: Array<{ id: string; name: string; gender: Gender }>;
 };
 
 export type CreateServicePayload = {
+  gender: Gender;
   productRecipe?: import("../components/product-recipe-editor").ProductRecipe[];
   salonId: string;
   categoryId: string;
@@ -90,6 +96,7 @@ export type CreateServicePayload = {
 };
 
 export type CreateServiceCategoryPayload = {
+  gender: Gender;
   salonId: string;
   name: string;
   description?: string | null;

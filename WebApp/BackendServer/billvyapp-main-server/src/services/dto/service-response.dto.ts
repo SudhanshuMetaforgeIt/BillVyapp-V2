@@ -1,7 +1,9 @@
+import { Gender } from '../../generated/prisma/enums';
 import { ProductRecipeDto } from './product-recipe.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ServiceResponseDto {
+  @ApiProperty({ enum: Gender }) gender: Gender;
   @ApiPropertyOptional({ type: [ProductRecipeDto] })
   productRecipe?: ProductRecipeDto[];
   @ApiProperty() id: string;

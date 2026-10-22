@@ -2,7 +2,7 @@ import { maskPhone as internationalMaskPhone } from '@/lib/phone';
 import { format, isValid, parseISO, differenceInYears } from 'date-fns';
 
 import { api } from '@/services/api-client';
-import { formatFullName } from '@/lib/format';
+import { formatCurrency, formatDate, formatFullName, formatNumber } from '@/lib/format';
 import type { DashboardMetric } from '@/features/dashboard/services/dashboard.service';
 import type {
   CreateCustomerPayload,
@@ -25,7 +25,6 @@ function initials(name: string): string {
 
 function genderLabel(gender: CustomerGender | null): string {
   if (!gender) return '—';
-  if (gender === 'PREFER_NOT_TO_SAY') return 'Prefer not to say';
   return gender.charAt(0) + gender.slice(1).toLowerCase();
 }
 
@@ -160,10 +159,11 @@ function mapRow(
     membershipLabel,
     membershipTone: tone,
     membershipExpiry,
-    // No visit/spend/lastVisit aggregates on customer list APIs.
-    totalVisitsLabel: '—',
-    totalSpendLabel: '—',
-    lastVisitLabel: '—',
+    totalVisitsLabel: row.totalBills == null ? '—' : formatNumber(row.totalBills),
+    totalSpendLabel: row.totalSpent == null ? '—' : formatCurrency(row.totalSpent),
+    lastVisitLabel: row.lastVisit && isValid(parseISO(row.lastVisit))
+      ? formatDate(row.lastVisit)
+      : '—',
     isActive: row.isActive,
     statusLabel: row.isActive ? 'Active' : 'Inactive',
   };

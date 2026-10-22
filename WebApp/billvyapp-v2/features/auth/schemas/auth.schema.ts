@@ -1,5 +1,6 @@
 import { cleanPhoneInput, isValidPhoneInput } from '@/lib/phone';
 import { z } from 'zod';
+import { GENDERS } from '@/lib/gender';
 
 /**
  * Validation for the auth forms.
@@ -46,6 +47,7 @@ export function normalizeIndianPhone(value: string): string {
  */
 export const registerSchema = z
   .object({
+    gender: z.enum(GENDERS),
     firstName: z
       .string()
       .trim()

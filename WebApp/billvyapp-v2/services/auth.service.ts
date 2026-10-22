@@ -31,6 +31,7 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
+  gender: import('@/lib/gender').Gender;
   firstName: string;
   lastName: string;
   email: string;

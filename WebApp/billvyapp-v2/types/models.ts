@@ -90,7 +90,7 @@ export interface SalonPhoto {
   updatedAt: IsoDate;
 }
 
-export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+export type Gender = import('@/lib/gender').Gender;
 
 export interface Customer {
   id: string;
@@ -102,7 +102,7 @@ export interface Customer {
   phone: string;
   profilePhoto: string | null;
   dateOfBirth: string | null;
-  gender: Gender | null;
+  gender: Gender;
   isActive: boolean;
   totalBills: number;
   totalSpent: Decimal;
@@ -155,6 +155,7 @@ export interface CustomerAddressInput {
 // ----------------------------------------------------------------- catalog
 
 export interface ServiceCategory {
+  gender: Gender;
   id: string;
   salonId: string;
   name: string;
@@ -165,6 +166,7 @@ export interface ServiceCategory {
 }
 
 export interface SalonService {
+  gender: Gender;
   id: string;
   salonId: string;
   categoryId: string;
@@ -429,6 +431,7 @@ export interface BillPaymentSummary {
 }
 
 export interface Bill {
+  serviceGender: Gender;
   currency?: 'INR' | 'USD';
   enrolledCouponCode?: string | null;
   membershipFee?: Decimal; enrollmentPlanId?: string | null; enrollmentPlanName?: string | null;

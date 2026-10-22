@@ -645,6 +645,24 @@
     },
     "RegisterCustomerDto": {
       "fields": {
+        "gender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "firstName": {
           "kind": "string",
           "optional": false,
@@ -1014,6 +1032,24 @@
     },
     "CreateBillDto": {
       "fields": {
+        "serviceGender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "idempotencyKey": {
           "kind": "string",
           "optional": false,
@@ -1477,6 +1513,24 @@
     },
     "MembershipOffersDto": {
       "fields": {
+        "serviceGender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "couponCode": {
           "kind": "string",
           "optional": true,
@@ -1630,6 +1684,24 @@
     },
     "UpdateBillDto": {
       "fields": {
+        "serviceGender": {
+          "kind": "enum",
+          "optional": true,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "idempotencyKey": {
           "kind": "string",
           "optional": true,
@@ -2782,7 +2854,7 @@
                   "MALE": "MALE",
                   "FEMALE": "FEMALE",
                   "OTHER": "OTHER",
-                  "PREFER_NOT_TO_SAY": "PREFER_NOT_TO_SAY"
+                  "UNISEX": "UNISEX"
                 }
               ]
             }
@@ -2898,8 +2970,8 @@
         },
         "gender": {
           "kind": "enum",
-          "optional": true,
-          "nullable": true,
+          "optional": false,
+          "nullable": false,
           "rules": [
             {
               "name": "IsEnum",
@@ -2908,7 +2980,7 @@
                   "MALE": "MALE",
                   "FEMALE": "FEMALE",
                   "OTHER": "OTHER",
-                  "PREFER_NOT_TO_SAY": "PREFER_NOT_TO_SAY"
+                  "UNISEX": "UNISEX"
                 }
               ]
             }
@@ -3002,7 +3074,7 @@
         "gender": {
           "kind": "enum",
           "optional": true,
-          "nullable": true,
+          "nullable": false,
           "rules": [
             {
               "name": "IsEnum",
@@ -3011,7 +3083,7 @@
                   "MALE": "MALE",
                   "FEMALE": "FEMALE",
                   "OTHER": "OTHER",
-                  "PREFER_NOT_TO_SAY": "PREFER_NOT_TO_SAY"
+                  "UNISEX": "UNISEX"
                 }
               ]
             }
@@ -10868,6 +10940,24 @@
           ],
           "numericInput": true
         },
+        "gender": {
+          "kind": "enum",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "search": {
           "kind": "string",
           "optional": true,
@@ -10912,6 +11002,24 @@
     },
     "CreateServiceCategoryDto": {
       "fields": {
+        "gender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "salonId": {
           "kind": "string",
           "optional": false,
@@ -10959,6 +11067,24 @@
     },
     "UpdateServiceCategoryDto": {
       "fields": {
+        "gender": {
+          "kind": "enum",
+          "optional": true,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "name": {
           "kind": "string",
           "optional": true,
@@ -11043,6 +11169,36 @@
           ],
           "numericInput": true
         },
+        "gender": {
+          "kind": "enum",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
+        "includeUnisex": {
+          "kind": "boolean",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsBoolean",
+              "args": []
+            }
+          ],
+          "booleanInput": true
+        },
         "search": {
           "kind": "string",
           "optional": true,
@@ -11098,6 +11254,24 @@
     },
     "CreateServiceDto": {
       "fields": {
+        "gender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "productRecipe": {
           "kind": "object",
           "optional": true,
@@ -11336,6 +11510,24 @@
     },
     "BulkServiceItemDto": {
       "fields": {
+        "gender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "name": {
           "kind": "string",
           "optional": false,
@@ -11433,6 +11625,24 @@
     },
     "UpdateServiceDto": {
       "fields": {
+        "gender": {
+          "kind": "enum",
+          "optional": true,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEnum",
+              "args": [
+                {
+                  "MALE": "MALE",
+                  "FEMALE": "FEMALE",
+                  "OTHER": "OTHER",
+                  "UNISEX": "UNISEX"
+                }
+              ]
+            }
+          ]
+        },
         "productRecipe": {
           "kind": "object",
           "optional": true,

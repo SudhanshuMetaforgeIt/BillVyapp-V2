@@ -8,8 +8,7 @@ export type PaginatedResponse<T> = {
   };
 };
 
-export type WalkInCustomerGender =
-  'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+export type WalkInCustomerGender = import('@/lib/gender').Gender;
 
 export type WalkInCustomer = {
   id: string;
@@ -19,7 +18,7 @@ export type WalkInCustomer = {
   lastName: string;
   email: string;
   phone: string;
-  gender?: WalkInCustomerGender | null;
+  gender: WalkInCustomerGender;
   isActive: boolean;
 };
 
@@ -28,10 +27,11 @@ export type CreateCustomerPayload = {
   lastName: string;
   email: string;
   phone: string;
-  gender?: WalkInCustomerGender;
+  gender: WalkInCustomerGender;
 };
 
 export type ServiceCategory = {
+  gender: WalkInCustomerGender;
   id: string;
   salonId: string;
   name: string;
@@ -40,6 +40,7 @@ export type ServiceCategory = {
 };
 
 export type SalonService = {
+  gender: WalkInCustomerGender;
   id: string;
   salonId: string;
   categoryId: string;
@@ -64,6 +65,7 @@ export type WalkInPaymentMethod = 'UPI' | 'CASH' | 'CARD' | 'WALLET';
 export type EnrollmentDetails = { nameConfirmed: boolean; whatsappSameAsBilling: boolean; whatsappNumber?: string; dateOfBirth?: string; address?: string; email?: string };
 export type MembershipOffer = { id: string; name: string; price: string; durationDays: number; benefits: string | null; termsAndConditions: string | null; couponUsageLimit: number | null; eligibleServices: { id: string; name: string }[] };
 export type CreateBillPayload = {
+  serviceGender: WalkInCustomerGender;
   idempotencyKey?: string;
   enrollmentPlanId?: string | null;
   enrollmentDetails?: EnrollmentDetails;
@@ -80,6 +82,7 @@ export type CreateBillPayload = {
 };
 
 export type BillRecord = {
+  serviceGender: WalkInCustomerGender;
   currency?: 'INR' | 'USD';
   enrolledCouponCode?: string | null;
   membershipFee?: string; enrollmentPlanId?: string | null; enrollmentPlanName?: string | null;
