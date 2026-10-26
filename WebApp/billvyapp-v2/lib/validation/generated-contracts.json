@@ -447,6 +447,234 @@
         }
       }
     },
+    "CreateInstituteAppointmentDto": {
+      "fields": {
+        "salonId": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsUUID",
+              "args": []
+            }
+          ]
+        },
+        "idempotencyKey": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsString",
+              "args": []
+            },
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9:_-]{7,190}$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "studentGender": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsIn",
+              "args": [
+                [
+                  "MALE",
+                  "FEMALE"
+                ]
+              ]
+            }
+          ]
+        },
+        "studentCount": {
+          "kind": "number",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsInt",
+              "args": []
+            },
+            {
+              "name": "Min",
+              "args": [
+                1
+              ]
+            },
+            {
+              "name": "Max",
+              "args": [
+                10000
+              ]
+            }
+          ],
+          "numericInput": true
+        },
+        "contactName": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsString",
+              "args": []
+            },
+            {
+              "name": "IsNotEmpty",
+              "args": []
+            },
+            {
+              "name": "MaxLength",
+              "args": [
+                150
+              ]
+            }
+          ]
+        },
+        "contactPhone": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsIndianMobileNumber",
+              "args": []
+            }
+          ]
+        },
+        "contactRole": {
+          "kind": "enum",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsIn",
+              "args": [
+                [
+                  "Warden",
+                  "Assistant manager"
+                ]
+              ]
+            }
+          ]
+        },
+        "appointmentDate": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "startTime": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "endTime": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "notes": {
+          "kind": "string",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsString",
+              "args": []
+            },
+            {
+              "name": "MaxLength",
+              "args": [
+                1000
+              ]
+            }
+          ]
+        },
+        "services": {
+          "kind": "object",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsArray",
+              "args": []
+            },
+            {
+              "name": "ArrayMinSize",
+              "args": [
+                1
+              ]
+            },
+            {
+              "name": "ArrayMaxSize",
+              "args": [
+                20
+              ]
+            }
+          ],
+          "nested": "InstituteServiceItemDto",
+          "array": true
+        }
+      }
+    },
+    "InstituteServiceItemDto": {
+      "fields": {
+        "serviceId": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsUUID",
+              "args": []
+            }
+          ]
+        }
+      }
+    },
     "AuditLogQueryDto": {
       "fields": {
         "page": {
@@ -1032,6 +1260,17 @@
     },
     "CreateBillDto": {
       "fields": {
+        "appointmentId": {
+          "kind": "string",
+          "optional": true,
+          "nullable": true,
+          "rules": [
+            {
+              "name": "IsUUID",
+              "args": []
+            }
+          ]
+        },
         "serviceGender": {
           "kind": "enum",
           "optional": false,
@@ -14670,6 +14909,11 @@
       "method": "PATCH",
       "path": "/franchises/:id",
       "body": "UpdateFranchiseDto"
+    },
+    {
+      "method": "POST",
+      "path": "/institute-appointments",
+      "body": "CreateInstituteAppointmentDto"
     },
     {
       "method": "GET",

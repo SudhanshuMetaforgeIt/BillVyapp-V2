@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   BarChart2,
   Bell,
   BookUser,
@@ -53,6 +54,9 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         label: 'Services',
         href: `${base}/services`,
         icon: Scissors,
+      },
+      {
+        id: 'appointments', label: 'Appointments', href: `${base}/appointments`, icon: CalendarDays,
       },
       {
         id: 'bills',

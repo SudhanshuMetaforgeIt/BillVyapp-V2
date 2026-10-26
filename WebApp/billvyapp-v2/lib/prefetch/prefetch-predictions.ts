@@ -58,14 +58,14 @@ const PREDICTION_RULES: Record<string, string[]> = {
 
   // Staff journeys
   [ROUTES.dashboard.staff.root]: [
-    ROUTES.dashboard.staff.walkInBilling,
+    ROUTES.dashboard.staff.bills,
     ROUTES.dashboard.staff.appointments,
   ],
-  [ROUTES.dashboard.staff.walkInBilling]: [
+  [ROUTES.dashboard.staff.bills]: [
     ROUTES.dashboard.staff.appointments,
   ],
   [ROUTES.dashboard.staff.appointments]: [
-    ROUTES.dashboard.staff.walkInBilling,
+    ROUTES.dashboard.staff.bills,
   ],
 
   // Super admin journeys
@@ -142,7 +142,7 @@ export function getLikelyNextRoutes(pathname: string, role?: RoleCode | null): s
         .filter((dest) => dest !== current);
     }
     if (role === 'STAFF') {
-      return [ROUTES.dashboard.staff.walkInBilling]
+      return [ROUTES.dashboard.staff.appointments, ROUTES.dashboard.staff.bills]
         .map(normalizePath)
         .filter((dest) => dest !== current);
     }

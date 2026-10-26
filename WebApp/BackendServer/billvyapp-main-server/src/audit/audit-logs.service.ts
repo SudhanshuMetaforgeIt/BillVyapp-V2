@@ -17,6 +17,7 @@ import { redactSensitive } from '../common/security/redaction';
 const AUDIT_SELECT = {
   id: true,
   userId: true,
+  user: { select: { firstName: true, lastName: true } },
   salonId: true,
   action: true,
   entityType: true,
@@ -31,6 +32,7 @@ const AUDIT_SELECT = {
 export type AuditLogRecord = {
   id: string;
   userId: string | null;
+  userName: string | null;
   salonId: string | null;
   action: string;
   entityType: string;
@@ -112,6 +114,7 @@ export class AuditLogsService {
   private toResponse(row: {
     id: string;
     userId: string | null;
+    user: { firstName: string | null; lastName: string | null } | null;
     salonId: string | null;
     action: string;
     entityType: string;
@@ -125,6 +128,7 @@ export class AuditLogsService {
     return {
       id: row.id,
       userId: row.userId,
+      userName: [row.user?.firstName?.trim(), row.user?.lastName?.trim()].filter(Boolean).join(' ') || null,
       salonId: row.salonId,
       action: row.action,
       entityType: row.entityType,

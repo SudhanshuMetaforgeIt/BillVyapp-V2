@@ -9,6 +9,16 @@ export type WhatsAppTemplateMessage = {
   bodyFields: string[];
 };
 
+/** Safe, classified failure; never retains provider response bodies or credentials. */
+export class WhatsAppDeliveryError extends ServiceUnavailableException {
+  constructor(
+    public readonly retryable = false,
+    public readonly uncertain = false,
+  ) {
+    super('WhatsApp message could not be sent. Please try again.');
+  }
+}
+
 @Injectable()
 export class SparklebotService {
   constructor(private readonly config: ConfigService) {}
@@ -67,7 +77,11 @@ export class SparklebotService {
           body: JSON.stringify(payload),
         },
       );
-      if (!response.ok) throw new Error('Provider rejected request');
+      if (!response.ok)
+        throw new WhatsAppDeliveryError(
+          response.status === 429,
+          response.status >= 500,
+        );
       const result = (await response.json()) as {
         success?: boolean;
         status?: string;
@@ -80,22 +94,24 @@ export class SparklebotService {
         };
       };
       if (
-        (result.success !== true && result.status !== 'success') ||
-        result.data?.whatsapp_response?.error
+        result.data?.whatsapp_response?.error ||
+        result.success === false ||
+        result.status === 'error'
       )
-        throw new Error('Provider did not confirm acceptance');
+        throw new WhatsAppDeliveryError();
+      if (result.success !== true && result.status !== 'success')
+        throw new WhatsAppDeliveryError(false, true);
       const messageId =
         result.data?.message_id ??
         result.data?.whatsapp_response?.messages?.[0]?.id;
       // A confirmed acceptance must not be retried just because the provider
       // omitted its message reference. Delivery tracking then remains unavailable.
       return typeof messageId === 'string' && messageId ? messageId : null;
-    } catch {
+    } catch (error) {
       // Provider responses can contain credentials, phone numbers and OTPs.
       // Keep public errors and logs free of raw request/response content.
-      throw new ServiceUnavailableException(
-        'WhatsApp message could not be sent. Please try again.',
-      );
+      if (error instanceof WhatsAppDeliveryError) throw error;
+      throw new WhatsAppDeliveryError(false, true);
     }
   }
 }

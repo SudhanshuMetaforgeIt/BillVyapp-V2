@@ -1,5 +1,3 @@
-import { WalkInBillingPageView } from '@/features/walk-in-billing';
-
-export default function StaffWalkInBillingPage() {
-  return <WalkInBillingPageView />;
-}
+import { redirect } from 'next/navigation';
+import { ROUTES } from '@/constants/routes';
+export default function RetiredStaffWalkInPage() { redirect(ROUTES.dashboard.staff.bills); }

@@ -97,9 +97,10 @@ export function StaffShell({ children }: SalonShellProps) {
       subtitle: 'Walk-in billing for your salon.',
     },
     [r.appointments]: {
-      title: 'Appointments',
-      subtitle: 'View and manage salon appointments.',
+      title: 'Student appointments',
+      subtitle: 'Book student service groups with your institute contact details.',
     },
+    [r.bills]: { title: 'Invoices & payments', subtitle: 'Issued invoices and pending payments for your location.' },
     [r.notifications]: {
       title: 'Notifications',
       subtitle: 'Messages for your salon.',

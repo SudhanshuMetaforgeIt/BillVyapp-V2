@@ -32,12 +32,12 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function BillDocumentsPanel({ billId, salonId }: { billId: string; salonId: string }) {
+export function BillDocumentsPanel({ billId, salonId, readOnly = false }: { billId: string; salonId: string; readOnly?: boolean }) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const canWrite = can(user, 'billDocuments.write');
+  const canWrite = !readOnly && can(user, 'billDocuments.write');
   // Customers can only download media they uploaded (media scope), so staff
   // uploads are listed but not downloadable for them.
   const canDownload = can(user, 'media.write');

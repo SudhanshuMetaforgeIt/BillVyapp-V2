@@ -50,14 +50,14 @@ export const CAPABILITIES = {
   'appointments.manage': ALL,
 
   'bills.read': ALL,
-  'bills.write': INTERNAL,
-  'bills.status': INTERNAL,
+  'bills.write': MANAGEMENT,
+  'bills.status': MANAGEMENT,
   'billDocuments.read': ALL,
-  'billDocuments.write': INTERNAL,
+  'billDocuments.write': MANAGEMENT,
 
   'payments.read': ALL,
-  'payments.create': ALL,
-  'payments.status': INTERNAL,
+  'payments.create': MANAGEMENT,
+  'payments.status': MANAGEMENT,
 
   'membershipPlans.read': ALL,
   'membershipPlans.write': MANAGEMENT,

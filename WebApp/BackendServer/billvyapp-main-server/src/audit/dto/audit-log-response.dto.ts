@@ -4,6 +4,7 @@ import { PaginationMetaDto } from '../../common/pagination/pagination-meta.dto';
 export class AuditLogResponseDto {
   @ApiProperty() id: string;
   @ApiPropertyOptional({ nullable: true }) userId: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'Current full name of the linked user account' }) userName: string | null;
   @ApiPropertyOptional({ nullable: true }) salonId: string | null;
   @ApiProperty() action: string;
   @ApiProperty() entityType: string;

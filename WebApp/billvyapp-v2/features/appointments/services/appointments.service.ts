@@ -280,11 +280,12 @@ function mapRow(
     row.services.length > 1 ? ` +${row.services.length - 1}` : '';
 
   return {
+    ...row,
     id: row.id,
     appointmentNumber: row.appointmentNumber,
     customerId: row.customerId,
-    customerName,
-    customerPhone: customer?.phone ?? '',
+    customerName: row.isGroupBooking ? row.contactName ?? customerName : customerName,
+    customerPhone: row.isGroupBooking ? row.contactPhone ?? '' : customer?.phone ?? '',
     customerInitials: initials(customerName === '—' ? 'NA' : customerName),
     serviceLabel: primary ? `${primary.name}${extra}` : '—',
     staffId: row.staffId,

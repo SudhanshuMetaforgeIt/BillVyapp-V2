@@ -52,6 +52,6 @@ describe('HTTP permission inventory coverage', () => {
     }
     visit(path.resolve(__dirname, '../..'));
     expect(keys.sort()).toEqual(Object.keys(ACCESS_POLICY).sort());
-    expect(keys).toHaveLength(224);
+    expect(keys).toHaveLength(227);
   });
 });

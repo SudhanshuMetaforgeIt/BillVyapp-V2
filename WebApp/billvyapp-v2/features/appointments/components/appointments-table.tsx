@@ -1,4 +1,6 @@
 'use client';
+import { useState } from 'react';
+import { InstituteAppointmentDetails } from '@/features/institutes/institute-appointment-details';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -102,8 +104,10 @@ export function AppointmentsTable({
   onRetry,
   onPageChange,
 }: AppointmentsTableProps) {
+  const [viewingInstitute, setViewingInstitute] = useState<string | null>(null);
   return (
     <div className="app-surface-card overflow-hidden" data-dash-animate="section">
+      {viewingInstitute && <InstituteAppointmentDetails id={viewingInstitute} onClose={() => setViewingInstitute(null)} />}
       <AppointmentsTabs value={statusTab} onChange={onStatusTabChange} />
 
       {isLoading ? (
@@ -142,7 +146,8 @@ export function AppointmentsTable({
                     className="border-b border-border/60 last:border-0 hover:bg-ivory/50"
                   >
                     <td className="px-4 py-3.5 font-medium text-text">
-                      {row.appointmentNumber}
+                      {row.isGroupBooking ? <button className="text-champagne underline underline-offset-2" onClick={() => setViewingInstitute(row.id)}>{row.appointmentNumber}</button> : row.appointmentNumber}
+                      {row.isGroupBooking && <p className="mt-1 text-xs text-text-secondary">{row.studentGender === 'MALE' ? 'Male' : 'Female'} · {row.studentCount} students</p>}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5">

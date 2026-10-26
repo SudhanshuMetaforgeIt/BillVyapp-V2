@@ -13,7 +13,7 @@ import { CreateBillDto, CreateBillItemDto } from './create-bill.dto';
  * Status is changed via PATCH /bills/:id/status.
  */
 export class UpdateBillDto extends PartialType(
-  OmitType(CreateBillDto, ['salonId', 'items'] as const),
+  OmitType(CreateBillDto, ['salonId', 'items', 'appointmentId'] as const),
   { skipNullProperties: false },
 ) {
   @ApiPropertyOptional({ type: [CreateBillItemDto], minItems: 1 })

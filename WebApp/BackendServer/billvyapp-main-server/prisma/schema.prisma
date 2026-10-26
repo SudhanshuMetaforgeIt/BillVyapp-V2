@@ -553,6 +553,17 @@ model Service {
 /// staffId is nullable on purpose: a customer may book "any available staff"
 /// from the mobile app and the salon assigns a person later.
 model Appointment {
+  isGroupBooking Boolean @default(false)
+  studentGender Gender?
+  studentCount Int?
+  contactName String? @db.VarChar(150)
+  contactPhone String? @db.VarChar(20)
+  contactRole String? @db.VarChar(32)
+  instituteRequestKey String? @db.VarChar(191)
+  instituteRequestHash String? @db.VarChar(64)
+  bookingNotifications Notification[]
+  instituteInvoice Bill?
+  @@unique([salonId, instituteRequestKey], map: "appointments_institute_request_key")
   id                String            @id @default(uuid()) @db.VarChar(36)
   salonId           String            @db.VarChar(36)
   customerId        String            @db.VarChar(36)
@@ -841,6 +852,8 @@ model StockMovement {
 
 /// Invoice document. The table is deliberately named "bills" (not invoices).
 model Bill {
+  appointmentId String? @unique @db.VarChar(36)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   serviceGender Gender
   emailQueuedAt DateTime?
   loyaltyPolicy Json?
@@ -1148,7 +1161,11 @@ model Campaign {
 /// Outbound message log across WhatsApp / Email / SMS. Kept intentionally lean
 /// so new channels and providers can be added without restructuring.
 model Notification {
+  appointmentId String? @db.VarChar(36)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  @@unique([appointmentId, userId, notificationType], map: "notifications_appointment_recipient_key")
   emailDelivery EmailOutbox?
+  whatsappDelivery WhatsAppOutbox?
   id                String              @id @default(uuid()) @db.VarChar(36)
   salonId           String?             @db.VarChar(36)
   userId            String?             @db.VarChar(36)
@@ -1208,6 +1225,29 @@ model EmailOutbox {
   updatedAt DateTime @updatedAt
   @@index([status, availableAt])
   @@map("email_outbox")
+}
+
+/// Template snapshots committed with appointments. UNKNOWN must be reconciled before retry.
+model WhatsAppOutbox {
+  id String @id @default(uuid()) @db.VarChar(36)
+  eventKey String @unique @db.VarChar(191)
+  notificationId String @unique @db.VarChar(36)
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  recipient String @db.VarChar(20)
+  templateName String @db.VarChar(100)
+  language String @db.VarChar(16)
+  bodyFields Json
+  status String @default("PENDING") @db.VarChar(20)
+  providerReference String? @db.VarChar(191)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  claimedAt DateTime?
+  sentAt DateTime?
+  errorMessage String? @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt])
+  @@map("whatsapp_outbox")
 }
 
 // =============================================================================

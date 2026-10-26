@@ -25,7 +25,7 @@ describe('getLikelyNextRoutes', () => {
 
   it('returns walk-in billing for staff dashboard home', () => {
     const routes = getLikelyNextRoutes(ROUTES.dashboard.staff.root, 'STAFF');
-    expect(routes).toContain(ROUTES.dashboard.staff.walkInBilling);
+    expect(routes).toContain(ROUTES.dashboard.staff.bills);
     expect(routes).toContain(ROUTES.dashboard.staff.appointments);
   });
 

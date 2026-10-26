@@ -48,12 +48,12 @@ function CountCard({ label, filter, hint }: { label: string; filter: CountFilter
   );
 }
 
-export function BillsListView({ newBillHref }: { newBillHref?: string }) {
+export function BillsListView({ newBillHref, readOnly = false, title = 'Bills', description = 'Bills in your scope. Totals and dues are calculated by the server.' }: { newBillHref?: string; readOnly?: boolean; title?: string; description?: string }) {
   const user = useCurrentUser();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [salonId, setSalonId] = useState('');
-  const [status, setStatus] = useState<BillStatus | ''>('');
+  const [status, setStatus] = useState<BillStatus | ''>(readOnly ? 'COMPLETED' : '');
   const [paymentStatus, setPaymentStatus] = useState<BillPaymentStatus | ''>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -133,10 +133,10 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
   return (
     <div className="space-y-5">
       <PageHeading
-        title="Bills"
-        description="Bills in your scope. Totals and dues are calculated by the server."
+        title={title}
+        description={description}
         actions={
-          newBillHref && can(user, 'bills.write') ? (
+          !readOnly && newBillHref && can(user, 'bills.write') ? (
             <PrefetchLink href={newBillHref} prefetchStrategy="idle" className={buttonVariants()}>
               <Plus className="size-4" /> New bill
             </PrefetchLink>
@@ -145,8 +145,8 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <CountCard label="All bills" filter={scopeFilter} />
-        <CountCard label="Drafts" filter={{ ...scopeFilter, status: 'DRAFT' }} hint="Awaiting completion" />
+        <CountCard label={readOnly ? "Issued invoices" : "All bills"} filter={scopeFilter} />
+        {!readOnly && <CountCard label="Drafts" filter={{ ...scopeFilter, status: 'DRAFT' }} hint="Awaiting completion" />}
         <CountCard label="Paid" filter={{ ...scopeFilter, paymentStatus: 'PAID' }} />
         <CountCard label="Partially paid" filter={{ ...scopeFilter, paymentStatus: 'PARTIAL' }} />
         <CountCard
@@ -155,9 +155,7 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
           hint="Completed with nothing collected"
         />
       </div>
-      <p className="text-[11px] text-text-secondary">
-        Revenue and outstanding amount totals need a backend report endpoint and are not shown.
-      </p>
+
 
       <DataTable
         columns={columns}
@@ -185,7 +183,7 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
               className="w-36"
             >
               <option value="">All statuses</option>
-              {STATUSES.map((s) => (
+              {STATUSES.filter(s => !readOnly || s !== 'DRAFT').map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -222,7 +220,7 @@ export function BillsListView({ newBillHref }: { newBillHref?: string }) {
         }
       />
 
-      <BillRecordDialog billId={viewing} onClose={() => setViewing(null)} />
+      <BillRecordDialog readOnly={readOnly} billId={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }

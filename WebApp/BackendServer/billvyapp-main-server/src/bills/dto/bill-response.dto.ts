@@ -50,6 +50,7 @@ export class BillCustomerDto {
 }
 
 export class BillResponseDto {
+  @ApiPropertyOptional({ nullable: true }) appointmentId?: string | null;
   @ApiProperty({ enum: Gender }) serviceGender: Gender;
   @ApiProperty({ enum: ['INR', 'USD'] }) currency: string;
   @ApiPropertyOptional({ nullable: true }) enrollmentPlanId?: string | null;

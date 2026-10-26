@@ -39,6 +39,15 @@ export type AppointmentServiceLine = {
 };
 
 export type AppointmentApiItem = {
+  isGroupBooking?: boolean;
+  studentGender?: 'MALE' | 'FEMALE' | null;
+  studentCount?: number | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactRole?: string | null;
+  instituteInvoice?: { id: string; billNumber: string; status: string } | null;
+  emailNotifications?: Array<{ id: string; role: string; status: string }>;
+
   id: string;
   salonId: string;
   customerId: string;
@@ -56,6 +65,15 @@ export type AppointmentApiItem = {
 };
 
 export type AppointmentListRow = {
+  isGroupBooking?: boolean;
+  studentGender?: 'MALE' | 'FEMALE' | null;
+  studentCount?: number | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactRole?: string | null;
+  instituteInvoice?: { id: string; billNumber: string; status: string } | null;
+  emailNotifications?: Array<{ id: string; role: string; status: string }>;
+
   id: string;
   appointmentNumber: string;
   customerId: string;

@@ -37,21 +37,18 @@ const COLUMNS: Column<AuditLog>[] = [
     cell: (row) => <code className="text-xs text-text-secondary">{shortId(row.entityId)}</code>,
   },
   {
-    id: 'user',
-    header: 'User',
-    cell: (row) => <code className="text-xs text-text-secondary">{shortId(row.userId)}</code>,
+    id: 'userName',
+    header: 'User name',
+    cell: (row) => <span className="font-medium">{row.userName || (row.userId ? 'Name unavailable' : 'No user recorded')}</span>,
   },
   {
-    id: 'ip',
-    header: 'IP',
-    cell: (row) => <span className="text-xs text-text-secondary">{row.ipAddress ?? '—'}</span>,
+    id: 'user',
+    header: 'User ID',
+    cell: (row) => <code className="text-xs text-text-secondary">{shortId(row.userId)}</code>,
   },
 ];
 
-/**
- * Audit trail for SUPER_ADMIN (all), ADMIN (franchise) and MANAGER (salon);
- * the backend applies the scope.
- */
+/** Audit trail restricted to SUPER_ADMIN by the backend. */
 export function AuditLogsView() {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
@@ -145,6 +142,8 @@ export function AuditLogsView() {
               <dd>{selected.entityType}</dd>
               <dt className="text-text-secondary">Entity ID</dt>
               <dd className="break-all font-mono text-xs">{selected.entityId ?? '—'}</dd>
+              <dt className="text-text-secondary">User name</dt>
+              <dd>{selected.userName || (selected.userId ? 'Name unavailable' : 'No user recorded')}</dd>
               <dt className="text-text-secondary">User ID</dt>
               <dd className="break-all font-mono text-xs">{selected.userId ?? '—'}</dd>
               <dt className="text-text-secondary">Salon ID</dt>

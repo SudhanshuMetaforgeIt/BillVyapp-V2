@@ -104,6 +104,7 @@ function downloadBillInvoice(bill: Bill) {
     ${bill.enrolledCouponCode ? `<br/>New membership coupon: ${escapeHtml(bill.enrolledCouponCode)}` : ''}
     ${bill.couponCode ? `<br/>Membership coupon: ${escapeHtml(bill.couponCode)}` : ''}
   </div>
+  ${bill.notes ? `<p style="white-space:pre-wrap">${escapeHtml(bill.notes)}</p>` : ''}
   <table>
     <thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Membership discount</th><th style="text-align:right">Tax</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -135,7 +136,9 @@ function downloadBillInvoice(bill: Bill) {
 export function BillRecordDialog({
   billId,
   onClose,
+  readOnly = false,
 }: {
+  readOnly?: boolean;
   billId: string | null;
   onClose: () => void;
 }) {
@@ -162,10 +165,10 @@ export function BillRecordDialog({
 
   const b = bill.data;
   const nextStatuses =
-    b && can(user, 'bills.status') ? BILL_NEXT_STATUSES[b.status] : [];
+    b && !readOnly && can(user, 'bills.status') ? BILL_NEXT_STATUSES[b.status] : [];
   const canRecordPayment =
     b &&
-    can(user, 'bills.write') &&
+    !readOnly && can(user, 'bills.write') &&
     b.status === 'COMPLETED' &&
     Number(b.dueAmount) > 0;
 
@@ -277,10 +280,11 @@ export function BillRecordDialog({
               <span className="break-all font-mono">{b.couponCode}</span>
             </p>
           )}
-          {b.status === 'DRAFT' && can(user, 'bills.write') && (
+          {!readOnly && b.status === 'DRAFT' && can(user, 'bills.write') && (
             <BillCouponEditor key={`${b.id}:${b.couponCode ?? ''}`} bill={b} />
           )}
 
+          {b.notes && <section><h4 className="text-xs font-bold">Invoice details</h4><p className="mt-2 whitespace-pre-wrap text-sm">{b.notes}</p></section>}
           <dl className="ml-auto w-full max-w-sm space-y-2 text-sm">
             {billReceiptSummary(b).map((row) => (
               <div key={row.label} className={`flex justify-between gap-4 ${row.emphasis ? 'border-t border-border pt-2 font-semibold' : row.saving ? 'text-emerald' : 'text-text-secondary'}`}>
@@ -318,14 +322,14 @@ export function BillRecordDialog({
               </ul>
             )}
             {canRecordPayment ? <CounterPaymentForm bill={b} /> : null}
-            {b.status === 'DRAFT' && can(user, 'bills.write') ? (
+            {!readOnly && b.status === 'DRAFT' && can(user, 'bills.write') ? (
               <p className="text-[11px] text-text-secondary">
                 Payments can be recorded once a manager completes this bill.
               </p>
             ) : null}
           </section>
 
-          <BillDocumentsPanel billId={b.id} salonId={b.salonId} />
+          <BillDocumentsPanel billId={b.id} salonId={b.salonId} readOnly={readOnly} />
 
           {nextStatuses.length > 0 ? (
             <section className="space-y-2 border-t border-border pt-4">
@@ -348,7 +352,7 @@ export function BillRecordDialog({
                     }}
                   >
                     {next === 'COMPLETED'
-                      ? 'Complete bill'
+                      ? b.appointmentId ? 'Issue invoice' : 'Complete bill'
                       : `Mark ${next.toLowerCase()}`}
                   </Button>
                 ))}

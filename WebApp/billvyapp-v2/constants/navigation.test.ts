@@ -13,7 +13,7 @@ describe('role navigation', () => {
     expect(dashboardHomeFor('SUPER_ADMIN')).toBe(ROUTES.dashboard.superAdmin.root);
     expect(dashboardHomeFor('ADMIN')).toBe(ROUTES.dashboard.admin.root);
     expect(dashboardHomeFor('MANAGER')).toBe(ROUTES.dashboard.manager.root);
-    expect(dashboardHomeFor('STAFF')).toBe(ROUTES.dashboard.staff.walkInBilling);
+    expect(dashboardHomeFor('STAFF')).toBe(ROUTES.dashboard.staff.appointments);
     expect(dashboardHomeFor('CUSTOMER')).toBe(ROUTES.dashboard.customer.root);
   });
 
@@ -49,11 +49,11 @@ describe('role navigation', () => {
     expect(navigationForRole('MANAGER').flatMap((section) => section.items).find((item) => item.href === ROUTES.dashboard.manager.salonPhotos)?.label).toBe('Salon Photos');
   });
 
-  it('limits staff nav to walk-in billing and appointments', () => {
+  it('limits staff nav to institute appointments and billing', () => {
     const links = hrefs('STAFF');
     expect(links).toEqual([
-      ROUTES.dashboard.staff.walkInBilling,
       ROUTES.dashboard.staff.appointments,
+      ROUTES.dashboard.staff.bills,
     ]);
   });
 

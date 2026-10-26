@@ -151,6 +151,7 @@ describe('AppointmentsService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     appointmentService: {
       deleteMany: jest.fn(),
@@ -171,6 +172,7 @@ describe('AppointmentsService', () => {
     assertOwnCustomerAccess: jest.fn(),
   };
   const audit = { record: jest.fn() };
+  const whatsApp = { queueAppointment: jest.fn() };
   let service: AppointmentsService;
 
   beforeEach(() => {
@@ -203,6 +205,7 @@ describe('AppointmentsService', () => {
       prisma as unknown as PrismaService,
       scope as unknown as ScopeService,
       audit as unknown as AuditService,
+      whatsApp as never,
     );
   });
 
@@ -485,6 +488,23 @@ describe('AppointmentsService', () => {
         ctx,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+  it('queues an institute status update within the status transaction', async () => {
+    prisma.appointment.findUnique.mockResolvedValue(appointmentRow({ isGroupBooking: true }));
+    prisma.appointment.updateMany.mockResolvedValue({ count: 1 });
+    prisma.appointment.update.mockResolvedValue(appointmentRow({ isGroupBooking: true, status: AppointmentStatus.CONFIRMED }));
+    await service.updateStatus(manager, 'apt-1', { status: AppointmentStatus.CONFIRMED }, ctx);
+    expect(whatsApp.queueAppointment).toHaveBeenCalledWith(prisma, 'apt-1', 'CONFIRMED');
+    expect(prisma.appointment.updateMany).toHaveBeenCalledWith({ where: { id: 'apt-1', status: 'PENDING' }, data: { status: 'CONFIRMED' } });
+  });
+  it('does not requeue WhatsApp for a no-op or a losing concurrent status transition', async () => {
+    prisma.appointment.findUnique.mockResolvedValue(appointmentRow({ isGroupBooking: true, status: AppointmentStatus.CONFIRMED }));
+    await service.updateStatus(manager, 'apt-1', { status: AppointmentStatus.CONFIRMED }, ctx);
+    expect(whatsApp.queueAppointment).not.toHaveBeenCalled();
+    prisma.appointment.findUnique.mockResolvedValue(appointmentRow({ isGroupBooking: true }));
+    prisma.appointment.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.updateStatus(manager, 'apt-1', { status: AppointmentStatus.CONFIRMED }, ctx)).rejects.toThrow(ConflictException);
+    expect(whatsApp.queueAppointment).not.toHaveBeenCalled();
   });
 
   it('lets a customer cancel a pending appointment', async () => {

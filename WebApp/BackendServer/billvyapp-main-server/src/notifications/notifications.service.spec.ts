@@ -1,7 +1,7 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
-import { NotificationChannel } from '../common/enums/notification.enum';
+import { NotificationChannel, NotificationStatus } from '../common/enums/notification.enum';
 import { RoleCode } from '../common/enums/role.enum';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -104,6 +104,7 @@ describe('NotificationsService', () => {
   const audit = { record: jest.fn() };
   const queue = { add: jest.fn() };
   const mail = { captureNotification: jest.fn() };
+  const whatsappOutbox = { retryNotification: jest.fn() };
   let service: NotificationsService;
 
   beforeEach(() => {
@@ -127,6 +128,7 @@ describe('NotificationsService', () => {
       audit as unknown as AuditService,
       queue as never,
       mail as never,
+      whatsappOutbox as never,
     );
   });
 
@@ -168,6 +170,15 @@ describe('NotificationsService', () => {
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'NOTIFICATION_CREATED' }),
     );
+  });
+  it('routes a failed WhatsApp retry to its own durable outbox without reversing an immediate send acknowledgment', async () => {
+    prisma.notification.findUnique.mockResolvedValueOnce(notificationRow({ channel: NotificationChannel.WHATSAPP, status: 'FAILED' }))
+      .mockResolvedValueOnce(notificationRow({ channel: NotificationChannel.WHATSAPP, status: 'SENT' }));
+    const result = await service.updateStatus(manager, 'n-1', { status: NotificationStatus.QUEUED }, ctx);
+    expect(whatsappOutbox.retryNotification).toHaveBeenCalledWith('n-1');
+    expect(prisma.notification.update).not.toHaveBeenCalled();
+    expect(queue.add).not.toHaveBeenCalled();
+    expect(result.status).toBe('SENT');
   });
 
   it('keeps delivery pending when the queue is unavailable', async () => {
