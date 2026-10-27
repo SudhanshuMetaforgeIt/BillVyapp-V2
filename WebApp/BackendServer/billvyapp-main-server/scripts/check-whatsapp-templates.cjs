@@ -3,6 +3,7 @@ const expected = [
   'billvy_v2_login_otp', 'billvy_v2_bill_confirmation',
   'billvy_v2_membership_activated', 'billvy_v2_appointment_confirmation',
   'billvy_v2_appointment_reminder', 'billvy_v2_membership_expiry',
+  'billvy_group_appointment_booked', 'billvy_group_appointment_status_update',
 ];
 async function main() {
   const base = (process.env.WHATSAPP_API_BASE_URL || '').replace(/\/+$/, '');
@@ -29,6 +30,7 @@ async function main() {
     if (expected.includes(name)) {
       const components = Array.isArray(value.components) ? value.components : [];
       found.set(name, { name, language: value.language || value.template_language || 'unknown', status: value.status || 'unknown', category: value.category,
+        ...(name.startsWith('billvy_group_appointment_') ? { bodyText: value.body || value.body_data || value.body_text || value.body_content, templateFields: Object.keys(value) } : {}),
         bodyParameterCount: value.body_params_count, headerFormat: value.header_data_format, headerParameterCount: value.header_params_count,
         buttons: buttonTypes(value.buttons_data), hasOtpButtonConfig: Boolean(value.otp_button_config),
         components: components.map(c => ({ type: c.type, bodyVariableCount: typeof c.text === 'string' ? new Set(c.text.match(/\{\{\d+\}\}/g) || []).size : undefined,

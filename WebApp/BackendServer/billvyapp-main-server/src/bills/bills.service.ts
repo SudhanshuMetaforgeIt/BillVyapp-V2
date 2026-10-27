@@ -32,6 +32,7 @@ import type { Prisma } from '../generated/prisma/client';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -109,6 +110,7 @@ const BILL_PAYMENT_SUMMARY_SELECT = {
 } as const;
 
 const BILL_SELECT = {
+  appointmentId: true,
   currency: true,
   requestHash: true,
   qualifyingMembership: { select: { id: true, couponCode: true } },
@@ -223,6 +225,7 @@ type BillRow = {
   dueAmount: Decimalish;
   status: string;
   paymentStatus: string;
+  appointmentId?: string | null;
   serviceGender: Gender;
   notes: string | null;
   createdBy: string | null;
@@ -267,6 +270,7 @@ export type BillRecord = {
   dueAmount: string;
   status: BillStatus;
   paymentStatus: BillPaymentStatus;
+  appointmentId?: string | null;
   serviceGender: Gender;
   notes: string | null;
   createdBy: string | null;
@@ -362,6 +366,7 @@ export class BillsService {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const timeZone = await this.businessTimezone.resolveForUser(user);
     const filters: Record<string, unknown>[] = [this.scope.salonScope(user)];
+    if (user.role === RoleCode.STAFF) filters.push({ appointmentId: { not: null }, status: { not: 'DRAFT' } });
 
     if (user.role === RoleCode.CUSTOMER) {
       filters.push({ customerId: await this.scope.requireOwnCustomerId(user) });
@@ -576,6 +581,7 @@ export class BillsService {
     > | null;
     const currency = requireCurrency(preferences?.currency);
 
+    if (dto.appointmentId) await this.validateInstituteInvoice(dto.appointmentId, salonId, customerId, dto.serviceGender, dto.items);
     let lines = await this.buildLines(
       dto.items,
       salonId,
@@ -624,6 +630,7 @@ export class BillsService {
             moneyCents(totals.total, 'bill total including membership');
             return tx.bill.create({
               data: {
+                appointmentId: dto.appointmentId,
                 currency,
                 idempotencyKey,
                 requestHash,
@@ -741,9 +748,13 @@ export class BillsService {
         'Confirm enrollment details for the new customer or remove enrollment',
       );
     const customerId = dto.customerId ?? existing.customerId;
+    if (existing.appointmentId && (customerId !== existing.customerId || (dto.serviceGender !== undefined && dto.serviceGender !== existing.serviceGender))) {
+      throw new BadRequestException('The contact and gender of an institute invoice must match its appointment.');
+    }
     const salonId = existing.salonId;
     const timeZone = await this.businessTimezone.resolveForUser(actor);
 
+    if (existing.appointmentId && dto.items) await this.validateInstituteInvoice(existing.appointmentId, salonId, customerId, dto.serviceGender ?? existing.serviceGender, dto.items);
     let lines: ComputedLine[];
     if (dto.items) {
       lines = await this.buildLines(
@@ -1345,8 +1356,11 @@ export class BillsService {
 
   private async assertBillAccess(
     user: AuthenticatedUser,
-    record: Pick<BillRow, 'customerId' | 'salonId'>,
+    record: Pick<BillRow, 'customerId' | 'salonId' | 'appointmentId' | 'status'>,
   ): Promise<void> {
+    if (user.role === RoleCode.STAFF && (!record.appointmentId || record.status === 'DRAFT')) {
+      throw new ForbiddenException('Staff can only view issued institute invoices.');
+    }
     if (user.role === RoleCode.CUSTOMER) {
       await this.scope.assertOwnCustomerAccess(user, record.customerId);
       return;
@@ -1499,6 +1513,15 @@ export class BillsService {
         visits.length,
       ),
     };
+  }
+
+  private async validateInstituteInvoice(id: string, salonId: string, customerId: string, gender: Gender, items: CreateBillItemDto[]) {
+    const appointment = await this.prisma.appointment.findUnique({ where: { id }, include: { services: true } });
+    if (!appointment?.isGroupBooking || appointment.status !== 'COMPLETED' || appointment.salonId !== salonId || appointment.customerId !== customerId || appointment.studentGender !== gender)
+      throw new BadRequestException('Invoice must match a completed institute appointment.');
+    const expected = new Set(appointment.services.map(line => line.serviceId));
+    if (items.length !== expected.size || new Set(items.map(item => item.serviceId)).size !== expected.size || items.some(item => item.itemType !== BillItemType.SERVICE || !expected.has(item.serviceId!) || item.quantity !== appointment.studentCount))
+      throw new BadRequestException('Invoice service quantities must match the booked student group.');
   }
 
   private async buildLines(
@@ -1909,6 +1932,7 @@ export class BillsService {
       dueAmount: this.decimalString(row.dueAmount),
       status: row.status as BillStatus,
       paymentStatus: row.paymentStatus as BillPaymentStatus,
+      appointmentId: row.appointmentId,
       serviceGender: row.serviceGender,
       notes: row.notes,
       createdBy: row.createdBy,

@@ -115,6 +115,7 @@ export class BillEnrollmentDetailsDto {
 }
 
 export class CreateBillDto {
+  @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() appointmentId?: string;
   @ApiProperty({ enum: Gender })
   @IsEnum(Gender)
   serviceGender: Gender;

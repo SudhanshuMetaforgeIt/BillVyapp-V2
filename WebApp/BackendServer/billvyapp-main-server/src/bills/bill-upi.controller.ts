@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.
 import { BillUpiService } from './bill-upi.service';
 
 @Controller('bills')
-@Roles(RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER, RoleCode.STAFF)
+@Roles(RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER)
 export class BillUpiController {
   constructor(private readonly upi: BillUpiService) {}
   @Get(':id/upi-payment')

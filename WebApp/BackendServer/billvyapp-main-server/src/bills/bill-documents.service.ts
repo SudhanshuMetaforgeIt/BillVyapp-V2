@@ -32,6 +32,8 @@ const DOCUMENT_SELECT = {
 
 const BILL_ACCESS_SELECT = {
   id: true,
+  appointmentId: true,
+  status: true,
   salonId: true,
   customerId: true,
 } as const;
@@ -205,6 +207,10 @@ export class BillDocumentsService {
 
     if (!bill) {
       throw new NotFoundException('Bill not found');
+    }
+
+    if (user.role === RoleCode.STAFF && (!bill.appointmentId || bill.status === 'DRAFT')) {
+      throw new ForbiddenException('Staff can only view documents for issued institute invoices.');
     }
 
     if (user.role === RoleCode.CUSTOMER) {

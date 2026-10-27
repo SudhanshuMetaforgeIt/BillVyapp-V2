@@ -23,6 +23,21 @@ export class AppointmentResponseDto {
   @ApiProperty() totalDurationMinutes: number;
   @ApiProperty({ enum: AppointmentStatus }) status: AppointmentStatus;
   @ApiPropertyOptional({ nullable: true }) notes: string | null;
+  @ApiPropertyOptional() isGroupBooking?: boolean;
+  @ApiPropertyOptional({ enum: ['MALE', 'FEMALE'], nullable: true })
+  studentGender?: string | null;
+  @ApiPropertyOptional({ nullable: true }) studentCount?: number | null;
+  @ApiPropertyOptional({ nullable: true }) contactName?: string | null;
+  @ApiPropertyOptional({ nullable: true }) contactPhone?: string | null;
+  @ApiPropertyOptional({ nullable: true }) contactRole?: string | null;
+  @ApiPropertyOptional({ type: 'array', items: { type: 'object' } })
+  emailNotifications?: { id: string; role: string; status: string }[];
+  @ApiPropertyOptional({
+    type: 'object',
+    nullable: true,
+    additionalProperties: true,
+  })
+  instituteInvoice?: { id: string; billNumber: string; status: string } | null;
   @ApiProperty({ type: [AppointmentServiceLineDto] })
   services: AppointmentServiceLineDto[];
   @ApiProperty() createdAt: Date;

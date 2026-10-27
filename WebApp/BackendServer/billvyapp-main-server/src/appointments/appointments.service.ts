@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import { InstituteAppointmentWhatsAppService } from '../whatsapp/institute-appointment-whatsapp.service';
 import { AuditService } from '../audit/audit.service';
 import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import { UpdateAppointmentStatusDto } from './dto/update-appointment-status.dto';
@@ -37,6 +38,23 @@ import {
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 
 const APPOINTMENT_SELECT = {
+  isGroupBooking: true,
+  studentGender: true,
+  studentCount: true,
+  contactName: true,
+  contactPhone: true,
+  contactRole: true,
+  instituteInvoice: { select: { id: true, billNumber: true, status: true } },
+  bookingNotifications: {
+    where: { channel: 'EMAIL' as const },
+    select: {
+      id: true,
+      notificationType: true,
+      status: true,
+      emailDelivery: { select: { status: true } },
+    },
+  },
+
   id: true,
   salonId: true,
   customerId: true,
@@ -64,6 +82,20 @@ const APPOINTMENT_SELECT = {
 } as const;
 
 type AppointmentRow = {
+  isGroupBooking?: boolean;
+  studentGender?: string | null;
+  studentCount?: number | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactRole?: string | null;
+  instituteInvoice?: { id: string; billNumber: string; status: string } | null;
+  bookingNotifications?: Array<{
+    id: string;
+    notificationType: string;
+    status: string;
+    emailDelivery: { status: string } | null;
+  }>;
+
   id: string;
   salonId: string;
   customerId: string;
@@ -88,6 +120,15 @@ type AppointmentRow = {
 };
 
 export type AppointmentRecord = {
+  isGroupBooking?: boolean;
+  studentGender?: string | null;
+  studentCount?: number | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  contactRole?: string | null;
+  instituteInvoice?: { id: string; billNumber: string; status: string } | null;
+  emailNotifications?: Array<{ id: string; role: string; status: string }>;
+
   id: string;
   salonId: string;
   customerId: string;
@@ -127,7 +168,13 @@ export class AppointmentsService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    private readonly whatsApp: InstituteAppointmentWhatsAppService,
   ) {}
+
+  validateInstituteSchedule(date: string, time: string, minutes: number) {
+    const schedule = this.buildSchedule(date, time, minutes);
+    this.assertNotInThePast(schedule.startAt);
+  }
 
   async list(
     user: AuthenticatedUser,
@@ -135,6 +182,7 @@ export class AppointmentsService {
   ): Promise<PaginatedResult<AppointmentRecord>> {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const filters: Record<string, unknown>[] = [this.scope.salonScope(user)];
+    if (user.role === RoleCode.STAFF) filters.push({ isGroupBooking: true });
 
     if (user.role === RoleCode.CUSTOMER) {
       filters.push({ customerId: await this.scope.requireOwnCustomerId(user) });
@@ -204,6 +252,10 @@ export class AppointmentsService {
     dto: CreateAppointmentDto,
     ctx: RequestContext,
   ): Promise<AppointmentRecord> {
+    if (actor.role === RoleCode.STAFF)
+      throw new ForbiddenException(
+        'Use institute group booking for staff appointments.',
+      );
     const salonId = dto.salonId;
     await this.requireActiveSalon(salonId);
     if (actor.role !== RoleCode.CUSTOMER) {
@@ -305,6 +357,10 @@ export class AppointmentsService {
   ): Promise<AppointmentRecord> {
     const existing = await this.requireAppointment(id);
     await this.assertAppointmentAccess(actor, existing);
+    if (existing.isGroupBooking)
+      throw new ForbiddenException(
+        'Group details cannot be edited after booking. Cancel and create a new request.',
+      );
     this.assertMutable(existing.status, actor);
 
     if (actor.role === RoleCode.CUSTOMER && dto.customerId !== undefined) {
@@ -450,6 +506,13 @@ export class AppointmentsService {
     const existing = await this.requireAppointment(id);
     await this.assertAppointmentAccess(actor, existing);
 
+    if (
+      actor.role === RoleCode.STAFF &&
+      dto.status !== AppointmentStatus.CANCELLED
+    )
+      throw new ForbiddenException(
+        'Only management can progress institute services.',
+      );
     const current = existing.status as AppointmentStatus;
     const next = dto.status;
 
@@ -460,15 +523,28 @@ export class AppointmentsService {
     this.assertAllowedTransition(current, next, actor);
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      if (existing.isGroupBooking) {
+        const changed = await tx.appointment.updateMany({
+          where: { id: existing.id, status: current },
+          data: { status: next },
+        });
+        if (!changed.count)
+          throw new ConflictException(
+            'Appointment status changed. Refresh before retrying.',
+          );
+      }
       await tx.appointmentService.updateMany({
         where: { appointmentId: existing.id },
         data: { status: next },
       });
-      return tx.appointment.update({
+      const record = await tx.appointment.update({
         where: { id: existing.id },
         data: { status: next },
         select: APPOINTMENT_SELECT,
       });
+      if (existing.isGroupBooking)
+        await this.whatsApp.queueAppointment(tx, existing.id, next);
+      return record;
     });
 
     await this.audit.record({
@@ -869,6 +945,28 @@ export class AppointmentsService {
     }));
 
     return {
+      ...(row.isGroupBooking
+        ? {
+            isGroupBooking: true,
+            studentGender: row.studentGender,
+            studentCount: row.studentCount,
+            contactName: row.contactName,
+            contactPhone: row.contactPhone,
+            contactRole: row.contactRole,
+            instituteInvoice: row.instituteInvoice ?? null,
+            emailNotifications: (row.bookingNotifications ?? []).map(
+              (notification) => ({
+                id: notification.id,
+                role: notification.notificationType.replace(
+                  'INSTITUTE_APPOINTMENT_',
+                  '',
+                ),
+                status:
+                  notification.emailDelivery?.status ?? notification.status,
+              }),
+            ),
+          }
+        : {}),
       id: row.id,
       salonId: row.salonId,
       customerId: row.customerId,
@@ -877,10 +975,9 @@ export class AppointmentsService {
       appointmentDate: this.formatDateOnly(row.appointmentDate),
       startTime: this.formatTime(row.startTime),
       endTime: this.formatTime(row.endTime),
-      totalDurationMinutes: services.reduce(
-        (sum, line) => sum + line.durationMinutes,
-        0,
-      ),
+      totalDurationMinutes: row.isGroupBooking
+        ? Math.round((row.endTime.getTime() - row.startTime.getTime()) / 60000)
+        : services.reduce((sum, line) => sum + line.durationMinutes, 0),
       status: row.status as AppointmentStatus,
       notes: row.notes,
       services,

@@ -431,6 +431,7 @@ export interface BillPaymentSummary {
 }
 
 export interface Bill {
+  appointmentId?: string | null;
   serviceGender: Gender;
   currency?: 'INR' | 'USD';
   enrolledCouponCode?: string | null;
@@ -612,6 +613,7 @@ export interface MediaDownload {
 export interface AuditLog {
   id: string;
   userId: string | null;
+  userName: string | null;
   salonId: string | null;
   action: string;
   entityType: string;

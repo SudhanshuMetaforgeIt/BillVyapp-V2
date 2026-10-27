@@ -203,6 +203,7 @@ describe('BillsService', () => {
       update: jest.fn(),
     },
     service: { findMany: jest.fn() },
+    appointment: { findUnique: jest.fn() },
     product: { findMany: jest.fn() },
     inventory: {
       findUnique: jest.fn(),
@@ -228,6 +229,27 @@ describe('BillsService', () => {
   };
   const audit = { record: jest.fn() };
   let service: BillsService;
+
+  it.each([
+    { status: BillStatus.DRAFT, appointmentId: 'group-booking' },
+    { status: BillStatus.COMPLETED, appointmentId: null },
+  ])('denies staff direct access to a draft or ordinary salon bill %j', async values => {
+    prisma.bill.findUnique.mockResolvedValue(billRow(values));
+    await expect(service.findOne({ ...manager, role: RoleCode.STAFF }, 'bill-1')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('allows staff to read an issued institute invoice in their salon', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow({ status: BillStatus.COMPLETED, appointmentId: 'group-booking' }));
+    const result = await service.findOne({ ...manager, role: RoleCode.STAFF }, 'bill-1');
+    expect(result.appointmentId).toBe('group-booking');
+    expect(scope.assertSalonAccess).toHaveBeenCalledWith(expect.objectContaining({ role: RoleCode.STAFF }), 'salon-a1');
+  });
+
+  it('rejects an institute invoice with a quantity different from the booked group', async () => {
+    prisma.appointment.findUnique.mockResolvedValue({ isGroupBooking: true, status: 'COMPLETED', salonId: createDto.salonId, customerId: createDto.customerId, studentGender: createDto.serviceGender, studentCount: 30, services: [{ serviceId: createDto.items[0].serviceId }] });
+    await expect(service.create(manager, { ...createDto, appointmentId: 'group-booking' }, ctx)).rejects.toThrow('quantities must match');
+    expect(prisma.bill.create).not.toHaveBeenCalled();
+  });
 
   it('rejects services of a different gender before creating a bill', async () => {
     prisma.service.findMany.mockResolvedValue([
@@ -271,10 +293,10 @@ describe('BillsService', () => {
       }),
     );
   });
-  it('computes staff line prices and taxes from the catalog for the supplied quantity', async () => {
+  it('computes manager line prices and taxes from the catalog for the supplied quantity', async () => {
     prisma.bill.create.mockResolvedValue(billRow());
     await service.create(
-      { ...manager, role: RoleCode.STAFF },
+      manager,
       { ...createDto, items: [{ ...createDto.items[0], quantity: 2 }] },
       ctx,
     );
@@ -1294,20 +1316,19 @@ describe('BillsController authorization', () => {
     );
   });
 
-  it('allows STAFF to complete bills and create drafts', () => {
+  it('restricts drafting and issuing bills to management', () => {
     expect(handlerRoles(BillsController, 'updateStatus')).toEqual(
       arrayContaining([
         RoleCode.SUPER_ADMIN,
         RoleCode.ADMIN,
         RoleCode.MANAGER,
-        RoleCode.STAFF,
       ]),
     );
     expect(handlerRoles(BillsController, 'updateStatus')).not.toContain(
       RoleCode.CUSTOMER,
     );
-    expect(handlerRoles(BillsController, 'create')).toContain(RoleCode.STAFF);
-    expect(handlerRoles(BillsController, 'update')).toContain(RoleCode.STAFF);
+    expect(handlerRoles(BillsController, 'create')).not.toContain(RoleCode.STAFF);
+    expect(handlerRoles(BillsController, 'update')).not.toContain(RoleCode.STAFF);
   });
 });
 

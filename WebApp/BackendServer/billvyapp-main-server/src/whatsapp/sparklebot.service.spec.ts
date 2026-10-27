@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { SparklebotService } from './sparklebot.service';
+import { SparklebotService, WhatsAppDeliveryError } from './sparklebot.service';
 import { sparklebotSettings } from './sparklebot.config';
 
 const settings = {
@@ -155,4 +155,28 @@ describe('Sparklebot delivery', () => {
     ).toThrow('RETURN_IN_RESPONSE=false');
     expect(sparklebotSettings(settings).enabled).toBe(true);
   });
+  it.each([
+    { status: 429, retryable: true, uncertain: false },
+    { status: 500, retryable: false, uncertain: true },
+    { status: 401, retryable: false, uncertain: false },
+  ])(
+    'classifies provider HTTP $status without leaking response data',
+    async ({ status, retryable, uncertain }) => {
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('test-secret', { status }));
+      try {
+        await new SparklebotService(config(settings)).sendTemplate({
+          phone: '+919000000001',
+          templateName: 'billvy_group_appointment_booked',
+          bodyFields: ['Booking'],
+        });
+        throw new Error('Expected rejection');
+      } catch (error) {
+        expect(error).toBeInstanceOf(WhatsAppDeliveryError);
+        expect(error).toMatchObject({ retryable, uncertain });
+        expect(String(error)).not.toContain('test-secret');
+      }
+    },
+  );
 });

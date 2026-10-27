@@ -67,6 +67,12 @@ describe('Durable email outbox', () => {
       prisma.emailOutbox.update.mock.invocationCallOrder[0],
     );
   });
+  it('never captures WhatsApp notifications as emails', async () => {
+    prisma.notification.findUnique.mockResolvedValue({ id: 'wa-1', channel: 'WHATSAPP', status: 'QUEUED', createdAt: new Date(), recipient: '+919000000001' });
+    await service.captureNotification('wa-1');
+    expect(prisma.emailOutbox.upsert).not.toHaveBeenCalled();
+    expect(graph.send).not.toHaveBeenCalled();
+  });
   it('retains in-app unread/read status while sending its email copy', async () => {
     prisma.emailOutbox.findUnique.mockResolvedValue({
       ...mail,

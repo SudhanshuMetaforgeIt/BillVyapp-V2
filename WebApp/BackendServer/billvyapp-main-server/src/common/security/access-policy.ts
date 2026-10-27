@@ -22,7 +22,6 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'AppController.getHello': [
     RoleCode.SUPER_ADMIN,
@@ -31,6 +30,9 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.STAFF,
     RoleCode.CUSTOMER,
   ],
+  'InstituteAppointmentsController.create': [RoleCode.STAFF],
+  'InstituteAppointmentsController.retry': [RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER, RoleCode.STAFF],
+  'InstituteAppointmentsController.invoice': [RoleCode.SUPER_ADMIN, RoleCode.ADMIN, RoleCode.MANAGER],
   'AppointmentsController.list': [
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
@@ -69,6 +71,9 @@ export const ACCESS_POLICY: Readonly<
   'AuditLogsController.list': [RoleCode.SUPER_ADMIN],
   'AuditLogsController.findOne': [RoleCode.SUPER_ADMIN],
   'AuthController.login': null,
+  'PasswordResetController.requestCode': null,
+  'PasswordResetController.verifyCode': null,
+  'PasswordResetController.resetPassword': null,
   'AuthController.register': null,
   'AuthController.sendOtp': null,
   'AuthController.verifyOtp': null,
@@ -98,7 +103,6 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'BillDocumentsController.createDownloadUrl': [
     RoleCode.SUPER_ADMIN,
@@ -118,7 +122,6 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'BillsController.list': [
     RoleCode.SUPER_ADMIN,
@@ -131,13 +134,11 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'BillsController.create': [
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'BillsController.membershipOffers': [
     RoleCode.SUPER_ADMIN,
@@ -162,13 +163,11 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'BillsController.updateStatus': [
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'CampaignsController.list': [
     RoleCode.SUPER_ADMIN,
@@ -554,7 +553,6 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'PaymentsController.findOne': [
     RoleCode.SUPER_ADMIN,
@@ -567,7 +565,6 @@ export const ACCESS_POLICY: Readonly<
     RoleCode.SUPER_ADMIN,
     RoleCode.ADMIN,
     RoleCode.MANAGER,
-    RoleCode.STAFF,
   ],
   'PlatformPlansController.list': [RoleCode.SUPER_ADMIN],
   'PlatformPlansController.create': [RoleCode.SUPER_ADMIN],

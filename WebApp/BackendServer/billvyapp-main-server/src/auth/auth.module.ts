@@ -16,9 +16,18 @@ import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
 import { SecurityStateService } from './security-state.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { BullModule } from '@nestjs/bullmq';
+import { PasswordResetController } from './password-reset.controller';
+import { PasswordResetService } from './password-reset.service';
+import {
+  PasswordResetStore,
+  PASSWORD_RESET_QUEUE,
+} from './password-reset.store';
+import { PasswordResetProcessor } from './password-reset.processor';
 
 @Module({
   imports: [
+    BullModule.registerQueue({ name: PASSWORD_RESET_QUEUE }),
     WhatsAppModule,
     FranchiseSubscriptionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -30,8 +39,11 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, PasswordResetController],
   providers: [
+    PasswordResetService,
+    PasswordResetStore,
+    PasswordResetProcessor,
     AuthService,
     PasswordService,
     SessionService,

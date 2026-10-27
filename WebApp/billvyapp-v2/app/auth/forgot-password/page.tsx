@@ -1,31 +1,11 @@
 import type { Metadata } from 'next';
-import { PrefetchLink } from '@/components/ui/prefetch-link';
-
-import { ROUTES } from '@/constants/routes';
+import { AuthPageShell } from '@/features/auth/components/auth-page-shell';
+import { ForgotPasswordCard } from '@/features/auth/components/forgot-password-card';
 
 export const metadata: Metadata = {
   title: 'Forgot Password',
 };
 
 export default function ForgotPasswordPage() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#F7F7F7] px-4">
-      <div className="w-full max-w-md rounded-2xl border border-black/5 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold text-neutral-900">
-          Forgot Password
-        </h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Password reset is not available yet. Please contact your administrator
-          if you need help signing in.
-        </p>
-        <PrefetchLink
-          href={ROUTES.auth.login}
-          prefetchStrategy="intent"
-          className="mt-6 inline-block text-sm font-medium text-[#FF6A00] hover:text-[#e65f00]"
-        >
-          Back to Sign In
-        </PrefetchLink>
-      </div>
-    </main>
-  );
+  return <AuthPageShell><ForgotPasswordCard /></AuthPageShell>;
 }

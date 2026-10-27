@@ -56,7 +56,7 @@ export class MailOutboxService implements OnModuleInit, OnModuleDestroy {
         },
       },
     });
-    if (!n || n.status === 'CANCELLED' || n.createdAt < this.startAt()) return;
+    if (!n || n.channel === 'WHATSAPP' || n.status === 'CANCELLED' || n.createdAt < this.startAt()) return;
     // Email channel has an explicit recipient; other channels resolve a verified database identity.
     const recipient =
       n.channel === 'EMAIL'
@@ -179,6 +179,7 @@ export class MailOutboxService implements OnModuleInit, OnModuleDestroy {
         where: {
           createdAt: { gte: cutoff },
           status: { not: 'CANCELLED' },
+          channel: { not: 'WHATSAPP' },
           emailDelivery: { is: null },
         },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],

@@ -11,7 +11,6 @@ export const ROUTES = {
     root: '/auth',
     login: '/auth/login',
     otp: '/auth/otp',
-    /** Placeholder until a forgot-password flow exists. */
     forgotPassword: '/auth/forgot-password',
     /** Placeholder until registration exists. */
     register: '/auth/register',
@@ -39,6 +38,7 @@ export const ROUTES = {
     },
     admin: {
       expenses: `/dashboard/${ROLE_SEGMENTS.ADMIN}/expenses`,
+      appointments: `/dashboard/${ROLE_SEGMENTS.ADMIN}/appointments`,
       memberships: `/dashboard/${ROLE_SEGMENTS.ADMIN}/memberships`,
       root: `/dashboard/${ROLE_SEGMENTS.ADMIN}`,
       businesses: `/dashboard/${ROLE_SEGMENTS.ADMIN}/businesses`,
@@ -87,6 +87,7 @@ export const ROUTES = {
     staff: {
       root: `/dashboard/${ROLE_SEGMENTS.STAFF}`,
       walkInBilling: `/dashboard/${ROLE_SEGMENTS.STAFF}/walk-in-billing`,
+      bills: `/dashboard/${ROLE_SEGMENTS.STAFF}/bills`,
       appointments: `/dashboard/${ROLE_SEGMENTS.STAFF}/appointments`,
       notifications: `/dashboard/${ROLE_SEGMENTS.STAFF}/notifications`,
       profile: `/dashboard/${ROLE_SEGMENTS.STAFF}/profile`,
@@ -109,7 +110,7 @@ export const ROUTES = {
 /** Landing route for a role immediately after authentication. */
 export function dashboardHomeFor(role: RoleCode): string {
   if (role === 'STAFF') {
-    return ROUTES.dashboard.staff.walkInBilling;
+    return ROUTES.dashboard.staff.appointments;
   }
   return `${ROUTES.dashboard.root}/${ROLE_SEGMENTS[role]}`;
 }

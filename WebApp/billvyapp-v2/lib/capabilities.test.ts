@@ -33,8 +33,12 @@ describe('capabilities', () => {
   it('lets staff operate day-to-day endpoints', () => {
     expect(can(user('STAFF'), 'customers.read')).toBe(true);
     expect(can(user('STAFF'), 'appointments.manage')).toBe(true);
-    expect(can(user('STAFF'), 'bills.write')).toBe(true);
-    expect(can(user('STAFF'), 'bills.status')).toBe(true);
+    expect(can(user('STAFF'), 'bills.read')).toBe(true);
+    expect(can(user('STAFF'), 'bills.write')).toBe(false);
+    expect(can(user('STAFF'), 'bills.status')).toBe(false);
+    expect(can(user('STAFF'), 'payments.create')).toBe(false);
+    expect(can(user('STAFF'), 'payments.status')).toBe(false);
+    expect(can(user('STAFF'), 'billDocuments.write')).toBe(false);
     expect(can(user('STAFF'), 'purchases.manage')).toBe(true);
     expect(can(user('STAFF'), 'loyalty.write')).toBe(true);
   });

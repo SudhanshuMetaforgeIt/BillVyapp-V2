@@ -52,6 +52,7 @@ function auditRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'log-1',
     userId: 'mgr-1',
+    user: { firstName: 'Rohit', lastName: 'Sharma' },
     salonId: 'salon-a1',
     action: 'BILL_CREATED',
     entityType: 'Bill',
@@ -122,6 +123,32 @@ describe('AuditLogsService', () => {
         }),
       }),
     );
+  });
+
+  it('includes the linked user name and original IDs in list and detail without exposing account credentials', async () => {
+    const row = auditRow({ user: { firstName: ' Rohit ', lastName: ' Sharma ' } });
+    prisma.auditLog.findMany.mockResolvedValue([row]);
+    prisma.auditLog.count.mockResolvedValue(1);
+    prisma.auditLog.findUnique.mockResolvedValue(row);
+    const list = await service.list(superAdmin, {});
+    const detail = await service.findOne(superAdmin, row.id);
+    for (const result of [list.data[0], detail]) {
+      expect(result).toMatchObject({ userId: 'mgr-1', userName: 'Rohit Sharma', entityId: 'bill-1' });
+      expect(result).not.toHaveProperty('user');
+    }
+    expect(prisma.auditLog.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      select: expect.objectContaining({ user: { select: { firstName: true, lastName: true } } }),
+    }));
+  });
+
+  it.each([
+    { userId: null, user: null, expected: null },
+    { userId: 'mgr-1', user: { firstName: 'Rohit', lastName: null }, expected: 'Rohit' },
+    { userId: 'mgr-1', user: { firstName: ' ', lastName: null }, expected: null },
+  ])('handles missing users and partial names without inventing an identity (%j)', async ({ expected, ...values }) => {
+    prisma.auditLog.findUnique.mockResolvedValue(auditRow(values));
+    const detail = await service.findOne(superAdmin, 'log-1');
+    expect(detail.userName).toBe(expected);
   });
 
   it('rejects ADMIN from reading audit logs', async () => {

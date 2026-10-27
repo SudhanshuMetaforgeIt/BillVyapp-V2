@@ -567,7 +567,7 @@ describe('PaymentsController authorization', () => {
     expect(handlerRoles(PaymentsController, 'updateStatus')).not.toContain(
       RoleCode.CUSTOMER,
     );
-    expect(handlerRoles(PaymentsController, 'updateStatus')).toContain(
+    expect(handlerRoles(PaymentsController, 'updateStatus')).not.toContain(
       RoleCode.STAFF,
     );
   });

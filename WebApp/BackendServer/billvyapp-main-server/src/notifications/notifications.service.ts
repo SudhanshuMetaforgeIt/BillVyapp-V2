@@ -27,6 +27,7 @@ import { ScopeService } from '../common/scope/scope.service';
 import { trimOrNull, trimRequired } from '../common/strings';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailOutboxService } from '../mail/mail-outbox.service';
+import { WhatsAppOutboxService } from '../whatsapp/whatsapp-outbox.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { SAFE_JOB_OPTIONS } from '../common/security/job-validation';
 import { NotificationQueryDto } from './dto/notification-query.dto';
@@ -106,6 +107,7 @@ export class NotificationsService {
     @InjectQueue(NOTIFICATION_QUEUE)
     private readonly notificationQueue: Queue<NotificationJobPayload>,
     @Optional() private readonly mail?: MailOutboxService,
+    @Optional() private readonly whatsappOutbox?: WhatsAppOutboxService,
   ) {}
 
   async list(
@@ -510,15 +512,25 @@ export class NotificationsService {
       data.failedAt = new Date();
       data.retryCount = existing.retryCount + 1;
     }
-    if (dto.status === NotificationStatus.QUEUED)
-      await this.mail?.retryNotification(existing.id);
-    const updated = await this.prisma.notification.update({
-      where: { id: existing.id },
-      data,
-      select: NOTIFICATION_SELECT,
-    });
-
+    const isWhatsAppRetry =
+      dto.status === NotificationStatus.QUEUED &&
+      existing.channel === 'WHATSAPP';
     if (dto.status === NotificationStatus.QUEUED) {
+      if (existing.channel === 'WHATSAPP') {
+        if (!this.whatsappOutbox)
+          throw new BadRequestException('WhatsApp delivery is unavailable');
+        await this.whatsappOutbox.retryNotification(existing.id);
+      } else await this.mail?.retryNotification(existing.id);
+    }
+    const updated = isWhatsAppRetry
+      ? await this.requireReadable(actor, id)
+      : await this.prisma.notification.update({
+          where: { id: existing.id },
+          data,
+          select: NOTIFICATION_SELECT,
+        });
+
+    if (dto.status === NotificationStatus.QUEUED && !isWhatsAppRetry) {
       await this.notificationQueue.add(
         'dispatch',
         { notificationId: existing.id },
