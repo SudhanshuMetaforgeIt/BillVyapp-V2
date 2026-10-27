@@ -1078,6 +1078,122 @@
         }
       }
     },
+    "RequestPasswordResetDto": {
+      "fields": {
+        "email": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsEmail",
+              "args": []
+            },
+            {
+              "name": "MaxLength",
+              "args": [
+                191
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "VerifyPasswordResetOtpDto": {
+      "fields": {
+        "challengeId": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "code": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^\\d{6}$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "ResetPasswordDto": {
+      "fields": {
+        "challengeId": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "resetToken": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "Matches",
+              "args": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "flags": ""
+                }
+              ]
+            }
+          ]
+        },
+        "newPassword": {
+          "kind": "string",
+          "optional": false,
+          "nullable": false,
+          "rules": [
+            {
+              "name": "IsString",
+              "args": []
+            },
+            {
+              "name": "MinLength",
+              "args": [
+                6
+              ]
+            },
+            {
+              "name": "MaxLength",
+              "args": [
+                128
+              ]
+            }
+          ]
+        }
+      }
+    },
     "CreateBillDocumentDto": {
       "fields": {
         "mediaFileId": {
@@ -14457,6 +14573,11 @@
     },
     {
       "method": "POST",
+      "path": "/auth/forgot-password",
+      "body": "RequestPasswordResetDto"
+    },
+    {
+      "method": "POST",
       "path": "/auth/login",
       "body": "LoginDto"
     },
@@ -14477,6 +14598,11 @@
     },
     {
       "method": "POST",
+      "path": "/auth/reset-password",
+      "body": "ResetPasswordDto"
+    },
+    {
+      "method": "POST",
       "path": "/auth/send-otp",
       "body": "SendOtpDto"
     },
@@ -14484,6 +14610,11 @@
       "method": "POST",
       "path": "/auth/verify-otp",
       "body": "VerifyOtpDto"
+    },
+    {
+      "method": "POST",
+      "path": "/auth/verify-password-reset-otp",
+      "body": "VerifyPasswordResetOtpDto"
     },
     {
       "method": "GET",

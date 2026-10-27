@@ -11,7 +11,6 @@ export const ROUTES = {
     root: '/auth',
     login: '/auth/login',
     otp: '/auth/otp',
-    /** Placeholder until a forgot-password flow exists. */
     forgotPassword: '/auth/forgot-password',
     /** Placeholder until registration exists. */
     register: '/auth/register',

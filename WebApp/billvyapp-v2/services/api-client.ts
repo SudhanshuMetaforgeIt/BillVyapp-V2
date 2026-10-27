@@ -145,6 +145,9 @@ function isCredentialAuthRequest(url?: string): boolean {
     '/auth/refresh',
     '/auth/send-otp',
     '/auth/verify-otp',
+    '/auth/forgot-password',
+    '/auth/verify-password-reset-otp',
+    '/auth/reset-password',
   ].some((path) => url.includes(path));
 }
 
