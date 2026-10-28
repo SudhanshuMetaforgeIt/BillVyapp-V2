@@ -5,6 +5,9 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsNumber,
+  Min,
+  Max,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -93,8 +96,11 @@ export class FranchisePreferencesDto {
   @IsBoolean()
   acceptCard?: boolean;
 
-  @ApiPropertyOptional({ example: 18 })
+  @ApiPropertyOptional({ example: 18, minimum: 0, maximum: 100 })
   @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
   defaultTaxRate?: number;
 }
 

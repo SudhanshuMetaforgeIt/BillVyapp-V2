@@ -29,6 +29,13 @@ describe('Billing gender filtering', () => {
   });
 });
 describe('Billing membership coupon', () => {
+  it('requires review when business tax changes after a normal bill preview', async () => {
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 'bill', total: '1125.00' });
+    const result = await settleWalkInBill({ ...input, couponCode: undefined, expectedTotal: 1180 }, { canComplete: true });
+    expect(result.outcome).toBe('price-changed');
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
   it('applies points before requesting the remaining UPI amount', async () => {
     vi.mocked(api.post).mockResolvedValueOnce({ id: 'bill', total: '100.00' }).mockResolvedValueOnce({ id: 'credit' });
     vi.mocked(api.patch).mockResolvedValueOnce({ id: 'bill', total: '100.00', dueAmount: '100.00' });

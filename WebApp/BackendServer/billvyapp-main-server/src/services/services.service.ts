@@ -1,4 +1,5 @@
 import { Gender } from '../generated/prisma/enums';
+import { BUSINESS_TAX_SELECT, BusinessTaxSource, businessTaxRate, serviceTaxRate } from '../common/business-tax';
 import {
   BadRequestException,
   ConflictException,
@@ -33,6 +34,7 @@ import { ServiceQueryDto } from './dto/service-query.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 
 const SERVICE_SELECT = {
+  ...BUSINESS_TAX_SELECT,
   productRecipe: true,
   gender: true,
   id: true,
@@ -48,7 +50,7 @@ const SERVICE_SELECT = {
   updatedAt: true,
 } as const;
 
-type ServiceRow = {
+type ServiceRow = BusinessTaxSource & {
   productRecipe?: unknown;
   gender: Gender;
   id: string;
@@ -127,7 +129,7 @@ export class ServicesService {
     const cacheKey =
       targetSalonId && this.cache
         ? `cache:catalogue:${targetSalonId}:services:${this.cache.hashQuery({
-            catalogVersion: 3,
+            catalogVersion: 4,
             page,
             limit,
             search,
@@ -194,7 +196,7 @@ export class ServicesService {
     dto: CreateServiceDto,
     ctx: RequestContext,
   ): Promise<ServiceRecord> {
-    await this.requireActiveSalon(dto.salonId);
+    const salon = await this.requireActiveSalon(dto.salonId);
     await this.scope.assertSalonAccess(actor, dto.salonId);
     await this.requireCategoryInSalon(dto.categoryId, dto.salonId, dto.gender);
 
@@ -210,7 +212,7 @@ export class ServicesService {
           description: trimOrNull(dto.description) ?? null,
           durationMinutes: dto.durationMinutes,
           price: dto.price.toFixed(2),
-          taxRate: (dto.taxRate ?? 0).toFixed(2),
+          taxRate: businessTaxRate(salon.franchise.preferences).toFixed(2),
         },
         select: SERVICE_SELECT,
       });
@@ -363,7 +365,7 @@ export class ServicesService {
       data.durationMinutes = dto.durationMinutes;
     }
     if (dto.price !== undefined) data.price = dto.price.toFixed(2);
-    if (dto.taxRate !== undefined) data.taxRate = dto.taxRate.toFixed(2);
+    data.taxRate = serviceTaxRate(existing).toFixed(2);
 
     try {
       const updated = await this.prisma.service.update({
@@ -474,10 +476,10 @@ export class ServicesService {
     return isActive !== undefined ? { isActive } : {};
   }
 
-  private async requireActiveSalon(salonId: string): Promise<void> {
+  private async requireActiveSalon(salonId: string) {
     const salon = await this.prisma.salon.findUnique({
       where: { id: salonId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, franchise: { select: { preferences: true } } },
     });
 
     if (!salon) {
@@ -486,6 +488,7 @@ export class ServicesService {
     if (!salon.isActive) {
       throw new BadRequestException('Salon is inactive');
     }
+    return salon;
   }
 
   private async requireCategoryInSalon(
@@ -526,7 +529,7 @@ export class ServicesService {
       description: row.description,
       durationMinutes: row.durationMinutes,
       price: this.decimalString(row.price),
-      taxRate: this.decimalString(row.taxRate),
+      taxRate: serviceTaxRate(row).toFixed(2),
       isActive: row.isActive,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

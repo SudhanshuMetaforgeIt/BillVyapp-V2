@@ -1,5 +1,5 @@
 'use client';
-import { isValidPhoneInput } from '@/lib/phone';
+import { customerPhoneInputSchema, customerPhoneSchema } from '../lib/customer-phone';
 
 import { SelectInput } from '@/components/data/form-fields';
 
@@ -34,6 +34,7 @@ export function CreateCustomerDialog({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState(normalizeIndianPhone(initialPhone));
+  const [phoneError, setPhoneError] = useState('');
   const [gender, setGender] = useState<'' | WalkInCustomerGender>('');
 
   const create = useCreateCustomer((customer) => {
@@ -49,6 +50,7 @@ export function CreateCustomerDialog({
   useEffect(() => {
     if (open) {
       setPhone(normalizeIndianPhone(initialPhone));
+      setPhoneError('');
     }
   }, [open, initialPhone]);
 
@@ -67,10 +69,11 @@ export function CreateCustomerDialog({
 
   const normalizedPhone = normalizeIndianPhone(phone);
   const canSubmit =
+    !phoneError &&
     Boolean(gender) && firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     email.trim().length > 0 &&
-    isValidPhoneInput(normalizedPhone);
+    customerPhoneSchema.safeParse(normalizedPhone).success;
 
   return (
     <div
@@ -158,10 +161,18 @@ export function CreateCustomerDialog({
               id="walkin-phone"
               inputMode="numeric"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const next = customerPhoneInputSchema.safeParse(e.target.value);
+                if (!next.success) { setPhoneError(next.error.issues[0].message); return; }
+                setPhoneError('');
+                setPhone(next.data);
+              }}
+              aria-invalid={Boolean(phoneError)}
+              aria-describedby={phoneError ? `${titleId}-phone-error` : undefined}
               placeholder="10 local digits"
               autoComplete="tel"
             />
+            {phoneError && <p id={`${titleId}-phone-error`} role="alert" className="text-sm text-danger">{phoneError}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="walkin-gender">Gender *</Label>

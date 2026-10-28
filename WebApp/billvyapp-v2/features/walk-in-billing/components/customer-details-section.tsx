@@ -1,6 +1,8 @@
 'use client';
 
 import { Search } from 'lucide-react';
+import { useId, useState } from 'react';
+import { customerPhoneInputSchema, customerPhoneSchema, customerPhoneSearchSchema } from '../lib/customer-phone';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +29,12 @@ export function CustomerDetailsSection({
   onRequestCreate,
 }: CustomerDetailsSectionProps) {
   const search = useCustomerSearch(phoneQuery);
-  const showResults = phoneQuery.replace(/\D/g, '').length >= 3 && !selected;
+  const errorId = useId();
+  const [inputError, setInputError] = useState('');
+  const parsed = customerPhoneInputSchema.safeParse(phoneQuery);
+  const error = inputError || (!parsed.success ? parsed.error.issues[0].message : '');
+  const showResults = !error && customerPhoneSearchSchema.safeParse(phoneQuery).success && !selected;
+  const canCreate = customerPhoneSchema.safeParse(phoneQuery).success;
 
   return (
     <section className="app-surface-card p-5">
@@ -57,17 +64,29 @@ export function CustomerDetailsSection({
           <div className="relative">
             <Input
               value={phoneQuery}
-              onChange={(e) => onPhoneQueryChange(e.target.value)}
+              onChange={(e) => {
+                const next = customerPhoneInputSchema.safeParse(e.target.value);
+                if (!next.success) {
+                  setInputError(next.error.issues[0].message);
+                  return;
+                }
+                setInputError('');
+                onPhoneQueryChange(next.data);
+              }}
               placeholder="10 local digits"
               inputMode="tel"
               className="h-11 pr-10"
               aria-label="Search customer by phone"
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
             />
             <Search
               className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-text-secondary"
               aria-hidden
             />
           </div>
+
+          {error && <p id={errorId} role="alert" className="text-sm text-danger">{error}</p>}
 
           {showResults ? (
             <div className="rounded-xl border border-border">
@@ -85,9 +104,10 @@ export function CustomerDetailsSection({
                   <p className="text-sm text-text-secondary">
                     No customer found for this phone.
                   </p>
-                  <Button type="button" size="sm" onClick={onRequestCreate}>
+                  <Button type="button" size="sm" disabled={!canCreate} onClick={() => { if (canCreate) onRequestCreate(); }}>
                     Create customer
                   </Button>
+                  {!canCreate && <p className="text-sm text-text-secondary">Enter the complete phone number to create a customer.</p>}
                 </div>
               ) : (
                 <ul className="divide-y divide-border/70">

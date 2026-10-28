@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { CacheService } from '../redis/cache.service';
 import { RoleCode } from '../common/enums/role.enum';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
@@ -40,6 +41,7 @@ function franchise(overrides: Record<string, unknown> = {}) {
 
 describe('FranchisesService', () => {
   const prisma = {
+    salon: { findMany: jest.fn() },
     bill: { findFirst: jest.fn() },
     franchise: {
       findMany: jest.fn(),
@@ -57,6 +59,27 @@ describe('FranchisesService', () => {
   const scope = { franchiseTableScope: jest.fn().mockReturnValue({}) };
   const audit = { record: jest.fn() };
   let service: FranchisesService;
+
+  it('updates billing fields while preserving preferences managed by other APIs', async () => {
+    const loyalty = { enabled: true, minimumRedeemPoints: 10 };
+    prisma.franchise.findFirst.mockResolvedValue(franchise({ preferences: { defaultTaxRate: 18, currency: 'INR', loyalty } }));
+    prisma.franchise.update.mockResolvedValue(franchise());
+    await service.update(actor, 'fr-1', { preferences: { defaultTaxRate: 5, billPrint: true } }, ctx);
+    expect(prisma.franchise.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ preferences: { defaultTaxRate: 5, billPrint: true, currency: 'INR', loyalty } }),
+    }));
+  });
+
+  it('invalidates service catalogs only for the business whose tax changes', async () => {
+    const cache = { invalidateSalonCatalogue: jest.fn().mockResolvedValue(undefined) };
+    service = new FranchisesService(prisma as unknown as PrismaService, scope as unknown as ScopeService, audit as unknown as AuditService, cache as unknown as CacheService);
+    prisma.franchise.findFirst.mockResolvedValue(franchise({ preferences: { defaultTaxRate: 18 } }));
+    prisma.franchise.update.mockResolvedValue(franchise({ preferences: { defaultTaxRate: 0 } }));
+    prisma.salon.findMany.mockResolvedValue([{ id: 'branch-a' }, { id: 'branch-b' }]);
+    await service.update(actor, 'fr-1', { preferences: { defaultTaxRate: 0 } }, ctx);
+    expect(prisma.salon.findMany).toHaveBeenCalledWith({ where: { franchiseId: 'fr-1' }, select: { id: true } });
+    expect(cache.invalidateSalonCatalogue.mock.calls).toEqual([['branch-a'], ['branch-b']]);
+  });
 
   beforeEach(() => {
     jest.resetAllMocks();
