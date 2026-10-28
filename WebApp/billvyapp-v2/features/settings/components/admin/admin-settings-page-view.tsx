@@ -1,4 +1,5 @@
 'use client';
+import { franchisePreferencesPatch } from '../../services/franchise-preferences';
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
@@ -183,7 +184,7 @@ const DEFAULT_PREFS: Required<FranchisePreferences> = {
   acceptCash: true,
   acceptUpi: true,
   acceptCard: true,
-  defaultTaxRate: 18,
+  defaultTaxRate: 0,
 };
 
 function SettingRow({
@@ -320,16 +321,20 @@ export function AdminSettingsPageView() {
     }
   };
 
-  const savePreferences = async (nextPrefs?: Partial<FranchisePreferences>) => {
+  const savePreferences = async () => {
+    const taxRate = prefs.defaultTaxRate;
+    if (section === 'billing' && (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100 ||
+        Math.abs(taxRate * 100 - Math.round(taxRate * 100)) > 0.0001)) {
+      toast.error('Tax rate must be between 0 and 100 with at most two decimal places.');
+      return;
+    }
     if (!franchiseId) {
       toast.error('Franchise not linked to your account.');
       return;
     }
     try {
       setSaving(true);
-      await api.patch(`/franchises/${franchiseId}`, {
-        preferences: { ...prefs, ...nextPrefs },
-      });
+      await api.patch(`/franchises/${franchiseId}`, franchisePreferencesPatch(section, prefs));
       await franchiseQuery.refetch();
       const me = toSessionUser(await authService.me());
       if (me) useAuthStore.getState().setUser(me);
@@ -595,14 +600,19 @@ export function AdminSettingsPageView() {
                 <SettingsTextField
                   id="admin-tax-rate"
                   label="Default Tax Rate (%)"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
                   value={String(prefs.defaultTaxRate)}
                   onChange={(v) =>
                     setPrefs((p) => ({
                       ...p,
-                      defaultTaxRate: Number(v) || 0,
+                      defaultTaxRate: v.trim() === '' ? 0 : Number(v),
                     }))
                   }
                 />
+                <p className="text-sm text-text-secondary">Applies to service taxes across all branches of your business. Set 0 for no tax, or up to 100%. Issued bills keep their saved tax amounts.</p>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-text">

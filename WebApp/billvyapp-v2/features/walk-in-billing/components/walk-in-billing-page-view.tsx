@@ -22,6 +22,7 @@ import { useCurrentUser } from '@/hooks/use-current-user';
 import { can } from '@/lib/capabilities';
 import { SalonPicker } from '@/features/salons/components/salon-picker';
 import { computeBillPreview } from '../lib/bill-preview';
+import { useBusinessServiceTax } from '../hooks/use-service-catalog';
 import { useSettleWalkInBill } from '../hooks/use-settle-walk-in-bill';
 import type {
   ValidatedBillCoupon,
@@ -80,6 +81,12 @@ export function WalkInBillingPageView() {
   const [serviceSearch, setServiceSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
+  const businessTax = useBusinessServiceTax(salonId);
+  const businessRate = businessTax.data?.data[0]?.taxRate;
+  const pricedCart = useMemo(() => cart.map(line => ({
+    ...line,
+    taxRate: businessRate === undefined ? line.taxRate : Number(businessRate),
+  })), [cart, businessRate]);
   const [stylistName, setStylistName] = useState('');
   const [isCouponValidating, setCouponValidating] = useState(false);
   const [coupon, setCoupon] = useState<ValidatedBillCoupon | null>(null);
@@ -99,8 +106,8 @@ export function WalkInBillingPageView() {
   );
 
   const preview = useMemo(
-    () => computeBillPreview(cart, discountValue, coupon, discountMode),
-    [cart, discountValue, coupon, discountMode],
+    () => computeBillPreview(pricedCart, discountValue, coupon, discountMode),
+    [pricedCart, discountValue, coupon, discountMode],
   );
 
   const cartFingerprint = useMemo(
@@ -187,6 +194,7 @@ export function WalkInBillingPageView() {
   const loyaltyPoints = Number(loyaltyInput || 0);
   const loyaltyInvalid = !Number.isSafeInteger(loyaltyPoints) || loyaltyPoints < 0 || (loyaltyPoints > 0 && (!loyalty.data?.canRedeem || loyalty.isFetching || loyaltyPoints > loyalty.data.balance || loyaltyPoints > Math.floor(payablePreview.total)));
   const canPay =
+    !businessTax.isPending && !businessTax.isError &&
     !loyaltyInvalid &&
     Boolean(salonId) &&
     Boolean(customer) &&
@@ -277,7 +285,7 @@ export function WalkInBillingPageView() {
           onSearchChange={setServiceSearch}
           categoryId={categoryId}
           onCategoryChange={setCategoryId}
-          cart={cart}
+          cart={pricedCart}
           membershipPricing={preview.membershipPricing}
           onAddService={addService}
           onChangeQty={changeQty}
@@ -335,6 +343,8 @@ export function WalkInBillingPageView() {
           onValidationPendingChange={setCouponValidating}
           disabled={settle.isPending}
         />
+        {salonId && businessTax.isPending && <p role="status" className="text-sm text-text-secondary">Loading business tax…</p>}
+        {businessTax.isError && <SectionErrorState message="Business tax could not be loaded." onRetry={() => void businessTax.refetch()} />}
         <PaymentMethodsCard
           value={paymentMethod}
           onChange={setPaymentMethod}

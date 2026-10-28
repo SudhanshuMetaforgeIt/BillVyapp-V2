@@ -235,6 +235,7 @@ export function CreateServiceDialog({
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <p className="text-sm text-text-secondary">Service tax follows your business rate in Settings → Billing &amp; Taxes.</p>
           <GenderSelect value={gender} onChange={value => { setGender(value); setCategoryId(''); }} />
             <ProductRecipeEditor key={salonId} salonId={salonId} value={productRecipe} onChange={setProductRecipe} disabled={loading} />
           <div>

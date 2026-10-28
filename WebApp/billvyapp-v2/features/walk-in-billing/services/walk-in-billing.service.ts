@@ -36,6 +36,7 @@ export async function listServiceCategories(salonId?: string, gender?: import('@
 }
 
 export async function listServices(params?: {
+  limit?: number;
   salonId?: string;
   search?: string;
   categoryId?: string;
@@ -46,7 +47,7 @@ export async function listServices(params?: {
       gender: params?.gender,
       includeUnisex: false,
       page: 1,
-      limit: 100,
+      limit: params?.limit ?? 100,
       isActive: true,
       salonId: params?.salonId || undefined,
       search: params?.search?.trim() || undefined,
@@ -124,7 +125,7 @@ export async function settleWalkInBill(
     items: input.items,
   });
 
-  if ((input.couponCode || input.enrollmentPlanId) && input.expectedTotal !== undefined && Math.abs(Number(draft.total) - input.expectedTotal) > 0.005)
+  if (input.expectedTotal !== undefined && Math.abs(Number(draft.total) - input.expectedTotal) > 0.005)
     return { bill: draft, payment: null, outcome: 'price-changed' };
   if (!canComplete) {
     return { bill: draft, payment: null, outcome: 'draft' };

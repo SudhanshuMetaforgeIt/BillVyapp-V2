@@ -110,6 +110,7 @@ const createDto: CreateBillDto = {
 
 function catalogService(overrides: Record<string, unknown> = {}) {
   return {
+    salon: { franchise: { preferences: { defaultTaxRate: 18 } } },
     gender: Gender.UNISEX,
     id: 'svc-1',
     salonId: 'salon-a1',
@@ -806,6 +807,26 @@ describe('BillsService', () => {
     ).rejects.toThrow('Only DRAFT bills');
     expect(prisma.membership.findFirst).not.toHaveBeenCalled();
     expect(prisma.bill.update).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 12.5, 100])('calculates new bills at the business rate %s even when the service has an old rate', async rate => {
+    prisma.service.findMany.mockResolvedValue([catalogService({ taxRate: '0.00', salon: { franchise: { preferences: { defaultTaxRate: rate } } } })]);
+    prisma.bill.create.mockResolvedValue(billRow());
+    await service.create(manager, createDto, ctx);
+    const { data } = firstMockArg<{ data: { tax: string; total: string; items: { create: Array<{ taxRate: string }> } } }>(prisma.bill.create);
+    const tax = Math.round(799 * rate) / 100;
+    expect(data.tax).toBe(tax.toFixed(2));
+    expect(data.total).toBe((799 + tax).toFixed(2));
+    expect(data.items.create[0].taxRate).toBe(rate.toFixed(2));
+  });
+
+  it('keeps the tax snapshot when reading an already-issued bill', async () => {
+    prisma.bill.findUnique.mockResolvedValue(billRow({ status: BillStatus.COMPLETED }));
+    prisma.service.findMany.mockResolvedValue([catalogService({ salon: { franchise: { preferences: { defaultTaxRate: 100 } } } })]);
+    const result = await service.findOne(manager, 'bill-1');
+    expect(result.tax).toBe('143.82');
+    expect(result.items[0].taxRate).toBe('18.00');
+    expect(prisma.service.findMany).not.toHaveBeenCalled();
   });
 
   it('creates a DRAFT bill with snapshotted service price and tax', async () => {

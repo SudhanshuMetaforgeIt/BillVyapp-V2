@@ -3,9 +3,12 @@ import {
   ConflictException,
   BadRequestException,
   Injectable,
+  Optional,
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { CacheService } from '../redis/cache.service';
+import { businessTaxRate } from '../common/business-tax';
 import { assertPermission } from '../common/security/access-policy';
 import { formatDateOnlyUtc } from '../common/datetime/datetime';
 import type { RequestContext } from '../common/http/request-context';
@@ -62,6 +65,7 @@ export class FranchisesService {
     protected readonly prisma: PrismaService,
     protected readonly scope: ScopeService,
     private readonly audit: AuditService,
+    @Optional() private readonly cache?: CacheService,
   ) {}
 
   async list(
@@ -189,6 +193,7 @@ export class FranchisesService {
     if (dto.phoneCountry !== undefined)
       dto.preferences = { ...dto.preferences, phoneCountry: dto.phoneCountry };
     if (dto.preferences !== undefined) {
+      businessTaxRate(dto.preferences);
       validateRegionPreferences(
         dto.preferences as Record<
           string,
@@ -227,6 +232,14 @@ export class FranchisesService {
         data,
         select: FRANCHISE_SELECT,
       });
+
+      if (dto.preferences?.defaultTaxRate !== undefined && this.cache) {
+        // Catalog responses contain the effective business tax rate.
+        const salons = await this.prisma.salon.findMany({
+          where: { franchiseId: existing.id }, select: { id: true },
+        });
+        await Promise.all(salons.map(salon => this.cache!.invalidateSalonCatalogue(salon.id)));
+      }
 
       await this.audit.record({
         userId: user.userId,

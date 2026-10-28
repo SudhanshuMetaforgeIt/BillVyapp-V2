@@ -45,7 +45,7 @@ export function useSettleWalkInBill(onSuccess?: (result: Awaited<ReturnType<type
       attempt.current = null;
       const number = result.bill.billNumber;
       if (result.outcome === 'price-changed') {
-        toast.error(`Bill ${number} ${result.bill.status === 'DRAFT' ? 'saved as a draft' : 'completed'} with updated membership pricing. Confirm the amount and record payment from Bills.`);
+        toast.error(`Bill ${number} ${result.bill.status === 'DRAFT' ? 'saved as a draft' : 'completed'} with updated pricing or tax. Confirm the amount and record payment from Bills.`);
       } else if (result.outcome === 'draft') {
         toast.success(`Draft bill ${number} saved`);
       } else if (result.outcome === 'completed') {

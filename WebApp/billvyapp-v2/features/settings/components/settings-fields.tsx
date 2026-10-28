@@ -39,6 +39,9 @@ type SettingsTextFieldProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
+  min?: number;
+  max?: number;
+  step?: number;
   className?: string;
   disabled?: boolean;
 };
@@ -50,6 +53,9 @@ export function SettingsTextField({
   onChange,
   placeholder,
   type = 'text',
+  min,
+  max,
+  step,
   className,
   disabled = false,
 }: SettingsTextFieldProps) {
@@ -58,6 +64,9 @@ export function SettingsTextField({
       <Input
         id={id}
         type={type}
+        min={min}
+        max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

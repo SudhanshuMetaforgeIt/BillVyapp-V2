@@ -40,10 +40,9 @@ export function AddServiceDialog({
   const [categoryId, setCategoryId] = useState(editingService?.categoryId ?? '');
   const [price, setPrice] = useState(editingService?.price ?? '');
   const [durationMinutes, setDurationMinutes] = useState(String(editingService?.durationMinutes ?? 30));
-  const [taxRate, setTaxRate] = useState(editingService?.taxRate ?? '18');
 
   const validation=useFormValidation(editingService ? 'UpdateServiceDto' : 'CreateServiceDto',{
-    ...(editingService ? {} : {salonId}),gender,categoryId,name,description:description.trim() || null,price,durationMinutes,taxRate,productRecipe,
+    ...(editingService ? {} : {salonId}),gender,categoryId,name,description:description.trim() || null,price,durationMinutes,productRecipe,
   });
   const clearValidation=validation.clear;
   const create = useCreateService(() => {
@@ -54,7 +53,6 @@ export function AddServiceDialog({
     setDescription('');
     setPrice('');
     setDurationMinutes('30');
-    setTaxRate('18');
   });
 
   const update = useUpdateService(() => { clearValidation(); onOpenChange(false); });
@@ -73,7 +71,6 @@ export function AddServiceDialog({
 
   const priceNum = Number(price);
   const duration = Number(durationMinutes);
-  const tax = Number(taxRate);
 
   return createPortal(
     <div
@@ -130,7 +127,6 @@ export function AddServiceDialog({
                 description: description.trim() || null,
                 price: priceNum,
                 durationMinutes: duration,
-                taxRate: tax,
                 productRecipe,
               };
               if (editingService) update.mutate({ id: editingService.id, payload });
@@ -191,13 +187,7 @@ export function AddServiceDialog({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="svc-tax">Tax %</Label>
-                <Input
-                  id="svc-tax"
-                  inputMode="decimal"
-                  aria-invalid={Boolean(validation.fieldError('taxRate'))} value={taxRate}
-                  onChange={(e) => setTaxRate(e.target.value)}
-                />
+                <p className="text-sm text-text-secondary">Service tax follows your business rate in Settings → Billing &amp; Taxes.</p>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">

@@ -4865,10 +4865,31 @@
           ]
         },
         "defaultTaxRate": {
-          "kind": "unknown",
+          "kind": "number",
           "optional": true,
           "nullable": true,
-          "rules": []
+          "rules": [
+            {
+              "name": "IsNumber",
+              "args": [
+                {
+                  "maxDecimalPlaces": 2
+                }
+              ]
+            },
+            {
+              "name": "Min",
+              "args": [
+                0
+              ]
+            },
+            {
+              "name": "Max",
+              "args": [
+                100
+              ]
+            }
+          ]
         }
       }
     },

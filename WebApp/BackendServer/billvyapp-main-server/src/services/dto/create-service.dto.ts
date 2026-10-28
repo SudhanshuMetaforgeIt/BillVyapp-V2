@@ -63,7 +63,7 @@ export class CreateServiceDto {
   @Min(0)
   price: number;
 
-  @ApiPropertyOptional({ example: 18, minimum: 0, maximum: 100 })
+  @ApiPropertyOptional({ minimum: 0, maximum: 100, deprecated: true, description: 'Service tax follows the business defaultTaxRate preference. This legacy field does not override it.' })
   @IsOptional()
   @StrictNumber()
   @IsNumber({ maxDecimalPlaces: 2 })

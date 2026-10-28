@@ -1,4 +1,5 @@
 import { Gender } from '../generated/prisma/enums';
+import { BUSINESS_TAX_SELECT, BusinessTaxSource, serviceTaxRate } from '../common/business-tax';
 import {
   readRecipe,
   materializeProductUsage,
@@ -330,7 +331,7 @@ type ComputedLine = {
   taxAmountNum: number;
 };
 
-type CatalogService = {
+type CatalogService = BusinessTaxSource & {
   gender: Gender;
   productRecipe?: unknown;
   id: string;
@@ -1483,7 +1484,7 @@ export class BillsService {
     const services = ids.length
       ? await tx.service.findMany({
           where: { id: { in: ids }, salonId, isActive: true },
-          select: { id: true, price: true, taxRate: true },
+          select: { id: true, price: true, taxRate: true, ...BUSINESS_TAX_SELECT },
         })
       : [];
     const catalog = new Map(
@@ -1491,7 +1492,7 @@ export class BillsService {
         service.id,
         {
           unitPrice: service.price.toString(),
-          taxRate: service.taxRate.toString(),
+          taxRate: serviceTaxRate(service).toFixed(2),
         },
       ]),
     );
@@ -1585,6 +1586,7 @@ export class BillsService {
               name: true,
               gender: true,
               productRecipe: true,
+              ...BUSINESS_TAX_SELECT,
               price: true,
               taxRate: true,
               isActive: true,
@@ -1693,7 +1695,7 @@ export class BillsService {
         taxRate =
           item.taxRate !== undefined
             ? item.taxRate
-            : this.asNumber(service.taxRate);
+            : serviceTaxRate(service);
         if (!description) description = service.name;
       } else {
         const product = productMap.get(item.productId as string);
@@ -1728,7 +1730,9 @@ export class BillsService {
           : this.asNumber((catalog as CatalogProduct).sellingPrice);
       if (
         unitPrice !== catalogPrice ||
-        taxRate !== this.asNumber(catalog!.taxRate) ||
+        taxRate !== (item.itemType === BillItemType.SERVICE
+          ? serviceTaxRate(catalog as CatalogService)
+          : this.asNumber(catalog!.taxRate)) ||
         (item.discount ?? 0) !== 0
       ) {
         assertFinancialAuthority(actor);

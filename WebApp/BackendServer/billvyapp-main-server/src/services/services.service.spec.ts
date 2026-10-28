@@ -96,6 +96,7 @@ const createDto: CreateServiceDto = {
 
 function serviceRow(overrides: Record<string, unknown> = {}) {
   return {
+    salon: { franchise: { preferences: { defaultTaxRate: 18 } } },
     gender: Gender.UNISEX,
     id: 'svc-1',
     salonId: 'salon-a1',
@@ -132,12 +133,38 @@ describe('ServicesService', () => {
   const audit = { record: jest.fn() };
   let service: ServicesService;
 
+  it.each([0, 12.5, 100])('creates services using the business rate %s instead of the submitted rate', async rate => {
+    prisma.salon.findUnique.mockResolvedValue({ id: 'salon-a1', isActive: true, franchise: { preferences: { defaultTaxRate: rate } } });
+    prisma.service.create.mockResolvedValue(serviceRow({ salon: { franchise: { preferences: { defaultTaxRate: rate } } } }));
+    const result = await service.create(admin, createDto, ctx);
+    expect(prisma.service.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ taxRate: rate.toFixed(2) }) }));
+    expect(result.taxRate).toBe(rate.toFixed(2));
+  });
+
+  it('returns the updated business rate for existing services without rewriting them', async () => {
+    prisma.service.findMany.mockResolvedValue([serviceRow({ taxRate: '0.00', salon: { franchise: { preferences: { defaultTaxRate: 25 } } } })]);
+    prisma.service.count.mockResolvedValue(1);
+    const result = await service.list(manager, {});
+    expect(result.data[0].taxRate).toBe('25.00');
+    expect(prisma.service.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps tax rates scoped to each service business in a combined catalog', async () => {
+    prisma.service.findMany.mockResolvedValue([
+      serviceRow({ salon: { franchise: { preferences: { defaultTaxRate: 0 } } } }),
+      serviceRow({ id: 'svc-2', salonId: 'salon-b', salon: { franchise: { preferences: { defaultTaxRate: 100 } } } }),
+    ]);
+    prisma.service.count.mockResolvedValue(2);
+    expect((await service.list(superAdmin, {})).data.map(row => row.taxRate)).toEqual(['0.00', '100.00']);
+  });
+
   beforeEach(() => {
     jest.resetAllMocks();
     scope.salonScope.mockReturnValue({});
     scope.assertSalonAccess.mockResolvedValue(undefined);
     audit.record.mockResolvedValue(undefined);
     prisma.salon.findUnique.mockResolvedValue({
+      franchise: { preferences: { defaultTaxRate: 18 } },
       id: 'salon-a1',
       isActive: true,
     });
