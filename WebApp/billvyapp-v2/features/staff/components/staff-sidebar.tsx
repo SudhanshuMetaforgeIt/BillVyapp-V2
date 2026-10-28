@@ -4,9 +4,6 @@ import {
   CalendarCheck,
   ChevronRight,
   Plus,
-  Scissors,
-  Sparkles,
-  UserCheck,
   Users,
 } from 'lucide-react';
 import type {
@@ -96,7 +93,7 @@ export function StaffSidebar({
           Staff Summary
         </h3>
 
-        <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="app-staff-summary-chart mt-4 flex flex-wrap items-center justify-center gap-4">
           {/* Donut Chart */}
           <div className="relative flex h-32 w-32 shrink-0 items-center justify-center">
             <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
@@ -132,7 +129,7 @@ export function StaffSidebar({
           </div>
 
           {/* Legend */}
-          <div className="space-y-2 text-xs flex-1 min-w-[140px]">
+          <div className="space-y-2 text-xs flex-1 min-w-[140px] max-w-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />

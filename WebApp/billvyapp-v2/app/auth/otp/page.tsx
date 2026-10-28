@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { AuthPageShell } from '@/features/auth/components/auth-page-shell';
+import { BrandedAuthShell } from '@/features/auth/components/branded-auth-shell';
 import { OtpLoginCard } from '@/features/auth/components/otp-login-card';
 
 export const metadata: Metadata = {
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function OtpLoginPage() {
   return (
-    <AuthPageShell>
+    <BrandedAuthShell>
       <OtpLoginCard />
-    </AuthPageShell>
+    </BrandedAuthShell>
   );
 }

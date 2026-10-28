@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, LoaderCircle, Lock, Mail, ShieldCheck, Smartphone } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -18,8 +18,6 @@ import {
 } from '@/features/auth/schemas/auth.schema';
 import { cn } from '@/lib/utils';
 import type { PhoneCountry } from '@/lib/phone';
-
-import { BrandLogo } from './brand-logo';
 
 export function LoginFormCard() {
   const login = useLogin();
@@ -49,27 +47,25 @@ export function LoginFormCard() {
   const isSubmitting = login.isPending;
 
   return (
-    <div data-auth-animate="card" className="auth-form-shell @container">
-      <div className="auth-form-card w-full min-w-0 rounded-2xl px-5 py-7 sm:px-9 sm:py-11">
-        <div className="mb-7 flex flex-col items-center text-center">
-          <div data-auth-animate="card-logo" className="mb-3">
-            <BrandLogo variant="light" size="compact" />
-          </div>
+    <div data-auth-animate="card" className="login-form-shell @container">
+      <div className="login-form-card">
+        <div className="login-form-heading">
+          <p className="login-access-label"><ShieldCheck size={14} aria-hidden /> Your workspace awaits</p>
           <h2
             data-auth-animate="card-title"
-            className="text-[1.65rem] font-bold tracking-tight text-text"
+            className="login-form-title font-bold tracking-tight text-text"
           >
-            Welcome Back!
+            Welcome <span>back</span>
           </h2>
           <p
             data-auth-animate="card-subtitle"
             className="mt-2 text-sm leading-relaxed text-text-secondary"
           >
-            Sign in to your account to continue
+            Sign in to manage your business with ease.
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <form onSubmit={onSubmit} className="login-fields" noValidate>
           <Field id="email" label="Email Address" error={errors.email?.message}>
             <div className="relative">
               <Mail
@@ -91,7 +87,7 @@ export function LoginFormCard() {
             </div>
           </Field>
 
-          <Field id="phone" label="Phone Number" error={errors.phone?.message}>
+          <Field id="phone" label="Phone Number (optional)" error={errors.phone?.message}>
             <div className="relative">
               <Input
                 id="phone"
@@ -182,36 +178,30 @@ export function LoginFormCard() {
                 'disabled:opacity-70',
               )}
             >
-              {isSubmitting ? 'Signing in…' : 'Sign In'}
+              {isSubmitting ? <><LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden /> Signing in…</> : <>Sign In <ArrowRight className="size-4" aria-hidden /></>}
             </Button>
           </div>
         </form>
 
-        <div
-          data-auth-animate="secondary"
-          className="mt-6 h-px w-full bg-border"
-          aria-hidden
-        />
-
-        <p
-          data-auth-animate="secondary"
-          className="mt-5 flex justify-center gap-4 text-center"
-        >
+        <div data-auth-animate="secondary" className="login-alternative">
+          <div className="login-divider"><span /> <span>Or</span> <span /></div>
           <PrefetchLink
             href={ROUTES.auth.otp}
             prefetchStrategy="intent"
-            className="text-sm font-medium text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
+            className="login-otp-link"
           >
-            Customer? Sign in with OTP
+            <Smartphone size={16} aria-hidden /> Sign in with OTP <ArrowRight size={15} aria-hidden />
           </PrefetchLink>
+          <p className="login-register-copy">New to BillVyApp?{' '}
           <PrefetchLink
             href={ROUTES.auth.register}
             prefetchStrategy="intent"
-            className="text-sm font-medium text-text-secondary transition-colors hover:text-text focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
+            className="font-semibold text-brand-orange transition-colors hover:text-brand-orange-deep focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           >
             Create Account
           </PrefetchLink>
-        </p>
+          </p>
+        </div>
       </div>
     </div>
   );

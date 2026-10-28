@@ -8,7 +8,7 @@ export function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'animate-pulse rounded-md bg-[color-mix(in_srgb,var(--bv-charcoal)_8%,white)]',
+        'app-skeleton rounded-md bg-[color-mix(in_srgb,var(--bv-charcoal)_8%,white)]',
         className,
       )}
       aria-hidden

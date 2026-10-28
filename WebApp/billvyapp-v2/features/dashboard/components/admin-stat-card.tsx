@@ -3,6 +3,8 @@
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnimatedNumber } from '@/components/ui/animated-number';
+import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { AdminStat, StatTone } from '../types/admin-dashboard.types';
 
@@ -34,7 +36,11 @@ export function AdminStatCard({ stat }: AdminStatCardProps) {
         <div className="min-w-0">
           <p className="text-sm font-medium text-text-secondary">{stat.label}</p>
           <p className="app-metric-value mt-2 font-bold tracking-tight text-text">
-            {stat.displayValue}
+            {stat.displayValue === formatCurrency(stat.rawValue) ? (
+              <AnimatedNumber value={stat.rawValue} format={formatCurrency} decimals={2} />
+            ) : stat.displayValue === formatNumber(stat.rawValue) ? (
+              <AnimatedNumber value={stat.rawValue} />
+            ) : stat.displayValue}
           </p>
         </div>
         <span
@@ -76,7 +82,7 @@ type AdminStatGridProps = {
 };
 
 export function AdminStatGrid({ stats, isLoading }: AdminStatGridProps) {
-  if (isLoading) {
+  if (isLoading && stats.length === 0) {
     return (
       <div className="app-stat-grid">
         {Array.from({ length: 6 }).map((_, i) => (

@@ -21,7 +21,14 @@ body:has(.app-dashboard) *::-webkit-scrollbar {
   height: 0;
 }
 .app-dashboard { width: 100%; max-width: 100%; min-width: 0; }
+/* Keep laptop layouts comfortably dense without scaling down the whole UI. */
+@media (min-width: 64rem) {
+  .app-sidebar-expanded { width: clamp(13rem, calc(12vw + 2rem), 16rem); }
+}
 .app-dashboard-content { container: dashboard / inline-size; min-width: 0; max-width: 100%; padding-inline: var(--app-responsive-gutter); }
+.app-dashboard-content .app-surface-card:where(.p-5, .p-6, .sm\:p-6) { padding: clamp(1rem, 1.45cqi, 1.5rem); }
+.app-dashboard-content .app-table-scroll :where(th, td) { padding-inline: clamp(.625rem, 1cqi, 1.25rem); padding-block: clamp(.625rem, .8cqi, .875rem); }
+.app-dashboard-content .app-table-scroll th { white-space: nowrap; overflow-wrap: normal; }
 .app-dashboard-content > * { min-width: 0; max-width: 100%; }
 .app-dashboard-content :where(.grid, .flex) > :where(div, section, article, aside, form, fieldset) { min-width: 0; }
 .app-dashboard-content :where(h1, h2, h3, p, dd, label) { overflow-wrap: anywhere; }
@@ -40,6 +47,25 @@ body:has(.app-dashboard) *::-webkit-scrollbar {
 .app-toolbar > :where(div, input) { flex: 1 1 14rem; }
 .app-toolbar > .flex:not(.overflow-x-auto) { flex-wrap: wrap; }
 .app-toolbar > :where(button, a) { flex: 0 1 auto; white-space: normal; }
+/* Notification filters wrap as complete controls instead of shrinking search away. */
+.app-notification-filters { container: notification-filters / inline-size; min-width: 0; width: 100%; }
+.app-notification-filter-grid { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'search' 'channel' 'status' 'dates' 'send'; gap: .75rem; align-items: center; }
+.app-notification-filter-grid > * { min-width: 0; width: 100%; }
+.app-notification-search { grid-area: search; }
+.app-notification-channel { grid-area: channel; }
+.app-notification-status { grid-area: status; }
+.app-notification-dates { grid-area: dates; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: .5rem; align-items: center; }
+.app-notification-dates input { min-width: 0; width: 100%; }
+.app-notification-send { grid-area: send; white-space: nowrap; }
+@container notification-filters (min-width: 32rem) {
+  .app-notification-filter-grid { grid-template-columns: minmax(16rem, 1fr) minmax(10rem, .7fr); grid-template-areas: 'search send' 'channel status' 'dates dates'; }
+}
+@container notification-filters (min-width: 48rem) {
+  .app-notification-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(18rem, 1.5fr); grid-template-areas: 'search search send' 'channel status dates'; }
+}
+@container notification-filters (min-width: 70rem) {
+  .app-notification-filter-grid { grid-template-columns: minmax(16rem, 1fr) minmax(9rem, .5fr) minmax(8rem, .45fr) minmax(20rem, 1fr) auto; grid-template-areas: 'search channel status dates send'; }
+}
 .app-table-scroll { position: relative; width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-gutter: stable; }
 .app-table-scroll:focus-visible { outline: 2px solid var(--bv-champagne); outline-offset: -2px; }
 .app-table-scroll > table:not([class*="min-w-"]) { min-width: max(100%, 36rem); }
@@ -76,14 +102,111 @@ body:has(.app-dashboard) *::-webkit-scrollbar {
 }
 
 .app-panel { container: panel / inline-size; min-width: 0; }
+/* Record lists get the full laptop width before summaries become an aside. */
+:is(.app-staff-layout, .app-customer-layout, .app-business-directory-layout) { grid-template-columns: minmax(0, 1fr); gap: clamp(1rem, 1.5cqi, 1.75rem); }
+:is(.app-staff-aside, .app-customer-aside, .app-business-directory-aside) > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; align-items: start; }
+:is(.app-staff-aside, .app-customer-aside, .app-business-directory-aside) > div > * { margin-block: 0; }
+@container dashboard (min-width: 86rem) {
+  :is(.app-staff-layout, .app-customer-layout, .app-business-directory-layout) { grid-template-columns: minmax(0, 1fr) clamp(18rem, 21cqi, 21rem); }
+  :is(.app-staff-aside, .app-customer-aside, .app-business-directory-aside) > div { grid-template-columns: minmax(0, 1fr); }
+}
+.app-staff-filter-fields { grid-template-columns: minmax(0, 1fr); }
+.app-staff-filter-fields > * { width: 100%; min-width: 0; }
+@container dashboard (min-width: 40rem) {
+  .app-staff-filter-fields { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  .app-staff-filter-fields > :first-child { grid-column: 1 / -1; }
+}
+@container dashboard (min-width: 64rem) {
+  .app-staff-filter-fields { grid-template-columns: minmax(14rem, 1fr) repeat(3, minmax(7rem, .45fr)) auto; }
+  .app-staff-filter-fields > :first-child { grid-column: auto; }
+}
+:is(.app-staff-stat-card, .app-customer-stat-card) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: .5rem; }
+:is(.app-staff-stat-icon, .app-customer-stat-icon) { grid-column: 2; grid-row: 1; }
+:is(.app-staff-stat-label, .app-customer-stat-label) { grid-column: 1; grid-row: 1; align-self: center; }
+:is(.app-staff-stat-value, .app-customer-stat-value) { grid-column: 1 / -1; font-size: clamp(1.125rem, 9cqi, 1.5rem); line-height: 1.3; white-space: nowrap; }
+:is(.app-staff-stat-caption, .app-customer-stat-caption) { grid-column: 1 / -1; }
+@container dashboard (max-width: 28rem) {
+  .app-staff-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-staff-stat-card:last-child { grid-column: 1 / -1; }
+}
+.app-records-table-scroll > table.app-records-table { table-layout: fixed; min-width: 64rem; }
+.app-staff-id { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-records-table :is(td[data-label="Staff Name"], td[data-label="Branch"], td[data-label="Role"], td[data-label="Email"]) { overflow-wrap: anywhere; }
+:is(.app-staff-pagination, .app-records-pagination) { min-width: 0; }
+:is(.app-staff-pagination, .app-records-pagination) > div { max-width: 100%; }
+.app-customer-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.app-customer-filter-fields > * { min-width: 0; width: 100%; }
+.app-customer-filter-fields > button[title="Refresh customers"] { width: 2.25rem; min-width: 2.25rem; justify-self: end; }
+.app-customer-filter-fields > :first-child { grid-column: 1 / -1; }
+@container dashboard (min-width: 40rem) {
+  .app-customer-filter-fields { grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto; }
+}
+@container dashboard (min-width: 64rem) {
+  .app-customer-filter-fields { grid-template-columns: minmax(14rem, 1fr) repeat(3, minmax(7rem, .45fr)) auto auto; }
+  .app-customer-filter-fields > :first-child { grid-column: auto; }
+}
+@container panel (max-width: 63.999rem) {
+  .app-records-table-scroll { overflow: visible; }
+  .app-records-table-scroll.app-table-scroll::before { content: none; }
+  .app-records-table-scroll > table.app-records-table { display: block; position: relative; min-width: 0; }
+  .app-records-table colgroup { display: none; }
+  .app-records-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .app-records-table tbody { display: grid; gap: .75rem; padding: .75rem; }
+  .app-records-table tbody > tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: .875rem; }
+  .app-dashboard-content .app-records-table td { display: block; width: auto; min-width: 0; padding: 0; white-space: normal; text-align: left; }
+  .app-records-table td::before { content: attr(data-label); display: block; margin-bottom: .25rem; font-size: .6875rem; font-weight: 600; color: var(--bv-text-secondary); }
+  .app-records-table td:first-child, .app-records-table td:last-child, .app-records-table td[data-label="Email"] { grid-column: 1 / -1; }
+  .app-records-table td:first-child::before { display: none; }
+  .app-records-table td:last-child { padding-top: .75rem; border-top: 1px solid var(--border); }
+  .app-records-table td:last-child > div { justify-content: flex-end; }
+  .app-staff-id { white-space: normal; overflow-wrap: anywhere; }
+}
+/* Business details reserve a readable table width before adding an aside. */
+.app-business-stat-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; gap: .5rem; }
+.app-business-stat-icon { grid-column: 2; grid-row: 1; }
+.app-business-stat-label { grid-column: 1; grid-row: 1; align-self: center; }
+.app-business-stat-value { grid-column: 1 / -1; font-size: clamp(1.125rem, 9cqi, 1.5rem); line-height: 1.3; white-space: nowrap; }
+.app-business-stat-caption { grid-column: 1 / -1; }
+@container dashboard (max-width: 28rem) {
+  .app-business-stat-card:last-child { grid-column: 1 / -1; }
+}
+.app-admin-business-layout { grid-template-columns: minmax(0, 1fr); gap: clamp(1rem, 1.5cqi, 1.75rem); }
+.app-admin-business-aside > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: clamp(1rem, 1.5cqi, 1.75rem); }
+.app-admin-business-aside > div > * { margin-block: 0; }
+@container dashboard (min-width: 82rem) {
+  .app-admin-business-layout { grid-template-columns: minmax(0, 1fr) clamp(17rem, 21cqi, 20rem); }
+  .app-admin-business-aside > div { grid-template-columns: minmax(0, 1fr); }
+}
+.app-business-identity { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: clamp(1rem, 1.5cqi, 1.5rem); }
+.app-business-logo { width: clamp(3rem, 5cqi, 4.5rem); height: clamp(3rem, 5cqi, 4.5rem); }
+@container panel (min-width: 36rem) {
+  .app-business-identity { grid-template-columns: minmax(0, 1fr) minmax(12rem, .8fr); }
+  .app-business-facts { border-top: 0; border-left: 1px solid var(--border); padding-top: 0; padding-left: clamp(1rem, 2cqi, 1.5rem); }
+  .app-business-edit { grid-column: 1 / -1; justify-self: end; }
+}
+@container panel (min-width: 60rem) {
+  .app-business-identity { grid-template-columns: minmax(0, 1fr) minmax(13rem, .7fr) auto; }
+  .app-business-edit { grid-column: auto; }
+}
+.app-branches-table { display: none; }
+.app-branches-cards { display: block; }
+.app-dashboard-content .app-branches-table th { letter-spacing: .025em; }
+.app-branches-table .app-branch-name { white-space: normal; overflow-wrap: normal; }
+.app-dashboard-content .app-branches-table td:last-child { white-space: nowrap; }
+@container panel (min-width: 60rem) {
+  .app-branches-table { display: block; }
+  .app-branches-cards { display: none; }
+}
 .app-businesses-table, .app-users-table, .app-plans-table { display: none; }
 .app-businesses-cards, .app-users-cards, .app-plans-cards { display: block; }
 .app-businesses-table :where(th, td), .app-users-table :where(th, td), .app-plans-table :where(th, td) { padding-inline: .75rem; overflow-wrap: anywhere; }
 .app-businesses-table :where(th, td):last-child, .app-users-table :where(th, td):last-child, .app-plans-table :where(th, td):last-child { padding-inline: .5rem; }
-@container panel (min-width: 40rem) {
+@container panel (min-width: 56rem) {
   .app-businesses-table { display: block; }
   .app-businesses-cards { display: none; }
 }
+.app-businesses-table th { white-space: nowrap; overflow-wrap: normal; }
+.app-businesses-table :where(th, td) { padding-inline: clamp(.625rem, 1cqi, 1rem); }
 @container panel (min-width: 48rem) {
   .app-users-table, .app-plans-table { display: block; }
   .app-users-cards, .app-plans-cards { display: none; }
@@ -94,7 +217,7 @@ body:has(.app-dashboard) *::-webkit-scrollbar {
   .app-date-range { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
 }
 @container dashboard (max-width: 40rem) {
-  .app-table-scroll::before { content: 'Scroll horizontally to view all columns'; display: block; position: sticky; left: 0; width: fit-content; max-width: 100%; padding: .5rem .75rem; font-size: .75rem; color: var(--bv-text-secondary); }
+  .app-table-scroll:not(.app-records-table-scroll)::before { content: 'Scroll horizontally to view all columns'; display: block; position: sticky; left: 0; width: fit-content; max-width: 100%; padding: .5rem .75rem; font-size: .75rem; color: var(--bv-text-secondary); }
 }
 
 /* Report tables switch as a whole when their panel can fit every field. */

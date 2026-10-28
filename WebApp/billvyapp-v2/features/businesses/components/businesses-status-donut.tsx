@@ -17,17 +17,16 @@ export function BusinessesStatusDonut({
   slices,
 }: BusinessesStatusDonutProps) {
   let offset = 0;
-  const segments = slices
-    .filter((s) => s.count > 0)
-    .map((slice) => {
-      const length = (slice.percent / 100) * CIRCUMFERENCE;
-      const segment = { ...slice, dash: length, offset };
-      offset += length;
-      return segment;
-    });
+  const segments: Array<BusinessSummarySlice & { dash: number; offset: number }> = [];
+  for (const slice of slices) {
+    if (slice.count <= 0) continue;
+    const length = (slice.percent / 100) * CIRCUMFERENCE;
+    segments.push({ ...slice, dash: length, offset });
+    offset += length;
+  }
 
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
+    <div className="app-business-summary flex min-w-0 flex-wrap items-center justify-center gap-5">
       <div className="relative size-36 shrink-0">
         <svg viewBox="0 0 140 140" className="size-full -rotate-90" role="img">
           <title>Business status distribution</title>
@@ -64,21 +63,21 @@ export function BusinessesStatusDonut({
         </div>
       </div>
 
-      <ul className="w-full space-y-2.5">
+      <ul className="app-business-summary-legend min-w-0 flex-[1_1_13rem] space-y-2.5">
         {slices.map((slice) => (
           <li
             key={slice.key}
-            className="flex items-center justify-between gap-3 text-sm"
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"
           >
-            <span className="inline-flex items-center gap-2 text-text">
+            <span className="inline-flex min-w-0 items-center gap-2 text-text">
               <span
-                className="size-2.5 rounded-full"
+                className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: slice.color }}
                 aria-hidden
               />
               {slice.label}
             </span>
-            <span className="tabular-nums text-text-secondary">
+            <span className="app-business-summary-value shrink-0 whitespace-nowrap tabular-nums text-text-secondary">
               <span className="font-semibold text-text">
                 {formatNumber(slice.count)}
               </span>{' '}

@@ -28,7 +28,7 @@ type NotificationsFiltersProps = {
 };
 
 const selectClassName =
-  'h-11 w-full min-w-0 sm:w-auto sm:min-w-[9rem] text-sm font-medium';
+  'h-11 w-full min-w-0 text-sm font-medium';
 
 export function NotificationsFilters({
   search,
@@ -47,12 +47,12 @@ export function NotificationsFilters({
   return (
     <div
       className={cn(
-        'app-toolbar lg:justify-between',
+        'app-notification-filters',
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="relative min-w-0 flex-1 sm:max-w-xs">
+      <div className="app-notification-filter-grid">
+        <div className="app-notification-search relative min-w-0">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-secondary"
             aria-hidden
@@ -66,7 +66,7 @@ export function NotificationsFilters({
           />
         </div>
 
-        <SelectInput
+        <div className="app-notification-channel"><SelectInput
           value={channel}
           onChange={(e) =>
             onChannelChange(e.target.value as NotificationChannelFilter)
@@ -79,9 +79,9 @@ export function NotificationsFilters({
           <option value="SMS">SMS</option>
           <option value="IN_APP">In app</option>
           <option value="WHATSAPP">WhatsApp</option>
-        </SelectInput>
+        </SelectInput></div>
 
-        <SelectInput
+        <div className="app-notification-status"><SelectInput
           value={status}
           onChange={(e) =>
             onStatusChange(e.target.value as NotificationStatusFilter)
@@ -97,9 +97,9 @@ export function NotificationsFilters({
           <option value="READ">Read</option>
           <option value="FAILED">Failed</option>
           <option value="CANCELLED">Cancelled</option>
-        </SelectInput>
+        </SelectInput></div>
 
-        <div className="app-date-range">
+        <div className="app-notification-dates">
           <Input
             type="date"
             value={dateFrom}
@@ -116,17 +116,16 @@ export function NotificationsFilters({
             className="h-11 w-auto bg-background"
           />
         </div>
-      </div>
-
       <Button
         type="button"
         size="lg"
         onClick={onSend}
-        className="h-11 gap-2 bg-brand-orange text-white hover:bg-brand-orange-deep focus-visible:ring-brand-orange"
+        className="app-notification-send h-11 gap-2 bg-brand-orange text-white hover:bg-brand-orange-deep focus-visible:ring-brand-orange"
       >
         <Plus className="size-4" aria-hidden />
         Send Notification
       </Button>
+      </div>
     </div>
   );
 }

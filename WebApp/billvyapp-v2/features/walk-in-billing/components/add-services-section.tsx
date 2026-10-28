@@ -1,5 +1,5 @@
 'use client';
-import { GenderSelect } from '@/components/data/gender-select';
+import { BillingGenderSelector } from './billing-gender-selector';
 import type { Gender } from '@/lib/gender';
 import { genderLabel } from '@/lib/gender';
 
@@ -89,7 +89,7 @@ export function AddServicesSection({
         <h2 className="text-base font-semibold text-text">Add Services</h2>
       </div>
 
-      <GenderSelect id="billing-service-gender" value={gender} onChange={onGenderChange} disabled={!enabled} />
+      <BillingGenderSelector value={gender} onChange={onGenderChange} disabled={!enabled} />
       <div className="mt-3 grid gap-3 panel-md:grid-cols-2">
         <div className="relative">
           <Input

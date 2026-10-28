@@ -49,7 +49,7 @@ export function AdminBranchesTable({
       </div>
 
       {/* Table Container */}
-      <div className="app-surface-card overflow-hidden">
+      <div className="app-panel app-surface-card overflow-hidden">
         {branches.length === 0 ? (
           <div className="py-12 text-center">
             <SectionEmptyState
@@ -70,22 +70,22 @@ export function AdminBranchesTable({
           </div>
         ) : (
           <>
-            {/* Desktop Table — table-fixed so columns fit; no horizontal scroll */}
+            {/* Use the panel's available width rather than the viewport width. */}
             <div
               tabIndex={0}
               role="region"
               aria-label="Scrollable table"
-              className="app-table-scroll hidden min-w-0 lg:block"
+              className="app-branches-table app-table-scroll min-w-0"
             >
-              <table className="w-full table-fixed text-left text-sm">
+              <table className="w-full min-w-[960px] table-fixed text-left text-sm">
                 <thead className="border-b border-border bg-ivory/70 text-xs font-semibold uppercase tracking-wider text-text-secondary">
                   <tr>
-                    <th className="w-[18%] px-3 py-3.5 xl:px-4">Branch</th>
+                    <th className="w-[20%] px-3 py-3.5 xl:px-4">Branch</th>
                     <th className="w-[14%] px-3 py-3.5 xl:px-4">Location</th>
-                    <th className="w-[11%] px-3 py-3.5 xl:px-4">Code</th>
-                    <th className="w-[16%] px-3 py-3.5 xl:px-4">Manager</th>
-                    <th className="w-[10%] px-3 py-3.5 xl:px-4">Status</th>
-                    <th className="w-[8%] px-3 py-3.5 xl:px-4">Staff</th>
+                    <th className="w-[10%] px-3 py-3.5 xl:px-4">Code</th>
+                    <th className="w-[18%] px-3 py-3.5 xl:px-4">Manager</th>
+                    <th className="w-[9%] px-3 py-3.5 xl:px-4">Status</th>
+                    <th className="w-[6%] px-3 py-3.5 xl:px-4">Staff</th>
                     <th className="w-[14%] px-3 py-3.5 xl:px-4">Revenue</th>
                     <th className="w-[9%] px-3 py-3.5 text-right xl:px-4">
                       <span className="sr-only">Actions</span>
@@ -104,7 +104,7 @@ export function AdminBranchesTable({
                             <Store className="size-4 text-champagne" />
                           </div>
                           <p
-                            className="truncate font-bold text-text"
+                            className="app-branch-name font-bold text-text"
                             title={b.name}
                           >
                             {b.name}
@@ -191,7 +191,7 @@ export function AdminBranchesTable({
             </div>
 
             {/* Mobile / Tablet Cards */}
-            <ul className="divide-y divide-border lg:hidden">
+            <ul className="app-branches-cards divide-y divide-border">
               {branches.map((b) => (
                 <li key={b.id} className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
@@ -199,7 +199,7 @@ export function AdminBranchesTable({
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-800 text-champagne">
                         <Store className="size-5 text-champagne" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-bold text-text">{b.name}</p>
                         <p className="text-xs text-text-secondary">
                           {b.location}
@@ -212,7 +212,7 @@ export function AdminBranchesTable({
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 rounded-lg bg-ivory/60 p-2.5 text-center text-xs">
+                  <div className="grid grid-cols-2 gap-2 rounded-lg bg-ivory/60 p-2.5 text-center text-xs sm:grid-cols-3">
                     <div>
                       <p className="text-text-muted">Code</p>
                       <p className="font-mono font-bold text-text">{b.code}</p>
@@ -223,7 +223,7 @@ export function AdminBranchesTable({
                         {b.staffCount ?? '—'}
                       </p>
                     </div>
-                    <div>
+                    <div className="col-span-2 sm:col-span-1">
                       <p className="text-text-muted">Revenue</p>
                       <p className="font-bold text-text">
                         {formatRevenue(b.revenueMonth)}
@@ -236,6 +236,7 @@ export function AdminBranchesTable({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
+                        aria-label={`View ${b.name}`}
                         className="rounded p-1 text-text-secondary hover:bg-champagne-light"
                         onClick={() => onViewBranch?.(b)}
                       >
@@ -243,6 +244,7 @@ export function AdminBranchesTable({
                       </button>
                       <button
                         type="button"
+                        aria-label={`Edit ${b.name}`}
                         className="rounded p-1 text-text-secondary hover:bg-champagne-light"
                         onClick={() => onEditBranch?.(b)}
                       >

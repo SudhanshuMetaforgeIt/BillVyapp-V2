@@ -1,6 +1,8 @@
 'use client';
 
 import { CurrencyIcon } from '@/components/ui/currency-icon';
+import { AnimatedNumber } from '@/components/ui/animated-number';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { getBusinessRegion } from '@/lib/business-region';
 
@@ -30,7 +32,7 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
     {
       id: 'total-staff',
       label: 'Total Staff',
-      value: stats.totalStaff.toLocaleString('en-IN'),
+      value: <AnimatedNumber value={stats.totalStaff} />,
       subtitle: 'Across all branches',
       subtitleColor: 'text-stone-500 dark:text-stone-400',
       icon: Users,
@@ -40,7 +42,7 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
     {
       id: 'active-staff',
       label: 'Active Staff',
-      value: stats.activeStaff.toLocaleString('en-IN'),
+      value: <AnimatedNumber value={stats.activeStaff} />,
       subtitle: `${stats.activeStaffPct}% of total`,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: CheckCircle2,
@@ -50,7 +52,7 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
     {
       id: 'on-leave',
       label: 'On Leave',
-      value: stats.onLeave?.toLocaleString('en-IN') ?? '—',
+      value: stats.onLeave == null ? '—' : <AnimatedNumber value={stats.onLeave} />,
       subtitle: stats.onLeavePct === null ? 'Leave data unavailable' : `${stats.onLeavePct}% of total`,
       subtitleColor: 'text-rose-600 dark:text-rose-400',
       icon: CalendarOff,
@@ -59,7 +61,7 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
     {
       id: 'inactive-staff',
       label: 'Inactive Staff',
-      value: stats.inactiveStaff.toLocaleString('en-IN'),
+      value: <AnimatedNumber value={stats.inactiveStaff} />,
       subtitle: `${stats.inactiveStaffPct}% of total`,
       subtitleColor: 'text-amber-600 dark:text-amber-400',
       icon: UserMinus,
@@ -69,7 +71,7 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
     {
       id: 'total-payroll',
       label: 'Total Payroll (This Month)',
-      value: formatINR(stats.totalPayrollThisMonth),
+      value: <AnimatedNumber value={stats.totalPayrollThisMonth} format={formatINR} />,
       subtitle: 'Across all branches',
       subtitleColor: 'text-stone-500 dark:text-stone-400',
       icon: CurrencyIcon,
@@ -79,32 +81,32 @@ export function StaffStats({ stats, loading }: StaffStatsProps) {
   ];
 
   return (
-    <div className="app-stat-grid">
+    <div className="app-staff-stats-grid app-stat-grid">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
             key={card.id}
-            className="flex items-start gap-4 rounded-xl border border-stone-200/80 bg-white p-4 shadow-xs transition hover:shadow-sm dark:border-stone-800 dark:bg-stone-900"
+            className="app-staff-stat-card app-metric-card rounded-xl border border-stone-200/80 bg-white p-4 shadow-xs transition hover:shadow-sm dark:border-stone-800 dark:bg-stone-900"
           >
             <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}
+              className={`app-staff-stat-icon flex size-9 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}
             >
-              <Icon className="h-6 w-6" />
+              <Icon className="size-5" />
             </div>
 
-            <div className="flex-1 min-w-0">
-              <span className="block text-xs font-medium text-stone-500 dark:text-stone-400">
+            <div className="contents">
+              <span className="app-staff-stat-label block text-xs font-medium text-stone-500 dark:text-stone-400">
                 {card.label}
               </span>
-              <div className="mt-1 text-2xl font-bold tracking-tight text-stone-900 dark:text-white truncate">
+              <div className="app-staff-stat-value font-bold tracking-tight text-stone-900 dark:text-white">
                 {loading ? (
-                  <div className="h-7 w-16 animate-pulse rounded bg-stone-200 dark:bg-stone-800" />
+                  <Skeleton className="h-7 w-16" />
                 ) : (
                   card.value
                 )}
               </div>
-              <div className="mt-1.5">
+              <div className="app-staff-stat-caption">
                 <span
                   className={`text-[11px] font-medium ${card.subtitleColor}`}
                 >

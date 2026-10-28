@@ -28,22 +28,30 @@ function donutPaths(slices: PaymentMethodSlice[], radius: number, cx: number, cy
   if (total <= 0) return [];
 
   let angle = -Math.PI / 2;
-  return slices.map((slice, index) => {
+  const paths = [];
+  for (const [index, slice] of slices.entries()) {
     const sweep = (slice.amount / total) * Math.PI * 2;
     const x1 = cx + radius * Math.cos(angle);
     const y1 = cy + radius * Math.sin(angle);
+    const oppositeX = cx - radius * Math.cos(angle);
+    const oppositeY = cy - radius * Math.sin(angle);
     angle += sweep;
     const x2 = cx + radius * Math.cos(angle);
     const y2 = cy + radius * Math.sin(angle);
     const largeArc = sweep > Math.PI ? 1 : 0;
-    return {
+    // SVG cannot draw a full circle with one arc whose endpoints coincide.
+    const arc = slice.amount === total
+      ? `A ${radius} ${radius} 0 0 1 ${oppositeX} ${oppositeY} A ${radius} ${radius} 0 0 1 ${x1} ${y1}`
+      : `A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
+    paths.push({
       id: slice.method,
-      d: `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`,
+      d: `M ${cx} ${cy} L ${x1} ${y1} ${arc} Z`,
       color: SLICE_COLORS[index % SLICE_COLORS.length],
       label: slice.label,
       percent: slice.percent,
-    };
-  });
+    });
+  }
+  return paths;
 }
 
 export function ManagerPaymentMethods({

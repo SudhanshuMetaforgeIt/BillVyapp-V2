@@ -1,5 +1,6 @@
-import { VendorsView } from '@/features/procurement/components/vendors-view';
+import { redirect } from 'next/navigation';
+import { ROUTES } from '@/constants/routes';
 
 export default function AdminVendorsPage() {
-  return <VendorsView />;
+  redirect(`${ROUTES.dashboard.admin.expenses}?tab=vendors`);
 }

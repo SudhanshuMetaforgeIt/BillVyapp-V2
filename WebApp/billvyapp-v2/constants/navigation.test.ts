@@ -30,6 +30,9 @@ describe('role navigation', () => {
     expect(links).not.toContain(`${ROUTES.dashboard.admin.root}/inventory`);
     expect(links.some((href) => href.includes('/audit'))).toBe(false);
     expect(links).not.toContain(ROUTES.dashboard.superAdmin.users);
+    expect(links).toContain(ROUTES.dashboard.admin.expenses);
+    expect(links).not.toContain(ROUTES.dashboard.admin.purchases);
+    expect(links).not.toContain(ROUTES.dashboard.admin.vendors);
   });
 
   it('gives manager salon operations and hides staff-only omissions', () => {

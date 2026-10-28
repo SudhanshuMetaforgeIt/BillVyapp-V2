@@ -59,7 +59,7 @@ export function AdminBusinessesView() {
     <div ref={rootRef} className="space-y-6 lg:space-y-7 pb-10">
       <AdminBusinessStatsCards stats={data?.stats} isLoading={query.isLoading} />
 
-      <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.85fr)_minmax(18rem,1fr)] lg:gap-7">
+      <div className="app-admin-business-layout grid gap-6">
         <div className="space-y-6 lg:space-y-7 min-w-0">
           <AdminBusinessOverviewCard
             franchise={data?.franchise}
@@ -75,7 +75,7 @@ export function AdminBusinessesView() {
           />
         </div>
 
-        <div className="min-w-0">
+        <div className="app-admin-business-aside min-w-0">
           <AdminBusinessesSidebar
             overview={data?.overview}
             onAddBranch={() => setCreateDialogOpen(true)}

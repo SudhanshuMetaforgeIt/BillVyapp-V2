@@ -81,7 +81,7 @@ export function AdminCustomersFilters({
       </div>
 
       {/* Filter Row: Search, Branch, Status, Gender, Filter, Refresh */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="app-customer-filter-fields grid gap-2.5">
         {/* Search */}
         <div className="relative min-w-0 flex-[1_1_14rem]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
@@ -90,6 +90,7 @@ export function AdminCustomersFilters({
             value={filters.search}
             onChange={(e) => onChange({ search: e.target.value, page: 1 })}
             placeholder="Search by name, mobile or email..."
+            aria-label="Search customers"
             className="w-full rounded-lg border border-stone-200/80 bg-white py-2 pl-9 pr-8 text-xs text-stone-800 shadow-2xs placeholder:text-stone-400 focus:border-amber-500 focus:outline-hidden focus:ring-1 focus:ring-amber-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-200"
           />
           {filters.search && (
@@ -104,7 +105,7 @@ export function AdminCustomersFilters({
         </div>
 
         {/* Branch Selector */}
-        <SelectInput className="app-select-sm h-9 w-full min-w-0 sm:w-auto sm:min-w-[140px] text-xs font-medium"
+        <SelectInput aria-label="Filter by branch" className="app-select-sm h-9 w-full min-w-0 text-xs font-medium"
             value={filters.branchId}
             onChange={(e) => onChange({ branchId: e.target.value, page: 1 })}
           >
@@ -117,7 +118,7 @@ export function AdminCustomersFilters({
           </SelectInput>
 
         {/* Status Selector */}
-        <SelectInput className="app-select-sm h-9 w-full min-w-0 sm:w-auto sm:min-w-[140px] text-xs font-medium"
+        <SelectInput aria-label="Filter by status" className="app-select-sm h-9 w-full min-w-0 text-xs font-medium"
             value={filters.status}
             onChange={(e) =>
               onChange({
@@ -132,7 +133,7 @@ export function AdminCustomersFilters({
           </SelectInput>
 
         {/* Gender Selector */}
-        <SelectInput className="app-select-sm h-9 w-full min-w-0 sm:w-auto sm:min-w-[140px] text-xs font-medium"
+        <SelectInput aria-label="Filter by gender" className="app-select-sm h-9 w-full min-w-0 text-xs font-medium"
             value={filters.gender}
             onChange={(e) =>
               onChange({

@@ -12,9 +12,7 @@ import {
   Receipt,
   Scissors,
   Search,
-  ShoppingCart,
   Store,
-  Truck,
   Users2,
 } from 'lucide-react';
 
@@ -70,7 +68,7 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/payments`,
         icon: CreditCard,
       },
-      { id: 'expenses', label: 'Expenses', href: `${base}/expenses`, icon: Receipt },
+      { id: 'expenses', label: 'Expenses & Purchases', href: `${base}/expenses`, icon: Receipt },
       {
         id: 'customers',
         label: 'Customers',
@@ -107,14 +105,6 @@ export const ADMIN_NAVIGATION: NavSection[] = [
         href: `${base}/support`,
         icon: Headset,
       },
-    ],
-  },
-  {
-    id: 'procurement',
-    label: 'Procurement',
-    items: [
-      { id: 'purchases', label: 'Purchases', href: `${base}/purchases`, icon: ShoppingCart },
-      { id: 'vendors', label: 'Vendors', href: `${base}/vendors`, icon: Truck },
     ],
   },
   {

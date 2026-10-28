@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AuthPageShell } from '@/features/auth/components/auth-page-shell';
+import { BrandedAuthShell } from '@/features/auth/components/branded-auth-shell';
 import { ForgotPasswordCard } from '@/features/auth/components/forgot-password-card';
 
 export const metadata: Metadata = {
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function ForgotPasswordPage() {
-  return <AuthPageShell><ForgotPasswordCard /></AuthPageShell>;
+  return <BrandedAuthShell><ForgotPasswordCard /></BrandedAuthShell>;
 }
