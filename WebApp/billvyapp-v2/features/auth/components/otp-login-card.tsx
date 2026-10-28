@@ -2,7 +2,7 @@
 import { normalizePhone, type PhoneCountry } from '@/lib/phone';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { KeyRound } from 'lucide-react';
+import { ArrowRight, KeyRound, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { PrefetchLink } from '@/components/ui/prefetch-link';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -22,8 +22,6 @@ import {
 } from '@/features/auth/schemas/auth.schema';
 import type { OtpStep } from '@/features/auth/types/auth.types';
 import { cn } from '@/lib/utils';
-
-import { BrandLogo } from './brand-logo';
 
 const INPUT_CLASS =
   'auth-form-input h-11 border-border pl-10 text-text placeholder:text-text-secondary/70 focus-visible:border-brand-orange focus-visible:ring-brand-orange/25';
@@ -72,21 +70,19 @@ export function OtpLoginCard() {
   const error = step === 'request-code' ? sendOtp.error : verifyOtp.error;
 
   return (
-    <div data-auth-animate="card" className="auth-form-shell @container">
-      <div className="auth-form-card w-full min-w-0 rounded-2xl px-5 py-7 sm:px-9 sm:py-11">
-        <div className="mb-7 flex flex-col items-center text-center">
-          <div data-auth-animate="card-logo" className="mb-3">
-            <BrandLogo variant="light" size="compact" />
-          </div>
+    <div data-auth-animate="card" className="login-form-shell @container">
+      <div className="login-form-card" data-auth-step={step}>
+        <div className="login-form-heading">
+          <p className="login-access-label"><ShieldCheck className="size-3.5" aria-hidden /> Customer access</p>
           <h2
             data-auth-animate="card-title"
-            className="text-[1.65rem] font-bold tracking-tight text-text"
+            className="login-form-title font-bold tracking-tight text-text"
           >
-            Sign in with OTP
+            Sign in with <span>OTP</span>
           </h2>
           <p
             data-auth-animate="card-subtitle"
-            className="mt-2 text-sm leading-relaxed text-text-secondary"
+            className="mt-2 break-words text-sm leading-relaxed text-text-secondary"
           >
             {step === 'request-code'
               ? 'Enter your registered mobile number to receive a code'
@@ -95,7 +91,7 @@ export function OtpLoginCard() {
         </div>
 
         {step === 'request-code' ? (
-          <form onSubmit={requestCode} className="space-y-4" noValidate>
+          <form onSubmit={requestCode} className="login-fields" noValidate>
             <Field
               id="otp-phone"
               label="Mobile Number"
@@ -109,8 +105,9 @@ export function OtpLoginCard() {
                   onPhoneCountryChange={setPhoneCountry}
                   autoComplete="tel"
                   inputMode="tel"
-                  placeholder="9966996688"
+                  placeholder="10 local digits"
                   aria-invalid={Boolean(phoneForm.formState.errors.phone)}
+                  aria-describedby={phoneForm.formState.errors.phone ? 'otp-phone-error' : undefined}
                   disabled={sendOtp.isPending}
                   className={INPUT_CLASS}
                   {...phoneForm.register('phone', {
@@ -134,11 +131,11 @@ export function OtpLoginCard() {
                 'disabled:opacity-70',
               )}
             >
-              {sendOtp.isPending ? 'Sending code…' : 'Send Code'}
+              {sendOtp.isPending ? <><LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden /> Sending code…</> : <>Send Code <ArrowRight className="size-4" aria-hidden /></>}
             </Button>
           </form>
         ) : (
-          <form onSubmit={submitCode} className="space-y-4" noValidate>
+          <form onSubmit={submitCode} className="login-fields" noValidate>
             <Field
               id="otp-code"
               label="One-time Code"
@@ -157,6 +154,7 @@ export function OtpLoginCard() {
                   maxLength={6}
                   placeholder="6-digit code"
                   aria-invalid={Boolean(codeForm.formState.errors.code)}
+                  aria-describedby={codeForm.formState.errors.code ? 'otp-code-error' : undefined}
                   disabled={verifyOtp.isPending}
                   className={INPUT_CLASS}
                   {...codeForm.register('code')}
@@ -165,7 +163,7 @@ export function OtpLoginCard() {
             </Field>
 
             {devOtp ? (
-              <p className="rounded-lg border border-border bg-ivory-soft px-3 py-2 text-xs text-text-secondary">
+              <p className="rounded-lg border border-champagne/30 bg-champagne/10 px-3 py-2 text-xs text-text-secondary">
                 Development code:{' '}
                 <span className="font-mono font-semibold">{devOtp}</span>
               </p>
@@ -185,13 +183,13 @@ export function OtpLoginCard() {
                 'disabled:opacity-70',
               )}
             >
-              {verifyOtp.isPending ? 'Verifying…' : 'Verify & Sign In'}
+              {verifyOtp.isPending ? <><LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden /> Verifying…</> : <>Verify & Sign In <ArrowRight className="size-4" aria-hidden /></>}
             </Button>
 
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
               <button
                 type="button"
-                className="font-medium text-text-secondary hover:text-text"
+                className="min-h-11 rounded-md font-medium text-text-secondary hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
                 onClick={() => {
                   verifyOtp.reset();
                   setStep('request-code');
@@ -201,7 +199,7 @@ export function OtpLoginCard() {
               </button>
               <button
                 type="button"
-                className="font-medium text-brand-orange hover:text-brand-orange-deep disabled:opacity-60"
+                className="min-h-11 rounded-md font-medium text-brand-orange hover:text-brand-orange-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne disabled:opacity-60"
                 disabled={sendOtp.isPending}
                 onClick={() =>
                   sendOtp.mutate(
@@ -218,7 +216,7 @@ export function OtpLoginCard() {
 
         <div className="mt-6 h-px w-full bg-border" aria-hidden />
 
-        <p className="mt-5 flex justify-center gap-4 text-center text-sm">
+        <p className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-sm">
           <PrefetchLink
             href={ROUTES.auth.login}
             prefetchStrategy="intent"

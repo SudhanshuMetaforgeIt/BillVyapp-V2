@@ -122,7 +122,7 @@ export function StaffTable({
   const endRecord = Math.min(currentPage * limit, total);
 
   return (
-    <div className="rounded-xl border border-stone-200/80 bg-white shadow-xs overflow-hidden dark:border-stone-800 dark:bg-stone-900">
+    <div className="app-panel rounded-xl border border-stone-200/80 bg-white shadow-xs overflow-hidden dark:border-stone-800 dark:bg-stone-900">
       {staff.length === 0 && !loading ? (
         <div className="py-16 text-center">
           <SectionEmptyState
@@ -145,10 +145,14 @@ export function StaffTable({
           <div
             tabIndex={0}
             role="region"
-            aria-label="Scrollable table"
-            className="app-table-scroll overflow-x-auto"
+            aria-label="Staff records"
+            className="app-records-table-scroll app-table-scroll"
           >
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="app-records-table app-staff-table w-full text-left text-xs border-collapse">
+              <colgroup>
+                <col className="w-[24%]" /><col className="w-[13%]" /><col className="w-[14%]" /><col className="w-[12%]" />
+                <col className="w-[9%]" /><col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[9%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-stone-200/80 bg-stone-50/70 text-[11px] font-semibold text-stone-600 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
                   <th className="px-4 py-3.5">Staff Name</th>
@@ -170,12 +174,12 @@ export function StaffTable({
                     className="transition-colors hover:bg-stone-50/70 dark:hover:bg-stone-800/40"
                   >
                     {/* Staff Name & ID */}
-                    <td className="px-4 py-3.5 whitespace-nowrap">
+                    <td data-label="Staff Name" className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300">
                           <User className="h-4 w-4" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <button
                             type="button"
                             onClick={() => onViewStaff(member)}
@@ -183,7 +187,7 @@ export function StaffTable({
                           >
                             {member.name}
                           </button>
-                          <div className="text-[11px] text-stone-400">
+                          <div className="app-staff-id text-[11px] text-stone-400" title={`ID: ${member.staffCode}`}>
                             ID: {member.staffCode}
                           </div>
                         </div>
@@ -191,42 +195,43 @@ export function StaffTable({
                     </td>
 
                     {/* Role */}
-                    <td className="px-4 py-3.5 whitespace-nowrap">
+                    <td data-label="Role" className="px-4 py-3.5">
                       {getRoleBadge(member.roleName)}
                     </td>
 
                     {/* Branch */}
-                    <td className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
+                    <td data-label="Branch" className="px-4 py-3.5 text-stone-700 dark:text-stone-300">
                       {member.branchName}
                     </td>
 
                     {/* Mobile */}
-                    <td className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
+                    <td data-label="Mobile" className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
                       {member.phone}
                     </td>
 
                     {/* Salary */}
-                    <td className="px-4 py-3.5 text-right font-semibold text-stone-900 dark:text-white whitespace-nowrap">
+                    <td data-label={`Salary (${getCurrencySymbol()})`} className="px-4 py-3.5 text-right font-semibold text-stone-900 dark:text-white whitespace-nowrap">
                       {formatSalary(member.salary)}
                     </td>
 
                     {/* Status */}
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <td data-label="Status" className="px-4 py-3.5 text-center whitespace-nowrap">
                       {getStatusBadge(member.status)}
                     </td>
 
                     {/* Join Date */}
-                    <td className="px-4 py-3.5 text-center text-stone-600 dark:text-stone-400 whitespace-nowrap">
+                    <td data-label="Join Date" className="px-4 py-3.5 text-center text-stone-600 dark:text-stone-400 whitespace-nowrap">
                       {member.joinDate}
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <td data-label="Actions" className="px-4 py-3.5 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         <button
                           type="button"
                           onClick={() => onEditStaff(member)}
                           title="Edit Staff Member"
+                          aria-label={`Edit ${member.name}`}
                           className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
                         >
                           <Edit2 className="h-3.5 w-3.5" />
@@ -241,7 +246,7 @@ export function StaffTable({
           </div>
 
           {/* Table Footer */}
-          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
+          <div className="app-staff-pagination flex flex-wrap gap-3 px-4 py-3 sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
             <div>
               Showing{' '}
               <span className="font-semibold text-stone-900 dark:text-white">
@@ -258,10 +263,11 @@ export function StaffTable({
               staff members
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Page size dropdown */}
               <div className="flex items-center gap-1.5">
                 <SelectInput
+                  aria-label="Staff per page"
                   className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
                   value={limit}
                   onChange={(e) => onLimitChange(Number(e.target.value))}
@@ -277,6 +283,7 @@ export function StaffTable({
                 <button
                   type="button"
                   disabled={currentPage <= 1}
+                  aria-label="Previous staff page"
                   onClick={() => onPageChange(currentPage - 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300"
                 >
@@ -318,6 +325,7 @@ export function StaffTable({
                 <button
                   type="button"
                   disabled={currentPage >= totalPages}
+                  aria-label="Next staff page"
                   onClick={() => onPageChange(currentPage + 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300"
                 >

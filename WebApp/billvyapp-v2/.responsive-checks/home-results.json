@@ -1,5 +1,11 @@
 {
   "checks": 68,
   "failures": [],
-  "errors": []
+  "errors": [
+    {
+      "role": "STAFF",
+      "route": "http://localhost:3001/dashboard/staff",
+      "message": "Failed to execute 'measure' on 'Performance': '​StaffDashboardPage' cannot have a negative time stamp."
+    }
+  ]
 }

@@ -3,6 +3,19 @@
 @import "shadcn/tailwind.css";
 @import "./dashboard-responsive.css";
 
+@keyframes app-skeleton-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .48; }
+}
+
+.app-skeleton {
+  animation: app-skeleton-breathe 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-skeleton { animation: none; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

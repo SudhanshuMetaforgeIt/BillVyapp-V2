@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Crown, MapPin, Pencil, Sparkles, Store } from 'lucide-react';
+import { Clock, Crown, MapPin, Pencil, Store } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,12 +36,12 @@ export function AdminBusinessOverviewCard({
     <div className="space-y-3">
       <h2 className="text-base font-bold text-text sm:text-lg">Business Overview</h2>
 
-      <div className="app-surface-card p-5 sm:p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="app-panel app-surface-card p-5 sm:p-6">
+        <div className="app-business-identity">
           {/* Left: Brand logo & details */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-center gap-4">
             {/* Logo */}
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-charcoal text-champagne shadow-md sm:size-20">
+            <div className="app-business-logo flex size-16 shrink-0 items-center justify-center rounded-2xl bg-charcoal text-champagne shadow-md">
               <Store className="size-8 text-champagne" />
             </div>
 
@@ -66,7 +66,7 @@ export function AdminBusinessOverviewCard({
           </div>
 
           {/* Middle: Plan & Since */}
-          <div className="flex flex-wrap gap-6 border-t border-border pt-4 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">
+          <div className="app-business-facts flex flex-wrap gap-4 border-t border-border pt-4">
             {/* Business Since */}
             <div className="flex items-start gap-2.5">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ivory text-text-secondary border border-border">
@@ -84,7 +84,7 @@ export function AdminBusinessOverviewCard({
               </div>
               <div>
                 <p className="text-xs text-text-secondary">Business Code</p>
-                <p className="text-sm font-semibold text-text">{franchise.code}</p>
+                <p className="break-all text-sm font-semibold text-text">{franchise.code}</p>
                 <p className="text-[11px] text-text-muted">
                   Status: {franchise.isActive ? 'Active' : 'Inactive'}
                 </p>
@@ -93,7 +93,7 @@ export function AdminBusinessOverviewCard({
           </div>
 
           {/* Right: Edit button */}
-          <div className="shrink-0">
+          <div className="app-business-edit shrink-0">
             <Button
               type="button"
               variant="outline"

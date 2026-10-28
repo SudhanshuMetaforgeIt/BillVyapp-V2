@@ -20,7 +20,7 @@ const paginated = data => ({data,meta:{page:1,limit:10,total:data.length,totalPa
 function fixture(url,role) {
  const p=new URL(url).pathname.replace(/^\/api(?:\/v\d+)?/,'');
  const user={...customer,id:'user',role,franchiseId:role==='SUPER_ADMIN'?null:'franchise',salonId:['MANAGER','STAFF'].includes(role)?'salon':null,subscriptionActive:true,timezone:'Asia/Kolkata',profilePhoto:null,salonName:long,language:'en'};
- if(p.endsWith('/auth/refresh'))return {accessToken:'isolated-responsive-fixture',refreshToken:'unused'};
+ if(p.endsWith('/auth/refresh'))return {accessToken:'isolated-responsive-fixture',tokenType:'Bearer',user};
  if(p.endsWith('/auth/me'))return user;
  if(p==='/settings/security')return {passwordPolicy:{minLength:8},session:{timeoutMinutes:30,maxLoginAttempts:5,lockoutDurationMinutes:15}};
  if(['/settings/integrations','/settings/backups'].includes(p))return [];

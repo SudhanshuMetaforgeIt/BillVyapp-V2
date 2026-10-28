@@ -1,6 +1,8 @@
 'use client';
 
 import { CurrencyIcon } from '@/components/ui/currency-icon';
+import { AnimatedNumber } from '@/components/ui/animated-number';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { getBusinessRegion } from '@/lib/business-region';
 
@@ -30,7 +32,7 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
     {
       id: 'total-customers',
       label: 'Total Customers',
-      value: stats.totalCustomers.toLocaleString('en-IN'),
+      value: <AnimatedNumber value={stats.totalCustomers} />,
       subtitle: stats.totalCustomersChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: Users,
@@ -41,7 +43,7 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
     {
       id: 'new-customers',
       label: 'New Customers (This Month)',
-      value: stats.newCustomers.toLocaleString('en-IN'),
+      value: <AnimatedNumber value={stats.newCustomers} />,
       subtitle: stats.newCustomersChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: UserPlus,
@@ -52,7 +54,7 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
     {
       id: 'returning-customers',
       label: 'Returning Customers',
-      value: stats.returningCustomers.toLocaleString('en-IN'),
+      value: <AnimatedNumber value={stats.returningCustomers} />,
       subtitle: `${stats.returningCustomersPct}% of total`,
       subtitleColor: 'text-purple-600 dark:text-purple-400',
       icon: RotateCcw,
@@ -62,7 +64,7 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
     {
       id: 'total-spent',
       label: 'Total Spent (This Month)',
-      value: formatINR(stats.totalSpentThisMonth),
+      value: <AnimatedNumber value={stats.totalSpentThisMonth} format={formatINR} />,
       subtitle: stats.totalSpentChange,
       subtitleColor: 'text-emerald-600 dark:text-emerald-400',
       icon: CurrencyIcon,
@@ -79,26 +81,26 @@ export function CustomersStats({ stats, loading }: CustomersStatsProps) {
         return (
           <div
             key={card.id}
-            className="flex items-start gap-4 rounded-xl border border-stone-200/80 bg-white p-4 shadow-xs transition hover:shadow-sm dark:border-stone-800 dark:bg-stone-900"
+            className="app-customer-stat-card app-metric-card rounded-xl border border-stone-200/80 bg-white p-4 shadow-xs transition hover:shadow-sm dark:border-stone-800 dark:bg-stone-900"
           >
             <div
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}
+              className={`app-customer-stat-icon flex size-9 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}
             >
-              <Icon className="h-6 w-6" />
+              <Icon className="size-5" />
             </div>
 
-            <div className="flex-1 min-w-0">
-              <span className="block text-xs font-medium text-stone-500 dark:text-stone-400">
+            <div className="contents">
+              <span className="app-customer-stat-label block text-xs font-medium text-stone-500 dark:text-stone-400">
                 {card.label}
               </span>
-              <div className="mt-1 text-2xl font-bold tracking-tight text-stone-900 dark:text-white truncate">
+              <div className="app-customer-stat-value font-bold tracking-tight text-stone-900 dark:text-white">
                 {loading ? (
-                  <div className="h-7 w-16 animate-pulse rounded bg-stone-200 dark:bg-stone-800" />
+                  <Skeleton className="h-7 w-16" />
                 ) : (
                   card.value
                 )}
               </div>
-              <div className="mt-1.5 flex items-center gap-1">
+              <div className="app-customer-stat-caption flex items-center gap-1">
                 {card.hasTrendIcon && (
                   <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                 )}

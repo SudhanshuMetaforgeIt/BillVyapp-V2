@@ -64,7 +64,7 @@ export function AdminCustomersTable({
   const endRecord = Math.min(currentPage * limit, total);
 
   return (
-    <div className="app-catalog-page rounded-xl border border-stone-200/80 bg-white shadow-xs overflow-hidden dark:border-stone-800 dark:bg-stone-900">
+    <div className="app-panel rounded-xl border border-stone-200/80 bg-white shadow-xs overflow-hidden dark:border-stone-800 dark:bg-stone-900">
       {customers.length === 0 && !loading ? (
         <div className="py-16 text-center">
           <SectionEmptyState
@@ -87,13 +87,17 @@ export function AdminCustomersTable({
           <div
             tabIndex={0}
             role="region"
-            aria-label="Scrollable table"
-            className="app-table-scroll app-stacked-scroll overflow-x-auto"
+            aria-label="Customer records"
+            className="app-records-table-scroll app-table-scroll"
           >
-            <table className="app-responsive-table app-customers-table w-full text-left text-xs border-collapse">
+            <table className="app-records-table app-admin-customers-table w-full text-left text-xs border-collapse">
+              <colgroup>
+                <col className="w-[20%]" /><col className="w-[11%]" /><col className="w-[15%]" /><col className="w-[11%]" />
+                <col className="w-[7%]" /><col className="w-[10%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[8%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-stone-200/80 bg-stone-50/70 text-[11px] font-semibold text-stone-600 dark:border-stone-800 dark:bg-stone-800/50 dark:text-stone-400">
-                  <th className="app-customer-name-column px-4 py-3.5">Customer</th>
+                  <th className="px-4 py-3.5">Customer</th>
                   <th className="px-4 py-3.5">Mobile</th>
                   <th className="px-4 py-3.5">Email</th>
                   <th className="px-4 py-3.5">Branch</th>
@@ -115,7 +119,7 @@ export function AdminCustomersTable({
                       className="transition-colors hover:bg-stone-50/70 dark:hover:bg-stone-800/40"
                     >
                       {/* Customer Avatar & Name */}
-                      <td data-label="Customer" className="app-customer-name-column px-4 py-3.5">
+                      <td data-label="Customer" className="px-4 py-3.5">
                         <div className="app-customer-identity flex items-center gap-3">
                           <div
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor}`}
@@ -143,12 +147,12 @@ export function AdminCustomersTable({
                       </td>
 
                       {/* Email */}
-                      <td data-label="Email" className="px-4 py-3.5 text-stone-600 dark:text-stone-400 whitespace-nowrap">
+                      <td data-label="Email" className="px-4 py-3.5 text-stone-600 dark:text-stone-400">
                         {c.email}
                       </td>
 
                       {/* Branch */}
-                      <td data-label="Branch" className="px-4 py-3.5 text-stone-700 dark:text-stone-300 whitespace-nowrap">
+                      <td data-label="Branch" className="px-4 py-3.5 text-stone-700 dark:text-stone-300">
                         {c.branchName}
                       </td>
 
@@ -187,6 +191,7 @@ export function AdminCustomersTable({
                             type="button"
                             onClick={() => onViewCustomerBills?.(c)}
                             title="View Bills"
+                            aria-label={`View bills for ${c.name}`}
                             className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-200"
                           >
                             <Receipt className="h-4 w-4" />
@@ -202,7 +207,7 @@ export function AdminCustomersTable({
           </div>
 
           {/* Table Footer */}
-          <div className="app-catalog-pagination flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
+          <div className="app-records-pagination flex flex-wrap gap-3 px-4 py-3 sm:items-center sm:justify-between border-t border-stone-200/80 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400">
             <div>
               Showing{' '}
               <span className="font-semibold text-stone-900 dark:text-white">
@@ -219,10 +224,11 @@ export function AdminCustomersTable({
               customers
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Page size dropdown */}
               <div className="flex items-center gap-1.5">
                 <SelectInput
+                  aria-label="Customers per page"
                   className="app-select-sm h-8 w-auto min-w-0 text-xs font-medium"
                   value={limit}
                   onChange={(e) => onLimitChange(Number(e.target.value))}
@@ -238,6 +244,7 @@ export function AdminCustomersTable({
                 <button
                   type="button"
                   disabled={currentPage <= 1}
+                  aria-label="Previous customer page"
                   onClick={() => onPageChange(currentPage - 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300"
                 >
@@ -279,6 +286,7 @@ export function AdminCustomersTable({
                 <button
                   type="button"
                   disabled={currentPage >= totalPages}
+                  aria-label="Next customer page"
                   onClick={() => onPageChange(currentPage + 1)}
                   className="flex h-7 w-7 items-center justify-center rounded-md border border-stone-200 bg-white text-stone-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300"
                 >

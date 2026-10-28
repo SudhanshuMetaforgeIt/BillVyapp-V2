@@ -1,16 +1,15 @@
-import { AuthPageShell } from '@/features/auth/components/auth-page-shell';
+import { BrandedAuthShell } from '@/features/auth/components/branded-auth-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
- * AuthPageSkeleton preserves exact auth card dimensions during auth route loading
- * and client transitions, keeping the server-rendered aurora background and branding
- * panels stable.
+ * Match the dark auth theme during server streaming and route transitions.
+ * Keep the loading shell static so the page entrance does not play twice.
  */
 export function AuthPageSkeleton() {
   return (
-    <AuthPageShell>
-      <div data-auth-animate="card" className="auth-form-shell @container w-full" aria-busy="true" aria-label="Loading authentication form">
-        <div className="auth-form-card w-full min-w-0 rounded-2xl px-5 py-7 sm:px-9 sm:py-11 space-y-6">
+    <BrandedAuthShell animate={false}>
+      <div className="login-form-shell" role="status" aria-busy="true" aria-label="Loading authentication form">
+        <div className="login-form-card auth-loading-card space-y-6">
           {/* Logo & title */}
           <div className="flex flex-col items-center text-center space-y-2">
             <Skeleton className="size-10 rounded-full bg-champagne-light" />
@@ -43,6 +42,6 @@ export function AuthPageSkeleton() {
           </div>
         </div>
       </div>
-    </AuthPageShell>
+    </BrandedAuthShell>
   );
 }

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { AnimatedNumber } from '@/components/ui/animated-number';
 import {
   formatCurrency,
   formatNumber,
@@ -160,9 +161,6 @@ type MetricCardProps = {
 export function MetricCard({ metric, className }: MetricCardProps) {
   const Icon = METRIC_ICONS[metric.id] ?? Building2;
   const isCurrency = CURRENCY_METRIC_IDS.has(metric.id);
-  const displayValue = isCurrency
-    ? formatCurrency(metric.rawValue)
-    : formatNumber(metric.rawValue);
 
   const change = metric.changePercent;
   const positive = change !== null && change >= 0;
@@ -180,7 +178,7 @@ export function MetricCard({ metric, className }: MetricCardProps) {
         <div className="min-w-0">
           <p className="text-sm font-medium text-text-secondary">{metric.label}</p>
           <p className="app-metric-value mt-2 font-bold tracking-tight text-text">
-            {displayValue}
+            <AnimatedNumber value={metric.rawValue} format={isCurrency ? formatCurrency : formatNumber} decimals={isCurrency ? 2 : 0} />
           </p>
         </div>
         <span
@@ -244,9 +242,11 @@ export function MetricGrid({
   className,
   skeletonCount = 4,
 }: MetricGridProps) {
-  if (isLoading) {
+  if (isLoading && metrics.length === 0) {
     return (
       <div
+        role="status"
+        aria-label="Loading metrics"
         className={cn(
           'app-stat-grid',
           className,

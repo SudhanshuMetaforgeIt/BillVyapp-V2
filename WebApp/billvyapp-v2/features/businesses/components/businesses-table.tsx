@@ -100,12 +100,12 @@ export function BusinessesTable({
           <div className="app-businesses-table relative min-w-0">
             <table className="w-full table-fixed text-left text-sm">
               <colgroup>
-                <col style={{ width: '29%' }} />
-                <col style={{ width: '25%' }} />
+                <col style={{ width: '30%' }} />
+                <col style={{ width: '21%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '12%' }} />
                 <col style={{ width: '14%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '8%' }} />
+                <col style={{ width: '7%' }} />
               </colgroup>
               <thead className="border-b border-border bg-ivory/80 text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>
@@ -150,17 +150,18 @@ export function BusinessesTable({
                       <StatusBadge
                         label={row.planLabel}
                         tone={planTone(row.planTone)}
-                        className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+                        title={row.planLabel}
+                        className="app-business-plan-badge max-w-full whitespace-normal [overflow-wrap:normal] [word-break:normal]"
                       />
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusBadge
                         label={row.statusLabel}
                         tone={statusTone(row.status)}
-                        className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+                        className="max-w-full whitespace-nowrap"
                       />
                     </td>
-                    <td className="px-5 py-3.5 text-text-secondary">
+                    <td className="whitespace-nowrap px-5 py-3.5 text-text-secondary">
                       {formatDate(row.joinedOn)}
                     </td>
                     <td className="px-5 py-3.5">
@@ -199,7 +200,7 @@ export function BusinessesTable({
                     <StatusBadge
                       label={row.statusLabel}
                       tone={statusTone(row.status)}
-                      className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+                      className="max-w-full whitespace-nowrap"
                     />
                     <RowActions
                       row={row}
@@ -215,7 +216,8 @@ export function BusinessesTable({
                   <StatusBadge
                     label={row.planLabel}
                     tone={planTone(row.planTone)}
-                    className="max-w-full whitespace-normal [overflow-wrap:anywhere]"
+                    title={row.planLabel}
+                    className="app-business-plan-badge max-w-full whitespace-normal [overflow-wrap:normal] [word-break:normal]"
                   />
                   <span className="text-xs text-text-secondary">
                     Joined {formatDate(row.joinedOn)}

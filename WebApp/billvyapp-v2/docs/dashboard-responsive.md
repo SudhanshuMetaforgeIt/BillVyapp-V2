@@ -4,6 +4,10 @@ Scope: Super Admin, Admin, Manager and Staff. Changes use the existing component
 
 ## Layout strategy
 
+The October 2026 laptop refinement uses fluid expanded sidebar width (13–16rem), card padding, and table cell spacing. My Business keeps its summary aside below the branch list until the dashboard content reaches 82rem; above that, the aside is capped at 20rem. The branch panel uses a table only at 60rem of available panel width, with labelled cards below that threshold. Headers stay on one line, branch names can wrap, and summary amounts stay intact. The business identity panel changes columns using its own available width.
+
+The populated-business browser check is `outputs/business-responsive-smoke.cjs` at the repository root. It checks 17 widths from 320 to 2560px, header and revenue clipping, summary amounts, branch actions, and the expenses/purchases/vendors pages using mocked API data. Measurements and screenshots are saved beside the script.
+
 `app/dashboard-responsive.css` is imported by the existing global stylesheet and owns the shared responsive rules.
 
 | Responsibility | Approach |

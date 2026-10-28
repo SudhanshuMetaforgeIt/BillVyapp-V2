@@ -1,10 +1,6 @@
-import { AuthPageShell } from '@/features/auth/components/auth-page-shell';
-import { LoginFormCard } from '@/features/auth/components/login-form-card';
+import { BrandedAuthShell } from './branded-auth-shell';
+import { LoginFormCard } from './login-form-card';
 
 export function LoginPageView() {
-  return (
-    <AuthPageShell>
-      <LoginFormCard />
-    </AuthPageShell>
-  );
+  return <BrandedAuthShell storyMotion><LoginFormCard /></BrandedAuthShell>;
 }

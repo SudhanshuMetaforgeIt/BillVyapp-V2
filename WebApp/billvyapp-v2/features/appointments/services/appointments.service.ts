@@ -70,14 +70,15 @@ function dateRangeForPreset(preset: DatePreset): {
 }
 
 function statusLabel(status: AppointmentStatus): string {
-  if (UPCOMING_STATUSES.includes(status)) {
-    if (status === 'IN_PROGRESS') return 'In Progress';
-    return 'Upcoming';
-  }
-  if (status === 'COMPLETED') return 'Completed';
-  if (status === 'CANCELLED') return 'Cancelled';
-  if (status === 'NO_SHOW') return 'No Show';
-  return status;
+  const labels: Record<AppointmentStatus, string> = {
+    PENDING: 'Pending',
+    CONFIRMED: 'Confirmed',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    NO_SHOW: 'No Show',
+  };
+  return labels[status] ?? status;
 }
 
 function initials(name: string): string {

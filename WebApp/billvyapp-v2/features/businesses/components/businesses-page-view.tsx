@@ -94,7 +94,7 @@ export function BusinessesPageView() {
           isLoading={query.isLoading && !data}
         />
 
-        <div className="grid gap-6 content-lg:grid-cols-[minmax(0,1.7fr)_minmax(17rem,1fr)] xl:gap-7">
+        <div className="app-business-directory-layout grid gap-6">
           <div className="space-y-4">
             <BusinessesFilters
               search={searchInput}
@@ -132,12 +132,12 @@ export function BusinessesPageView() {
             />
           </div>
 
-          <BusinessesSidebar
+          <div className="app-business-directory-aside min-w-0"><BusinessesSidebar
             total={data?.total ?? 0}
             summary={data?.summary ?? []}
             planMix={data?.planMix ?? []}
             isLoading={query.isLoading && !data}
-          />
+          /></div>
         </div>
       </div>
 

@@ -106,24 +106,24 @@ export function AdminBusinessStatsCards({
         return (
           <div
             key={c.id}
-            className="app-surface-card app-surface-card-interactive flex items-start gap-3.5 p-4 sm:p-5"
+            className="app-business-stat-card app-metric-card app-surface-card app-surface-card-interactive p-4 sm:p-5"
           >
             <div
               className={cn(
-                'flex size-10 shrink-0 items-center justify-center rounded-full sm:size-11',
+                'app-business-stat-icon flex size-9 shrink-0 items-center justify-center rounded-full',
                 c.iconClass,
               )}
             >
               <Icon className="size-5" aria-hidden />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-text-secondary sm:text-sm">
+            <div className="contents">
+              <p className="app-business-stat-label text-xs font-medium text-text-secondary sm:text-sm">
                 {c.label}
               </p>
-              <p className="mt-1 text-xl font-bold tracking-tight text-text sm:text-2xl">
+              <p className="app-business-stat-value font-bold tracking-tight text-text">
                 {c.value}
               </p>
-              <p className={cn('mt-0.5 truncate text-xs', c.subtextClass)}>
+              <p className={cn('app-business-stat-caption text-xs', c.subtextClass)}>
                 {c.subtext}
               </p>
             </div>
