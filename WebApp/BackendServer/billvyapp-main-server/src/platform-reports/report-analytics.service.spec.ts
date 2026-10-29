@@ -132,6 +132,33 @@ describe('Reporting aggregates', () => {
     });
   });
 
+  it('groups genders within the same completed-bill date and business scope without ranking truncation', async () => {
+    await service.query(actor, { ...query, section: 'details' });
+    const sqls = raw.mock.calls.map(call => call[0]);
+    const genders = sqls.filter(sql => /GROUP BY (b\.serviceGender|c\.gender) LIMIT 50001$/.test(sql.sql));
+    expect(genders).toHaveLength(1);
+    for (const sql of genders) {
+      expect(sql.sql).toContain("b.status = 'COMPLETED'");
+      expect(sql.sql).toMatch(/LIMIT 50001$/);
+      expect(sql.values).toContain('f');
+      expect(sql.values).toContain('s');
+    }
+    expect(sqls.some(sql => sql.sql.includes('c.gender AS gender') && sql.sql.includes('SUM(i.quantity)'))).toBe(true);
+    const ranking = sqls.find(sql => sql.sql.includes('DENSE_RANK() OVER'));
+    expect(ranking).toBeDefined();
+    expect(ranking!.sql).toContain('PARTITION BY gender ORDER BY quantity DESC');
+    expect(ranking!.sql).toContain('popularityRank=1');
+    expect(ranking!.sql).toContain("i.itemType='SERVICE'");
+    expect(ranking!.sql).toContain("b.status = 'COMPLETED'");
+    expect(ranking!.values).toEqual(expect.arrayContaining(['f', 's']));
+    expect(ranking!.sql).toMatch(/LIMIT 50001$/);
+    const visits = sqls.find(sql => sql.sql.includes('visitRank=1'));
+    expect(visits!.sql).toContain('PARTITION BY gender ORDER BY bills DESC');
+    expect(visits!.sql).toContain('u.phone');
+    expect(visits!.sql).toContain("b.status = 'COMPLETED'");
+    expect(visits!.values).toEqual(expect.arrayContaining(['f', 's']));
+  });
+
   it('identifies the selected franchise currency', async () => {
     prisma.franchise.findUnique.mockResolvedValue({
       name: 'US Franchise',

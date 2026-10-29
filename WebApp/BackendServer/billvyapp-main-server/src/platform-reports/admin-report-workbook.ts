@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { REPORT_GENDERS, reportGender, genderLabel, mostFrequentGenderService, addMostVisitedCustomers } from './report-gender';
 import JSZip from 'jszip';
 import { secureWorkbookText } from './workbook-security';
 import type { AdminReportSnapshot } from './admin-report-data';
@@ -314,6 +315,7 @@ export async function buildAdminWorkbook(
       'Bill Status',
       'Payment Status',
       'Payment Method',
+      'Customer Gender',
     ],
     s.bills.map((b) => [
       b.billNumber,
@@ -328,6 +330,7 @@ export async function buildAdminWorkbook(
       b.status,
       b.paymentStatus,
       b.paymentMethods,
+      genderLabel(b.customerGender),
     ]),
     {
       2: dateFormat,
@@ -352,13 +355,14 @@ export async function buildAdminWorkbook(
   );
   table(
     'Customer Summary',
-    ['Customer', 'Bills', 'Revenue', 'Average Bill Value', 'Last Visit'],
+    ['Customer', 'Bills', 'Revenue', 'Average Bill Value', 'Last Visit', 'Customer Gender'],
     s.customers.map((c) => [
       c.name,
       c.bills,
       c.revenue,
       c.averageBillValue,
       new Date(`${c.lastVisit}T00:00:00Z`),
+      genderLabel(c.gender),
     ]),
     { 3: currency, 4: currency, 5: dateFormat },
   );
@@ -370,12 +374,31 @@ export async function buildAdminWorkbook(
   );
   table(
     'Services',
-    ['Service', 'Quantity', 'Revenue'],
+    ['Service', 'Quantity', 'Revenue', 'Customer Gender'],
     [...s.services]
       .sort((a, b) => b.revenue - a.revenue)
-      .map((p) => [p.name, p.quantity, p.revenue]),
+      .map((p) => [p.name, p.quantity, p.revenue, s.genderBasis === 'CUSTOMER' ? genderLabel(p.gender) : 'Regenerate report']),
     { 3: currency },
   );
+  const completed = s.bills.filter(bill => bill.status === 'COMPLETED');
+  const genderRows = REPORT_GENDERS.map(gender => {
+      const bills = completed.filter(bill => reportGender(bill.customerGender) === gender);
+      const top = s.genderBasis === 'CUSTOMER' ? mostFrequentGenderService(s.services, gender) : { name: 'Regenerate report for customer ranking', quantity: null };
+      return [genderLabel(gender),
+        bills.length, new Set(bills.map(bill => bill.customerId)).size,
+        bills.reduce((sum, bill) => sum + Math.round(bill.collected * 100), 0) / 100,
+        bills.reduce((sum, bill) => sum + Math.round(bill.total * 100), 0) / 100,
+        top.name, top.quantity];
+    });
+  table('Gender Breakdown', ['Gender', 'Completed Bills', 'Customers Served', 'Collected Revenue', 'Billed Total', 'Most Frequent Service', 'Units Sold'], genderRows, { 4: currency, 5: currency });
+  const genderSheet = book.getWorksheet('Gender Breakdown')!;
+  genderSheet.getColumn(2).width = 36;
+  genderSheet.getColumn(6).width = 48;
+  genderSheet.mergeCells('A3:G3');
+  genderSheet.getCell('A3').value = 'Grouped by customer profile gender. Completed bills only; each completed bill counts as one visit. Most frequent service is ranked by units sold. All tied services and most-visited customers are shown. Unspecified means no saved customer gender.';
+  genderSheet.getCell('A3').alignment = { wrapText: true, vertical: 'middle' };
+  genderSheet.getRow(3).height = 42;
+  addMostVisitedCustomers(genderSheet, 13, s.customers, 'GenderMostVisitedCustomers');
   secureWorkbookText(book);
   return addCharts(
     Buffer.from(await book.xlsx.writeBuffer()),

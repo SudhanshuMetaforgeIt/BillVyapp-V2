@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { REPORT_GENDERS, genderLabel, reportGender, mostFrequentGenderService, addMostVisitedCustomers } from './report-gender';
 import JSZip from 'jszip';
 import { secureWorkbookText } from './workbook-security';
 import type { PlatformReportRecord } from './platform-reports.service';
@@ -82,6 +83,7 @@ function table(
       '04_Salon_Service': 'SalonServices',
       '05_Payments': 'Payments',
       '06_Customers_Memberships': 'MembershipPlans',
+      '08_Gender Breakdown': 'GenderBreakdown',
     } as Record<string, string>
   )[ws.name.replace(/^(INR|USD)_/, '')];
   if (tableName && (row === 4 || row === 25))
@@ -393,7 +395,7 @@ export async function buildPlatformWorkbook(
   const services = create(
     '04_Salon_Service',
     'SALON → SERVICE REVENUE DETAIL',
-    [32, 19, 30, 15, 14, 12, 15, 22],
+    [32, 19, 30, 15, 14, 12, 15, 22, 18],
   );
   table(
     services,
@@ -407,6 +409,7 @@ export async function buildPlatformWorkbook(
       'Revenue',
       'Average Price',
       'Revenue Share',
+      'Customer Gender',
     ],
     [...(a?.details?.services ?? [])]
       .sort(
@@ -423,6 +426,7 @@ export async function buildPlatformWorkbook(
         num(s.revenue),
         num(s.averagePrice),
         share(s.revenue, total),
+        a?.genders?.basis === 'CUSTOMER' ? genderLabel(s.gender) : 'Regenerate report',
       ]),
     { 6: currency, 7: currency, 8: percent },
   );
@@ -585,6 +589,28 @@ export async function buildPlatformWorkbook(
   for (const row of [6, 7]) info.getCell(row, 2).numFmt = dateFormat;
   info.getCell('B9').numFmt = 'dd-mmm-yyyy hh:mm "UTC"';
   if (!m?.totalPayments && !salons.length) summary.getCell('A3').value = empty;
+  const genders = create('08_Gender Breakdown', 'CUSTOMER GENDER BREAKDOWN', [23, 36, 24, 22, 22, 48, 15]);
+  genders.mergeCells('A2:G2');
+  genders.getCell('A2').value = 'Customer profile gender; completed bills by bill date. One completed bill counts as one visit. Most frequent service is ranked by units sold. All ties are shown.';
+  genders.getCell('A2').alignment = { wrapText: true, vertical: 'middle' };
+  genders.getRow(2).height = 32;
+  const genderRows: Value[][] = [];
+  const source = a?.genders?.customers;
+  if (source) {
+    for (const gender of REPORT_GENDERS) {
+      const records = source.filter(row => reportGender(row.gender) === gender);
+      const top = a?.genders?.basis === 'CUSTOMER' && a.genders.topServices ? mostFrequentGenderService(a.genders.topServices, gender) : null;
+      genderRows.push([genderLabel(gender),
+        records.reduce((sum, row) => sum + Number(row.bills ?? 0), 0),
+        records.reduce((sum, row) => sum + Number(row.customers ?? 0), 0),
+        records.reduce((sum, row) => sum + Math.round(Number(row.collected ?? 0) * 100), 0) / 100,
+        records.reduce((sum, row) => sum + Math.round(Number(row.billedTotal ?? 0) * 100), 0) / 100,
+        top?.name ?? 'Regenerate report for customer service ranking', top?.quantity ?? null]);
+    }
+  }
+  table(genders, 4, ['Gender', 'Completed Bills', 'Customers Served', 'Collected Revenue', 'Billed Total', 'Most Frequent Service', 'Units Sold'], genderRows, { 4: currency, 5: currency });
+  addMostVisitedCustomers(genders, 12, a?.genders?.mostVisited, `${prefix}GenderMostVisitedCustomers`);
+  if (!a?.genders) genders.getCell('A5').value = 'Gender classification is unavailable in this saved report. Generate a new report to include it.';
   if (!finalize) return Buffer.alloc(0);
   return writePlatformBook(book);
 }

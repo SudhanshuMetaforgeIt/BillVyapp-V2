@@ -65,6 +65,7 @@ function fixture(bills = [bill]): AdminReportSnapshot {
   const a = aggregateAdminBills(bills, branches, 'day');
   return {
     kind: 'FRANCHISE_OVERVIEW',
+    genderBasis: 'CUSTOMER',
     status: 'Ready',
     dateFrom: '2026-10-01',
     dateTo: '2026-10-04',
@@ -114,6 +115,78 @@ function fixture(bills = [bill]): AdminReportSnapshot {
 }
 
 describe('Franchise Admin XLSX reports', () => {
+  it('shows most-visited male and female customers with mobile numbers on the same page', async () => {
+    const male = { ...bill, customerId: 'male', customer: 'Rohit Sharma', customerGender: 'MALE', customerPhone: '+919876543210' };
+    const female = { ...bill, customerId: 'female', customer: 'Riya Sharma', customerGender: 'FEMALE', customerPhone: '+919876543211' };
+    const s = fixture([male, { ...male, id: 'male-2' }, female, { ...female, id: 'draft', status: 'DRAFT' }]);
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await buildAdminWorkbook(s) as unknown as ExcelJS.Buffer);
+    const ws = book.getWorksheet('Gender Breakdown')!;
+    expect(ws.getCell('A15').value).toBe('Male');
+    expect(ws.getCell('B15').value).toBe('Rohit Sharma');
+    expect(ws.getCell('C15').value).toBe('+919876543210');
+    expect(ws.getCell('C15').numFmt).toBe('@');
+    expect(ws.getCell('D15').value).toBe(2);
+    expect(ws.getCell('D15').numFmt).toBe('0');
+    expect(ws.getCell('D7').numFmt).toContain('₹');
+    expect(ws.getCell('A16').value).toBe('Female');
+    expect(ws.getCell('B16').value).toBe('Riya Sharma');
+    expect(ws.getCell('C16').value).toBe('+919876543211');
+    expect(ws.getCell('D16').value).toBe(1);
+    expect(ws.getCell('D16').numFmt).toBe('0');
+    expect(ws.getCell('A5').value).toBe('Gender');
+    expect(ws.getCell('A11').value).toBeNull();
+  });
+
+  it('does not reuse old service-gender rankings as customer-gender rankings', async () => {
+    const s = fixture();
+    delete s.genderBasis;
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await buildAdminWorkbook(s) as unknown as ExcelJS.Buffer);
+    expect(book.getWorksheet('Gender Breakdown')!.getCell('F6').value).toContain('Regenerate report');
+  });
+  it('shows the most frequent service and typed unit counts for each service gender', async () => {
+    const s = fixture();
+    s.services = [
+      { id: 'trim', name: 'Beard Trim', gender: 'MALE', quantity: 10, revenue: 100 },
+      { id: 'colour', name: 'Hair Colour', gender: 'MALE', quantity: 2, revenue: 5000 },
+      { id: 'facial', name: 'Facial', gender: 'FEMALE', quantity: 7, revenue: 1000 },
+    ];
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await buildAdminWorkbook(s) as unknown as ExcelJS.Buffer);
+    const ws = book.getWorksheet('Gender Breakdown')!;
+    expect(ws.getCell('F6').value).toBe('Beard Trim');
+    expect(ws.getCell('G6').value).toBe(10);
+    expect(ws.getCell('F7').value).toBe('Facial');
+    expect(ws.getCell('G7').value).toBe(7);
+    expect(ws.getCell('F8').value).toBe('No service sales');
+  });
+  it('exports distinct bill, customer and service genders with reconciled gender totals', async () => {
+    const s = fixture([
+      { ...bill, serviceGender: 'MALE', customerGender: 'FEMALE' },
+      { ...bill, id: 'other', serviceGender: 'OTHER', customerGender: 'UNISEX', collected: 200, total: 220 },
+      { ...bill, id: 'legacy', collected: 50, total: 55 },
+      { ...bill, id: 'draft', status: 'DRAFT', collected: 9999 },
+    ]);
+    s.services[0].gender = 'MALE';
+    s.services[1].gender = 'FEMALE';
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await buildAdminWorkbook(s) as unknown as ExcelJS.Buffer);
+    const transactions = book.getWorksheet('Bills - Transactions')!;
+    expect(transactions.getCell('M6').value).toBe('Female');
+    expect(transactions.getCell('N6').value).toBeNull();
+    expect(book.getWorksheet('Customer Summary')!.getCell('F6').value).toBe('Female');
+    expect(book.getWorksheet('Services')!.getCell('D6').value).toBe('Male');
+    expect(book.getWorksheet('Services')!.getCell('D7').value).toBe('Female');
+    const ws = book.getWorksheet('Gender Breakdown')!;
+    expect(ws.getCell('A6').value).toBe('Male');
+    expect(ws.getCell('B6').value).toBe(0);
+    expect(ws.getCell('D7').value).toBe(1000);
+    expect(ws.getCell('A10').value).toBe('Unspecified');
+    expect(ws.getCell('D10').value).toBe(50);
+    const sum = (start: number) => Array.from({ length: 5 }, (_, i) => Number(ws.getCell(start + i, 4).value)).reduce((a, b) => a + b, 0);
+    expect(sum(6)).toBe(1250);
+  });
   it('exports USD amounts and US calendar date formats', async () => {
     const s = { ...fixture(), currency: 'USD', dateFormat: 'MM/DD/YYYY' };
     const book = new ExcelJS.Workbook();
@@ -143,6 +216,7 @@ describe('Franchise Admin XLSX reports', () => {
       'Customer Summary',
       'Payment Methods',
       'Services',
+      'Gender Breakdown',
     ]);
     expect(book.getWorksheet('Executive Summary')!.getCell('B13').value).toBe(
       s.stats.totalRevenue,
@@ -359,6 +433,19 @@ describe('Franchise report authorization and snapshots', () => {
       firstName: 'Franchise',
       lastName: 'Admin',
     });
+  });
+  it('keeps the same service in separate gender groups using historical bill classifications', async () => {
+    tx.bill.findMany.mockResolvedValue(['MALE', 'FEMALE'].map((gender, index) => ({
+      ...bill, id: `bill-${index}`, serviceGender: gender,
+      salonId: branches[0].id, billDate: new Date('2026-10-01'), paidAmount: 1000,
+      salon: { name: branches[0].name }, customer: { gender: 'OTHER', user: { firstName: 'Customer', lastName: 'One' } },
+      items: [{ id: `item-${index}`, serviceId: 'same-service', itemType: 'SERVICE', description: 'Haircut', quantity: 1, total: 100 }], payments: [],
+    })));
+    const snapshot = await service.snapshot(actor, query);
+    expect(snapshot.bills.map(row => row.serviceGender)).toEqual(['MALE', 'FEMALE']);
+    expect(snapshot.bills.map(row => row.customerGender)).toEqual(['OTHER', 'OTHER']);
+    expect(snapshot.genderBasis).toBe('CUSTOMER');
+    expect(snapshot.services).toEqual([expect.objectContaining({ gender: 'OTHER', quantity: 2, revenue: 200 })]);
   });
   it.each([
     RoleCode.SUPER_ADMIN,

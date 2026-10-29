@@ -31,6 +31,7 @@ export type ReportSummary = {
   averageTransactionValue: number | null;
 };
 export type ReportAnalytics = {
+  genders?: { basis?: 'CUSTOMER'; services?: Row[]; customers: Row[]; topServices?: Row[]; mostVisited?: Row[] };
   currencyGroups?: ReportAnalytics[];
   scope: {
     dateFrom: string;
@@ -406,7 +407,7 @@ export class ReportAnalyticsService {
               SELECT s.id AS salonId,COUNT(*) AS memberships FROM memberships m JOIN membership_plans mp ON mp.id=m.membershipPlanId JOIN salons s ON s.id=mp.salonId
               WHERE m.createdAt >= ${range.gte!} AND m.createdAt < ${range.lt!} ${scope} GROUP BY s.id
             ), service_stats AS (
-              SELECT s.id AS salonId,SUM(i.quantity) AS servicesSold FROM bill_items i JOIN bills b ON b.id=i.billId JOIN salons s ON s.id=b.salonId
+              SELECT s.id AS salonId,SUM(i.quantity) AS servicesSold FROM bill_items i JOIN bills b ON b.id=i.billId JOIN salons s ON s.id=b.salonId JOIN customers c ON c.id=b.customerId
               WHERE ${billWhere} AND i.itemType='SERVICE' GROUP BY s.id
             ) SELECT s.id,s.name,f.id AS franchiseId,f.name AS franchise,COALESCE(ps.transactions,0) AS transactions,COALESCE(ps.revenue,0) AS revenue,ps.averageTransaction,
               COALESCE(bs.customers,0) AS customers,bs.averageBill,COALESCE(ms.memberships,0) AS memberships,COALESCE(ss.servicesSold,0) AS servicesSold
@@ -463,7 +464,7 @@ export class ReportAnalyticsService {
           FROM membership_plans mp JOIN salons s ON s.id=mp.salonId JOIN franchises f ON f.id=s.franchiseId LEFT JOIN member_stats ms ON ms.membershipPlanId=mp.id LEFT JOIN fee_stats fs ON fs.planId=mp.id LEFT JOIN redemption_stats rs ON rs.membershipPlanId=mp.id
           WHERE (ms.membershipPlanId IS NOT NULL OR fs.planId IS NOT NULL OR rs.membershipPlanId IS NOT NULL) ${scope} ORDER BY members DESC,mp.id ${rankingLimit}`),
               sqlRows(
-                Prisma.sql`SELECT COALESCE(sv.id,i.id) AS id,COALESCE(sv.name,i.description) AS name,s.id AS salonId,s.name AS salon,f.id AS franchiseId,f.name AS franchise,COUNT(DISTINCT b.id) AS transactions,SUM(i.quantity) AS quantity,SUM(i.total) AS revenue,SUM(i.total)/NULLIF(SUM(i.quantity),0) AS averagePrice FROM bill_items i JOIN bills b ON b.id=i.billId JOIN salons s ON s.id=b.salonId LEFT JOIN services sv ON sv.id=i.serviceId JOIN franchises f ON f.id=s.franchiseId WHERE ${billWhere} AND i.itemType='SERVICE' GROUP BY COALESCE(sv.id,i.id),COALESCE(sv.name,i.description),s.id,s.name,f.id,f.name ORDER BY ${{ revenue: Prisma.sql`revenue`, quantity: Prisma.sql`quantity`, transactions: Prisma.sql`transactions` }[q.serviceSort ?? 'revenue']} DESC,id ${rankingLimit}`,
+                Prisma.sql`SELECT COALESCE(sv.id,i.id) AS id,COALESCE(sv.name,i.description) AS name,c.gender AS gender,s.id AS salonId,s.name AS salon,f.id AS franchiseId,f.name AS franchise,COUNT(DISTINCT b.id) AS transactions,SUM(i.quantity) AS quantity,SUM(i.total) AS revenue,SUM(i.total)/NULLIF(SUM(i.quantity),0) AS averagePrice FROM bill_items i JOIN bills b ON b.id=i.billId JOIN salons s ON s.id=b.salonId JOIN customers c ON c.id=b.customerId LEFT JOIN services sv ON sv.id=i.serviceId JOIN franchises f ON f.id=s.franchiseId WHERE ${billWhere} AND i.itemType='SERVICE' GROUP BY COALESCE(sv.id,i.id),COALESCE(sv.name,i.description),c.gender,s.id,s.name,f.id,f.name ORDER BY ${{ revenue: Prisma.sql`revenue`, quantity: Prisma.sql`quantity`, transactions: Prisma.sql`transactions` }[q.serviceSort ?? 'revenue']} DESC,id ${rankingLimit}`,
               ),
               sqlRows(
                 Prisma.sql`SELECT SUM(b.membershipFee) AS membershipRevenue FROM bills b JOIN salons s ON s.id=b.salonId WHERE ${billWhere}`,
@@ -477,6 +478,29 @@ export class ReportAnalyticsService {
             plans,
             services,
           };
+        }
+        if (wanted('details') || wanted('insights')) {
+          const [customers, topServices, mostVisited] = await Promise.all([
+            sqlRows(Prisma.sql`SELECT c.gender AS gender, COUNT(*) AS bills, COUNT(DISTINCT b.customerId) AS customers, SUM(b.paidAmount) AS collected, SUM(b.total) AS billedTotal FROM bills b JOIN salons s ON s.id=b.salonId JOIN customers c ON c.id=b.customerId WHERE ${billWhere} GROUP BY c.gender`),
+            sqlRows(Prisma.sql`WITH service_sales AS (
+              SELECT c.gender AS gender, COALESCE(i.serviceId,i.id) AS id,
+                COALESCE(sv.name,i.description,'Unnamed service') AS name, SUM(i.quantity) AS quantity
+              FROM bill_items i JOIN bills b ON b.id=i.billId JOIN salons s ON s.id=b.salonId JOIN customers c ON c.id=b.customerId
+              LEFT JOIN services sv ON sv.id=i.serviceId
+              WHERE ${billWhere} AND i.itemType='SERVICE'
+              GROUP BY c.gender, COALESCE(i.serviceId,i.id), COALESCE(sv.name,i.description,'Unnamed service')
+            ), ranked AS (
+              SELECT service_sales.*, DENSE_RANK() OVER (PARTITION BY gender ORDER BY quantity DESC) AS popularityRank FROM service_sales
+            ) SELECT gender,id,name,quantity FROM ranked WHERE popularityRank=1 ORDER BY gender,name,id`),
+            sqlRows(Prisma.sql`WITH customer_visits AS (
+              SELECT c.id, c.gender, CONCAT_WS(' ',u.firstName,u.lastName) AS name, u.phone, COUNT(*) AS bills
+              FROM bills b JOIN salons s ON s.id=b.salonId JOIN customers c ON c.id=b.customerId JOIN users u ON u.id=c.userId
+              WHERE ${billWhere} GROUP BY c.id,c.gender,u.firstName,u.lastName,u.phone
+            ), ranked AS (
+              SELECT customer_visits.*, DENSE_RANK() OVER (PARTITION BY gender ORDER BY bills DESC) AS visitRank FROM customer_visits
+            ) SELECT id,gender,name,phone,bills FROM ranked WHERE visitRank=1 ORDER BY gender,name,id`),
+          ]);
+          result.genders = { basis: 'CUSTOMER', customers, topServices, mostVisited };
         }
         return result;
       },

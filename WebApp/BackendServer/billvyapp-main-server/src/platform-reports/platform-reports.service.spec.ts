@@ -350,7 +350,7 @@ describe('PlatformReportsService', () => {
     expect(file.fileName).toMatch(/\.xlsx$/);
     const book = new ExcelJS.Workbook();
     await book.xlsx.load(file.body as unknown as ExcelJS.Buffer);
-    expect(book.worksheets).toHaveLength(7);
+    expect(book.worksheets).toHaveLength(8);
     expect(book.worksheets[0].getCell('B5').value).toBe(1500);
     expect(analytics.query).not.toHaveBeenCalled();
   });
