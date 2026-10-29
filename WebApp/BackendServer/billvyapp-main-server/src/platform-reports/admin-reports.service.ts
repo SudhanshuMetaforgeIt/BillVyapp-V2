@@ -1,4 +1,5 @@
 import { boundedWorkbook } from './bounded-workbook';
+import { reportGender } from './report-gender';
 import {
   SAFE_JOB_OPTIONS,
   validateJobQuery,
@@ -147,7 +148,8 @@ export class AdminReportsService {
               salon: { select: { name: true } },
               customer: {
                 select: {
-                  user: { select: { firstName: true, lastName: true } },
+                  gender: true,
+                  user: { select: { firstName: true, lastName: true, phone: true } },
                 },
               },
               items: true,
@@ -158,6 +160,9 @@ export class AdminReportsService {
             const date = formatBillDateApi(b.billDate, timeZone);
             if (date < dateFrom || date > dateTo) continue;
             bills.push({
+              serviceGender: reportGender(b.serviceGender),
+              customerGender: reportGender(b.customer.gender),
+              customerPhone: b.customer.user.phone ?? '',
               id: b.id,
               billNumber: b.billNumber,
               date,
@@ -184,9 +189,11 @@ export class AdminReportsService {
             if (b.status !== 'COMPLETED') continue;
             for (const it of b.items) {
               if (it.itemType !== 'SERVICE') continue;
-              const id = it.serviceId ?? `item:${it.id}`;
+              const gender = reportGender(b.customer.gender);
+              const id = `${it.serviceId ?? `item:${it.id}`}:${gender}`;
               const entry = serviceMap.get(id) ?? {
                 id,
+                gender,
                 name: it.description?.trim() || 'Unnamed service',
                 revenue: 0,
                 quantity: 0,
@@ -238,6 +245,7 @@ export class AdminReportsService {
         );
         return {
           kind: 'FRANCHISE_OVERVIEW',
+          genderBasis: 'CUSTOMER',
           currency: franchiseRegion(franchise?.preferences).currency,
           dateFormat: franchiseRegion(franchise?.preferences).dateFormat,
           status: 'Ready',

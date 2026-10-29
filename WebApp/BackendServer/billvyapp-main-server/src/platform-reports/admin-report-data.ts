@@ -1,4 +1,7 @@
 export type ReportBill = {
+  serviceGender?: string;
+  customerGender?: string;
+  customerPhone?: string;
   id: string;
   billNumber: string;
   date: string;
@@ -16,12 +19,14 @@ export type ReportBill = {
   paymentMethods: string;
 };
 export type ReportService = {
+  gender?: string;
   id: string;
   name: string;
   revenue: number;
   quantity: number;
 };
 export type AdminReportSnapshot = {
+  genderBasis?: 'CUSTOMER';
   kind: 'FRANCHISE_OVERVIEW';
   status: 'Generating' | 'Ready' | 'Failed';
   dateFrom: string;
@@ -59,6 +64,8 @@ export type AdminReportSnapshot = {
     positive: boolean;
   }[];
   customers: {
+    gender?: string;
+    phone?: string;
     id: string;
     name: string;
     bills: number;
@@ -142,6 +149,8 @@ export function aggregateAdminBills(
       return {
         id,
         name: rows[0].customer,
+        gender: rows[0].customerGender,
+        phone: rows[0].customerPhone,
         ...metrics(rows),
         lastVisit: rows
           .map((b) => b.date)

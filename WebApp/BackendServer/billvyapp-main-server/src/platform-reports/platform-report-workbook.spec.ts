@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { buildPlatformWorkbook } from './platform-report-workbook';
 import type { PlatformReportRecord } from './platform-reports.service';
+import type { ReportAnalytics } from './report-analytics.service';
 
 function record() {
   return {
@@ -29,6 +30,43 @@ function record() {
   } as unknown as PlatformReportRecord;
 }
 describe('Reference business workbook', () => {
+  it('exports service gender and separate, typed gender totals including legacy missing data', async () => {
+    const r = record();
+    const a = r.snapshot.analytics as ReportAnalytics;
+    a.details!.services = [{ name: 'Haircut', salon: 'Branch', gender: 'FEMALE', revenue: 125.5, quantity: 1 }];
+    a.genders = {
+      basis: 'CUSTOMER',
+      mostVisited: [
+        { id: 'male', name: 'Rohit Sharma', phone: '+919876543210', gender: 'MALE', bills: 8 },
+        { id: 'female', name: 'Riya Sharma', phone: '+919876543211', gender: 'FEMALE', bills: 7 },
+      ],
+      topServices: [{ gender: 'MALE', name: 'Beard Trim', quantity: 10 }, { gender: 'FEMALE', name: 'Facial', quantity: 7 }],
+      services: [{ gender: 'MALE', bills: 2, customers: 1, collected: 125.5, billedTotal: 150 }, { gender: null, bills: 1, customers: 1, collected: 10, billedTotal: 10 }],
+      customers: [{ gender: 'FEMALE', bills: 3, customers: 2, collected: 135.5, billedTotal: 160 }],
+    };
+    const book = new ExcelJS.Workbook();
+    await book.xlsx.load(await buildPlatformWorkbook(r) as unknown as ExcelJS.Buffer);
+    expect(book.getWorksheet('04_Salon_Service')!.getCell('I5').value).toBe('Female');
+    const ws = book.getWorksheet('08_Gender Breakdown')!;
+    expect(ws.getCell('A5').value).toBe('Male');
+    expect(ws.getCell('B5').value).toBe(0);
+    expect(ws.getCell('D6').value).toBe(135.5);
+    expect(ws.getCell('D6').numFmt).toContain('₹');
+    expect(ws.getCell('A9').value).toBe('Unspecified');
+    expect(ws.getCell('B6').value).toBe(3);
+    expect(ws.getCell('F5').value).toBe('Beard Trim');
+    expect(ws.getCell('G5').value).toBe(10);
+    expect(ws.getCell('F6').value).toBe('Facial');
+    expect(ws.getCell('G6').value).toBe(7);
+    expect(ws.getCell('B14').value).toBe('Rohit Sharma');
+    expect(ws.getCell('C14').value).toBe('+919876543210');
+    expect(ws.getCell('D14').value).toBe(8);
+    expect(ws.getCell('D14').numFmt).toBe('0');
+    expect(ws.getCell('D15').numFmt).toBe('0');
+    expect(ws.getCell('A15').value).toBe('Female');
+    expect(ws.getCell('B15').value).toBe('Riya Sharma');
+    expect(ws.getCell('C15').numFmt).toBe('@');
+  });
   it('exports separate currency summaries and complete sheet sets with unique tables', async () => {
     const source = record();
     const base = source.snapshot.analytics as Record<string, unknown>;
@@ -60,7 +98,7 @@ describe('Reference business workbook', () => {
     const buffer = await buildPlatformWorkbook(source);
     const book = new ExcelJS.Workbook();
     await book.xlsx.load(buffer as unknown as ExcelJS.Buffer);
-    expect(book.worksheets).toHaveLength(15);
+    expect(book.worksheets).toHaveLength(17);
     expect(book.getWorksheet('Currency Totals')?.getCell('B2').value).toBe(
       1500,
     );
@@ -97,6 +135,7 @@ describe('Reference business workbook', () => {
       '05_Payments',
       '06_Customers_Memberships',
       '07_Report Information',
+      '08_Gender Breakdown',
     ]);
     expect(book.worksheets[0].getCell('A3').value).toBe(
       'No data available for the selected period.',
@@ -155,7 +194,7 @@ describe('Reference business workbook', () => {
     });
     expect(s.getTables()[0].table).toMatchObject({
       name: 'SalonServices',
-      tableRef: 'A4:H79',
+      tableRef: 'A4:I79',
       style: { theme: 'TableStyleMedium2', showRowStripes: true },
     });
   });
