@@ -407,6 +407,7 @@ export function ReportsPageView() {
                       columns={[
                         { key: 'name', label: 'Service' },
                         { key: 'salon', label: 'Salon' },
+                        { key: 'gender', label: 'Customer gender' },
                         { key: 'transactions', label: 'Bills' },
                         { key: 'quantity', label: 'Quantity' },
                         money('revenue', 'Billed line total'),

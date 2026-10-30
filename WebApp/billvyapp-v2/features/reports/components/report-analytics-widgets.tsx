@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/format';
 import { ReportCurrency, useReportMoney } from './report-region';
 import type { AnalyticsRow, ReportAnalytics } from '../types/reports.types';
+import { analyticsRowKey } from '../lib/analytics-row-key';
 
 export function CurrencySections({
   data,
@@ -219,7 +220,7 @@ export function AnalyticsTable({
               <tbody>
                 {data.map((row, i) => (
                   <tr
-                    key={String(row.id ?? i)}
+                    key={analyticsRowKey(row, i)}
                     className="border-t border-border"
                   >
                     {columns.map((c) => (
@@ -237,7 +238,7 @@ export function AnalyticsTable({
           </div>
           <ul className="app-report-cards divide-y divide-border">
             {data.map((row, i) => (
-              <li key={String(row.id ?? i)} className="p-4">
+              <li key={analyticsRowKey(row, i)} className="p-4">
                 <dl className="grid gap-3 sm:grid-cols-2">
                   {columns.map((c) => (
                     <div key={c.key} className="min-w-0">

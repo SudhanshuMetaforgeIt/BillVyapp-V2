@@ -1,4 +1,5 @@
 'use client';
+import { analyticsRowKey } from '../lib/analytics-row-key';
 import { useEffect, useRef, useState } from 'react';
 import { SectionEmptyState } from '@/components/layout/section-states';
 import { useReportMoney } from './report-region';
@@ -144,7 +145,7 @@ export function RevenueBars({
       ) : (
         <ul className="mt-4 space-y-4">
           {data.slice(0, limit).map((r, i) => (
-            <li key={String(r.id ?? i)}>
+            <li key={analyticsRowKey(r, i)}>
               <div className="flex flex-wrap justify-between gap-2 text-sm">
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                   {r[label]}
